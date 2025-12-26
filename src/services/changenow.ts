@@ -47,8 +47,16 @@ class ChangeNowService {
       throw new Error(error.message || 'Failed to call ChangeNow API');
     }
 
-    if (data.error) {
-      throw new Error(data.error);
+    if (data?.error) {
+      // Provide more descriptive error messages
+      const apiError = data.details?.error || data.error;
+      if (apiError === 'pair_is_inactive') {
+        throw new Error('pair_is_inactive');
+      }
+      if (apiError === 'fixed_rate_not_enabled') {
+        throw new Error('fixed_rate_not_enabled');
+      }
+      throw new Error(apiError || data.error);
     }
 
     return data as T;

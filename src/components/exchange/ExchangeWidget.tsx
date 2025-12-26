@@ -23,16 +23,19 @@ export function ExchangeWidget() {
   const [minAmount, setMinAmount] = useState<number>(0);
   const [rateId, setRateId] = useState<string | undefined>();
   const [estimatedTime, setEstimatedTime] = useState<string>("10-30 minutes");
+  const [pairError, setPairError] = useState<string | null>(null);
 
   const calculateRate = useCallback(async () => {
     const amount = parseFloat(fromAmount);
     if (!fromAmount || amount <= 0) {
       setToAmount("");
       setExchangeRate(null);
+      setPairError(null);
       return;
     }
 
     setIsLoading(true);
+    setPairError(null);
 
     try {
       // Get minimum amount
@@ -69,13 +72,27 @@ export function ExchangeWidget() {
         setToAmount("");
         setExchangeRate(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Rate calculation error:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to get exchange rate",
-        variant: "destructive",
-      });
+      
+      // Check for specific API errors
+      const errorMessage = error?.message || "";
+      if (errorMessage.includes("pair_is_inactive") || errorMessage.includes("pair is inactive")) {
+        setPairError(`${fromCurrency.ticker.toUpperCase()} → ${toCurrency.ticker.toUpperCase()} pair is temporarily unavailable. Please select a different pair.`);
+      } else if (errorMessage.includes("fixed_rate_not_enabled")) {
+        // Fall back to standard rate silently
+        if (rateType === "fixed") {
+          setRateType("standard");
+          return; // Will re-trigger with standard rate
+        }
+        setPairError("Fixed rate is not available for this pair. Using standard rate.");
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage || "Failed to get exchange rate",
+          variant: "destructive",
+        });
+      }
       setToAmount("");
       setExchangeRate(null);
     } finally {
@@ -235,12 +252,19 @@ export function ExchangeWidget() {
           <span>Estimated time: {estimatedTime}</span>
         </div>
 
+        {/* Pair Error Message */}
+        {pairError && (
+          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+            {pairError}
+          </div>
+        )}
+
         {/* Exchange Button */}
         <Button
           size="lg"
           className="w-full gradient-primary text-primary-foreground font-semibold"
           onClick={handleExchange}
-          disabled={isLoading || !toAmount}
+          disabled={isLoading || !toAmount || !!pairError}
         >
           Exchange Now
         </Button>
