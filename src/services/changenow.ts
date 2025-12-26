@@ -1,5 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export interface ApiCurrency {
+  ticker: string;
+  name: string;
+  image: string;
+  hasExternalId: boolean;
+  isFiat: boolean;
+  featured: boolean;
+  isStable: boolean;
+  supportsFixedRate: boolean;
+}
+
 export interface ExchangeEstimate {
   estimatedAmount: number;
   transactionSpeedForecast: string;
@@ -60,6 +71,10 @@ class ChangeNowService {
     }
 
     return data as T;
+  }
+
+  async getCurrencies(): Promise<ApiCurrency[]> {
+    return this.callApi<ApiCurrency[]>('currencies');
   }
 
   async getMinAmount(from: string, to: string): Promise<MinAmount> {
