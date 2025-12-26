@@ -1,20 +1,16 @@
 import { Link } from "react-router-dom";
-import { ArrowRightLeft } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-card/50">
+    <footer className="border-t border-border bg-background">
       <div className="container py-12">
         <div className="grid gap-8 md:grid-cols-4">
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl">
-              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                <ArrowRightLeft className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="gradient-text">CryptoSwap</span>
+              <span className="text-foreground">xlama</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Fast, secure, and anonymous cryptocurrency exchange. Swap 900+ coins instantly.
+              Fast, secure, and anonymous cryptocurrency exchange. Swap coins instantly.
             </p>
           </div>
 
@@ -30,7 +26,7 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link></li>
-              <li><a href="mailto:support@cryptoswap.com" className="hover:text-foreground transition-colors">Contact Us</a></li>
+              <li><a href="mailto:support@xlama.exchange" className="hover:text-foreground transition-colors">Contact Us</a></li>
             </ul>
           </div>
 
@@ -45,10 +41,7 @@ export function Footer() {
 
         <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} CryptoSwap. All rights reserved.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Powered by ChangeNow API
+            © {new Date().getFullYear()} xlama. All rights reserved.
           </p>
         </div>
       </div>

@@ -13,7 +13,7 @@ const features = [
   },
   {
     icon: Globe,
-    title: "900+ Cryptocurrencies",
+    title: "Hundreds of Coins",
     description: "Exchange between hundreds of coins and tokens.",
   },
   {
@@ -39,7 +39,7 @@ export function Features() {
       <div className="container">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Why Choose <span className="gradient-text">CryptoSwap</span>
+            Why Choose xlama
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             The simplest way to exchange cryptocurrency without compromising on security or speed.
@@ -50,10 +50,10 @@ export function Features() {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300"
+              className="group p-6 rounded-xl bg-card border border-border hover:border-foreground/20 transition-all duration-300"
             >
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <feature.icon className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-accent transition-colors">
+                <feature.icon className="w-6 h-6 text-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
               <p className="text-sm text-muted-foreground">{feature.description}</p>
