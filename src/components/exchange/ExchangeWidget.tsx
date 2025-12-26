@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowDownUp, Clock, Info, Loader2 } from "lucide-react";
+import { ArrowDownUp, Clock, Info, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +26,7 @@ export function ExchangeWidget() {
   const [rateId, setRateId] = useState<string | undefined>();
   const [estimatedTime, setEstimatedTime] = useState<string>("10-30 minutes");
   const [pairError, setPairError] = useState<string | null>(null);
+  const [pairUnavailable, setPairUnavailable] = useState(false);
 
   // Fetch available currencies on mount
   useEffect(() => {
@@ -76,11 +77,13 @@ export function ExchangeWidget() {
       setToAmount("");
       setExchangeRate(null);
       setPairError(null);
+      setPairUnavailable(false);
       return;
     }
 
     setIsLoading(true);
     setPairError(null);
+    setPairUnavailable(false);
 
     try {
       // Get minimum amount
@@ -123,14 +126,16 @@ export function ExchangeWidget() {
       // Check for specific API errors
       const errorMessage = error?.message || "";
       if (errorMessage.includes("pair_is_inactive") || errorMessage.includes("pair is inactive")) {
-        setPairError(`${fromCurrency.ticker.toUpperCase()} → ${toCurrency.ticker.toUpperCase()} pair is temporarily unavailable. Please select a different pair.`);
+        setPairError(`This pair is temporarily unavailable`);
+        setPairUnavailable(true);
       } else if (errorMessage.includes("fixed_rate_not_enabled")) {
         // Fall back to standard rate silently
         if (rateType === "fixed") {
           setRateType("standard");
           return; // Will re-trigger with standard rate
         }
-        setPairError("Fixed rate is not available for this pair. Using standard rate.");
+        setPairError("Fixed rate is not available for this pair");
+        setPairUnavailable(true);
       } else {
         toast({
           title: "Error",
@@ -186,15 +191,15 @@ export function ExchangeWidget() {
   }
 
   return (
-    <Card className="w-full max-w-lg mx-auto bg-card border border-border rounded-xl">
-      <CardContent className="p-6 space-y-4">
+    <Card className="w-full max-w-lg mx-auto bg-card border border-border rounded-xl overflow-hidden">
+      <CardContent className="p-4 sm:p-6 space-y-4">
         {/* Rate Type Toggle */}
         <div className="flex gap-2 p-1 bg-secondary/50 rounded-lg">
           <Button
             variant={rateType === "standard" ? "default" : "ghost"}
             size="sm"
             onClick={() => setRateType("standard")}
-            className="flex-1"
+            className="flex-1 text-xs sm:text-sm"
           >
             Standard
             <Tooltip>
@@ -210,7 +215,7 @@ export function ExchangeWidget() {
             variant={rateType === "fixed" ? "default" : "ghost"}
             size="sm"
             onClick={() => setRateType("fixed")}
-            className="flex-1"
+            className="flex-1 text-xs sm:text-sm"
           >
             Fixed
             <Tooltip>
@@ -233,7 +238,7 @@ export function ExchangeWidget() {
               value={fromAmount}
               onChange={(e) => setFromAmount(e.target.value)}
               placeholder="0.00"
-              className="border-0 bg-transparent text-2xl font-semibold focus-visible:ring-0 p-0 h-auto"
+              className="border-0 bg-transparent text-xl sm:text-2xl font-semibold focus-visible:ring-0 p-0 h-auto flex-1 min-w-0"
             />
             <CurrencySelector
               value={fromCurrency}
@@ -265,10 +270,15 @@ export function ExchangeWidget() {
         {/* To Input */}
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">You Receive</label>
-          <div className="flex gap-2 items-center p-3 bg-secondary/30 rounded-xl border border-border">
-            <div className="flex-1 text-2xl font-semibold font-mono">
+          <div className={`flex gap-2 items-center p-3 bg-secondary/30 rounded-xl border ${pairUnavailable ? 'border-warning/50' : 'border-border'}`}>
+            <div className="flex-1 text-xl sm:text-2xl font-semibold font-mono min-w-0 truncate">
               {isLoading ? (
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              ) : pairUnavailable ? (
+                <span className="text-warning text-base flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Unavailable</span>
+                </span>
               ) : toAmount ? (
                 parseFloat(toAmount).toFixed(6)
               ) : (
@@ -285,26 +295,29 @@ export function ExchangeWidget() {
           </div>
         </div>
 
+        {/* Pair Unavailable Warning */}
+        {pairUnavailable && (
+          <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+            <span className="text-warning">{pairError || "This trading pair is not available. Please select different currencies."}</span>
+          </div>
+        )}
+
         {/* Exchange Rate Display */}
-        {exchangeRate && !isLoading && (
+        {exchangeRate && !isLoading && !pairUnavailable && (
           <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
             <span>Rate</span>
-            <span className="font-mono">
+            <span className="font-mono text-xs sm:text-sm truncate ml-2">
               1 {fromCurrency.ticker.toUpperCase()} ≈ {exchangeRate.toFixed(6)} {toCurrency.ticker.toUpperCase()}
             </span>
           </div>
         )}
 
         {/* Estimated Time */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
-          <Clock className="w-4 h-4" />
-          <span>Estimated time: {estimatedTime}</span>
-        </div>
-
-        {/* Pair Error Message */}
-        {pairError && (
-          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
-            {pairError}
+        {!pairUnavailable && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+            <Clock className="w-4 h-4 shrink-0" />
+            <span>Estimated time: {estimatedTime}</span>
           </div>
         )}
 
@@ -313,9 +326,9 @@ export function ExchangeWidget() {
           size="lg"
           className="w-full gradient-primary text-primary-foreground font-semibold"
           onClick={handleExchange}
-          disabled={isLoading || !toAmount || !!pairError}
+          disabled={isLoading || !toAmount || pairUnavailable}
         >
-          Exchange Now
+          {pairUnavailable ? "Pair Unavailable" : "Exchange Now"}
         </Button>
 
         {/* No Registration Notice */}

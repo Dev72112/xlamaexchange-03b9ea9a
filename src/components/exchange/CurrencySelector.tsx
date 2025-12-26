@@ -1,11 +1,10 @@
 import { useState, useMemo, useCallback } from "react";
-import { Check, ChevronDown, Loader2, Search } from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/popover";
 import { Currency } from "@/data/currencies";
 import { cn } from "@/lib/utils";
+import { useFavorites } from "@/hooks/useFavorites";
 
 interface CurrencySelectorProps {
   value: Currency;
@@ -34,9 +34,10 @@ export function CurrencySelector({
 }: CurrencySelectorProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
 
   // Filter and group currencies with memoization
-  const { filteredCurrencies, featuredCurrencies, stablecoins, otherCurrencies, totalCount } = useMemo(() => {
+  const { filteredCurrencies, favoriteCurrencies, featuredCurrencies, stablecoins, otherCurrencies, totalCount } = useMemo(() => {
     const filtered = currencies.filter(
       (c) => c.ticker.toLowerCase() !== excludeTicker?.toLowerCase()
     );
@@ -54,32 +55,43 @@ export function CurrencySelector({
     // Limit results for performance
     const limitedResults = searchFiltered.slice(0, 100);
 
+    // Get favorites first
+    const favs = limitedResults.filter(c => isFavorite(c.ticker));
+
     const featured = limitedResults.filter(c => 
-      ['btc', 'eth', 'sol', 'xrp', 'ada', 'doge', 'ltc', 'dot', 'avaxc', 'trx', 'bnbmainnet', 'matic'].includes(c.ticker.toLowerCase())
+      ['btc', 'eth', 'sol', 'xrp', 'ada', 'doge', 'ltc', 'dot', 'avaxc', 'trx', 'bnbmainnet', 'matic'].includes(c.ticker.toLowerCase()) &&
+      !isFavorite(c.ticker)
     );
     const stables = limitedResults.filter(c => 
-      c.ticker.toLowerCase().includes('usdt') || 
-      c.ticker.toLowerCase().includes('usdc') ||
-      c.ticker.toLowerCase().includes('dai')
+      (c.ticker.toLowerCase().includes('usdt') || 
+       c.ticker.toLowerCase().includes('usdc') ||
+       c.ticker.toLowerCase().includes('dai')) &&
+      !isFavorite(c.ticker)
     );
     const others = limitedResults.filter(c => 
-      !featured.includes(c) && !stables.includes(c)
+      !favs.includes(c) && !featured.includes(c) && !stables.includes(c)
     );
 
     return {
       filteredCurrencies: limitedResults,
+      favoriteCurrencies: favs,
       featuredCurrencies: featured,
       stablecoins: stables,
       otherCurrencies: others,
       totalCount: total,
     };
-  }, [currencies, excludeTicker, searchQuery]);
+  }, [currencies, excludeTicker, searchQuery, favorites, isFavorite]);
 
   const handleSelect = useCallback((currency: Currency) => {
     onChange(currency);
     setOpen(false);
     setSearchQuery("");
   }, [onChange]);
+
+  const handleToggleFavorite = useCallback((e: React.MouseEvent, ticker: string) => {
+    e.stopPropagation();
+    toggleFavorite(ticker);
+  }, [toggleFavorite]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -88,25 +100,25 @@ export function CurrencySelector({
           variant="ghost"
           role="combobox"
           aria-expanded={open}
-          className="h-auto py-2 px-3 justify-between gap-2 bg-secondary hover:bg-accent rounded-lg min-w-[140px]"
+          className="h-auto py-2 px-3 justify-between gap-2 bg-secondary hover:bg-accent rounded-lg min-w-[120px] max-w-[140px] shrink-0"
           disabled={isLoading}
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <img
                 src={value.image}
                 alt={value.name}
-                className="w-6 h-6 rounded-full"
+                className="w-6 h-6 rounded-full shrink-0"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${value.ticker}&background=random`;
                 }}
               />
-              <div className="text-left">
-                <div className="font-semibold uppercase text-sm">{value.ticker}</div>
+              <div className="text-left min-w-0">
+                <div className="font-semibold uppercase text-sm truncate">{value.ticker}</div>
                 {value.network && (
-                  <div className="text-xs text-muted-foreground">{value.network}</div>
+                  <div className="text-xs text-muted-foreground truncate">{value.network}</div>
                 )}
               </div>
             </div>
@@ -114,7 +126,11 @@ export function CurrencySelector({
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0 bg-popover border-border" align="start">
+      <PopoverContent 
+        className="w-[300px] p-0 bg-popover border-border z-50" 
+        align="end"
+        sideOffset={8}
+      >
         <Command shouldFilter={false}>
           <div className="flex items-center border-b border-border px-3">
             <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -124,10 +140,25 @@ export function CurrencySelector({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex h-11 w-full bg-transparent py-3 px-2 text-sm outline-none placeholder:text-muted-foreground"
             />
-            <span className="text-xs text-muted-foreground shrink-0">{totalCount}</span>
+            <span className="text-xs text-muted-foreground shrink-0 bg-secondary px-1.5 py-0.5 rounded">{totalCount}</span>
           </div>
           <CommandList className="max-h-[300px]">
             <CommandEmpty>No currency found.</CommandEmpty>
+            
+            {!searchQuery && favoriteCurrencies.length > 0 && (
+              <CommandGroup heading="★ Favorites">
+                {favoriteCurrencies.map((currency) => (
+                  <CurrencyItem
+                    key={currency.ticker}
+                    currency={currency}
+                    isSelected={value.ticker === currency.ticker}
+                    isFavorite={true}
+                    onSelect={() => handleSelect(currency)}
+                    onToggleFavorite={(e) => handleToggleFavorite(e, currency.ticker)}
+                  />
+                ))}
+              </CommandGroup>
+            )}
             
             {!searchQuery && featuredCurrencies.length > 0 && (
               <CommandGroup heading="Popular">
@@ -136,7 +167,9 @@ export function CurrencySelector({
                     key={currency.ticker}
                     currency={currency}
                     isSelected={value.ticker === currency.ticker}
+                    isFavorite={false}
                     onSelect={() => handleSelect(currency)}
+                    onToggleFavorite={(e) => handleToggleFavorite(e, currency.ticker)}
                   />
                 ))}
               </CommandGroup>
@@ -149,7 +182,9 @@ export function CurrencySelector({
                     key={currency.ticker}
                     currency={currency}
                     isSelected={value.ticker === currency.ticker}
+                    isFavorite={false}
                     onSelect={() => handleSelect(currency)}
+                    onToggleFavorite={(e) => handleToggleFavorite(e, currency.ticker)}
                   />
                 ))}
               </CommandGroup>
@@ -162,7 +197,9 @@ export function CurrencySelector({
                     key={currency.ticker}
                     currency={currency}
                     isSelected={value.ticker === currency.ticker}
+                    isFavorite={isFavorite(currency.ticker)}
                     onSelect={() => handleSelect(currency)}
+                    onToggleFavorite={(e) => handleToggleFavorite(e, currency.ticker)}
                   />
                 ))}
               </CommandGroup>
@@ -177,32 +214,47 @@ export function CurrencySelector({
 function CurrencyItem({ 
   currency, 
   isSelected, 
-  onSelect 
+  isFavorite,
+  onSelect,
+  onToggleFavorite
 }: { 
   currency: Currency; 
-  isSelected: boolean; 
+  isSelected: boolean;
+  isFavorite: boolean;
   onSelect: () => void;
+  onToggleFavorite: (e: React.MouseEvent) => void;
 }) {
   return (
     <CommandItem
       value={`${currency.ticker} ${currency.name}`}
       onSelect={onSelect}
-      className="flex items-center gap-3 py-2 cursor-pointer"
+      className="flex items-center gap-2 py-2 cursor-pointer"
     >
+      <button
+        onClick={onToggleFavorite}
+        className="p-0.5 hover:bg-secondary rounded shrink-0"
+      >
+        <Star 
+          className={cn(
+            "h-3.5 w-3.5 transition-colors",
+            isFavorite ? "fill-warning text-warning" : "text-muted-foreground hover:text-warning"
+          )} 
+        />
+      </button>
       <img
         src={currency.image}
         alt={currency.name}
-        className="w-6 h-6 rounded-full"
+        className="w-5 h-5 rounded-full shrink-0"
         onError={(e) => {
           (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currency.ticker}&background=random`;
         }}
       />
       <div className="flex-1 min-w-0">
-        <div className="font-medium uppercase">{currency.ticker}</div>
+        <div className="font-medium uppercase text-sm">{currency.ticker}</div>
         <div className="text-xs text-muted-foreground truncate">{currency.name}</div>
       </div>
       {currency.network && (
-        <span className="text-xs bg-secondary px-2 py-0.5 rounded shrink-0">
+        <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded shrink-0">
           {currency.network}
         </span>
       )}

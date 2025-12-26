@@ -410,7 +410,7 @@ export function ExchangeForm({
   };
 
   return (
-    <Card className="w-full max-w-lg mx-auto glass glow">
+    <Card className="w-full max-w-lg mx-auto bg-card border border-border rounded-xl overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
           {step === "address" && (
