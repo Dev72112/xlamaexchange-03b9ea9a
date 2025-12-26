@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft, Copy, Check, Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Copy, Check, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "react-router-dom";
+import { changeNowService, Transaction, TransactionStatus } from "@/services/changenow";
+import QRCode from "react-qr-code";
 
 interface ExchangeFormProps {
   fromCurrency: Currency;
@@ -16,10 +18,11 @@ interface ExchangeFormProps {
   toAmount: string;
   exchangeRate: number | null;
   rateType: "standard" | "fixed";
+  rateId?: string;
   onBack: () => void;
 }
 
-type Step = "address" | "confirm" | "deposit" | "status";
+type Step = "address" | "deposit" | "status";
 
 export function ExchangeForm({
   fromCurrency,
@@ -28,6 +31,7 @@ export function ExchangeForm({
   toAmount,
   exchangeRate,
   rateType,
+  rateId,
   onBack,
 }: ExchangeFormProps) {
   const { toast } = useToast();
@@ -37,10 +41,9 @@ export function ExchangeForm({
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // Mock deposit address (would come from API)
-  const depositAddress = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
-  const transactionId = "a1b2c3d4e5f6";
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [txStatus, setTxStatus] = useState<TransactionStatus | null>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -69,10 +72,97 @@ export function ExchangeForm({
     }
 
     setIsCreating(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsCreating(false);
-    setStep("deposit");
+
+    try {
+      const tx = await changeNowService.createTransaction({
+        from: fromCurrency.ticker,
+        to: toCurrency.ticker,
+        address: recipientAddress,
+        amount: parseFloat(fromAmount),
+        refundAddress: refundAddress || undefined,
+        rateId: rateType === "fixed" ? rateId : undefined,
+        fixed: rateType === "fixed",
+      });
+
+      setTransaction(tx);
+      setStep("deposit");
+
+      toast({
+        title: "Exchange created!",
+        description: `Transaction ID: ${tx.id}`,
+      });
+    } catch (error) {
+      console.error("Create transaction error:", error);
+      toast({
+        title: "Failed to create exchange",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const checkTransactionStatus = async () => {
+    if (!transaction?.id) return;
+
+    setIsCheckingStatus(true);
+    try {
+      const status = await changeNowService.getTransactionStatus(transaction.id);
+      setTxStatus(status);
+    } catch (error) {
+      console.error("Status check error:", error);
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
+  // Poll for status updates when on status step
+  useEffect(() => {
+    if (step === "status" && transaction?.id) {
+      checkTransactionStatus();
+      const interval = setInterval(checkTransactionStatus, 30000); // Check every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [step, transaction?.id]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "finished":
+        return "text-success";
+      case "failed":
+      case "refunded":
+        return "text-destructive";
+      case "waiting":
+      case "confirming":
+        return "text-warning";
+      case "exchanging":
+      case "sending":
+        return "text-primary";
+      default:
+        return "text-muted-foreground";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "waiting":
+        return "Awaiting deposit";
+      case "confirming":
+        return "Confirming deposit";
+      case "exchanging":
+        return "Exchanging";
+      case "sending":
+        return "Sending to your wallet";
+      case "finished":
+        return "Completed";
+      case "failed":
+        return "Failed";
+      case "refunded":
+        return "Refunded";
+      default:
+        return status;
+    }
   };
 
   const renderStep = () => {
@@ -171,30 +261,28 @@ export function ExchangeForm({
               <Label>Deposit Address</Label>
               <div className="flex gap-2">
                 <Input
-                  value={depositAddress}
+                  value={transaction?.payinAddress || ""}
                   readOnly
                   className="font-mono text-sm"
                 />
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => handleCopy(depositAddress)}
+                  onClick={() => handleCopy(transaction?.payinAddress || "")}
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
             </div>
 
-            {/* QR Code Placeholder */}
-            <div className="flex justify-center">
-              <div className="w-48 h-48 bg-secondary rounded-xl flex items-center justify-center border-2 border-dashed border-border">
-                <div className="text-center text-muted-foreground">
-                  <div className="text-4xl mb-2">📱</div>
-                  <p className="text-xs">QR Code</p>
-                  <p className="text-xs">(API integration pending)</p>
+            {/* QR Code */}
+            {transaction?.payinAddress && (
+              <div className="flex justify-center">
+                <div className="bg-white p-4 rounded-xl">
+                  <QRCode value={transaction.payinAddress} size={180} />
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
               <div className="flex gap-2">
@@ -206,6 +294,19 @@ export function ExchangeForm({
                     Sending a different amount may result in delays or loss of funds.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-secondary/50 rounded-lg p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Transaction ID</span>
+                <button
+                  onClick={() => handleCopy(transaction?.id || "")}
+                  className="font-mono text-primary flex items-center gap-1 hover:underline"
+                >
+                  {transaction?.id}
+                  <Copy className="w-3 h-3" />
+                </button>
               </div>
             </div>
 
@@ -223,13 +324,25 @@ export function ExchangeForm({
         return (
           <div className="space-y-6 text-center">
             <div className="w-20 h-20 mx-auto bg-primary/10 rounded-full flex items-center justify-center animate-pulse-glow">
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              {txStatus?.status === "finished" ? (
+                <Check className="w-10 h-10 text-success" />
+              ) : txStatus?.status === "failed" || txStatus?.status === "refunded" ? (
+                <AlertCircle className="w-10 h-10 text-destructive" />
+              ) : (
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              )}
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold">Processing Your Exchange</h3>
+              <h3 className="text-lg font-semibold">
+                {txStatus?.status === "finished" ? "Exchange Complete!" : 
+                 txStatus?.status === "failed" ? "Exchange Failed" :
+                 "Processing Your Exchange"}
+              </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                This usually takes 10-30 minutes
+                {txStatus?.status === "finished" 
+                  ? "Your funds have been sent to your wallet"
+                  : "This usually takes 10-30 minutes"}
               </p>
             </div>
 
@@ -237,10 +350,10 @@ export function ExchangeForm({
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Transaction ID</span>
                 <button
-                  onClick={() => handleCopy(transactionId)}
+                  onClick={() => handleCopy(transaction?.id || "")}
                   className="font-mono text-primary flex items-center gap-1 hover:underline"
                 >
-                  {transactionId}
+                  {transaction?.id?.slice(0, 12)}...
                   <Copy className="w-3 h-3" />
                 </button>
               </div>
@@ -253,14 +366,33 @@ export function ExchangeForm({
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">You Receive</span>
                 <span className="font-medium">
-                  ≈ {parseFloat(toAmount).toFixed(6)} {toCurrency.ticker.toUpperCase()}
+                  ≈ {txStatus?.amountReceive || parseFloat(toAmount).toFixed(6)} {toCurrency.ticker.toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
-                <span className="text-warning font-medium">Awaiting deposit</span>
+                <span className={`font-medium ${getStatusColor(txStatus?.status || "waiting")}`}>
+                  {getStatusLabel(txStatus?.status || "waiting")}
+                </span>
               </div>
+              {txStatus?.payoutHash && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Payout TX</span>
+                  <span className="font-mono text-xs">{txStatus.payoutHash.slice(0, 16)}...</span>
+                </div>
+              )}
             </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={checkTransactionStatus}
+              disabled={isCheckingStatus}
+              className="mx-auto"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isCheckingStatus ? "animate-spin" : ""}`} />
+              Refresh Status
+            </Button>
 
             <p className="text-xs text-muted-foreground">
               Save your transaction ID. You can use it to track your exchange status.

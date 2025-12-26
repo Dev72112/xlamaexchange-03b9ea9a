@@ -1,1 +1,4 @@
 project_id = "mnziekrimlmvnrcwgmbk"
+
+[functions.changenow]
+verify_jwt = false

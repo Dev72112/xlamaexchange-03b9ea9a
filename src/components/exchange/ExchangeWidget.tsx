@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ArrowDownUp, Clock, Info, AlertCircle, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ArrowDownUp, Clock, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Currency, popularCurrencies } from "@/data/currencies";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { ExchangeForm } from "./ExchangeForm";
+import { changeNowService } from "@/services/changenow";
 
 export function ExchangeWidget() {
   const { toast } = useToast();
@@ -20,56 +21,72 @@ export function ExchangeWidget() {
   const [rateType, setRateType] = useState<"standard" | "fixed">("standard");
   const [showExchangeForm, setShowExchangeForm] = useState(false);
   const [minAmount, setMinAmount] = useState<number>(0);
+  const [rateId, setRateId] = useState<string | undefined>();
+  const [estimatedTime, setEstimatedTime] = useState<string>("10-30 minutes");
 
-  // Simulate rate calculation (will be replaced with actual API call)
-  useEffect(() => {
-    const calculateRate = async () => {
-      if (!fromAmount || parseFloat(fromAmount) <= 0) {
+  const calculateRate = useCallback(async () => {
+    const amount = parseFloat(fromAmount);
+    if (!fromAmount || amount <= 0) {
+      setToAmount("");
+      setExchangeRate(null);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Get minimum amount
+      const minData = await changeNowService.getMinAmount(
+        fromCurrency.ticker,
+        toCurrency.ticker
+      );
+      setMinAmount(minData.minAmount);
+
+      // Only get estimate if amount is above minimum
+      if (amount >= minData.minAmount) {
+        const estimate = await changeNowService.getExchangeAmount(
+          fromCurrency.ticker,
+          toCurrency.ticker,
+          amount,
+          rateType === "fixed"
+        );
+
+        setToAmount(estimate.estimatedAmount.toString());
+        setExchangeRate(estimate.estimatedAmount / amount);
+        setRateId(estimate.rateId);
+        
+        if (estimate.transactionSpeedForecast) {
+          setEstimatedTime(estimate.transactionSpeedForecast);
+        }
+
+        if (estimate.warningMessage) {
+          toast({
+            title: "Notice",
+            description: estimate.warningMessage,
+          });
+        }
+      } else {
         setToAmount("");
         setExchangeRate(null);
-        return;
       }
-
-      setIsLoading(true);
-      
-      // Simulated exchange rates (these would come from ChangeNow API)
-      const mockRates: Record<string, number> = {
-        "btc-eth": 15.5,
-        "eth-btc": 0.064,
-        "btc-usdt": 43000,
-        "usdt-btc": 0.0000233,
-        "eth-usdt": 2800,
-        "usdt-eth": 0.000357,
-        "btc-sol": 400,
-        "sol-btc": 0.0025,
-        "eth-sol": 26,
-        "sol-eth": 0.038,
-      };
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const pairKey = `${fromCurrency.ticker}-${toCurrency.ticker}`;
-      const reversePairKey = `${toCurrency.ticker}-${fromCurrency.ticker}`;
-      
-      let rate = mockRates[pairKey];
-      if (!rate && mockRates[reversePairKey]) {
-        rate = 1 / mockRates[reversePairKey];
-      }
-      
-      if (!rate) {
-        // Generate a random reasonable rate for demo purposes
-        rate = Math.random() * 10 + 0.5;
-      }
-
-      setExchangeRate(rate);
-      setToAmount((parseFloat(fromAmount) * rate).toFixed(8));
-      setMinAmount(0.001); // Mock minimum
+    } catch (error) {
+      console.error("Rate calculation error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to get exchange rate",
+        variant: "destructive",
+      });
+      setToAmount("");
+      setExchangeRate(null);
+    } finally {
       setIsLoading(false);
-    };
+    }
+  }, [fromAmount, fromCurrency.ticker, toCurrency.ticker, rateType, toast]);
 
-    const debounce = setTimeout(calculateRate, 300);
+  useEffect(() => {
+    const debounce = setTimeout(calculateRate, 500);
     return () => clearTimeout(debounce);
-  }, [fromAmount, fromCurrency, toCurrency, rateType]);
+  }, [calculateRate]);
 
   const handleSwapCurrencies = () => {
     const tempCurrency = fromCurrency;
@@ -79,7 +96,8 @@ export function ExchangeWidget() {
   };
 
   const handleExchange = () => {
-    if (!fromAmount || parseFloat(fromAmount) < minAmount) {
+    const amount = parseFloat(fromAmount);
+    if (!fromAmount || amount < minAmount) {
       toast({
         title: "Invalid amount",
         description: `Minimum amount is ${minAmount} ${fromCurrency.ticker.toUpperCase()}`,
@@ -99,6 +117,7 @@ export function ExchangeWidget() {
         toAmount={toAmount}
         exchangeRate={exchangeRate}
         rateType={rateType}
+        rateId={rateId}
         onBack={() => setShowExchangeForm(false)}
       />
     );
@@ -213,7 +232,7 @@ export function ExchangeWidget() {
         {/* Estimated Time */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
           <Clock className="w-4 h-4" />
-          <span>Estimated time: 10-30 minutes</span>
+          <span>Estimated time: {estimatedTime}</span>
         </div>
 
         {/* Exchange Button */}
