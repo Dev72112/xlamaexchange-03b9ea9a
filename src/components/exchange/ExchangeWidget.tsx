@@ -20,7 +20,7 @@ export function ExchangeWidget() {
   const [toAmount, setToAmount] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [rateType, setRateType] = useState<"standard" | "fixed">("standard");
+  const [rateType] = useState<"standard" | "fixed">("standard"); // Fixed rate not enabled on API
   const [showExchangeForm, setShowExchangeForm] = useState(false);
   const [minAmount, setMinAmount] = useState<number>(0);
   const [rateId, setRateId] = useState<string | undefined>();
@@ -129,13 +129,9 @@ export function ExchangeWidget() {
         setPairError(`This pair is temporarily unavailable`);
         setPairUnavailable(true);
       } else if (errorMessage.includes("fixed_rate_not_enabled")) {
-        // Fall back to standard rate silently
-        if (rateType === "fixed") {
-          setRateType("standard");
-          return; // Will re-trigger with standard rate
-        }
-        setPairError("Fixed rate is not available for this pair");
-        setPairUnavailable(true);
+        // Fixed rate not enabled - this shouldn't happen since we disabled it, but handle gracefully
+        console.log("Fixed rate not enabled on API key");
+        setPairError("Standard rate will be used");
       } else {
         toast({
           title: "Error",
@@ -193,40 +189,20 @@ export function ExchangeWidget() {
   return (
     <Card className="w-full max-w-lg mx-auto bg-card border border-border rounded-xl overflow-hidden">
       <CardContent className="p-4 sm:p-6 space-y-4">
-        {/* Rate Type Toggle */}
-        <div className="flex gap-2 p-1 bg-secondary/50 rounded-lg">
-          <Button
-            variant={rateType === "standard" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setRateType("standard")}
-            className="flex-1 text-xs sm:text-sm"
-          >
-            Standard
+        {/* Rate Type Display */}
+        <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Standard Rate</span>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="w-3 h-3 ml-1 opacity-50" />
+                <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
                 <p>Rate may vary slightly during the exchange</p>
               </TooltipContent>
             </Tooltip>
-          </Button>
-          <Button
-            variant={rateType === "fixed" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setRateType("fixed")}
-            className="flex-1 text-xs sm:text-sm"
-          >
-            Fixed
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="w-3 h-3 ml-1 opacity-50" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Locked rate for 15 minutes</p>
-              </TooltipContent>
-            </Tooltip>
-          </Button>
+          </div>
+          <span className="text-xs text-muted-foreground">Best available rate</span>
         </div>
 
         {/* From Input */}
