@@ -12,6 +12,8 @@ import { changeNowService } from "@/services/changenow";
 
 export function ExchangeWidget() {
   const { toast } = useToast();
+  const [currencies, setCurrencies] = useState<Currency[]>(popularCurrencies);
+  const [currenciesLoading, setCurrenciesLoading] = useState(true);
   const [fromCurrency, setFromCurrency] = useState<Currency>(popularCurrencies[0]); // BTC
   const [toCurrency, setToCurrency] = useState<Currency>(popularCurrencies[1]); // ETH
   const [fromAmount, setFromAmount] = useState<string>("0.1");
@@ -24,6 +26,49 @@ export function ExchangeWidget() {
   const [rateId, setRateId] = useState<string | undefined>();
   const [estimatedTime, setEstimatedTime] = useState<string>("10-30 minutes");
   const [pairError, setPairError] = useState<string | null>(null);
+
+  // Fetch available currencies on mount
+  useEffect(() => {
+    const fetchCurrencies = async () => {
+      try {
+        const apiCurrencies = await changeNowService.getCurrencies();
+        const mappedCurrencies: Currency[] = apiCurrencies
+          .filter(c => !c.isFiat) // Filter out fiat currencies
+          .map(c => ({
+            ticker: c.ticker,
+            name: c.name,
+            image: c.image,
+            network: c.ticker.includes('erc20') ? 'ERC20' : 
+                     c.ticker.includes('trc20') ? 'TRC20' : 
+                     c.ticker.includes('bsc') ? 'BSC' :
+                     c.ticker.includes('sol') && c.ticker !== 'sol' ? 'SOL' :
+                     c.ticker.includes('matic') && c.ticker !== 'matic' ? 'Polygon' :
+                     c.ticker.includes('arb') ? 'Arbitrum' :
+                     c.ticker.includes('op') ? 'Optimism' :
+                     c.ticker.includes('base') ? 'Base' :
+                     undefined,
+          }));
+        
+        setCurrencies(mappedCurrencies);
+        
+        // Set defaults to BTC and ETH if available
+        const btc = mappedCurrencies.find(c => c.ticker === 'btc');
+        const eth = mappedCurrencies.find(c => c.ticker === 'eth');
+        if (btc) setFromCurrency(btc);
+        if (eth) setToCurrency(eth);
+        
+        console.log(`Loaded ${mappedCurrencies.length} currencies from ChangeNow`);
+      } catch (error) {
+        console.error('Failed to fetch currencies:', error);
+        // Fall back to static list
+        setCurrencies(popularCurrencies);
+      } finally {
+        setCurrenciesLoading(false);
+      }
+    };
+
+    fetchCurrencies();
+  }, []);
 
   const calculateRate = useCallback(async () => {
     const amount = parseFloat(fromAmount);
@@ -194,6 +239,8 @@ export function ExchangeWidget() {
               value={fromCurrency}
               onChange={setFromCurrency}
               excludeTicker={toCurrency.ticker}
+              currencies={currencies}
+              isLoading={currenciesLoading}
             />
           </div>
           {minAmount > 0 && (
@@ -232,6 +279,8 @@ export function ExchangeWidget() {
               value={toCurrency}
               onChange={setToCurrency}
               excludeTicker={fromCurrency.ticker}
+              currencies={currencies}
+              isLoading={currenciesLoading}
             />
           </div>
         </div>
