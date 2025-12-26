@@ -186,7 +186,7 @@ export function ExchangeWidget() {
   }
 
   return (
-    <Card className="w-full max-w-lg mx-auto glass glow">
+    <Card className="w-full max-w-lg mx-auto bg-card border border-border rounded-xl">
       <CardContent className="p-6 space-y-4">
         {/* Rate Type Toggle */}
         <div className="flex gap-2 p-1 bg-secondary/50 rounded-lg">

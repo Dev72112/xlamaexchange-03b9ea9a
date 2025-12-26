@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { Check, ChevronDown, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -33,23 +33,53 @@ export function CurrencySelector({
   isLoading 
 }: CurrencySelectorProps) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredCurrencies = currencies.filter(
-    (c) => c.ticker.toLowerCase() !== excludeTicker?.toLowerCase()
-  );
+  // Filter and group currencies with memoization
+  const { filteredCurrencies, featuredCurrencies, stablecoins, otherCurrencies, totalCount } = useMemo(() => {
+    const filtered = currencies.filter(
+      (c) => c.ticker.toLowerCase() !== excludeTicker?.toLowerCase()
+    );
+    
+    const total = filtered.length;
 
-  // Group currencies: featured first, then stablecoins, then others
-  const featuredCurrencies = filteredCurrencies.filter(c => 
-    ['btc', 'eth', 'sol', 'xrp', 'ada', 'doge', 'ltc', 'dot', 'avaxc', 'trx'].includes(c.ticker.toLowerCase())
-  );
-  const stablecoins = filteredCurrencies.filter(c => 
-    c.ticker.toLowerCase().includes('usdt') || 
-    c.ticker.toLowerCase().includes('usdc') ||
-    c.ticker.toLowerCase().includes('dai')
-  );
-  const otherCurrencies = filteredCurrencies.filter(c => 
-    !featuredCurrencies.includes(c) && !stablecoins.includes(c)
-  );
+    // Apply search filter
+    const searchFiltered = searchQuery
+      ? filtered.filter(c => 
+          c.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : filtered;
+
+    // Limit results for performance
+    const limitedResults = searchFiltered.slice(0, 100);
+
+    const featured = limitedResults.filter(c => 
+      ['btc', 'eth', 'sol', 'xrp', 'ada', 'doge', 'ltc', 'dot', 'avaxc', 'trx', 'bnbmainnet', 'matic'].includes(c.ticker.toLowerCase())
+    );
+    const stables = limitedResults.filter(c => 
+      c.ticker.toLowerCase().includes('usdt') || 
+      c.ticker.toLowerCase().includes('usdc') ||
+      c.ticker.toLowerCase().includes('dai')
+    );
+    const others = limitedResults.filter(c => 
+      !featured.includes(c) && !stables.includes(c)
+    );
+
+    return {
+      filteredCurrencies: limitedResults,
+      featuredCurrencies: featured,
+      stablecoins: stables,
+      otherCurrencies: others,
+      totalCount: total,
+    };
+  }, [currencies, excludeTicker, searchQuery]);
+
+  const handleSelect = useCallback((currency: Currency) => {
+    onChange(currency);
+    setOpen(false);
+    setSearchQuery("");
+  }, [onChange]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -58,7 +88,7 @@ export function CurrencySelector({
           variant="ghost"
           role="combobox"
           aria-expanded={open}
-          className="h-auto py-2 px-3 justify-between gap-2 bg-secondary/50 hover:bg-secondary rounded-xl min-w-[140px]"
+          className="h-auto py-2 px-3 justify-between gap-2 bg-secondary hover:bg-accent rounded-lg min-w-[140px]"
           disabled={isLoading}
         >
           {isLoading ? (
@@ -84,55 +114,55 @@ export function CurrencySelector({
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search currency..." />
+      <PopoverContent className="w-[320px] p-0 bg-popover border-border" align="start">
+        <Command shouldFilter={false}>
+          <div className="flex items-center border-b border-border px-3">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+            <input
+              placeholder={`Search ${totalCount} currencies...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex h-11 w-full bg-transparent py-3 px-2 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <span className="text-xs text-muted-foreground shrink-0">{totalCount}</span>
+          </div>
           <CommandList className="max-h-[300px]">
             <CommandEmpty>No currency found.</CommandEmpty>
             
-            {featuredCurrencies.length > 0 && (
+            {!searchQuery && featuredCurrencies.length > 0 && (
               <CommandGroup heading="Popular">
                 {featuredCurrencies.map((currency) => (
                   <CurrencyItem
                     key={currency.ticker}
                     currency={currency}
                     isSelected={value.ticker === currency.ticker}
-                    onSelect={() => {
-                      onChange(currency);
-                      setOpen(false);
-                    }}
+                    onSelect={() => handleSelect(currency)}
                   />
                 ))}
               </CommandGroup>
             )}
             
-            {stablecoins.length > 0 && (
+            {!searchQuery && stablecoins.length > 0 && (
               <CommandGroup heading="Stablecoins">
                 {stablecoins.map((currency) => (
                   <CurrencyItem
                     key={currency.ticker}
                     currency={currency}
                     isSelected={value.ticker === currency.ticker}
-                    onSelect={() => {
-                      onChange(currency);
-                      setOpen(false);
-                    }}
+                    onSelect={() => handleSelect(currency)}
                   />
                 ))}
               </CommandGroup>
             )}
             
-            {otherCurrencies.length > 0 && (
-              <CommandGroup heading="All Currencies">
-                {otherCurrencies.map((currency) => (
+            {(searchQuery ? filteredCurrencies : otherCurrencies).length > 0 && (
+              <CommandGroup heading={searchQuery ? `Results (${filteredCurrencies.length})` : "All Currencies"}>
+                {(searchQuery ? filteredCurrencies : otherCurrencies).map((currency) => (
                   <CurrencyItem
                     key={currency.ticker}
                     currency={currency}
                     isSelected={value.ticker === currency.ticker}
-                    onSelect={() => {
-                      onChange(currency);
-                      setOpen(false);
-                    }}
+                    onSelect={() => handleSelect(currency)}
                   />
                 ))}
               </CommandGroup>
@@ -157,7 +187,7 @@ function CurrencyItem({
     <CommandItem
       value={`${currency.ticker} ${currency.name}`}
       onSelect={onSelect}
-      className="flex items-center gap-3 py-2"
+      className="flex items-center gap-3 py-2 cursor-pointer"
     >
       <img
         src={currency.image}

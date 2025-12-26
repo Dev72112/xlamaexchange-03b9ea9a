@@ -1,19 +1,15 @@
 import { Link } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
-import { ArrowRightLeft } from "lucide-react";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 w-full glass">
+    <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <ArrowRightLeft className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="gradient-text">CryptoSwap</span>
+          <span className="text-foreground">xlama</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden md:flex items-center gap-8">
           <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Exchange
           </Link>
