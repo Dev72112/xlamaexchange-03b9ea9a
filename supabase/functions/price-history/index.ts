@@ -5,6 +5,47 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// --- Input Validation Helpers ---
+
+// Validate ticker format (alphanumeric, 2-20 chars)
+function isValidTicker(ticker: unknown): ticker is string {
+  return typeof ticker === 'string' && /^[a-z0-9]{2,20}$/i.test(ticker);
+}
+
+// Sanitize ticker for safe usage
+function sanitizeTicker(ticker: string): string {
+  return ticker.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// --- Rate Limiting ---
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 60; // 60 requests per minute
+
+function checkRateLimit(clientIp: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(clientIp);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(clientIp, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
+// Get client IP from request
+function getClientIp(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+         req.headers.get('x-real-ip') || 
+         'unknown';
+}
+
 // Map common tickers to CoinGecko IDs
 const tickerToCoingeckoId: Record<string, string> = {
   'btc': 'bitcoin',
@@ -60,7 +101,7 @@ const tickerToCoingeckoId: Record<string, string> = {
 };
 
 function getCoingeckoId(ticker: string): string | null {
-  const normalizedTicker = ticker.toLowerCase();
+  const normalizedTicker = sanitizeTicker(ticker);
   
   // Direct match
   if (tickerToCoingeckoId[normalizedTicker]) {
@@ -86,12 +127,33 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { fromTicker, toTicker } = await req.json();
+  const clientIp = getClientIp(req);
 
+  // Check rate limit
+  if (!checkRateLimit(clientIp)) {
+    console.warn(`Rate limit exceeded for price-history from ${clientIp}`);
+    return new Response(
+      JSON.stringify({ error: 'Too many requests. Please try again later.', prices: [] }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  try {
+    const body = await req.json();
+    const { fromTicker, toTicker } = body;
+
+    // Validate input presence
     if (!fromTicker || !toTicker) {
       return new Response(
-        JSON.stringify({ error: 'Missing fromTicker or toTicker' }),
+        JSON.stringify({ error: 'Missing fromTicker or toTicker', prices: [] }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate ticker format
+    if (!isValidTicker(fromTicker) || !isValidTicker(toTicker)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid ticker format. Tickers must be 2-20 alphanumeric characters.', prices: [] }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -101,15 +163,17 @@ serve(async (req) => {
 
     if (!fromId || !toId) {
       return new Response(
-        JSON.stringify({ error: 'Unknown ticker', fromId, toId }),
+        JSON.stringify({ error: 'Unknown ticker', fromId, toId, prices: [] }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log(`Price history request: ${fromTicker} -> ${toTicker} (${fromId} -> ${toId}) from ${clientIp}`);
+
     // Fetch 24h price data for both currencies in USD
     const [fromResponse, toResponse] = await Promise.all([
-      fetch(`https://api.coingecko.com/api/v3/coins/${fromId}/market_chart?vs_currency=usd&days=1`),
-      fetch(`https://api.coingecko.com/api/v3/coins/${toId}/market_chart?vs_currency=usd&days=1`),
+      fetch(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(fromId)}/market_chart?vs_currency=usd&days=1`),
+      fetch(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(toId)}/market_chart?vs_currency=usd&days=1`),
     ]);
 
     if (!fromResponse.ok || !toResponse.ok) {
