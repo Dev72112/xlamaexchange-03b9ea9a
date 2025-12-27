@@ -2,7 +2,6 @@ import { Layout } from "@/components/Layout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
-import { RateComparison } from "@/components/RateComparison";
 import { TrendingPairs } from "@/components/TrendingPairs";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
@@ -70,7 +69,6 @@ const Index = () => {
       </section>
 
       <TrendingPairs />
-      <RateComparison />
       <PriceAlerts />
       <HowItWorks />
       <Features />
