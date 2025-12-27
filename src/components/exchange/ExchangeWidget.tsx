@@ -11,6 +11,36 @@ import { ExchangeForm } from "./ExchangeForm";
 import { PriceChart } from "./PriceChart";
 import { changeNowService } from "@/services/changenow";
 
+// Detect network from ticker and name
+function detectNetwork(ticker: string, name: string): string | undefined {
+  const t = ticker.toLowerCase();
+  const n = name.toLowerCase();
+  
+  // Check ticker patterns first
+  if (t.includes('erc20') || n.includes('erc20')) return 'ERC20';
+  if (t.includes('trc20') || n.includes('trc20')) return 'TRC20';
+  if (t.includes('bsc') || n.includes('binance smart chain') || n.includes('bep20')) return 'BSC';
+  if ((t.includes('sol') && t !== 'sol') || (n.includes('(sol)') && !n.includes('solana'))) return 'SOL';
+  if (t.includes('matic') && t !== 'matic') return 'Polygon';
+  if ((t.includes('polygon') && t !== 'polygon') || n.includes('(polygon)')) return 'Polygon';
+  if (t.includes('arb') || n.includes('arbitrum')) return 'Arbitrum';
+  if ((t.includes('op') && t !== 'op') || (n.includes('optimism') && !n.includes('optimism)'))) return 'Optimism';
+  if (t.includes('base') || n.includes('(base)')) return 'Base';
+  if (t.includes('avax') || t.includes('arc20') || n.includes('avax c-chain')) return 'Avalanche';
+  if (t.includes('ton') && t !== 'ton') return 'TON';
+  if (t.includes('algo') && t !== 'algo') return 'Algorand';
+  if (t.includes('zksync') || n.includes('zksync')) return 'ZkSync';
+  if (t.includes('lna') || n.includes('linea')) return 'Linea';
+  if (t.includes('strk') || n.includes('starknet')) return 'Starknet';
+  if (t.includes('apt') && t !== 'apt') return 'Aptos';
+  if (t.includes('sui') && t !== 'sui') return 'Sui';
+  if (t.includes('celo') && t !== 'celo') return 'Celo';
+  if (t.includes('manta') || n.includes('manta')) return 'Manta';
+  if (t.includes('assethub') || n.includes('assethub')) return 'Polkadot';
+  
+  return undefined;
+}
+
 export function ExchangeWidget() {
   const { toast } = useToast();
   const [currencies, setCurrencies] = useState<Currency[]>(popularCurrencies);
@@ -40,15 +70,7 @@ export function ExchangeWidget() {
             ticker: c.ticker,
             name: c.name,
             image: c.image,
-            network: c.ticker.includes('erc20') ? 'ERC20' : 
-                     c.ticker.includes('trc20') ? 'TRC20' : 
-                     c.ticker.includes('bsc') ? 'BSC' :
-                     c.ticker.includes('sol') && c.ticker !== 'sol' ? 'SOL' :
-                     c.ticker.includes('matic') && c.ticker !== 'matic' ? 'Polygon' :
-                     c.ticker.includes('arb') ? 'Arbitrum' :
-                     c.ticker.includes('op') ? 'Optimism' :
-                     c.ticker.includes('base') ? 'Base' :
-                     undefined,
+            network: detectNetwork(c.ticker, c.name),
           }));
         
         setCurrencies(mappedCurrencies);
