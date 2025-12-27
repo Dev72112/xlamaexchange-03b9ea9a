@@ -7,6 +7,22 @@ interface MiniChartProps {
   height?: number;
   className?: string;
   positive?: boolean;
+  /** Used to generate deterministic random data when no data is provided */
+  seed?: string;
+}
+
+// Simple seeded random number generator for deterministic charts
+function seededRandom(seed: string): () => number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return () => {
+    hash = (hash * 1103515245 + 12345) & 0x7fffffff;
+    return (hash % 1000) / 1000;
+  };
 }
 
 export function MiniChart({ 
@@ -14,20 +30,22 @@ export function MiniChart({
   width = 80, 
   height = 32, 
   className,
-  positive = true 
+  positive = true,
+  seed = "default"
 }: MiniChartProps) {
   const chartData = useMemo(() => {
     if (data && data.length > 0) return data;
-    // Generate random sparkline data if no data provided
+    // Generate deterministic sparkline data using seed
+    const random = seededRandom(seed);
     const points = [];
-    let value = 50 + Math.random() * 20;
+    let value = 50 + random() * 20;
     for (let i = 0; i < 20; i++) {
-      value += (Math.random() - 0.5) * 10;
+      value += (random() - 0.5) * 10;
       value = Math.max(10, Math.min(90, value));
       points.push(value);
     }
     return points;
-  }, [data]);
+  }, [data, seed]);
 
   const { path, areaPath } = useMemo(() => {
     if (chartData.length < 2) return { path: "", areaPath: "" };

@@ -325,7 +325,9 @@ export function ExchangeWidget() {
               1 {fromCurrency.ticker.toUpperCase()} = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toCurrency.ticker.toUpperCase()}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="w-3.5 h-3.5 inline ml-1.5 cursor-help" />
+                  <button type="button" className="inline-flex">
+                    <Info className="w-3.5 h-3.5 ml-1.5 cursor-help" />
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Rate may vary slightly during the exchange</p>
