@@ -55,11 +55,27 @@ export function ExchangeForm({
     toast({ title: "Copied to clipboard" });
   };
 
+  // Email validation regex
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleCreateExchange = async () => {
     if (!recipientAddress) {
       toast({
         title: "Address required",
         description: "Please enter your receiving wallet address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email if provided
+    if (contactEmail && !isValidEmail(contactEmail)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address",
         variant: "destructive",
       });
       return;
