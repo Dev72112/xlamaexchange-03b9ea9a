@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,57 +60,60 @@ export function ExchangeWidget() {
   const [rateId, setRateId] = useState<string | undefined>();
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairUnavailable, setPairUnavailable] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [currenciesError, setCurrenciesError] = useState<string | null>(null);
 
   // Fetch available currencies on mount
-  useEffect(() => {
-    const fetchCurrencies = async () => {
-      try {
-        const apiCurrencies = await changeNowService.getCurrencies();
-        const mappedCurrencies: Currency[] = apiCurrencies
-          .filter(c => !c.isFiat)
-          .map(c => ({
-            ticker: c.ticker,
-            name: c.name,
-            image: c.image,
-            network: detectNetwork(c.ticker, c.name),
-          }));
-        
-        setCurrencies(mappedCurrencies);
-        
-        // Check URL params for from/to currencies
-        const fromParam = searchParams.get('from');
-        const toParam = searchParams.get('to');
-        
-        const btc = mappedCurrencies.find(c => c.ticker === 'btc');
-        const eth = mappedCurrencies.find(c => c.ticker === 'eth');
-        
-        if (fromParam) {
-          const fromMatch = mappedCurrencies.find(c => c.ticker.toLowerCase() === fromParam.toLowerCase());
-          if (fromMatch) setFromCurrency(fromMatch);
-          else if (btc) setFromCurrency(btc);
-        } else if (btc) {
-          setFromCurrency(btc);
-        }
-        
-        if (toParam) {
-          const toMatch = mappedCurrencies.find(c => c.ticker.toLowerCase() === toParam.toLowerCase());
-          if (toMatch) setToCurrency(toMatch);
-          else if (eth) setToCurrency(eth);
-        } else if (eth) {
-          setToCurrency(eth);
-        }
-        
-        console.log(`Loaded ${mappedCurrencies.length} currencies from ChangeNow`);
-      } catch (error) {
-        console.error('Failed to fetch currencies:', error);
-        setCurrencies(popularCurrencies);
-      } finally {
-        setCurrenciesLoading(false);
+  const fetchCurrencies = useCallback(async () => {
+    setCurrenciesLoading(true);
+    setCurrenciesError(null);
+    try {
+      const apiCurrencies = await changeNowService.getCurrencies();
+      const mappedCurrencies: Currency[] = apiCurrencies
+        .filter(c => !c.isFiat)
+        .map(c => ({
+          ticker: c.ticker,
+          name: c.name,
+          image: c.image,
+          network: detectNetwork(c.ticker, c.name),
+        }));
+      
+      setCurrencies(mappedCurrencies);
+      
+      // Check URL params for from/to currencies
+      const fromParam = searchParams.get('from');
+      const toParam = searchParams.get('to');
+      
+      const btc = mappedCurrencies.find(c => c.ticker === 'btc');
+      const eth = mappedCurrencies.find(c => c.ticker === 'eth');
+      
+      if (fromParam) {
+        const fromMatch = mappedCurrencies.find(c => c.ticker.toLowerCase() === fromParam.toLowerCase());
+        if (fromMatch) setFromCurrency(fromMatch);
+        else if (btc) setFromCurrency(btc);
+      } else if (btc) {
+        setFromCurrency(btc);
       }
-    };
-
-    fetchCurrencies();
+      
+      if (toParam) {
+        const toMatch = mappedCurrencies.find(c => c.ticker.toLowerCase() === toParam.toLowerCase());
+        if (toMatch) setToCurrency(toMatch);
+        else if (eth) setToCurrency(eth);
+      } else if (eth) {
+        setToCurrency(eth);
+      }
+    } catch (error) {
+      console.error('Failed to fetch currencies:', error);
+      setCurrenciesError('Failed to load currencies. Using cached data.');
+      setCurrencies(popularCurrencies);
+    } finally {
+      setCurrenciesLoading(false);
+    }
   }, [searchParams]);
+
+  useEffect(() => {
+    fetchCurrencies();
+  }, [fetchCurrencies]);
 
   // Check if current pair is favorite
   const isPairFavorite = isFavorite(fromCurrency.ticker, toCurrency.ticker);
@@ -160,6 +163,7 @@ export function ExchangeWidget() {
         setToAmount(estimate.estimatedAmount.toString());
         setExchangeRate(estimate.estimatedAmount / amount);
         setRateId(estimate.rateId);
+        setLastUpdated(new Date());
 
         if (estimate.warningMessage) {
           toast({
@@ -170,6 +174,7 @@ export function ExchangeWidget() {
       } else {
         setToAmount("");
         setExchangeRate(null);
+        setLastUpdated(null);
       }
     } catch (error: any) {
       console.error("Rate calculation error:", error);
@@ -321,19 +326,34 @@ export function ExchangeWidget() {
         {/* Rate Info */}
         {exchangeRate && !isLoading && !pairUnavailable && (
           <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-            <div className="text-center text-sm text-muted-foreground">
-              1 {fromCurrency.ticker.toUpperCase()} = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toCurrency.ticker.toUpperCase()}
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <span>
+                1 {fromCurrency.ticker.toUpperCase()} = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toCurrency.ticker.toUpperCase()}
+              </span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button type="button" className="inline-flex">
-                    <Info className="w-3.5 h-3.5 ml-1.5 cursor-help" />
+                    <Info className="w-3.5 h-3.5 cursor-help" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Rate may vary slightly during the exchange</p>
                 </TooltipContent>
               </Tooltip>
+              <button
+                onClick={calculateRate}
+                disabled={isLoading}
+                className="p-1 hover:bg-secondary rounded transition-colors"
+                title="Refresh rate"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+              </button>
             </div>
+            {lastUpdated && (
+              <p className="text-center text-xs text-muted-foreground/60 mt-1">
+                Updated {Math.round((Date.now() - lastUpdated.getTime()) / 1000)}s ago
+              </p>
+            )}
           </div>
         )}
 
@@ -342,7 +362,31 @@ export function ExchangeWidget() {
           <div className="px-4 sm:px-5 pb-4">
             <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg text-sm text-warning">
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{pairError || "This trading pair is not available."}</span>
+              <span className="flex-1">{pairError || "This trading pair is not available."}</span>
+              <button
+                onClick={calculateRate}
+                className="p-1.5 hover:bg-warning/20 rounded transition-colors shrink-0"
+                title="Retry"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Currencies Error Display */}
+        {currenciesError && (
+          <div className="px-4 sm:px-5 pb-4">
+            <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg text-sm text-muted-foreground">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{currenciesError}</span>
+              <button
+                onClick={fetchCurrencies}
+                className="p-1.5 hover:bg-secondary rounded transition-colors shrink-0"
+                title="Retry loading currencies"
+              >
+                <RefreshCw className={cn("w-4 h-4", currenciesLoading && "animate-spin")} />
+              </button>
             </div>
           </div>
         )}
