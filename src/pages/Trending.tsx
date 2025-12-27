@@ -1,17 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import { changeNowService } from "@/services/changenow";
 import { useFavoritePairs, FavoritePair } from "@/hooks/useFavoritePairs";
 import { 
-  Flame, Star, ArrowRight, Loader2, RefreshCw, 
-  TrendingUp, TrendingDown, Search
+  Flame, Star, ArrowRight, RefreshCw, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 // Extended trending pairs list
@@ -53,23 +51,24 @@ const Trending = () => {
   const { data: rates, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['trending-rates-full'],
     queryFn: async () => {
-      const results = await Promise.all(
+      const results = await Promise.allSettled(
         allTrendingPairs.map(async (pair) => {
-          try {
-            const rate = await getRatePerOne(pair.from, pair.to);
-            const change24h = (Math.random() - 0.4) * 5;
-            return { key: `${pair.from}-${pair.to}`, rate, change24h };
-          } catch {
-            return { key: `${pair.from}-${pair.to}`, rate: null, change24h: 0 };
-          }
+          const rate = await getRatePerOne(pair.from, pair.to);
+          return { key: `${pair.from}-${pair.to}`, rate };
         })
       );
-      return results.reduce((acc, { key, rate, change24h }) => {
-        acc[key] = { rate, change24h };
+      return results.reduce((acc, result, index) => {
+        const key = `${allTrendingPairs[index].from}-${allTrendingPairs[index].to}`;
+        if (result.status === 'fulfilled') {
+          acc[key] = { rate: result.value.rate };
+        } else {
+          acc[key] = { rate: null };
+        }
         return acc;
-      }, {} as Record<string, { rate: number | null; change24h: number }>);
+      }, {} as Record<string, { rate: number | null }>);
     },
     refetchInterval: 60000,
+    staleTime: 30000,
   });
 
   const filteredPairs = allTrendingPairs.filter(pair => {
@@ -195,22 +194,9 @@ const Trending = () => {
                     <div className="flex items-center gap-2">
                       <div className="text-right">
                         {rateData?.rate !== null && rateData?.rate !== undefined ? (
-                          <>
-                            <div className="font-mono text-sm font-medium">
-                              {rateData.rate.toFixed(rateData.rate > 1 ? 4 : 8)}
-                            </div>
-                            <div className={cn(
-                              "text-xs font-medium flex items-center justify-end gap-0.5",
-                              rateData.change24h >= 0 ? "text-success" : "text-destructive"
-                            )}>
-                              {rateData.change24h >= 0 ? (
-                                <TrendingUp className="w-3 h-3" />
-                              ) : (
-                                <TrendingDown className="w-3 h-3" />
-                              )}
-                              {Math.abs(rateData.change24h).toFixed(2)}%
-                            </div>
-                          </>
+                          <div className="font-mono text-sm font-medium">
+                            {rateData.rate.toFixed(rateData.rate > 1 ? 4 : 8)}
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">N/A</span>
                         )}
