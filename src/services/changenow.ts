@@ -61,13 +61,18 @@ class ChangeNowService {
     if (data?.error) {
       // Provide more descriptive error messages
       const apiError = data.details?.error || data.error;
+      const apiMessage = data.details?.message || data.error;
       if (apiError === 'pair_is_inactive') {
         throw new Error('pair_is_inactive');
       }
       if (apiError === 'fixed_rate_not_enabled') {
         throw new Error('fixed_rate_not_enabled');
       }
-      throw new Error(apiError || data.error);
+      if (apiError === 'deposit_too_small') {
+        // Include the full message so callers can detect this error
+        throw new Error(`deposit_too_small: ${apiMessage}`);
+      }
+      throw new Error(apiMessage || apiError || data.error);
     }
 
     return data as T;
