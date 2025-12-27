@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
-import { defiLlamaService } from "@/services/defillama";
+import { defiLlamaService, PriceWithChange } from "@/services/defillama";
 import { popularCurrencies } from "@/data/currencies";
 import { 
   Activity, RefreshCw, Search, TrendingUp, 
@@ -20,7 +20,7 @@ interface CoinPrice {
   image: string;
   price: number | null;
   source: 'defillama' | 'coingecko' | null;
-  change24h?: number;
+  change24h?: number | null;
 }
 
 const LiveRates = () => {
@@ -31,20 +31,19 @@ const LiveRates = () => {
     queryFn: async (): Promise<CoinPrice[]> => {
       const tickers = popularCurrencies.map(c => c.ticker);
       
-      // Try DefiLlama first (which uses CoinGecko data)
-      const defillamaPrices = await defiLlamaService.getPrices(tickers);
+      // Use the new method that gets real 24h change
+      const pricesWithChange = await defiLlamaService.getPricesWithChange(tickers);
       
       return popularCurrencies.map(currency => {
-        const price = defillamaPrices[currency.ticker];
-        const change24h = price ? (Math.random() - 0.45) * 8 : undefined; // Simulated
+        const data = pricesWithChange[currency.ticker];
         
         return {
           ticker: currency.ticker,
           name: currency.name,
           image: currency.image,
-          price,
-          source: price ? 'defillama' : null,
-          change24h,
+          price: data?.price ?? null,
+          source: data ? 'defillama' : null,
+          change24h: data?.change24h,
         };
       });
     },

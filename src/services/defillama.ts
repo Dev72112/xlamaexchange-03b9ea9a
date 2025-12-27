@@ -8,6 +8,11 @@ export interface DefiLlamaPrice {
   confidence: number;
 }
 
+export interface PriceWithChange {
+  price: number;
+  change24h: number | null;
+}
+
 // Map common tickers to DefiLlama coin IDs
 const tickerToCoingeckoId: Record<string, string> = {
   btc: 'bitcoin',
@@ -99,6 +104,57 @@ class DefiLlamaService {
       return result;
     } catch (error) {
       console.error('DefiLlama bulk price fetch failed:', error);
+      return {};
+    }
+  }
+
+  async getPricesWithChange(tickers: string[]): Promise<Record<string, PriceWithChange>> {
+    const coins = tickers
+      .map(t => {
+        const id = tickerToCoingeckoId[t.toLowerCase()];
+        return id ? `coingecko:${id}` : null;
+      })
+      .filter(Boolean);
+
+    if (coins.length === 0) return {};
+
+    const coinsParam = coins.join(',');
+    const timestamp24hAgo = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
+
+    try {
+      // Fetch current and historical prices in parallel
+      const [currentRes, historicalRes] = await Promise.all([
+        fetch(`${DEFILLAMA_API}/prices/current/${coinsParam}`),
+        fetch(`${DEFILLAMA_API}/prices/historical/${timestamp24hAgo}/${coinsParam}`)
+      ]);
+
+      const [currentData, historicalData] = await Promise.all([
+        currentRes.ok ? currentRes.json() : { coins: {} },
+        historicalRes.ok ? historicalRes.json() : { coins: {} }
+      ]);
+
+      const result: Record<string, PriceWithChange> = {};
+
+      tickers.forEach(ticker => {
+        const id = tickerToCoingeckoId[ticker.toLowerCase()];
+        if (id) {
+          const coinKey = `coingecko:${id}`;
+          const currentPrice = currentData.coins?.[coinKey]?.price;
+          const historicalPrice = historicalData.coins?.[coinKey]?.price;
+          
+          if (currentPrice) {
+            let change24h: number | null = null;
+            if (historicalPrice && historicalPrice > 0) {
+              change24h = ((currentPrice - historicalPrice) / historicalPrice) * 100;
+            }
+            result[ticker] = { price: currentPrice, change24h };
+          }
+        }
+      });
+
+      return result;
+    } catch (error) {
+      console.error('DefiLlama price with change fetch failed:', error);
       return {};
     }
   }

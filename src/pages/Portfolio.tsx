@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { usePortfolio } from "@/hooks/usePortfolio";
@@ -7,7 +7,8 @@ import { defiLlamaService } from "@/services/defillama";
 import { popularCurrencies } from "@/data/currencies";
 import { 
   Wallet, Plus, Trash2, Edit2, Loader2, 
-  TrendingUp, TrendingDown, PieChart, X, Check
+  TrendingUp, TrendingDown, PieChart, X, Check,
+  Download, Upload, FileJson, FileSpreadsheet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,15 +20,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 const Portfolio = () => {
-  const { holdings, addHolding, updateHolding, removeHolding } = usePortfolio();
+  const { holdings, addHolding, updateHolding, removeHolding, exportPortfolio, exportCSV, importPortfolio } = usePortfolio();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<typeof popularCurrencies[0] | null>(null);
   const [amount, setAmount] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch prices for all holdings
   const { data: prices, isLoading: pricesLoading } = useQuery({
@@ -64,6 +72,14 @@ const Portfolio = () => {
     setEditAmount("");
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importPortfolio(file);
+      e.target.value = '';
+    }
+  };
+
   const totalValue = holdings.reduce((acc, holding) => {
     const price = prices?.[holding.ticker];
     if (price) {
@@ -79,6 +95,14 @@ const Portfolio = () => {
         <meta name="description" content="Track your cryptocurrency portfolio with live prices and total value." />
       </Helmet>
 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".json,.csv"
+        className="hidden"
+      />
+
       <div className="container px-4 py-12 sm:py-16 max-w-4xl">
         {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-4 mb-10">
@@ -93,6 +117,41 @@ const Portfolio = () => {
               Track your holdings with live prices
             </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 mb-10">
+          {/* Import */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </Button>
+
+          {/* Export Dropdown */}
+          {holdings.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportPortfolio}>
+                  <FileJson className="w-4 h-4 mr-2" />
+                  Export as JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportCSV}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
