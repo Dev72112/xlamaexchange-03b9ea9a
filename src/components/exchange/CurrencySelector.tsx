@@ -120,7 +120,7 @@ export function CurrencySelector({
       key={currency.ticker}
       onClick={() => handleSelect(currency)}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
+        "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
         "hover:bg-accent/50",
         value.ticker === currency.ticker && "bg-accent"
       )}
@@ -140,17 +140,17 @@ export function CurrencySelector({
       <img
         src={currency.image}
         alt={currency.name}
-        className="w-7 h-7 rounded-full shrink-0"
+        className="w-6 h-6 sm:w-7 sm:h-7 rounded-full shrink-0"
         onError={(e) => {
           (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currency.ticker}&background=random`;
         }}
       />
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold uppercase text-sm">{currency.ticker}</div>
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <div className="font-semibold uppercase text-sm truncate">{currency.ticker}</div>
         <div className="text-xs text-muted-foreground truncate">{currency.name}</div>
       </div>
       {currency.network && (
-        <span className={getNetworkBadgeClass(currency.network)}>{currency.network}</span>
+        <span className={cn(getNetworkBadgeClass(currency.network), "hidden xs:inline-flex sm:inline-flex")}>{currency.network}</span>
       )}
       {value.ticker === currency.ticker && (
         <Check className="h-4 w-4 text-primary shrink-0" />
@@ -192,7 +192,7 @@ export function CurrencySelector({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[calc(100vw-2rem)] sm:w-[340px] max-w-[340px] p-0 bg-popover border-border shadow-2xl z-50 rounded-xl" 
+        className="w-[min(calc(100vw-1rem),340px)] p-0 bg-popover border-border shadow-2xl z-50 rounded-xl overflow-hidden" 
         align="start"
         sideOffset={8}
       >
