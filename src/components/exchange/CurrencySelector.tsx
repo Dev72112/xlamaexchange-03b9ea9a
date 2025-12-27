@@ -192,8 +192,8 @@ export function CurrencySelector({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[340px] p-0 bg-popover border-border shadow-2xl z-50 rounded-xl" 
-        align="end"
+        className="w-[calc(100vw-2rem)] sm:w-[340px] max-w-[340px] p-0 bg-popover border-border shadow-2xl z-50 rounded-xl" 
+        align="start"
         sideOffset={8}
       >
         {/* Search header */}
