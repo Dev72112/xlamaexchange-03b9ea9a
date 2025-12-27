@@ -3,6 +3,7 @@ import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw } 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencySelector } from "./CurrencySelector";
 import { Currency, popularCurrencies } from "@/data/currencies";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -62,6 +63,7 @@ export function ExchangeWidget() {
   const [pairUnavailable, setPairUnavailable] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [currenciesError, setCurrenciesError] = useState<string | null>(null);
+  const [autoRefreshCountdown, setAutoRefreshCountdown] = useState(30);
 
   // Fetch available currencies on mount
   const fetchCurrencies = useCallback(async () => {
@@ -197,10 +199,33 @@ export function ExchangeWidget() {
     }
   }, [fromAmount, fromCurrency.ticker, toCurrency.ticker, rateType, toast]);
 
+  // Debounced rate calculation
   useEffect(() => {
     const debounce = setTimeout(calculateRate, 500);
     return () => clearTimeout(debounce);
   }, [calculateRate]);
+
+  // Auto-refresh countdown and rate refresh every 30 seconds
+  useEffect(() => {
+    if (!exchangeRate || isLoading || pairUnavailable) return;
+    
+    const countdownInterval = setInterval(() => {
+      setAutoRefreshCountdown(prev => {
+        if (prev <= 1) {
+          calculateRate();
+          return 30;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdownInterval);
+  }, [exchangeRate, isLoading, pairUnavailable, calculateRate]);
+
+  // Reset countdown when rate is manually refreshed or currencies change
+  useEffect(() => {
+    setAutoRefreshCountdown(30);
+  }, [fromCurrency.ticker, toCurrency.ticker, fromAmount]);
 
   const handleSwapCurrencies = () => {
     const tempCurrency = fromCurrency;
@@ -234,6 +259,46 @@ export function ExchangeWidget() {
         rateId={rateId}
         onBack={() => setShowExchangeForm(false)}
       />
+    );
+  }
+
+  // Skeleton loading state
+  if (currenciesLoading) {
+    return (
+      <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <CardContent className="p-0">
+          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-7 w-7 rounded-lg" />
+          </div>
+          <div className="p-4 sm:p-5 pt-2 border-b border-border">
+            <div className="flex items-center justify-between gap-4">
+              <Skeleton className="h-12 w-32 rounded-xl" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </div>
+          <div className="relative h-0">
+            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 z-10">
+              <Skeleton className="h-10 w-10 rounded-full" />
+            </div>
+          </div>
+          <div className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-4">
+              <Skeleton className="h-12 w-32 rounded-xl" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </div>
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+            <Skeleton className="h-4 w-48 mx-auto" />
+          </div>
+          <div className="p-4 sm:p-5 pt-0">
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+            <Skeleton className="h-4 w-56 mx-auto" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -351,7 +416,7 @@ export function ExchangeWidget() {
             </div>
             {lastUpdated && (
               <p className="text-center text-xs text-muted-foreground/60 mt-1">
-                Updated {Math.round((Date.now() - lastUpdated.getTime()) / 1000)}s ago
+                Auto-refresh in {autoRefreshCountdown}s
               </p>
             )}
           </div>
