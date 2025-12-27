@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
-import { Star, Menu, X, Search, Clock, Wallet, Flame, Activity } from "lucide-react";
+import { Star, Menu, X, Search, Clock, Wallet } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -15,8 +15,6 @@ export function Header() {
 
   const navLinks = [
     { path: "/", label: "Exchange" },
-    { path: "/trending", label: "Trending", icon: Flame },
-    { path: "/live-rates", label: "Live Rates", icon: Activity },
     { path: "/portfolio", label: "Portfolio", icon: Wallet },
     { path: "/favorites", label: "Favorites", icon: Star },
     { path: "/history", label: "History", icon: Clock },
