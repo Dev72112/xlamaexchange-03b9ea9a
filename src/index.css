@@ -40,6 +40,14 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+    
+    /* Chart colors */
+    --chart-1: 142 71% 45%;
+    --chart-2: 217 91% 60%;
+    --chart-3: 262 83% 58%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 340 82% 52%;
+    --chart-6: 180 70% 45%;
   }
 
   .dark {
@@ -75,6 +83,14 @@
     --success-foreground: 0 0% 3%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 3%;
+    
+    /* Chart colors */
+    --chart-1: 142 76% 50%;
+    --chart-2: 217 91% 65%;
+    --chart-3: 262 83% 65%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 340 82% 58%;
+    --chart-6: 180 70% 50%;
   }
 }
 

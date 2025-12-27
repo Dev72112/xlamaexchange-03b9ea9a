@@ -26,19 +26,25 @@ interface CoinPrice {
 
 const LiveRates = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const { currencies: allCurrencies, isLoading: currenciesLoading } = useChangeNowCurrencies();
 
+  // Limit initial display for performance
+  const displayLimit = showAll ? allCurrencies.length : 100;
+
   const { data: prices, isLoading: pricesLoading, refetch, isRefetching, error } = useQuery({
-    queryKey: ['live-rates', allCurrencies.length],
+    queryKey: ['live-rates', allCurrencies.length, displayLimit],
     queryFn: async (): Promise<CoinPrice[]> => {
       if (allCurrencies.length === 0) return [];
       
-      const tickers = allCurrencies.map(c => c.ticker);
+      // Only fetch prices for displayed currencies
+      const currenciesToFetch = allCurrencies.slice(0, displayLimit);
+      const tickers = currenciesToFetch.map(c => c.ticker);
       
       // Use the method that gets real 24h change
       const pricesWithChange = await defiLlamaService.getPricesWithChange(tickers);
       
-      return allCurrencies.map(currency => {
+      return currenciesToFetch.map(currency => {
         const data = pricesWithChange[currency.ticker];
         
         return {
@@ -53,7 +59,8 @@ const LiveRates = () => {
       });
     },
     enabled: allCurrencies.length > 0,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    staleTime: 30000,
   });
 
   const isLoading = currenciesLoading || pricesLoading;
@@ -234,6 +241,19 @@ const LiveRates = () => {
         {sortedPrices?.length === 0 && !isLoading && (
           <div className="text-center py-12 text-muted-foreground">
             No coins found matching "{searchQuery}"
+          </div>
+        )}
+
+        {/* Load More */}
+        {!showAll && allCurrencies.length > 100 && !searchQuery && (
+          <div className="text-center mt-8">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAll(true)}
+              className="gap-2"
+            >
+              Show All {allCurrencies.length} Tokens
+            </Button>
           </div>
         )}
       </div>

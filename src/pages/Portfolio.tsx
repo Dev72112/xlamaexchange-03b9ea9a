@@ -38,12 +38,12 @@ const COLORS = [
   'hsl(var(--chart-3))',
   'hsl(var(--chart-4))',
   'hsl(var(--chart-5))',
-  '#8b5cf6',
-  '#f59e0b',
-  '#10b981',
-  '#ef4444',
-  '#06b6d4',
-  '#ec4899',
+  'hsl(var(--chart-6))',
+  'hsl(217 91% 60%)',
+  'hsl(262 83% 58%)',
+  'hsl(340 82% 52%)',
+  'hsl(180 70% 45%)',
+  'hsl(25 95% 53%)',
 ];
 
 const Portfolio = () => {
