@@ -17,6 +17,44 @@ import { Currency } from "@/data/currencies";
 import { cn } from "@/lib/utils";
 import { useFavorites } from "@/hooks/useFavorites";
 
+// Network badge colors
+const networkColors: Record<string, { bg: string; text: string }> = {
+  'ERC20': { bg: 'bg-blue-500/20', text: 'text-blue-400' },
+  'TRC20': { bg: 'bg-red-500/20', text: 'text-red-400' },
+  'BSC': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  'BEP20': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+  'SOL': { bg: 'bg-purple-500/20', text: 'text-purple-400' },
+  'Polygon': { bg: 'bg-violet-500/20', text: 'text-violet-400' },
+  'Arbitrum': { bg: 'bg-sky-500/20', text: 'text-sky-400' },
+  'Optimism': { bg: 'bg-rose-500/20', text: 'text-rose-400' },
+  'Base': { bg: 'bg-blue-600/20', text: 'text-blue-300' },
+  'Avalanche': { bg: 'bg-red-600/20', text: 'text-red-300' },
+  'TON': { bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
+  'Cosmos': { bg: 'bg-indigo-500/20', text: 'text-indigo-400' },
+  'Algorand': { bg: 'bg-gray-500/20', text: 'text-gray-300' },
+  'ZkSync': { bg: 'bg-fuchsia-500/20', text: 'text-fuchsia-400' },
+  'Linea': { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+  'Starknet': { bg: 'bg-orange-500/20', text: 'text-orange-400' },
+  'Aptos': { bg: 'bg-teal-500/20', text: 'text-teal-400' },
+  'Sui': { bg: 'bg-sky-600/20', text: 'text-sky-300' },
+  'Celo': { bg: 'bg-lime-500/20', text: 'text-lime-400' },
+  'Manta': { bg: 'bg-pink-500/20', text: 'text-pink-400' },
+};
+
+function NetworkBadge({ network }: { network: string }) {
+  const colors = networkColors[network] || { bg: 'bg-secondary', text: 'text-muted-foreground' };
+  
+  return (
+    <span className={cn(
+      "text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0",
+      colors.bg,
+      colors.text
+    )}>
+      {network}
+    </span>
+  );
+}
+
 interface CurrencySelectorProps {
   value: Currency;
   onChange: (currency: Currency) => void;
@@ -254,9 +292,7 @@ function CurrencyItem({
         <div className="text-xs text-muted-foreground truncate">{currency.name}</div>
       </div>
       {currency.network && (
-        <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded shrink-0">
-          {currency.network}
-        </span>
+        <NetworkBadge network={currency.network} />
       )}
       <Check
         className={cn(
