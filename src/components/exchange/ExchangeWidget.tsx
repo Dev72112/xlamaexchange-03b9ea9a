@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencySelector } from "./CurrencySelector";
 import { Currency, popularCurrencies } from "@/data/currencies";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { ExchangeForm } from "./ExchangeForm";
 import { changeNowService } from "@/services/changenow";
@@ -55,7 +56,7 @@ export function ExchangeWidget() {
   const [toAmount, setToAmount] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [rateType] = useState<"standard" | "fixed">("standard");
+  const [rateType, setRateType] = useState<"standard" | "fixed">("fixed");
   const [showExchangeForm, setShowExchangeForm] = useState(false);
   const [minAmount, setMinAmount] = useState<number>(0);
   const [rateId, setRateId] = useState<string | undefined>();
@@ -402,7 +403,7 @@ export function ExchangeWidget() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Rate may vary slightly during the exchange</p>
+                  <p>{rateType === "fixed" ? "Fixed rate - guaranteed price" : "Floating rate - may vary during exchange"}</p>
                 </TooltipContent>
               </Tooltip>
               <button
@@ -470,15 +471,52 @@ export function ExchangeWidget() {
 
         {/* Footer Info */}
         <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              2-20 min
-            </span>
-            <span>•</span>
-            <span>No registration</span>
-            <span>•</span>
-            <span>All fees included</span>
+          <div className="flex flex-col gap-3">
+            {/* Rate Type Toggle */}
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center gap-1.5 text-xs">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span className={rateType === "standard" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                  Floating
+                </span>
+              </div>
+              <Switch
+                checked={rateType === "fixed"}
+                onCheckedChange={(checked) => setRateType(checked ? "fixed" : "standard")}
+                className="data-[state=checked]:bg-primary"
+              />
+              <div className="flex items-center gap-1.5 text-xs">
+                <Lock className="w-3.5 h-3.5" />
+                <span className={rateType === "fixed" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                  Fixed
+                </span>
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="inline-flex">
+                    <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[250px]">
+                  <p className="text-xs">
+                    <strong>Fixed:</strong> Guaranteed rate, no surprises<br/>
+                    <strong>Floating:</strong> Rate may improve or worsen
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            
+            {/* Footer Info */}
+            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                2-20 min
+              </span>
+              <span>•</span>
+              <span>No registration</span>
+              <span>•</span>
+              <span>All fees included</span>
+            </div>
           </div>
         </div>
       </CardContent>
