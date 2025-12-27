@@ -35,19 +35,11 @@ const networkColors: Record<string, { bg: string; text: string }> = {
   'Manta': { bg: 'bg-pink-500/20', text: 'text-pink-400' },
 };
 
-function NetworkBadge({ network }: { network: string }) {
+// Using a span element directly instead of a separate component to avoid ref forwarding issues
+const getNetworkBadgeClass = (network: string) => {
   const colors = networkColors[network] || { bg: 'bg-secondary', text: 'text-muted-foreground' };
-  
-  return (
-    <span className={cn(
-      "text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0",
-      colors.bg,
-      colors.text
-    )}>
-      {network}
-    </span>
-  );
-}
+  return cn("text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0", colors.bg, colors.text);
+};
 
 interface CurrencySelectorProps {
   value: Currency;
@@ -158,7 +150,7 @@ export function CurrencySelector({
         <div className="text-xs text-muted-foreground truncate">{currency.name}</div>
       </div>
       {currency.network && (
-        <NetworkBadge network={currency.network} />
+        <span className={getNetworkBadgeClass(currency.network)}>{currency.network}</span>
       )}
       {value.ticker === currency.ticker && (
         <Check className="h-4 w-4 text-primary shrink-0" />
