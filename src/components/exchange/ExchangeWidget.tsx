@@ -339,10 +339,13 @@ export function ExchangeWidget() {
           {pairUnavailable ? "Pair Unavailable" : "Exchange Now"}
         </Button>
 
-        {/* No Registration Notice */}
-        <p className="text-center text-xs text-muted-foreground">
-          No registration required • No hidden fees
-        </p>
+        {/* Fees Notice */}
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-secondary/30 rounded-lg py-2 px-3">
+          <svg className="w-4 h-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>All fees included • No hidden costs • No registration</span>
+        </div>
       </CardContent>
     </Card>
   );
