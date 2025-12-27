@@ -40,6 +40,7 @@ export function ExchangeForm({
   const [step, setStep] = useState<Step>("address");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [refundAddress, setRefundAddress] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -82,6 +83,7 @@ export function ExchangeForm({
         address: recipientAddress,
         amount: parseFloat(fromAmount),
         refundAddress: refundAddress || undefined,
+        contactEmail: contactEmail || undefined,
         rateId: rateType === "fixed" ? rateId : undefined,
         fixed: rateType === "fixed",
       });
@@ -224,6 +226,22 @@ export function ExchangeForm({
               />
               <p className="text-xs text-muted-foreground">
                 Used to refund your funds if the exchange cannot be completed.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">
+                Email for Notifications (Optional)
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Receive transaction status updates via email from ChangeNow.
               </p>
             </div>
 
