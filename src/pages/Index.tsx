@@ -3,6 +3,7 @@ import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
 import { TrendingPairs } from "@/components/TrendingPairs";
+import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
 import { Helmet } from "react-helmet-async";
@@ -68,6 +69,7 @@ const Index = () => {
         </div>
       </section>
 
+      <FavoritePairsSection />
       <TrendingPairs />
       <PriceAlerts />
       <HowItWorks />
