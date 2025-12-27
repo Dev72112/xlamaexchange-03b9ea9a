@@ -1,0 +1,283 @@
+import { useState } from "react";
+import { Bell, BellRing, Plus, Trash2, TrendingUp, TrendingDown, X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { usePriceAlerts, PriceAlert } from "@/hooks/usePriceAlerts";
+import { Badge } from "@/components/ui/badge";
+
+const popularPairs = [
+  { from: "btc", to: "eth", fromName: "Bitcoin", toName: "Ethereum" },
+  { from: "btc", to: "usdterc20", fromName: "Bitcoin", toName: "USDT" },
+  { from: "eth", to: "usdterc20", fromName: "Ethereum", toName: "USDT" },
+  { from: "btc", to: "sol", fromName: "Bitcoin", toName: "Solana" },
+  { from: "eth", to: "bnbbsc", fromName: "Ethereum", toName: "BNB" },
+  { from: "sol", to: "usdterc20", fromName: "Solana", toName: "USDT" },
+  { from: "xrp", to: "usdterc20", fromName: "Ripple", toName: "USDT" },
+  { from: "doge", to: "usdterc20", fromName: "Dogecoin", toName: "USDT" },
+];
+
+export function PriceAlerts() {
+  const { alerts, addAlert, removeAlert, activeAlerts, triggeredAlerts } = usePriceAlerts();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPair, setSelectedPair] = useState("");
+  const [targetRate, setTargetRate] = useState("");
+  const [condition, setCondition] = useState<"above" | "below">("above");
+
+  const handleCreateAlert = () => {
+    const pair = popularPairs.find(p => `${p.from}-${p.to}` === selectedPair);
+    if (!pair || !targetRate) return;
+
+    addAlert({
+      fromTicker: pair.from,
+      toTicker: pair.to,
+      fromName: pair.fromName,
+      toName: pair.toName,
+      targetRate: parseFloat(targetRate),
+      condition,
+    });
+
+    setDialogOpen(false);
+    setSelectedPair("");
+    setTargetRate("");
+    setCondition("above");
+  };
+
+  const formatTimeAgo = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  return (
+    <section className="py-16 sm:py-24">
+      <div className="container px-4 sm:px-6">
+        <Card className="bg-card border-border">
+          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
+            <div>
+              <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <Bell className="w-5 h-5 text-warning" />
+                Price Alerts
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Get notified when exchange rates hit your target
+              </p>
+            </div>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  New Alert
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <BellRing className="w-5 h-5 text-warning" />
+                    Create Price Alert
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Trading Pair</label>
+                    <Select value={selectedPair} onValueChange={setSelectedPair}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a pair" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {popularPairs.map(pair => (
+                          <SelectItem key={`${pair.from}-${pair.to}`} value={`${pair.from}-${pair.to}`}>
+                            {pair.fromName} → {pair.toName} ({pair.from.toUpperCase()}/{pair.to.toUpperCase()})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Condition</label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={condition === "above" ? "default" : "outline"}
+                        onClick={() => setCondition("above")}
+                        className="flex-1 gap-2"
+                      >
+                        <TrendingUp className="w-4 h-4" />
+                        Goes Above
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={condition === "below" ? "default" : "outline"}
+                        onClick={() => setCondition("below")}
+                        className="flex-1 gap-2"
+                      >
+                        <TrendingDown className="w-4 h-4" />
+                        Goes Below
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Target Rate</label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 35.5"
+                      value={targetRate}
+                      onChange={(e) => setTargetRate(e.target.value)}
+                    />
+                  </div>
+
+                  <Button 
+                    className="w-full" 
+                    onClick={handleCreateAlert}
+                    disabled={!selectedPair || !targetRate}
+                  >
+                    Create Alert
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            {alerts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Bell className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p className="mb-4">No price alerts yet</p>
+                <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create your first alert
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Active Alerts */}
+                {activeAlerts.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                      Active Alerts ({activeAlerts.length})
+                    </h3>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {activeAlerts.map((alert) => (
+                        <AlertCard 
+                          key={alert.id} 
+                          alert={alert} 
+                          onRemove={removeAlert}
+                          formatTimeAgo={formatTimeAgo}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Triggered Alerts */}
+                {triggeredAlerts.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <BellRing className="w-4 h-4 text-warning" />
+                      Triggered ({triggeredAlerts.length})
+                    </h3>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {triggeredAlerts.map((alert) => (
+                        <AlertCard 
+                          key={alert.id} 
+                          alert={alert} 
+                          onRemove={removeAlert}
+                          formatTimeAgo={formatTimeAgo}
+                          triggered
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+}
+
+function AlertCard({ 
+  alert, 
+  onRemove, 
+  formatTimeAgo,
+  triggered = false 
+}: { 
+  alert: PriceAlert; 
+  onRemove: (id: string) => void;
+  formatTimeAgo: (timestamp: number) => string;
+  triggered?: boolean;
+}) {
+  return (
+    <div className={`group relative p-4 rounded-xl border transition-colors ${
+      triggered 
+        ? 'bg-warning/10 border-warning/30' 
+        : 'bg-secondary/30 border-border hover:border-border/80'
+    }`}>
+      <button
+        onClick={() => onRemove(alert.id)}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-all"
+        title="Remove alert"
+      >
+        <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+      </button>
+
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg ${
+          alert.condition === 'above' 
+            ? 'bg-success/10 text-success' 
+            : 'bg-destructive/10 text-destructive'
+        }`}>
+          {alert.condition === 'above' ? (
+            <TrendingUp className="w-4 h-4" />
+          ) : (
+            <TrendingDown className="w-4 h-4" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-sm uppercase">
+              {alert.fromTicker}/{alert.toTicker}
+            </span>
+            {triggered && (
+              <Badge variant="secondary" className="bg-warning/20 text-warning text-[10px]">
+                Triggered
+              </Badge>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {alert.condition === 'above' ? 'Above' : 'Below'} {alert.targetRate}
+          </div>
+          {alert.lastCheckedRate && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Current: <span className="font-mono">{alert.lastCheckedRate.toFixed(6)}</span>
+            </div>
+          )}
+          <div className="text-[10px] text-muted-foreground mt-2">
+            Created {formatTimeAgo(alert.createdAt)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
