@@ -11,7 +11,20 @@ export interface PortfolioHolding {
   addedAt: number;
 }
 
+export interface PortfolioAlert {
+  id: string;
+  ticker: string;
+  name: string;
+  condition: 'above' | 'below' | 'change';
+  targetValue: number; // price for above/below, percentage for change
+  createdAt: number;
+  triggered: boolean;
+  triggeredAt?: number;
+  lastPrice?: number;
+}
+
 const STORAGE_KEY = 'xlama_portfolio';
+const ALERTS_STORAGE_KEY = 'xlama_portfolio_alerts';
 
 export function usePortfolio() {
   const { toast } = useToast();
@@ -27,6 +40,18 @@ export function usePortfolio() {
     return [];
   });
 
+  const [portfolioAlerts, setPortfolioAlerts] = useState<PortfolioAlert[]>(() => {
+    try {
+      const saved = localStorage.getItem(ALERTS_STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load portfolio alerts:', e);
+    }
+    return [];
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(holdings));
@@ -35,11 +60,18 @@ export function usePortfolio() {
     }
   }, [holdings]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(portfolioAlerts));
+    } catch (e) {
+      console.error('Failed to save portfolio alerts:', e);
+    }
+  }, [portfolioAlerts]);
+
   const addHolding = useCallback((holding: Omit<PortfolioHolding, 'id' | 'addedAt'>) => {
     const existing = holdings.find(h => h.ticker.toLowerCase() === holding.ticker.toLowerCase());
     
     if (existing) {
-      // Update amount
       setHoldings(prev => prev.map(h => 
         h.id === existing.id 
           ? { ...h, amount: h.amount + holding.amount }
@@ -75,6 +107,70 @@ export function usePortfolio() {
       title: "Holding Removed",
       description: "Removed from your portfolio",
     });
+  }, [toast]);
+
+  // Portfolio alerts
+  const addPortfolioAlert = useCallback((alert: Omit<PortfolioAlert, 'id' | 'createdAt' | 'triggered'>) => {
+    const newAlert: PortfolioAlert = {
+      ...alert,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: Date.now(),
+      triggered: false,
+    };
+    setPortfolioAlerts(prev => [...prev, newAlert]);
+    toast({
+      title: "Alert Created",
+      description: `Price alert for ${alert.name} created`,
+    });
+  }, [toast]);
+
+  const removePortfolioAlert = useCallback((id: string) => {
+    setPortfolioAlerts(prev => prev.filter(a => a.id !== id));
+    toast({
+      title: "Alert Removed",
+      description: "Price alert removed",
+    });
+  }, [toast]);
+
+  const checkPortfolioAlerts = useCallback((prices: Record<string, number>) => {
+    setPortfolioAlerts(prev => prev.map(alert => {
+      if (alert.triggered) return alert;
+      
+      const currentPrice = prices[alert.ticker];
+      if (!currentPrice) return alert;
+
+      let shouldTrigger = false;
+      
+      if (alert.condition === 'above' && currentPrice >= alert.targetValue) {
+        shouldTrigger = true;
+      } else if (alert.condition === 'below' && currentPrice <= alert.targetValue) {
+        shouldTrigger = true;
+      } else if (alert.condition === 'change' && alert.lastPrice) {
+        const changePercent = ((currentPrice - alert.lastPrice) / alert.lastPrice) * 100;
+        if (Math.abs(changePercent) >= alert.targetValue) {
+          shouldTrigger = true;
+        }
+      }
+
+      if (shouldTrigger) {
+        // Show notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(`Portfolio Alert: ${alert.name}`, {
+            body: `${alert.name} has ${alert.condition === 'above' ? 'risen above' : alert.condition === 'below' ? 'fallen below' : 'changed by'} ${alert.condition === 'change' ? alert.targetValue + '%' : '$' + alert.targetValue}`,
+            icon: '/favicon.ico',
+          });
+        }
+        
+        toast({
+          title: `Portfolio Alert Triggered`,
+          description: `${alert.name} ${alert.condition === 'above' ? 'rose above' : alert.condition === 'below' ? 'fell below' : 'changed by'} ${alert.condition === 'change' ? alert.targetValue + '%' : '$' + alert.targetValue}`,
+        });
+
+        return { ...alert, triggered: true, triggeredAt: Date.now(), lastPrice: currentPrice };
+      }
+
+      return { ...alert, lastPrice: currentPrice };
+    }));
   }, [toast]);
 
   const exportPortfolio = useCallback(() => {
@@ -133,9 +229,8 @@ export function usePortfolio() {
         const content = e.target?.result as string;
         
         if (file.name.endsWith('.csv')) {
-          // Parse CSV
           const lines = content.split('\n').filter(l => l.trim());
-          const rows = lines.slice(1); // Skip header
+          const rows = lines.slice(1);
           
           const imported: Omit<PortfolioHolding, 'id' | 'addedAt'>[] = rows.map(row => {
             const [ticker, name, amount, network] = row.split(',');
@@ -154,7 +249,6 @@ export function usePortfolio() {
             description: `Imported ${imported.length} holdings from CSV`,
           });
         } else {
-          // Parse JSON
           const data = JSON.parse(content);
           const imported = data.holdings || [];
           
@@ -195,5 +289,12 @@ export function usePortfolio() {
     exportCSV,
     importPortfolio,
     totalHoldings: holdings.length,
+    // Portfolio alerts
+    portfolioAlerts,
+    addPortfolioAlert,
+    removePortfolioAlert,
+    checkPortfolioAlerts,
+    activePortfolioAlerts: portfolioAlerts.filter(a => !a.triggered),
+    triggeredPortfolioAlerts: portfolioAlerts.filter(a => a.triggered),
   };
 }
