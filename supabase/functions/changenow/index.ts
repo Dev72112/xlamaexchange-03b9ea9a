@@ -75,6 +75,7 @@ serve(async (req) => {
             extraId: params.extraId || '',
             refundAddress: params.refundAddress || '',
             refundExtraId: params.refundExtraId || '',
+            contactEmail: params.contactEmail || '',
           }),
         });
         data = await response.json();
@@ -95,6 +96,7 @@ serve(async (req) => {
             extraId: params.extraId || '',
             refundAddress: params.refundAddress || '',
             refundExtraId: params.refundExtraId || '',
+            contactEmail: params.contactEmail || '',
           }),
         });
         data = await response.json();

@@ -99,6 +99,7 @@ class ChangeNowService {
     extraId?: string;
     refundAddress?: string;
     refundExtraId?: string;
+    contactEmail?: string;
     rateId?: string;
     fixed?: boolean;
   }): Promise<Transaction> {
