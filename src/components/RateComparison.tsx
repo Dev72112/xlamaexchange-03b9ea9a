@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRight, Loader2, TrendingUp, RefreshCw, Plus, X, Star } from "lucide-react";
+import { ArrowRight, Loader2, TrendingUp, RefreshCw, Plus, X, Star, Heart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { changeNowService } from "@/services/changenow";
+import { useFavoritePairs, FavoritePair } from "@/hooks/useFavoritePairs";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -30,9 +34,6 @@ const defaultPairs: ComparisonPair[] = [
   { from: "btc", to: "sol", fromName: "Bitcoin", toName: "Solana", fromImage: "https://content-api.changenow.io/uploads/btc_1_527dc9ec3c.svg", toImage: "https://content-api.changenow.io/uploads/sol_3b3f795997.svg" },
   { from: "eth", to: "bnbbsc", fromName: "Ethereum", toName: "BNB", fromImage: "https://content-api.changenow.io/uploads/eth_f4ebb54ec0.svg", toImage: "https://content-api.changenow.io/uploads/bnbbsc_331e969a6b.svg", displayTo: "BNB" },
   { from: "xrp", to: "btc", fromName: "Ripple", toName: "Bitcoin", fromImage: "https://content-api.changenow.io/uploads/xrp_3b5212fd4a.svg", toImage: "https://content-api.changenow.io/uploads/btc_1_527dc9ec3c.svg" },
-  { from: "sol", to: "eth", fromName: "Solana", toName: "Ethereum", fromImage: "https://content-api.changenow.io/uploads/sol_3b3f795997.svg", toImage: "https://content-api.changenow.io/uploads/eth_f4ebb54ec0.svg" },
-  { from: "btc", to: "xrp", fromName: "Bitcoin", toName: "Ripple", fromImage: "https://content-api.changenow.io/uploads/btc_1_527dc9ec3c.svg", toImage: "https://content-api.changenow.io/uploads/xrp_3b5212fd4a.svg" },
-  { from: "trx", to: "usdttrc20", fromName: "TRON", toName: "USDT TRC20", fromImage: "https://content-api.changenow.io/uploads/trx_f14430166e.svg", toImage: "https://content-api.changenow.io/uploads/usdttrc20_87164a7b35.svg", displayTo: "USDT" },
 ];
 
 // Available pairs for users to add
@@ -49,8 +50,6 @@ const availablePairs: ComparisonPair[] = [
   { from: "ltc", to: "btc", fromName: "Litecoin", toName: "Bitcoin", fromImage: "https://content-api.changenow.io/uploads/ltc_a391e86f20.svg", toImage: "https://content-api.changenow.io/uploads/btc_1_527dc9ec3c.svg" },
   { from: "doge", to: "btc", fromName: "Dogecoin", toName: "Bitcoin", fromImage: "https://content-api.changenow.io/uploads/doge_7ccb3df901.svg", toImage: "https://content-api.changenow.io/uploads/btc_1_527dc9ec3c.svg" },
   { from: "bnbbsc", to: "eth", fromName: "BNB", toName: "Ethereum", fromImage: "https://content-api.changenow.io/uploads/bnbbsc_331e969a6b.svg", toImage: "https://content-api.changenow.io/uploads/eth_f4ebb54ec0.svg", displayFrom: "BNB" },
-  { from: "sol", to: "usdcsol", fromName: "Solana", toName: "USDC", fromImage: "https://content-api.changenow.io/uploads/sol_3b3f795997.svg", toImage: "https://content-api.changenow.io/uploads/usdcsol_9415198300.svg", displayTo: "USDC" },
-  { from: "eth", to: "usdc", fromName: "Ethereum", toName: "USDC", fromImage: "https://content-api.changenow.io/uploads/eth_f4ebb54ec0.svg", toImage: "https://content-api.changenow.io/uploads/usdcerc20_acd5759c8c.svg", displayTo: "USDC" },
   { from: "btc", to: "ada", fromName: "Bitcoin", toName: "Cardano", fromImage: "https://content-api.changenow.io/uploads/btc_1_527dc9ec3c.svg", toImage: "https://content-api.changenow.io/uploads/ada_bae7d8ea11.svg" },
   { from: "eth", to: "matic", fromName: "Ethereum", toName: "Polygon", fromImage: "https://content-api.changenow.io/uploads/eth_f4ebb54ec0.svg", toImage: "https://content-api.changenow.io/uploads/matic_e57e574eca.svg", displayTo: "MATIC" },
 ];
@@ -68,7 +67,10 @@ function getPairKey(pair: ComparisonPair): string {
   return `${pair.from}-${pair.to}`;
 }
 
+
 export function RateComparison() {
+  const { toast } = useToast();
+  const { isFavorite, toggleFavorite } = useFavoritePairs();
   const [trackedPairs, setTrackedPairs] = useState<ComparisonPair[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -80,11 +82,12 @@ export function RateComparison() {
     }
     return defaultPairs;
   });
-  
+
   const [rates, setRates] = useState<RateData[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+
 
   // Save tracked pairs to localStorage
   useEffect(() => {
@@ -145,17 +148,39 @@ export function RateComparison() {
     const key = getPairKey(pair);
     if (!trackedPairs.find(p => getPairKey(p) === key)) {
       setTrackedPairs(prev => [...prev, pair]);
+      toast({
+        title: "Pair Added",
+        description: `${pair.fromName} → ${pair.toName} is now being tracked`,
+      });
     }
     setDialogOpen(false);
   };
 
   const removePair = (pair: ComparisonPair) => {
     setTrackedPairs(prev => prev.filter(p => getPairKey(p) !== getPairKey(pair)));
+    toast({
+      title: "Pair Removed",
+      description: `${pair.fromName} → ${pair.toName} removed from tracking`,
+    });
   };
 
   const isPairTracked = (pair: ComparisonPair) => {
     return trackedPairs.some(p => getPairKey(p) === getPairKey(pair));
   };
+
+  const handleFavoriteToggle = (pair: ComparisonPair) => {
+    toggleFavorite({
+      from: pair.from,
+      to: pair.to,
+      fromName: pair.fromName,
+      toName: pair.toName,
+      fromImage: pair.fromImage,
+      toImage: pair.toImage,
+      displayFrom: pair.displayFrom,
+      displayTo: pair.displayTo,
+    });
+  };
+
 
   const getDisplayTicker = (pair: ComparisonPair, type: 'from' | 'to') => {
     if (type === 'from') {
@@ -165,13 +190,15 @@ export function RateComparison() {
   };
 
   return (
-    <section className="py-16 sm:py-24">
+    <section className="py-12 sm:py-16">
       <div className="container px-4 sm:px-6">
-        <Card className="bg-card border-border">
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border">
           <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
             <div>
               <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-success" />
+                <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                </div>
                 Live Exchange Rates
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
