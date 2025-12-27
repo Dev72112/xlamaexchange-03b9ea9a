@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+
 import { cn } from "@/lib/utils";
 
 interface CoinPrice {
@@ -107,10 +107,10 @@ const LiveRates = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="gap-1.5">
+            <div className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
               <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              {availablePrices}/{totalCoins} coins
-            </Badge>
+              {isLoading ? 'Loading...' : `${availablePrices}/${totalCoins} coins`}
+            </div>
             <Button 
               variant="outline" 
               onClick={() => refetch()}
@@ -198,9 +198,9 @@ const LiveRates = () => {
                         {coin.ticker}
                       </span>
                       {coin.network && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                        <span className="inline-flex items-center rounded-full border px-1 py-0 h-4 text-[10px] font-medium text-muted-foreground">
                           {coin.network}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                     

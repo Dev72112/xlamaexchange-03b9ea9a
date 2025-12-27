@@ -136,7 +136,8 @@ const Favorites = () => {
                       <MiniChart 
                         width={60} 
                         height={28} 
-                        positive={Math.random() > 0.4}
+                        seed={rateKey}
+                        positive={rate !== null ? rate > 0 : true}
                       />
                       {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />

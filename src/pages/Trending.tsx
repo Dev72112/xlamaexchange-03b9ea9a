@@ -32,19 +32,26 @@ const Trending = () => {
   const { isFavorite, toggleFavorite } = useFavoritePairs();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const getRatePerOne = async (from: string, to: string): Promise<number> => {
+  const getRatePerOne = async (from: string, to: string): Promise<number | null> => {
     try {
+      // First try with amount 1
       const estimate = await changeNowService.getExchangeAmount(from, to, 1, false);
       return estimate.estimatedAmount;
     } catch (err: any) {
       const msg = String(err?.message || "");
+      // Handle small deposit errors by using minimum amount
       if (msg.includes("deposit_too_small") || msg.includes("Out of min amount")) {
-        const minData = await changeNowService.getMinAmount(from, to);
-        const amountToUse = minData.minAmount;
-        const estimate = await changeNowService.getExchangeAmount(from, to, amountToUse, false);
-        return estimate.estimatedAmount / amountToUse;
+        try {
+          const minData = await changeNowService.getMinAmount(from, to);
+          const amountToUse = minData.minAmount;
+          const estimate = await changeNowService.getExchangeAmount(from, to, amountToUse, false);
+          return estimate.estimatedAmount / amountToUse;
+        } catch {
+          return null;
+        }
       }
-      throw err;
+      // For other errors (pair inactive, etc.), return null
+      return null;
     }
   };
 
