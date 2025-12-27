@@ -393,6 +393,12 @@ export function ExchangeWidget() {
         {exchangeRate && !isLoading && !pairUnavailable && (
           <div className="px-4 sm:px-5 pb-4 sm:pb-5">
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              {rateType === "fixed" && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded">
+                  <Lock className="w-3 h-3" />
+                  Locked
+                </span>
+              )}
               <span>
                 1 {fromCurrency.ticker.toUpperCase()} = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toCurrency.ticker.toUpperCase()}
               </span>
@@ -402,8 +408,16 @@ export function ExchangeWidget() {
                     <Info className="w-3.5 h-3.5 cursor-help" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>{rateType === "fixed" ? "Fixed rate - guaranteed price" : "Floating rate - may vary during exchange"}</p>
+                <TooltipContent className="max-w-[280px]">
+                  {rateType === "fixed" ? (
+                    <p className="text-xs">
+                      <strong className="text-primary">Fixed rate</strong> - This rate is guaranteed for 10 minutes. You'll receive exactly this amount.
+                    </p>
+                  ) : (
+                    <p className="text-xs">
+                      <strong className="text-warning">Floating rate</strong> - Rate may change during the exchange based on market conditions. You could receive more or less.
+                    </p>
+                  )}
                 </TooltipContent>
               </Tooltip>
               <button
@@ -497,11 +511,15 @@ export function ExchangeWidget() {
                     <Info className="w-3 h-3 text-muted-foreground cursor-help" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-[250px]">
-                  <p className="text-xs">
-                    <strong>Fixed:</strong> Guaranteed rate, no surprises<br/>
-                    <strong>Floating:</strong> Rate may improve or worsen
-                  </p>
+                <TooltipContent className="max-w-[280px]">
+                  <div className="text-xs space-y-2">
+                    <p>
+                      <strong className="text-primary">Fixed rate:</strong> Price is locked for 10 minutes. No surprises - you get exactly what you see.
+                    </p>
+                    <p>
+                      <strong className="text-warning">Floating rate:</strong> Rate follows the market. Could be better or worse by the time your deposit confirms.
+                    </p>
+                  </div>
                 </TooltipContent>
               </Tooltip>
             </div>
