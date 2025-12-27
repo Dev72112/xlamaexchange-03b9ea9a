@@ -97,17 +97,28 @@ export function RateComparison() {
 
   const fetchRates = useCallback(async () => {
     setIsRefreshing(true);
-    
+
+    const getRatePerOne = async (from: string, to: string): Promise<number> => {
+      try {
+        const estimate = await changeNowService.getExchangeAmount(from, to, 1, false);
+        return estimate.estimatedAmount; // already per 1
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        if (msg.includes("deposit_too_small") || msg.includes("Out of min amount")) {
+          const minData = await changeNowService.getMinAmount(from, to);
+          const amountToUse = minData.minAmount;
+          const estimate = await changeNowService.getExchangeAmount(from, to, amountToUse, false);
+          return estimate.estimatedAmount / amountToUse;
+        }
+        throw err;
+      }
+    };
+
     const newRates = await Promise.all(
       trackedPairs.map(async (pair) => {
         try {
-          const estimate = await changeNowService.getExchangeAmount(
-            pair.from,
-            pair.to,
-            1,
-            false
-          );
-          return { pair, rate: estimate.estimatedAmount, loading: false, error: false };
+          const ratePerOne = await getRatePerOne(pair.from, pair.to);
+          return { pair, rate: ratePerOne, loading: false, error: false };
         } catch (error) {
           console.error(`Failed to fetch rate for ${pair.from}/${pair.to}:`, error);
           return { pair, rate: null, loading: false, error: true };

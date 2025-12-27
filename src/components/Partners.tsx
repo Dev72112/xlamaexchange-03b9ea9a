@@ -1,5 +1,8 @@
 import { ExternalLink } from "lucide-react";
 
+import changeNowLogo from "@/assets/changenow-logo.jpg";
+import coinGeckoLogo from "@/assets/coingecko-logo.png";
+
 export function Partners() {
   return (
     <section className="py-16 sm:py-20 border-t border-border">
@@ -10,7 +13,7 @@ export function Partners() {
             Trusted technology partners for seamless crypto exchange
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-16">
           {/* ChangeNow Partner */}
           <a
@@ -20,26 +23,15 @@ export function Partners() {
             className="group flex flex-col items-center gap-3 p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-all hover:bg-secondary/50"
           >
             <div className="flex items-center gap-3">
-              <svg 
-                viewBox="0 0 32 32" 
-                className="w-10 h-10 sm:w-12 sm:h-12"
-                fill="none"
-              >
-                <circle cx="16" cy="16" r="16" fill="#00C26F"/>
-                <path 
-                  d="M22.5 11.5L16 8L9.5 11.5V20.5L16 24L22.5 20.5V11.5Z" 
-                  stroke="white" 
-                  strokeWidth="1.5" 
-                  strokeLinejoin="round"
-                />
-                <path 
-                  d="M16 8V24M9.5 11.5L22.5 20.5M22.5 11.5L9.5 20.5" 
-                  stroke="white" 
-                  strokeWidth="1.5"
-                />
-              </svg>
+              <img
+                src={changeNowLogo}
+                alt="ChangeNOW exchange API logo"
+                loading="lazy"
+                decoding="async"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover"
+              />
               <div className="text-left">
-                <span className="font-bold text-lg sm:text-xl">ChangeNow</span>
+                <span className="font-bold text-lg sm:text-xl">ChangeNOW</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   Exchange API
                   <ExternalLink className="w-3 h-3" />
@@ -59,23 +51,13 @@ export function Partners() {
             className="group flex flex-col items-center gap-3 p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-all hover:bg-secondary/50"
           >
             <div className="flex items-center gap-3">
-              <svg 
-                viewBox="0 0 32 32" 
-                className="w-10 h-10 sm:w-12 sm:h-12"
-                fill="none"
-              >
-                <circle cx="16" cy="16" r="16" fill="#8BC53F"/>
-                <ellipse cx="16" cy="16" rx="10" ry="11" fill="#F9E988"/>
-                <circle cx="12" cy="13" r="3" fill="white"/>
-                <circle cx="12" cy="13" r="1.5" fill="#1B1B1B"/>
-                <ellipse cx="20" cy="14" rx="2" ry="2.5" fill="#E17726"/>
-                <path 
-                  d="M13 20C13 20 14.5 22 16 22C17.5 22 19 20 19 20" 
-                  stroke="#1B1B1B" 
-                  strokeWidth="1" 
-                  strokeLinecap="round"
-                />
-              </svg>
+              <img
+                src={coinGeckoLogo}
+                alt="CoinGecko crypto price data logo"
+                loading="lazy"
+                decoding="async"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain bg-secondary"
+              />
               <div className="text-left">
                 <span className="font-bold text-lg sm:text-xl">CoinGecko</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">

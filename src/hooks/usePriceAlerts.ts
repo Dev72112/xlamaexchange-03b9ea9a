@@ -93,13 +93,29 @@ export function usePriceAlerts() {
   }, [toast]);
 
   const checkAlerts = useCallback(async () => {
-    const activeAlerts = alerts.filter(a => !a.triggered);
-    
+    const activeAlerts = alerts.filter((a) => !a.triggered);
+
     if (activeAlerts.length === 0) return;
+
+    const getRatePerOne = async (from: string, to: string): Promise<number> => {
+      try {
+        const estimate = await changeNowService.getExchangeAmount(from, to, 1, false);
+        return estimate.estimatedAmount;
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        if (msg.includes("deposit_too_small") || msg.includes("Out of min amount")) {
+          const minData = await changeNowService.getMinAmount(from, to);
+          const amountToUse = minData.minAmount;
+          const estimate = await changeNowService.getExchangeAmount(from, to, amountToUse, false);
+          return estimate.estimatedAmount / amountToUse;
+        }
+        throw err;
+      }
+    };
 
     // Group alerts by pair to minimize API calls
     const pairs = new Map<string, PriceAlert[]>();
-    activeAlerts.forEach(alert => {
+    activeAlerts.forEach((alert) => {
       const key = `${alert.fromTicker}-${alert.toTicker}`;
       if (!pairs.has(key)) {
         pairs.set(key, []);
@@ -111,33 +127,29 @@ export function usePriceAlerts() {
     for (const [_, pairAlerts] of pairs) {
       try {
         const alert = pairAlerts[0];
-        const estimate = await changeNowService.getExchangeAmount(
-          alert.fromTicker,
-          alert.toTicker,
-          1,
-          false
-        );
-        const currentRate = estimate.estimatedAmount;
+        const currentRate = await getRatePerOne(alert.fromTicker, alert.toTicker);
 
         // Update last checked rate
-        setAlerts(prev => prev.map(a => 
-          pairAlerts.some(pa => pa.id === a.id) 
-            ? { ...a, lastCheckedRate: currentRate } 
-            : a
-        ));
+        setAlerts((prev) =>
+          prev.map((a) =>
+            pairAlerts.some((pa) => pa.id === a.id)
+              ? { ...a, lastCheckedRate: currentRate }
+              : a
+          )
+        );
 
         // Check each alert for this pair
         for (const a of pairAlerts) {
-          const shouldTrigger = 
-            (a.condition === 'above' && currentRate >= a.targetRate) ||
-            (a.condition === 'below' && currentRate <= a.targetRate);
+          const shouldTrigger =
+            (a.condition === "above" && currentRate >= a.targetRate) ||
+            (a.condition === "below" && currentRate <= a.targetRate);
 
           if (shouldTrigger) {
             triggerAlert(a, currentRate);
           }
         }
       } catch (error) {
-        console.error('Failed to check alert:', error);
+        console.error("Failed to check alert:", error);
       }
     }
   }, [alerts, triggerAlert]);
