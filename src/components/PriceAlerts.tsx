@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bell, BellRing, Plus, Trash2, TrendingUp, TrendingDown, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, BellRing, Plus, Trash2, TrendingUp, TrendingDown, X, BellOff, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,13 +19,15 @@ import {
 } from "@/components/ui/select";
 import { usePriceAlerts, PriceAlert } from "@/hooks/usePriceAlerts";
 import { Badge } from "@/components/ui/badge";
+import { popularCurrencies } from "@/data/currencies";
+import { cn } from "@/lib/utils";
 
 const popularPairs = [
   { from: "btc", to: "eth", fromName: "Bitcoin", toName: "Ethereum" },
   { from: "btc", to: "usdterc20", fromName: "Bitcoin", toName: "USDT" },
   { from: "eth", to: "usdterc20", fromName: "Ethereum", toName: "USDT" },
   { from: "btc", to: "sol", fromName: "Bitcoin", toName: "Solana" },
-  { from: "eth", to: "bnbbsc", fromName: "Ethereum", toName: "BNB" },
+  { from: "eth", to: "bnbmainnet", fromName: "Ethereum", toName: "BNB" },
   { from: "sol", to: "usdterc20", fromName: "Solana", toName: "USDT" },
   { from: "xrp", to: "usdterc20", fromName: "Ripple", toName: "USDT" },
   { from: "doge", to: "usdterc20", fromName: "Dogecoin", toName: "USDT" },
@@ -37,16 +39,60 @@ export function PriceAlerts() {
   const [selectedPair, setSelectedPair] = useState("");
   const [targetRate, setTargetRate] = useState("");
   const [condition, setCondition] = useState<"above" | "below">("above");
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  
+  // Custom pair creation
+  const [isCustomPair, setIsCustomPair] = useState(false);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [searchFrom, setSearchFrom] = useState("");
+  const [searchTo, setSearchTo] = useState("");
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    } else {
+      setNotificationPermission('unsupported');
+    }
+  }, []);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    }
+  };
 
   const handleCreateAlert = () => {
-    const pair = popularPairs.find(p => `${p.from}-${p.to}` === selectedPair);
-    if (!pair || !targetRate) return;
+    let fromTicker: string, toTicker: string, fromName: string, toName: string;
+
+    if (isCustomPair) {
+      if (!customFrom || !customTo) return;
+      const fromCurrency = popularCurrencies.find(c => c.ticker === customFrom);
+      const toCurrency = popularCurrencies.find(c => c.ticker === customTo);
+      if (!fromCurrency || !toCurrency) return;
+      
+      fromTicker = fromCurrency.ticker;
+      toTicker = toCurrency.ticker;
+      fromName = fromCurrency.name;
+      toName = toCurrency.name;
+    } else {
+      const pair = popularPairs.find(p => `${p.from}-${p.to}` === selectedPair);
+      if (!pair || !targetRate) return;
+      
+      fromTicker = pair.from;
+      toTicker = pair.to;
+      fromName = pair.fromName;
+      toName = pair.toName;
+    }
+
+    if (!targetRate) return;
 
     addAlert({
-      fromTicker: pair.from,
-      toTicker: pair.to,
-      fromName: pair.fromName,
-      toName: pair.toName,
+      fromTicker,
+      toTicker,
+      fromName,
+      toName,
       targetRate: parseFloat(targetRate),
       condition,
     });
@@ -55,6 +101,9 @@ export function PriceAlerts() {
     setSelectedPair("");
     setTargetRate("");
     setCondition("above");
+    setIsCustomPair(false);
+    setCustomFrom("");
+    setCustomTo("");
   };
 
   const formatTimeAgo = (timestamp: number) => {
@@ -64,6 +113,18 @@ export function PriceAlerts() {
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
   };
+
+  const filteredFromCurrencies = popularCurrencies.filter(c => 
+    c.name.toLowerCase().includes(searchFrom.toLowerCase()) ||
+    c.ticker.toLowerCase().includes(searchFrom.toLowerCase())
+  );
+
+  const filteredToCurrencies = popularCurrencies.filter(c => 
+    c.ticker !== customFrom && (
+      c.name.toLowerCase().includes(searchTo.toLowerCase()) ||
+      c.ticker.toLowerCase().includes(searchTo.toLowerCase())
+    )
+  );
 
   return (
     <section className="py-16 sm:py-24">
@@ -79,82 +140,212 @@ export function PriceAlerts() {
                 Get notified when exchange rates hit your target
               </p>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  New Alert
+            <div className="flex items-center gap-2">
+              {/* Notification Permission Button */}
+              {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={requestNotificationPermission}
+                  className="gap-2"
+                >
+                  <BellRing className="w-4 h-4" />
+                  Enable Notifications
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <BellRing className="w-5 h-5 text-warning" />
-                    Create Price Alert
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground">Trading Pair</label>
-                    <Select value={selectedPair} onValueChange={setSelectedPair}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a pair" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {popularPairs.map(pair => (
-                          <SelectItem key={`${pair.from}-${pair.to}`} value={`${pair.from}-${pair.to}`}>
-                            {pair.fromName} → {pair.toName} ({pair.from.toUpperCase()}/{pair.to.toUpperCase()})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground">Condition</label>
+              )}
+              {notificationPermission === 'granted' && (
+                <Badge variant="secondary" className="gap-1.5 bg-success/10 text-success border-success/20">
+                  <Bell className="w-3 h-3" />
+                  Notifications On
+                </Badge>
+              )}
+              {notificationPermission === 'denied' && (
+                <Badge variant="secondary" className="gap-1.5 bg-destructive/10 text-destructive border-destructive/20">
+                  <BellOff className="w-3 h-3" />
+                  Blocked
+                </Badge>
+              )}
+              
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    New Alert
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <BellRing className="w-5 h-5 text-warning" />
+                      Create Price Alert
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    {/* Toggle between preset and custom */}
                     <div className="flex gap-2">
                       <Button
                         type="button"
-                        variant={condition === "above" ? "default" : "outline"}
-                        onClick={() => setCondition("above")}
-                        className="flex-1 gap-2"
+                        variant={!isCustomPair ? "default" : "outline"}
+                        onClick={() => setIsCustomPair(false)}
+                        className="flex-1"
+                        size="sm"
                       >
-                        <TrendingUp className="w-4 h-4" />
-                        Goes Above
+                        Popular Pairs
                       </Button>
                       <Button
                         type="button"
-                        variant={condition === "below" ? "default" : "outline"}
-                        onClick={() => setCondition("below")}
-                        className="flex-1 gap-2"
+                        variant={isCustomPair ? "default" : "outline"}
+                        onClick={() => setIsCustomPair(true)}
+                        className="flex-1"
+                        size="sm"
                       >
-                        <TrendingDown className="w-4 h-4" />
-                        Goes Below
+                        Custom Pair
                       </Button>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground">Target Rate</label>
-                    <Input
-                      type="number"
-                      step="any"
-                      placeholder="e.g. 35.5"
-                      value={targetRate}
-                      onChange={(e) => setTargetRate(e.target.value)}
-                    />
-                  </div>
+                    {!isCustomPair ? (
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Trading Pair</label>
+                        <Select value={selectedPair} onValueChange={setSelectedPair}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a pair" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {popularPairs.map(pair => (
+                              <SelectItem key={`${pair.from}-${pair.to}`} value={`${pair.from}-${pair.to}`}>
+                                {pair.fromName} → {pair.toName} ({pair.from.toUpperCase()}/{pair.to.toUpperCase()})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* From Currency */}
+                        <div className="space-y-2">
+                          <label className="text-sm text-muted-foreground">From Currency</label>
+                          <div className="relative mb-2">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Search..."
+                              value={searchFrom}
+                              onChange={(e) => setSearchFrom(e.target.value)}
+                              className="pl-10 h-8"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
+                            {filteredFromCurrencies.slice(0, 20).map((currency) => (
+                              <button
+                                key={currency.ticker}
+                                onClick={() => setCustomFrom(currency.ticker)}
+                                className={cn(
+                                  "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
+                                  customFrom === currency.ticker
+                                    ? "border-primary bg-primary/10"
+                                    : "border-border hover:border-primary/50"
+                                )}
+                              >
+                                <img
+                                  src={currency.image}
+                                  alt={currency.name}
+                                  className="w-6 h-6 rounded-full"
+                                />
+                                <span className="uppercase font-medium">{currency.ticker}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
 
-                  <Button 
-                    className="w-full" 
-                    onClick={handleCreateAlert}
-                    disabled={!selectedPair || !targetRate}
-                  >
-                    Create Alert
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                        {/* To Currency */}
+                        <div className="space-y-2">
+                          <label className="text-sm text-muted-foreground">To Currency</label>
+                          <div className="relative mb-2">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Search..."
+                              value={searchTo}
+                              onChange={(e) => setSearchTo(e.target.value)}
+                              className="pl-10 h-8"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
+                            {filteredToCurrencies.slice(0, 20).map((currency) => (
+                              <button
+                                key={currency.ticker}
+                                onClick={() => setCustomTo(currency.ticker)}
+                                className={cn(
+                                  "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
+                                  customTo === currency.ticker
+                                    ? "border-primary bg-primary/10"
+                                    : "border-border hover:border-primary/50"
+                                )}
+                              >
+                                <img
+                                  src={currency.image}
+                                  alt={currency.name}
+                                  className="w-6 h-6 rounded-full"
+                                />
+                                <span className="uppercase font-medium">{currency.ticker}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {customFrom && customTo && (
+                          <div className="p-3 rounded-lg bg-secondary/50 text-sm text-center">
+                            {popularCurrencies.find(c => c.ticker === customFrom)?.name} →{' '}
+                            {popularCurrencies.find(c => c.ticker === customTo)?.name}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Condition</label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={condition === "above" ? "default" : "outline"}
+                          onClick={() => setCondition("above")}
+                          className="flex-1 gap-2"
+                        >
+                          <TrendingUp className="w-4 h-4" />
+                          Goes Above
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={condition === "below" ? "default" : "outline"}
+                          onClick={() => setCondition("below")}
+                          className="flex-1 gap-2"
+                        >
+                          <TrendingDown className="w-4 h-4" />
+                          Goes Below
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Target Rate</label>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="e.g. 35.5"
+                        value={targetRate}
+                        onChange={(e) => setTargetRate(e.target.value)}
+                      />
+                    </div>
+
+                    <Button 
+                      className="w-full" 
+                      onClick={handleCreateAlert}
+                      disabled={(!isCustomPair && !selectedPair) || (isCustomPair && (!customFrom || !customTo)) || !targetRate}
+                    >
+                      Create Alert
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             {alerts.length === 0 ? (
