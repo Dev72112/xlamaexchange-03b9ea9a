@@ -79,60 +79,60 @@ export function TrendingPairs() {
 
   return (
     <section className="py-12 sm:py-16">
-      <div className="container px-4 sm:px-6">
+      <div className="container px-4 sm:px-6 overflow-hidden">
         <Card className="bg-gradient-to-br from-card to-card/80 border-border overflow-hidden">
           <CardHeader className="pb-4">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20">
-                    <Flame className="w-5 h-5 text-orange-500" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="min-w-0">
+                <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold flex items-center gap-2">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 shrink-0">
+                    <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
                   </div>
-                  Trending Pairs
+                  <span className="truncate">Trending Pairs</span>
                 </CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Most popular exchanges right now
                 </p>
               </div>
-              <Badge variant="secondary" className="gap-1.5 bg-success/10 text-success border-success/20">
+              <Badge variant="secondary" className="gap-1.5 bg-success/10 text-success border-success/20 shrink-0 text-xs">
                 <Zap className="w-3 h-3" />
-                Live Rates
+                Live
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border animate-pulse"
+                    className="flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border animate-pulse"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex -space-x-2">
-                        <div className="w-10 h-10 rounded-full bg-muted" />
-                        <div className="w-10 h-10 rounded-full bg-muted" />
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="flex -space-x-2 shrink-0">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted" />
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted" />
                       </div>
                       <div className="space-y-2">
-                        <div className="w-20 h-4 bg-muted rounded" />
-                        <div className="w-16 h-3 bg-muted rounded" />
+                        <div className="w-16 sm:w-20 h-3 sm:h-4 bg-muted rounded" />
+                        <div className="w-12 sm:w-16 h-2 sm:h-3 bg-muted rounded" />
                       </div>
                     </div>
-                    <div className="w-16 h-6 bg-muted rounded" />
+                    <div className="w-12 sm:w-16 h-5 sm:h-6 bg-muted rounded" />
                   </div>
                 ))
               ) : (
                 rates.map(({ pair, rate, change24h }) => (
                   <div
                     key={`${pair.from}-${pair.to}`}
-                    className="group relative flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200"
+                    className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 overflow-hidden"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex -space-x-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <div className="relative flex -space-x-2 shrink-0">
                         <img
                           src={pair.fromImage}
                           alt={pair.fromName}
-                          className="w-10 h-10 rounded-full border-2 border-background"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-background"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${pair.from}&background=random`;
                           }}
@@ -140,49 +140,49 @@ export function TrendingPairs() {
                         <img
                           src={pair.toImage}
                           alt={pair.toName}
-                          className="w-10 h-10 rounded-full border-2 border-background"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-background"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${pair.to}&background=random`;
                           }}
                         />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1.5 font-semibold text-sm">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 sm:gap-1.5 font-semibold text-xs sm:text-sm">
                           <span className="uppercase">{getDisplayTicker(pair, 'from')}</span>
-                          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                          <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground shrink-0" />
                           <span className="uppercase">{getDisplayTicker(pair, 'to')}</span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-[10px] sm:text-xs text-muted-foreground truncate">
                           {pair.fromName} → {pair.toName}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                       <div className="text-right">
                         {rate !== null ? (
                           <>
-                            <div className="font-mono text-sm font-medium">
-                              {rate.toFixed(rate > 1 ? 4 : 8)}
+                            <div className="font-mono text-xs sm:text-sm font-medium">
+                              {rate.toFixed(rate > 1 ? 4 : 6)}
                             </div>
                             {change24h !== undefined && (
                               <div className={cn(
-                                "text-xs font-medium flex items-center justify-end gap-0.5",
+                                "text-[10px] sm:text-xs font-medium flex items-center justify-end gap-0.5",
                                 change24h >= 0 ? "text-success" : "text-destructive"
                               )}>
-                                <TrendingUp className={cn("w-3 h-3", change24h < 0 && "rotate-180")} />
+                                <TrendingUp className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3", change24h < 0 && "rotate-180")} />
                                 {Math.abs(change24h).toFixed(2)}%
                               </div>
                             )}
                           </>
                         ) : (
-                          <span className="text-xs text-muted-foreground">N/A</span>
+                          <span className="text-[10px] sm:text-xs text-muted-foreground">N/A</span>
                         )}
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
                         className={cn(
-                          "h-8 w-8 shrink-0 transition-all",
+                          "h-7 w-7 sm:h-8 sm:w-8 shrink-0 transition-all",
                           isFavorite(pair.from, pair.to)
                             ? "text-warning hover:text-warning/80"
                             : "text-muted-foreground hover:text-warning opacity-0 group-hover:opacity-100"
@@ -190,7 +190,7 @@ export function TrendingPairs() {
                         onClick={() => toggleFavorite(pair)}
                       >
                         <Star className={cn(
-                          "w-4 h-4 transition-all",
+                          "w-3.5 h-3.5 sm:w-4 sm:h-4 transition-all",
                           isFavorite(pair.from, pair.to) && "fill-current"
                         )} />
                       </Button>
