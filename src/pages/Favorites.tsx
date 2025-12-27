@@ -1,13 +1,12 @@
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useFavoritePairs } from "@/hooks/useFavoritePairs";
-import { Star, ArrowRight, Trash2, TrendingUp, Loader2 } from "lucide-react";
+import { Star, ArrowRight, Trash2, Loader2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { changeNowService } from "@/services/changenow";
-import { MiniChart } from "@/components/MiniChart";
 import { cn } from "@/lib/utils";
 
 const Favorites = () => {
@@ -131,14 +130,8 @@ const Favorites = () => {
                       </div>
                     </div>
 
-                    {/* Rate with Chart */}
-                    <div className="text-right hidden sm:flex items-center gap-3">
-                      <MiniChart 
-                        width={60} 
-                        height={28} 
-                        seed={rateKey}
-                        positive={rate !== null ? rate > 0 : true}
-                      />
+                    {/* Rate */}
+                    <div className="text-right hidden sm:block">
                       {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                       ) : rate ? (

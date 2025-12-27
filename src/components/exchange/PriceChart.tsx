@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Loader2, AlertCircle } from "lucide-react";
 import { Currency } from "@/data/currencies";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -23,55 +23,32 @@ interface PriceHistoryResponse {
 export function PriceChart({ fromCurrency, toCurrency, currentRate }: PriceChartProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [hasRealData, setHasRealData] = useState(false);
-
-  // Generate fallback simulated data
-  const generateSimulatedData = useCallback((rate: number): ChartDataPoint[] => {
-    const data: ChartDataPoint[] = [];
-    const now = new Date();
-    const volatility = 0.02;
-
-    for (let i = 23; i >= 0; i--) {
-      const time = new Date(now.getTime() - i * 60 * 60 * 1000);
-      const randomVariation = 1 + (Math.random() - 0.5) * volatility * 2;
-      const trendFactor = 1 + ((23 - i) / 23) * (Math.random() - 0.5) * 0.01;
-      const calculatedRate = rate * randomVariation * trendFactor;
-
-      data.push({
-        time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        rate: parseFloat(calculatedRate.toFixed(8)),
-      });
-    }
-
-    if (data.length > 0) {
-      data[data.length - 1].rate = rate;
-    }
-
-    return data;
-  }, []);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch real price history
   useEffect(() => {
     if (!currentRate) {
       setChartData([]);
+      setError(null);
       return;
     }
 
     const fetchPriceHistory = async () => {
       setIsLoading(true);
+      setError(null);
 
       try {
-        const { data, error } = await supabase.functions.invoke<PriceHistoryResponse>('price-history', {
+        const { data, error: apiError } = await supabase.functions.invoke<PriceHistoryResponse>('price-history', {
           body: {
             fromTicker: fromCurrency.ticker,
             toTicker: toCurrency.ticker,
           },
         });
 
-        if (error || !data?.prices || data.prices.length === 0) {
-          console.log('Using simulated data:', error?.message || 'No price data');
-          setChartData(generateSimulatedData(currentRate));
-          setHasRealData(false);
+        if (apiError || !data?.prices || data.prices.length === 0) {
+          console.log('Price history unavailable:', apiError?.message || 'No data');
+          setChartData([]);
+          setError('Historical data unavailable');
         } else {
           // Convert API response to chart format
           const formattedData: ChartDataPoint[] = data.prices.map((p) => ({
@@ -83,19 +60,19 @@ export function PriceChart({ fromCurrency, toCurrency, currentRate }: PriceChart
           }));
           
           setChartData(formattedData);
-          setHasRealData(true);
+          setError(null);
         }
       } catch (err) {
         console.error('Price history fetch error:', err);
-        setChartData(generateSimulatedData(currentRate));
-        setHasRealData(false);
+        setChartData([]);
+        setError('Failed to load chart data');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchPriceHistory();
-  }, [fromCurrency.ticker, toCurrency.ticker, currentRate, generateSimulatedData]);
+  }, [fromCurrency.ticker, toCurrency.ticker, currentRate]);
 
   const priceChange = useMemo(() => {
     if (chartData.length < 2) return { value: 0, percentage: 0, isPositive: true };
@@ -132,20 +109,20 @@ export function PriceChart({ fromCurrency, toCurrency, currentRate }: PriceChart
           <span className="text-sm font-medium">
             {fromCurrency.ticker.toUpperCase()}/{toCurrency.ticker.toUpperCase()}
           </span>
-          <span className="text-xs text-muted-foreground">
-            24h {!hasRealData && '(estimated)'}
-          </span>
+          <span className="text-xs text-muted-foreground">24h</span>
         </div>
-        <div className={`flex items-center gap-1 text-xs font-medium ${
-          priceChange.isPositive ? 'text-success' : 'text-destructive'
-        }`}>
-          {priceChange.isPositive ? (
-            <TrendingUp className="w-3 h-3" />
-          ) : (
-            <TrendingDown className="w-3 h-3" />
-          )}
-          <span>{priceChange.isPositive ? '+' : ''}{priceChange.percentage.toFixed(2)}%</span>
-        </div>
+        {chartData.length > 0 && (
+          <div className={`flex items-center gap-1 text-xs font-medium ${
+            priceChange.isPositive ? 'text-success' : 'text-destructive'
+          }`}>
+            {priceChange.isPositive ? (
+              <TrendingUp className="w-3 h-3" />
+            ) : (
+              <TrendingDown className="w-3 h-3" />
+            )}
+            <span>{priceChange.isPositive ? '+' : ''}{priceChange.percentage.toFixed(2)}%</span>
+          </div>
+        )}
       </div>
 
       {/* Chart */}
@@ -153,6 +130,11 @@ export function PriceChart({ fromCurrency, toCurrency, currentRate }: PriceChart
         {isLoading ? (
           <div className="h-full flex items-center justify-center">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : error || chartData.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+            <AlertCircle className="w-5 h-5 mb-1 opacity-50" />
+            <span className="text-xs">{error || 'No chart data'}</span>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
