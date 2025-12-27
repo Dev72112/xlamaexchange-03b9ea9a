@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { changeNowService } from "@/services/changenow";
+import { MiniChart } from "@/components/MiniChart";
 import { cn } from "@/lib/utils";
 
 const Favorites = () => {
@@ -130,8 +131,13 @@ const Favorites = () => {
                       </div>
                     </div>
 
-                    {/* Rate */}
-                    <div className="text-right hidden sm:block">
+                    {/* Rate with Chart */}
+                    <div className="text-right hidden sm:flex items-center gap-3">
+                      <MiniChart 
+                        width={60} 
+                        height={28} 
+                        positive={Math.random() > 0.4}
+                      />
                       {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                       ) : rate ? (
