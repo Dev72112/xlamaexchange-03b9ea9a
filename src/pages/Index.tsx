@@ -7,7 +7,7 @@ import { TrendingPairs } from "@/components/TrendingPairs";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
 import { Helmet } from "react-helmet-async";
-import { Shield, Zap, Clock } from "lucide-react";
+import { Shield, Zap, Clock, RefreshCw } from "lucide-react";
 
 const Index = () => {
   return (
@@ -21,61 +21,49 @@ const Index = () => {
         <meta name="keywords" content="crypto exchange, bitcoin swap, ethereum exchange, cryptocurrency, no KYC, instant swap" />
       </Helmet>
 
-      {/* Hero Section */}
-      <section className="relative py-16 sm:py-24 md:py-32 overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/10 pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="container px-4 sm:px-6 relative">
-          <div className="grid gap-12 lg:gap-16 lg:grid-cols-2 items-center">
-            {/* Left Content */}
-            <div className="text-center lg:text-left space-y-6 sm:space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium animate-fade-in">
-                <Zap className="w-4 h-4" />
-                Powered by ChangeNOW
-              </div>
-              
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight animate-fade-in">
-                The{" "}
-                <span className="gradient-text">fastest</span>
-                <br />
-                crypto exchange
-              </h1>
-              
-              <p className="text-lg sm:text-xl text-muted-foreground max-w-lg mx-auto lg:mx-0 animate-fade-in">
-                Swap Bitcoin, Ethereum, and 900+ cryptocurrencies instantly. 
-                No registration. No hidden fees. Just fast, secure exchanges.
-              </p>
+      {/* Hero Section - OKX Style Clean Layout */}
+      <section className="py-12 sm:py-16 lg:py-20">
+        <div className="container px-4 sm:px-6">
+          {/* Title */}
+          <div className="text-center mb-10 sm:mb-12">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-4 tracking-tight">
+              Crypto converter and calculator
+            </h1>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
+              This page displays the real-time conversion rate of crypto against its cash equivalent. 
+              You can instantly convert 900+ popular cryptocurrencies with the best available rates.
+            </p>
+          </div>
 
-              <div className="flex flex-wrap gap-6 justify-center lg:justify-start animate-fade-in">
-                <div className="flex items-center gap-2.5 text-sm">
-                  <div className="p-1.5 rounded-full bg-success/10">
-                    <Shield className="w-4 h-4 text-success" />
-                  </div>
-                  <span className="font-medium">Non-custodial</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-sm">
-                  <div className="p-1.5 rounded-full bg-success/10">
-                    <Zap className="w-4 h-4 text-success" />
-                  </div>
-                  <span className="font-medium">Best Rates</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-sm">
-                  <div className="p-1.5 rounded-full bg-success/10">
-                    <Clock className="w-4 h-4 text-success" />
-                  </div>
-                  <span className="font-medium">2-20 min</span>
-                </div>
-              </div>
-            </div>
+          {/* Exchange Widget - Centered */}
+          <div className="max-w-xl mx-auto mb-16">
+            <ExchangeWidget />
+          </div>
 
-            {/* Right Widget */}
-            <div className="lg:pl-8 w-full max-w-lg mx-auto lg:max-w-none animate-scale-in">
-              <div className="relative">
-                <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-accent/20 rounded-2xl blur-2xl opacity-50" />
-                <ExchangeWidget />
-              </div>
+          {/* Feature Cards - OKX Style */}
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6">Make the most of our converter</h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <FeatureCard
+                icon={RefreshCw}
+                title="Real-time data"
+                description="Our crypto to fiat converter is updated on-demand, just refresh the page for the latest rate."
+              />
+              <FeatureCard
+                icon={Zap}
+                title="Variety of assets"
+                description="You can convert between a large selection of crypto and fiat currencies at any time."
+              />
+              <FeatureCard
+                icon={Shield}
+                title="Easy to use"
+                description="Simply select your assets, enter your desired amount, and convert for real-time price data."
+              />
+              <FeatureCard
+                icon={Clock}
+                title="No account needed"
+                description="Our converter is publicly available, so you can always find out how much your money's worth."
+              />
             </div>
           </div>
         </div>
@@ -90,5 +78,15 @@ const Index = () => {
     </Layout>
   );
 };
+
+function FeatureCard({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+  return (
+    <div className="p-5 rounded-xl bg-card border border-border hover:border-primary/20 transition-colors">
+      <Icon className="w-5 h-5 text-muted-foreground mb-3" />
+      <h3 className="font-medium mb-2">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+    </div>
+  );
+}
 
 export default Index;
