@@ -77,11 +77,123 @@ export function usePortfolio() {
     });
   }, [toast]);
 
+  const exportPortfolio = useCallback(() => {
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      holdings: holdings.map(h => ({
+        ticker: h.ticker,
+        name: h.name,
+        amount: h.amount,
+        network: h.network,
+      })),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `xlama-portfolio-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Portfolio Exported",
+      description: "Your portfolio has been downloaded as JSON",
+    });
+  }, [holdings, toast]);
+
+  const exportCSV = useCallback(() => {
+    const headers = ['Ticker', 'Name', 'Amount', 'Network'];
+    const rows = holdings.map(h => [h.ticker, h.name, h.amount.toString(), h.network || '']);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `xlama-portfolio-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Portfolio Exported",
+      description: "Your portfolio has been downloaded as CSV",
+    });
+  }, [holdings, toast]);
+
+  const importPortfolio = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        
+        if (file.name.endsWith('.csv')) {
+          // Parse CSV
+          const lines = content.split('\n').filter(l => l.trim());
+          const rows = lines.slice(1); // Skip header
+          
+          const imported: Omit<PortfolioHolding, 'id' | 'addedAt'>[] = rows.map(row => {
+            const [ticker, name, amount, network] = row.split(',');
+            return {
+              ticker: ticker.trim(),
+              name: name.trim(),
+              amount: parseFloat(amount.trim()) || 0,
+              network: network?.trim() || undefined,
+              image: `https://ui-avatars.com/api/?name=${ticker.trim()}&background=random`,
+            };
+          }).filter(h => h.ticker && h.amount > 0);
+          
+          imported.forEach(h => addHolding(h));
+          toast({
+            title: "Import Complete",
+            description: `Imported ${imported.length} holdings from CSV`,
+          });
+        } else {
+          // Parse JSON
+          const data = JSON.parse(content);
+          const imported = data.holdings || [];
+          
+          imported.forEach((h: any) => {
+            if (h.ticker && h.amount > 0) {
+              addHolding({
+                ticker: h.ticker,
+                name: h.name || h.ticker,
+                amount: h.amount,
+                network: h.network,
+                image: `https://ui-avatars.com/api/?name=${h.ticker}&background=random`,
+              });
+            }
+          });
+          
+          toast({
+            title: "Import Complete",
+            description: `Imported ${imported.length} holdings from JSON`,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Import Failed",
+          description: "Could not parse the file. Please check the format.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+  }, [addHolding, toast]);
+
   return {
     holdings,
     addHolding,
     updateHolding,
     removeHolding,
+    exportPortfolio,
+    exportCSV,
+    importPortfolio,
     totalHoldings: holdings.length,
   };
 }
