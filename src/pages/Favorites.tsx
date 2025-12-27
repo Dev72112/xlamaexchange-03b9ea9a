@@ -43,7 +43,8 @@ const Favorites = () => {
   });
 
   const handleExchange = (from: string, to: string) => {
-    navigate(`/?from=${from}&to=${to}`);
+    // Use window.location to force full reload with params
+    window.location.href = `/?from=${from}&to=${to}`;
   };
 
   return (

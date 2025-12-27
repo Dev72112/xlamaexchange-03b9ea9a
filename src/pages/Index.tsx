@@ -47,12 +47,12 @@ const Index = () => {
               <FeatureCard
                 icon={RefreshCw}
                 title="Real-time data"
-                description="Our crypto to fiat converter is updated on-demand, just refresh the page for the latest rate."
+                description="Our crypto converter is updated on-demand, just refresh the page for the latest rate."
               />
               <FeatureCard
                 icon={Zap}
-                title="Variety of assets"
-                description="You can convert between a large selection of crypto and fiat currencies at any time."
+                title="900+ cryptocurrencies"
+                description="You can convert between a large selection of cryptocurrencies at any time."
               />
               <FeatureCard
                 icon={Shield}
@@ -62,7 +62,7 @@ const Index = () => {
               <FeatureCard
                 icon={Clock}
                 title="No account needed"
-                description="Our converter is publicly available, so you can always find out how much your money's worth."
+                description="Our converter is publicly available with no registration required. Fast and anonymous."
               />
             </div>
           </div>
