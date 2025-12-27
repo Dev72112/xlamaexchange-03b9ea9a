@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { changeNowService } from "@/services/changenow";
+import { defiLlamaService } from "@/services/defillama";
 import { useFavoritePairs, FavoritePair } from "@/hooks/useFavoritePairs";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ interface TrendingRate {
   pair: FavoritePair;
   rate: number | null;
   loading: boolean;
-  change24h?: number; // Simulated for now
+  change24h?: number | null;
 }
 
 export function TrendingPairs() {
@@ -31,6 +32,12 @@ export function TrendingPairs() {
 
   const fetchRates = useCallback(async () => {
     setIsLoading(true);
+
+    // Get unique tickers for price change data
+    const uniqueTickers = [...new Set(trendingPairsData.flatMap(p => [p.from, p.to]))];
+    
+    // Fetch price changes from DeFiLlama
+    const priceChanges = await defiLlamaService.getPricesWithChange(uniqueTickers);
 
     const getRatePerOne = async (from: string, to: string): Promise<number> => {
       try {
@@ -52,12 +59,13 @@ export function TrendingPairs() {
       trendingPairsData.map(async (pair) => {
         try {
           const rate = await getRatePerOne(pair.from, pair.to);
-          // Simulate 24h change for visual effect
-          const change24h = (Math.random() - 0.4) * 5;
+          // Get 24h change for the "from" currency (what users are selling)
+          const fromPriceData = priceChanges[pair.from];
+          const change24h = fromPriceData?.change24h ?? null;
           return { pair, rate, loading: false, change24h };
         } catch (error) {
           console.error(`Failed to fetch rate for ${pair.from}/${pair.to}:`, error);
-          return { pair, rate: null, loading: false };
+          return { pair, rate: null, loading: false, change24h: null };
         }
       })
     );
