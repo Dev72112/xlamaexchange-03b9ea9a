@@ -234,27 +234,33 @@ export function PriceAlerts() {
                               className="pl-10 h-8"
                             />
                           </div>
-                          <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
-                            {filteredFromCurrencies.slice(0, 20).map((currency) => (
-                              <button
-                                key={currency.ticker}
-                                onClick={() => setCustomFrom(currency.ticker)}
-                                className={cn(
-                                  "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
-                                  customFrom === currency.ticker
-                                    ? "border-primary bg-primary/10"
-                                    : "border-border hover:border-primary/50"
-                                )}
-                              >
-                                <img
-                                  src={currency.image}
-                                  alt={currency.name}
-                                  className="w-6 h-6 rounded-full"
-                                />
-                                <span className="uppercase font-medium">{currency.ticker}</span>
-                              </button>
-                            ))}
-                          </div>
+                          {currenciesLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
+                              {filteredFromCurrencies.slice(0, 20).map((currency) => (
+                                <button
+                                  key={currency.ticker}
+                                  onClick={() => setCustomFrom(currency.ticker)}
+                                  className={cn(
+                                    "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
+                                    customFrom === currency.ticker
+                                      ? "border-primary bg-primary/10"
+                                      : "border-border hover:border-primary/50"
+                                  )}
+                                >
+                                  <img
+                                    src={currency.image}
+                                    alt={currency.name}
+                                    className="w-6 h-6 rounded-full"
+                                  />
+                                  <span className="uppercase font-medium">{currency.ticker}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* To Currency */}
@@ -269,27 +275,33 @@ export function PriceAlerts() {
                               className="pl-10 h-8"
                             />
                           </div>
-                          <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
-                            {filteredToCurrencies.slice(0, 20).map((currency) => (
-                              <button
-                                key={currency.ticker}
-                                onClick={() => setCustomTo(currency.ticker)}
-                                className={cn(
-                                  "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
-                                  customTo === currency.ticker
-                                    ? "border-primary bg-primary/10"
-                                    : "border-border hover:border-primary/50"
-                                )}
-                              >
-                                <img
-                                  src={currency.image}
-                                  alt={currency.name}
-                                  className="w-6 h-6 rounded-full"
-                                />
-                                <span className="uppercase font-medium">{currency.ticker}</span>
-                              </button>
-                            ))}
-                          </div>
+                          {currenciesLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto">
+                              {filteredToCurrencies.slice(0, 20).map((currency) => (
+                                <button
+                                  key={currency.ticker}
+                                  onClick={() => setCustomTo(currency.ticker)}
+                                  className={cn(
+                                    "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
+                                    customTo === currency.ticker
+                                      ? "border-primary bg-primary/10"
+                                      : "border-border hover:border-primary/50"
+                                  )}
+                                >
+                                  <img
+                                    src={currency.image}
+                                    alt={currency.name}
+                                    className="w-6 h-6 rounded-full"
+                                  />
+                                  <span className="uppercase font-medium">{currency.ticker}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {customFrom && customTo && (
