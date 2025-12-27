@@ -304,7 +304,11 @@ export function RateComparison() {
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <div className="space-y-4 min-w-0">
-              {rates.map(({ pair, rates: pairRates, loading, error }) => (
+              {rates.map((rateData) => {
+                const { pair, rates: pairRates = [], loading = false, error = false } = rateData || {};
+                if (!pair) return null;
+                
+                return (
                 <div
                   key={getPairKey(pair)}
                   className="group p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-border/80 transition-colors"
@@ -351,7 +355,7 @@ export function RateComparison() {
                   
                   {/* Rate comparison grid */}
                   <div className="grid grid-cols-3 gap-2">
-                    {pairRates.map(({ provider, rate, isBest }) => (
+                    {(pairRates || []).map(({ provider, rate, isBest }) => (
                       <div 
                         key={provider}
                         className={cn(
@@ -385,7 +389,8 @@ export function RateComparison() {
                     ))}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
             
             {trackedPairs.length === 0 && (
