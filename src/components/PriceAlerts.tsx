@@ -421,6 +421,18 @@ export function PriceAlerts() {
   );
 }
 
+function formatRate(value: number): string {
+  if (value >= 1000) {
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  } else if (value >= 1) {
+    return value.toFixed(4);
+  } else if (value >= 0.0001) {
+    return value.toFixed(6);
+  } else {
+    return value.toExponential(4);
+  }
+}
+
 function AlertCard({ 
   alert, 
   onRemove, 
@@ -472,11 +484,11 @@ function AlertCard({
             )}
           </div>
           <div className="text-[10px] sm:text-xs text-muted-foreground truncate">
-            {alert.condition === 'above' ? 'Above' : 'Below'} {alert.targetRate}
+            {alert.condition === 'above' ? 'Above' : 'Below'} {formatRate(alert.targetRate)}
           </div>
           {alert.lastCheckedRate && (
             <div className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
-              Current: <span className="font-mono">{alert.lastCheckedRate.toFixed(6)}</span>
+              Current: <span className="font-mono">{formatRate(alert.lastCheckedRate)}</span>
             </div>
           )}
           <div className="text-[9px] sm:text-[10px] text-muted-foreground mt-2">
