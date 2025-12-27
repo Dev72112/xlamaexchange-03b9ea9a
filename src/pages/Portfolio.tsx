@@ -1,18 +1,20 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { useChangeNowCurrencies } from "@/hooks/useChangeNowCurrencies";
 import { useQuery } from "@tanstack/react-query";
 import { defiLlamaService } from "@/services/defillama";
-import { popularCurrencies } from "@/data/currencies";
 import { 
   Wallet, Plus, Trash2, Edit2, Loader2, 
-  TrendingUp, TrendingDown, PieChart, X, Check,
-  Download, Upload, FileJson, FileSpreadsheet
+  TrendingUp, TrendingDown, X, Check,
+  Download, Upload, FileJson, FileSpreadsheet,
+  Bell, BellRing, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -26,16 +28,57 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { cn } from "@/lib/utils";
 
+const COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  '#8b5cf6',
+  '#f59e0b',
+  '#10b981',
+  '#ef4444',
+  '#06b6d4',
+  '#ec4899',
+];
+
 const Portfolio = () => {
-  const { holdings, addHolding, updateHolding, removeHolding, exportPortfolio, exportCSV, importPortfolio } = usePortfolio();
+  const { 
+    holdings, 
+    addHolding, 
+    updateHolding, 
+    removeHolding, 
+    exportPortfolio, 
+    exportCSV, 
+    importPortfolio,
+    portfolioAlerts,
+    addPortfolioAlert,
+    removePortfolioAlert,
+    checkPortfolioAlerts,
+    activePortfolioAlerts,
+    triggeredPortfolioAlerts,
+  } = usePortfolio();
+  
+  const { currencies: allCurrencies, isLoading: currenciesLoading } = useChangeNowCurrencies();
+  
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState<typeof popularCurrencies[0] | null>(null);
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCurrency, setSelectedCurrency] = useState<typeof allCurrencies[0] | null>(null);
   const [amount, setAmount] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Alert form state
+  const [alertTicker, setAlertTicker] = useState("");
+  const [alertCondition, setAlertCondition] = useState<'above' | 'below' | 'change'>('above');
+  const [alertTargetValue, setAlertTargetValue] = useState("");
+  const [alertSearchQuery, setAlertSearchQuery] = useState("");
 
   // Fetch prices for all holdings
   const { data: prices, isLoading: pricesLoading } = useQuery({
@@ -47,6 +90,25 @@ const Portfolio = () => {
     },
     enabled: holdings.length > 0,
     refetchInterval: 30000,
+  });
+
+  // Check alerts when prices update
+  useEffect(() => {
+    if (prices && Object.keys(prices).length > 0) {
+      checkPortfolioAlerts(prices);
+    }
+  }, [prices, checkPortfolioAlerts]);
+
+  const filteredCurrencies = allCurrencies.filter(c => {
+    if (!searchQuery) return true;
+    return c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           c.ticker.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const alertFilteredCurrencies = holdings.filter(h => {
+    if (!alertSearchQuery) return true;
+    return h.name.toLowerCase().includes(alertSearchQuery.toLowerCase()) ||
+           h.ticker.toLowerCase().includes(alertSearchQuery.toLowerCase());
   });
 
   const handleAddHolding = () => {
@@ -63,6 +125,7 @@ const Portfolio = () => {
     setDialogOpen(false);
     setSelectedCurrency(null);
     setAmount("");
+    setSearchQuery("");
   };
 
   const handleUpdateHolding = (id: string) => {
@@ -70,6 +133,23 @@ const Portfolio = () => {
     updateHolding(id, parseFloat(editAmount));
     setEditingId(null);
     setEditAmount("");
+  };
+
+  const handleCreateAlert = () => {
+    const holding = holdings.find(h => h.ticker === alertTicker);
+    if (!holding || !alertTargetValue) return;
+    
+    addPortfolioAlert({
+      ticker: holding.ticker,
+      name: holding.name,
+      condition: alertCondition,
+      targetValue: parseFloat(alertTargetValue),
+    });
+
+    setAlertDialogOpen(false);
+    setAlertTicker("");
+    setAlertCondition('above');
+    setAlertTargetValue("");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,11 +168,25 @@ const Portfolio = () => {
     return acc;
   }, 0);
 
+  // Prepare pie chart data
+  const pieChartData = holdings
+    .map(holding => {
+      const price = prices?.[holding.ticker];
+      const value = price ? holding.amount * price : 0;
+      return {
+        name: holding.ticker.toUpperCase(),
+        value,
+        fullName: holding.name,
+      };
+    })
+    .filter(d => d.value > 0)
+    .sort((a, b) => b.value - a.value);
+
   return (
     <Layout>
       <Helmet>
         <title>Portfolio Tracker - xlama</title>
-        <meta name="description" content="Track your cryptocurrency portfolio with live prices and total value." />
+        <meta name="description" content="Track your cryptocurrency portfolio with live prices, alerts, and visualizations." />
       </Helmet>
 
       <input
@@ -103,7 +197,7 @@ const Portfolio = () => {
         className="hidden"
       />
 
-      <div className="container px-4 py-12 sm:py-16 max-w-4xl">
+      <div className="container px-4 py-12 sm:py-16 max-w-5xl">
         {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-4 mb-10">
           <div>
@@ -114,12 +208,12 @@ const Portfolio = () => {
               <h1 className="text-3xl sm:text-4xl font-bold">Portfolio</h1>
             </div>
             <p className="text-muted-foreground">
-              Track your holdings with live prices
+              Track your holdings with live prices and alerts
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-10">
+        <div className="flex items-center gap-2 flex-wrap mb-10">
           {/* Import */}
           <Button
             variant="outline"
@@ -153,6 +247,161 @@ const Portfolio = () => {
             </DropdownMenu>
           )}
 
+          {/* Price Alert Button */}
+          {holdings.length > 0 && (
+            <Dialog open={alertDialogOpen} onOpenChange={setAlertDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Bell className="w-4 h-4" />
+                  Set Alert
+                  {activePortfolioAlerts.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                      {activePortfolioAlerts.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <BellRing className="w-5 h-5 text-warning" />
+                    Create Portfolio Alert
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Select Holding</label>
+                    <div className="relative mb-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search holdings..."
+                        value={alertSearchQuery}
+                        onChange={(e) => setAlertSearchQuery(e.target.value)}
+                        className="pl-10 h-9"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 max-h-[150px] overflow-y-auto">
+                      {alertFilteredCurrencies.map((holding) => (
+                        <button
+                          key={holding.id}
+                          onClick={() => setAlertTicker(holding.ticker)}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-2 rounded-lg border transition-all",
+                            alertTicker === holding.ticker
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <img
+                            src={holding.image}
+                            alt={holding.name}
+                            className="w-6 h-6 rounded-full"
+                          />
+                          <span className="text-xs font-medium uppercase">{holding.ticker}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Condition</label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={alertCondition === "above" ? "default" : "outline"}
+                        onClick={() => setAlertCondition("above")}
+                        className="flex-1"
+                        size="sm"
+                      >
+                        <TrendingUp className="w-4 h-4 mr-1" />
+                        Above
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={alertCondition === "below" ? "default" : "outline"}
+                        onClick={() => setAlertCondition("below")}
+                        className="flex-1"
+                        size="sm"
+                      >
+                        <TrendingDown className="w-4 h-4 mr-1" />
+                        Below
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={alertCondition === "change" ? "default" : "outline"}
+                        onClick={() => setAlertCondition("change")}
+                        className="flex-1"
+                        size="sm"
+                      >
+                        ±%
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">
+                      {alertCondition === 'change' ? 'Change Percentage (%)' : 'Target Price ($)'}
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder={alertCondition === 'change' ? 'e.g. 5' : 'e.g. 50000'}
+                      value={alertTargetValue}
+                      onChange={(e) => setAlertTargetValue(e.target.value)}
+                    />
+                  </div>
+
+                  <Button 
+                    className="w-full" 
+                    onClick={handleCreateAlert}
+                    disabled={!alertTicker || !alertTargetValue}
+                  >
+                    Create Alert
+                  </Button>
+                </div>
+
+                {/* Existing Alerts */}
+                {portfolioAlerts.length > 0 && (
+                  <div className="mt-6 pt-4 border-t">
+                    <h4 className="text-sm font-medium mb-3">Active Alerts</h4>
+                    <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                      {portfolioAlerts.map((alert) => (
+                        <div 
+                          key={alert.id}
+                          className={cn(
+                            "flex items-center justify-between p-2 rounded-lg text-sm",
+                            alert.triggered ? "bg-warning/10" : "bg-secondary/50"
+                          )}
+                        >
+                          <div>
+                            <span className="font-medium">{alert.name}</span>
+                            <span className="text-muted-foreground ml-2">
+                              {alert.condition === 'above' ? '>' : alert.condition === 'below' ? '<' : '±'}
+                              {alert.condition === 'change' ? `${alert.targetValue}%` : `$${alert.targetValue}`}
+                            </span>
+                            {alert.triggered && (
+                              <Badge variant="secondary" className="ml-2 text-xs bg-warning/20 text-warning">
+                                Triggered
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => removePortfolioAlert(alert.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+          )}
+
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -160,42 +409,64 @@ const Portfolio = () => {
                 Add Holding
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Holding</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <label className="text-sm text-muted-foreground">Select Cryptocurrency</label>
-                  <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
-                    {popularCurrencies.map((currency) => (
-                      <button
-                        key={currency.ticker}
-                        onClick={() => setSelectedCurrency(currency)}
-                        className={cn(
-                          "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
-                          selectedCurrency?.ticker === currency.ticker
-                            ? "border-primary bg-primary/10"
-                            : "border-border hover:border-primary/50"
-                        )}
-                      >
-                        <img
-                          src={currency.image}
-                          alt={currency.name}
-                          className="w-8 h-8 rounded-full"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currency.ticker}&background=random`;
-                          }}
-                        />
-                        <span className="text-xs font-medium uppercase">{currency.ticker}</span>
-                      </button>
-                    ))}
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search tokens..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
+                  {currenciesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[300px] overflow-y-auto">
+                      {filteredCurrencies.slice(0, 100).map((currency) => (
+                        <button
+                          key={currency.ticker}
+                          onClick={() => setSelectedCurrency(currency)}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-2 rounded-lg border transition-all",
+                            selectedCurrency?.ticker === currency.ticker
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <img
+                            src={currency.image}
+                            alt={currency.name}
+                            className="w-7 h-7 rounded-full"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currency.ticker}&background=random`;
+                            }}
+                          />
+                          <span className="text-[10px] font-medium uppercase truncate w-full text-center">
+                            {currency.ticker}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {filteredCurrencies.length > 100 && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Showing 100 of {filteredCurrencies.length} tokens. Use search to find more.
+                    </p>
+                  )}
                 </div>
 
                 {selectedCurrency && (
                   <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground">Amount</label>
+                    <label className="text-sm text-muted-foreground">Amount of {selectedCurrency.name}</label>
                     <Input
                       type="number"
                       step="any"
@@ -218,25 +489,82 @@ const Portfolio = () => {
           </Dialog>
         </div>
 
-        {/* Total Value Card */}
+        {/* Total Value Card & Pie Chart */}
         {holdings.length > 0 && (
-          <Card className="p-6 mb-8 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-primary/20">
-                <PieChart className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Total Portfolio Value</div>
-                <div className="text-3xl font-bold">
-                  {pricesLoading ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  )}
+          <div className="grid gap-6 md:grid-cols-2 mb-8">
+            <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-primary/20">
+                  <Wallet className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Total Portfolio Value</div>
+                  <div className="text-3xl font-bold">
+                    {pricesLoading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
+              
+              {/* Active Alerts Summary */}
+              {activePortfolioAlerts.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-primary/20">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Bell className="w-4 h-4 text-warning" />
+                    <span className="text-muted-foreground">
+                      {activePortfolioAlerts.length} active alert{activePortfolioAlerts.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Pie Chart */}
+            {pieChartData.length > 0 && (
+              <Card className="p-4">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Allocation</h3>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={COLORS[index % COLORS.length]}
+                            stroke="hsl(var(--background))"
+                            strokeWidth={2}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [`$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, 'Value']}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Legend 
+                        formatter={(value) => <span className="text-xs">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            )}
+          </div>
         )}
 
         {/* Holdings List */}
@@ -280,6 +608,11 @@ const Portfolio = () => {
                         <span className="text-sm text-muted-foreground uppercase">
                           {holding.ticker}
                         </span>
+                        {holding.network && (
+                          <Badge variant="outline" className="text-xs">
+                            {holding.network}
+                          </Badge>
+                        )}
                       </div>
                       
                       {isEditing ? (

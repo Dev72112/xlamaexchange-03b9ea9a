@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, BellRing, Plus, Trash2, TrendingUp, TrendingDown, X, BellOff, Search } from "lucide-react";
+import { Bell, BellRing, Plus, Trash2, TrendingUp, TrendingDown, X, BellOff, Search, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { usePriceAlerts, PriceAlert } from "@/hooks/usePriceAlerts";
 import { Badge } from "@/components/ui/badge";
-import { popularCurrencies } from "@/data/currencies";
+import { useChangeNowCurrencies } from "@/hooks/useChangeNowCurrencies";
 import { cn } from "@/lib/utils";
 
 const popularPairs = [
@@ -35,6 +35,7 @@ const popularPairs = [
 
 export function PriceAlerts() {
   const { alerts, addAlert, removeAlert, activeAlerts, triggeredAlerts } = usePriceAlerts();
+  const { currencies: allCurrencies, isLoading: currenciesLoading } = useChangeNowCurrencies();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPair, setSelectedPair] = useState("");
   const [targetRate, setTargetRate] = useState("");
@@ -68,8 +69,8 @@ export function PriceAlerts() {
 
     if (isCustomPair) {
       if (!customFrom || !customTo) return;
-      const fromCurrency = popularCurrencies.find(c => c.ticker === customFrom);
-      const toCurrency = popularCurrencies.find(c => c.ticker === customTo);
+      const fromCurrency = allCurrencies.find(c => c.ticker === customFrom);
+      const toCurrency = allCurrencies.find(c => c.ticker === customTo);
       if (!fromCurrency || !toCurrency) return;
       
       fromTicker = fromCurrency.ticker;
@@ -114,12 +115,12 @@ export function PriceAlerts() {
     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
-  const filteredFromCurrencies = popularCurrencies.filter(c => 
+  const filteredFromCurrencies = allCurrencies.filter(c => 
     c.name.toLowerCase().includes(searchFrom.toLowerCase()) ||
     c.ticker.toLowerCase().includes(searchFrom.toLowerCase())
   );
 
-  const filteredToCurrencies = popularCurrencies.filter(c => 
+  const filteredToCurrencies = allCurrencies.filter(c => 
     c.ticker !== customFrom && (
       c.name.toLowerCase().includes(searchTo.toLowerCase()) ||
       c.ticker.toLowerCase().includes(searchTo.toLowerCase())
@@ -293,8 +294,8 @@ export function PriceAlerts() {
 
                         {customFrom && customTo && (
                           <div className="p-3 rounded-lg bg-secondary/50 text-sm text-center">
-                            {popularCurrencies.find(c => c.ticker === customFrom)?.name} →{' '}
-                            {popularCurrencies.find(c => c.ticker === customTo)?.name}
+                            {allCurrencies.find(c => c.ticker === customFrom)?.name} →{' '}
+                            {allCurrencies.find(c => c.ticker === customTo)?.name}
                           </div>
                         )}
                       </div>

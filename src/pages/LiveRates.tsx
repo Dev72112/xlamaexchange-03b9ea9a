@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import { defiLlamaService, PriceWithChange } from "@/services/defillama";
-import { popularCurrencies } from "@/data/currencies";
+import { useChangeNowCurrencies } from "@/hooks/useChangeNowCurrencies";
 import { 
   Activity, RefreshCw, Search, TrendingUp, 
   TrendingDown, Loader2, AlertCircle
@@ -21,20 +21,24 @@ interface CoinPrice {
   price: number | null;
   source: 'defillama' | 'coingecko' | null;
   change24h?: number | null;
+  network?: string;
 }
 
 const LiveRates = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { currencies: allCurrencies, isLoading: currenciesLoading } = useChangeNowCurrencies();
 
-  const { data: prices, isLoading, refetch, isRefetching, error } = useQuery({
-    queryKey: ['live-rates'],
+  const { data: prices, isLoading: pricesLoading, refetch, isRefetching, error } = useQuery({
+    queryKey: ['live-rates', allCurrencies.length],
     queryFn: async (): Promise<CoinPrice[]> => {
-      const tickers = popularCurrencies.map(c => c.ticker);
+      if (allCurrencies.length === 0) return [];
       
-      // Use the new method that gets real 24h change
+      const tickers = allCurrencies.map(c => c.ticker);
+      
+      // Use the method that gets real 24h change
       const pricesWithChange = await defiLlamaService.getPricesWithChange(tickers);
       
-      return popularCurrencies.map(currency => {
+      return allCurrencies.map(currency => {
         const data = pricesWithChange[currency.ticker];
         
         return {
@@ -44,11 +48,15 @@ const LiveRates = () => {
           price: data?.price ?? null,
           source: data ? 'defillama' : null,
           change24h: data?.change24h,
+          network: currency.network,
         };
       });
     },
+    enabled: allCurrencies.length > 0,
     refetchInterval: 30000,
   });
+
+  const isLoading = currenciesLoading || pricesLoading;
 
   const filteredPrices = prices?.filter(coin => {
     if (!searchQuery) return true;
@@ -59,6 +67,13 @@ const LiveRates = () => {
     );
   });
 
+  // Sort by price availability, then alphabetically
+  const sortedPrices = filteredPrices?.sort((a, b) => {
+    if (a.price !== null && b.price === null) return -1;
+    if (a.price === null && b.price !== null) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
   const availablePrices = prices?.filter(p => p.price !== null).length ?? 0;
   const totalCoins = prices?.length ?? 0;
 
@@ -66,10 +81,10 @@ const LiveRates = () => {
     <Layout>
       <Helmet>
         <title>Live Rates - xlama</title>
-        <meta name="description" content="Real-time cryptocurrency prices with DefiLlama and CoinGecko data." />
+        <meta name="description" content="Real-time cryptocurrency prices for 700+ tokens with DefiLlama data." />
       </Helmet>
 
-      <div className="container px-4 py-12 sm:py-16 max-w-5xl">
+      <div className="container px-4 py-12 sm:py-16 max-w-6xl">
         {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-4 mb-8">
           <div>
@@ -80,7 +95,7 @@ const LiveRates = () => {
               <h1 className="text-3xl sm:text-4xl font-bold">Live Rates</h1>
             </div>
             <p className="text-muted-foreground">
-              Real-time prices powered by DefiLlama
+              Real-time prices for all ChangeNow supported tokens
             </p>
           </div>
 
@@ -125,11 +140,11 @@ const LiveRates = () => {
 
         {/* Prices Grid */}
         {isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 12 }).map((_, i) => (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 20 }).map((_, i) => (
               <Card key={i} className="p-4 animate-pulse">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-muted" />
+                  <div className="w-10 h-10 rounded-full bg-muted" />
                   <div className="flex-1 space-y-2">
                     <div className="w-24 h-4 bg-muted rounded" />
                     <div className="w-16 h-3 bg-muted rounded" />
@@ -151,33 +166,40 @@ const LiveRates = () => {
             </Button>
           </Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredPrices?.map((coin) => (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {sortedPrices?.map((coin) => (
               <Card 
                 key={coin.ticker}
                 className="p-4 hover:border-primary/30 transition-all"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <img
                     src={coin.image}
                     alt={coin.name}
-                    className="w-12 h-12 rounded-full"
+                    className="w-10 h-10 rounded-full"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${coin.ticker}&background=random`;
                     }}
                   />
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold">{coin.name}</span>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-semibold text-sm truncate">{coin.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground uppercase">
                         {coin.ticker}
                       </span>
+                      {coin.network && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                          {coin.network}
+                        </Badge>
+                      )}
                     </div>
                     
                     {coin.price !== null ? (
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-medium text-lg">
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="font-mono font-medium">
                           ${coin.price.toLocaleString(undefined, { 
                             minimumFractionDigits: 2, 
                             maximumFractionDigits: coin.price < 1 ? 6 : 2 
@@ -198,7 +220,7 @@ const LiveRates = () => {
                         )}
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-xs text-muted-foreground mt-1 block">
                         Price unavailable
                       </span>
                     )}
@@ -209,7 +231,7 @@ const LiveRates = () => {
           </div>
         )}
 
-        {filteredPrices?.length === 0 && !isLoading && (
+        {sortedPrices?.length === 0 && !isLoading && (
           <div className="text-center py-12 text-muted-foreground">
             No coins found matching "{searchQuery}"
           </div>
