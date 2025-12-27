@@ -1,3 +1,5 @@
+import { useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
@@ -11,6 +13,15 @@ import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const widgetRef = useRef<HTMLDivElement>(null);
+
+  const handleSelectPair = useCallback((from: string, to: string) => {
+    // Update URL params to trigger widget update
+    navigate(`/?from=${from}&to=${to}`, { replace: true });
+    // Scroll to widget
+    widgetRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [navigate]);
   return (
     <Layout>
       <Helmet>
@@ -37,7 +48,7 @@ const Index = () => {
           </div>
 
           {/* Exchange Widget - Centered */}
-          <div className="max-w-xl mx-auto mb-16">
+          <div ref={widgetRef} className="max-w-xl mx-auto mb-16">
             <ExchangeWidget />
           </div>
 
@@ -71,7 +82,7 @@ const Index = () => {
       </section>
 
       <FavoritePairsSection />
-      <TrendingPairs />
+      <TrendingPairs onSelectPair={handleSelectPair} />
       <TransactionTracker />
       <PriceAlerts />
       <HowItWorks />

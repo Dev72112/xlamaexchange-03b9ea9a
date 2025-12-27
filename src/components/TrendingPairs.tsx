@@ -8,6 +8,10 @@ import { defiLlamaService } from "@/services/defillama";
 import { useFavoritePairs, FavoritePair } from "@/hooks/useFavoritePairs";
 import { cn } from "@/lib/utils";
 
+interface TrendingPairsProps {
+  onSelectPair?: (from: string, to: string) => void;
+}
+
 // Popular/trending pairs based on market data - curated for high volume
 const trendingPairsData: FavoritePair[] = [
   { from: "btc", to: "eth", fromName: "Bitcoin", toName: "Ethereum", fromImage: "https://content-api.changenow.io/uploads/btc_1_527dc9ec3c.svg", toImage: "https://content-api.changenow.io/uploads/eth_f4ebb54ec0.svg" },
@@ -25,7 +29,7 @@ interface TrendingRate {
   change24h?: number | null;
 }
 
-export function TrendingPairs() {
+export function TrendingPairs({ onSelectPair }: TrendingPairsProps = {}) {
   const [rates, setRates] = useState<TrendingRate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavoritePairs();
@@ -131,9 +135,10 @@ export function TrendingPairs() {
                 ))
               ) : (
                 rates.map(({ pair, rate, change24h }) => (
-                  <div
+                  <button
                     key={`${pair.from}-${pair.to}`}
-                    className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 overflow-hidden"
+                    onClick={() => onSelectPair?.(pair.from, pair.to)}
+                    className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 overflow-hidden text-left w-full cursor-pointer"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                       <div className="relative flex -space-x-2 shrink-0">
@@ -195,7 +200,10 @@ export function TrendingPairs() {
                             ? "text-warning hover:text-warning/80"
                             : "text-muted-foreground hover:text-warning opacity-0 group-hover:opacity-100"
                         )}
-                        onClick={() => toggleFavorite(pair)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(pair);
+                        }}
                       >
                         <Star className={cn(
                           "w-3.5 h-3.5 sm:w-4 sm:h-4 transition-all",
@@ -203,7 +211,7 @@ export function TrendingPairs() {
                         )} />
                       </Button>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
