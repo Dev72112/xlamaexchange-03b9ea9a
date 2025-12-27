@@ -128,20 +128,20 @@ export function PriceAlerts() {
   );
 
   return (
-    <section className="py-16 sm:py-24">
-      <div className="container px-4 sm:px-6">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
-            <div>
-              <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-                <Bell className="w-5 h-5 text-warning" />
-                Price Alerts
+    <section className="py-12 sm:py-16">
+      <div className="container px-4 sm:px-6 overflow-hidden">
+        <Card className="bg-card border-border overflow-hidden">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="min-w-0">
+              <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold flex items-center gap-2">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-warning shrink-0" />
+                <span className="truncate">Price Alerts</span>
               </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Get notified when exchange rates hit your target
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Get notified when rates hit your target
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
               {/* Notification Permission Button */}
               {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' && (
                 <Button 
@@ -375,11 +375,11 @@ export function PriceAlerts() {
                 {/* Active Alerts */}
                 {activeAlerts.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                      Active Alerts ({activeAlerts.length})
+                <h3 className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
+                      Active ({activeAlerts.length})
                     </h3>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                       {activeAlerts.map((alert) => (
                         <AlertCard 
                           key={alert.id} 
@@ -395,11 +395,11 @@ export function PriceAlerts() {
                 {/* Triggered Alerts */}
                 {triggeredAlerts.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <BellRing className="w-4 h-4 text-warning" />
+                    <h3 className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <BellRing className="w-3 h-3 sm:w-4 sm:h-4 text-warning shrink-0" />
                       Triggered ({triggeredAlerts.length})
                     </h3>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                       {triggeredAlerts.map((alert) => (
                         <AlertCard 
                           key={alert.id} 
@@ -433,51 +433,53 @@ function AlertCard({
   triggered?: boolean;
 }) {
   return (
-    <div className={`group relative p-4 rounded-xl border transition-colors ${
+    <div className={cn(
+      "group relative p-3 sm:p-4 rounded-xl border transition-colors overflow-hidden",
       triggered 
         ? 'bg-warning/10 border-warning/30' 
         : 'bg-secondary/30 border-border hover:border-border/80'
-    }`}>
+    )}>
       <button
         onClick={() => onRemove(alert.id)}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-all"
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded transition-all z-10"
         title="Remove alert"
       >
-        <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+        <X className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground hover:text-destructive" />
       </button>
 
-      <div className="flex items-start gap-3">
-        <div className={`p-2 rounded-lg ${
+      <div className="flex items-start gap-2 sm:gap-3">
+        <div className={cn(
+          "p-1.5 sm:p-2 rounded-lg shrink-0",
           alert.condition === 'above' 
             ? 'bg-success/10 text-success' 
             : 'bg-destructive/10 text-destructive'
-        }`}>
+        )}>
           {alert.condition === 'above' ? (
-            <TrendingUp className="w-4 h-4" />
+            <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
           ) : (
-            <TrendingDown className="w-4 h-4" />
+            <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-sm uppercase">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-medium text-xs sm:text-sm uppercase truncate">
               {alert.fromTicker}/{alert.toTicker}
             </span>
             {triggered && (
-              <Badge variant="secondary" className="bg-warning/20 text-warning text-[10px]">
+              <Badge variant="secondary" className="bg-warning/20 text-warning text-[8px] sm:text-[10px] shrink-0">
                 Triggered
               </Badge>
             )}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-[10px] sm:text-xs text-muted-foreground truncate">
             {alert.condition === 'above' ? 'Above' : 'Below'} {alert.targetRate}
           </div>
           {alert.lastCheckedRate && (
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
               Current: <span className="font-mono">{alert.lastCheckedRate.toFixed(6)}</span>
             </div>
           )}
-          <div className="text-[10px] text-muted-foreground mt-2">
+          <div className="text-[9px] sm:text-[10px] text-muted-foreground mt-2">
             Created {formatTimeAgo(alert.createdAt)}
           </div>
         </div>
