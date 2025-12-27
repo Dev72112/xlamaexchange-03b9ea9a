@@ -83,11 +83,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   }, [currencies, searchQuery, isFavorite]);
 
   const handleSelect = useCallback((currency: Currency) => {
-    // Navigate to home and potentially trigger exchange with this currency
-    // For now, just close and go to home
     onOpenChange(false);
-    navigate(`/?from=${currency.ticker}`);
-  }, [onOpenChange, navigate]);
+    // Navigate with both from and to params to update the widget
+    // Set as "from" currency by default
+    window.location.href = `/?from=${currency.ticker}`;
+  }, [onOpenChange]);
 
   const handleToggleFavorite = useCallback((e: React.MouseEvent, ticker: string) => {
     e.preventDefault();

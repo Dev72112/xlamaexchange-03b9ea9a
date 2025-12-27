@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "react-router-dom";
 import { changeNowService, Transaction, TransactionStatus } from "@/services/changenow";
 import QRCode from "react-qr-code";
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 
 interface ExchangeFormProps {
   fromCurrency: Currency;
@@ -35,6 +36,7 @@ export function ExchangeForm({
   onBack,
 }: ExchangeFormProps) {
   const { toast } = useToast();
+  const { addTransaction, updateTransaction } = useTransactionHistory();
   const [step, setStep] = useState<Step>("address");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [refundAddress, setRefundAddress] = useState("");
@@ -87,6 +89,22 @@ export function ExchangeForm({
       setTransaction(tx);
       setStep("deposit");
 
+      // Save to transaction history
+      addTransaction({
+        id: tx.id,
+        fromTicker: fromCurrency.ticker,
+        toTicker: toCurrency.ticker,
+        fromName: fromCurrency.name,
+        toName: toCurrency.name,
+        fromImage: fromCurrency.image,
+        toImage: toCurrency.image,
+        fromAmount: fromAmount,
+        toAmount: toAmount,
+        status: 'pending',
+        payinAddress: tx.payinAddress,
+        payoutAddress: recipientAddress,
+      });
+
       toast({
         title: "Exchange created!",
         description: `Transaction ID: ${tx.id}`,
@@ -110,6 +128,13 @@ export function ExchangeForm({
     try {
       const status = await changeNowService.getTransactionStatus(transaction.id);
       setTxStatus(status);
+      
+      // Update transaction in history
+      if (status.status === 'finished') {
+        updateTransaction(transaction.id, { status: 'completed' });
+      } else if (status.status === 'failed' || status.status === 'refunded') {
+        updateTransaction(transaction.id, { status: 'failed' });
+      }
     } catch (error) {
       console.error("Status check error:", error);
     } finally {

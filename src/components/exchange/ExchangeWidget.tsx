@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useToast } from "@/hooks/use-toast";
 import { ExchangeForm } from "./ExchangeForm";
 import { changeNowService } from "@/services/changenow";
+import { useFavoritePairs } from "@/hooks/useFavoritePairs";
+import { useSearchParams } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 // Detect network from ticker and name
 function detectNetwork(ticker: string, name: string): string | undefined {
@@ -41,6 +44,8 @@ function detectNetwork(ticker: string, name: string): string | undefined {
 
 export function ExchangeWidget() {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const { isFavorite, toggleFavorite } = useFavoritePairs();
   const [currencies, setCurrencies] = useState<Currency[]>(popularCurrencies);
   const [currenciesLoading, setCurrenciesLoading] = useState(true);
   const [fromCurrency, setFromCurrency] = useState<Currency>(popularCurrencies[0]);
@@ -72,10 +77,28 @@ export function ExchangeWidget() {
         
         setCurrencies(mappedCurrencies);
         
+        // Check URL params for from/to currencies
+        const fromParam = searchParams.get('from');
+        const toParam = searchParams.get('to');
+        
         const btc = mappedCurrencies.find(c => c.ticker === 'btc');
         const eth = mappedCurrencies.find(c => c.ticker === 'eth');
-        if (btc) setFromCurrency(btc);
-        if (eth) setToCurrency(eth);
+        
+        if (fromParam) {
+          const fromMatch = mappedCurrencies.find(c => c.ticker.toLowerCase() === fromParam.toLowerCase());
+          if (fromMatch) setFromCurrency(fromMatch);
+          else if (btc) setFromCurrency(btc);
+        } else if (btc) {
+          setFromCurrency(btc);
+        }
+        
+        if (toParam) {
+          const toMatch = mappedCurrencies.find(c => c.ticker.toLowerCase() === toParam.toLowerCase());
+          if (toMatch) setToCurrency(toMatch);
+          else if (eth) setToCurrency(eth);
+        } else if (eth) {
+          setToCurrency(eth);
+        }
         
         console.log(`Loaded ${mappedCurrencies.length} currencies from ChangeNow`);
       } catch (error) {
@@ -87,7 +110,23 @@ export function ExchangeWidget() {
     };
 
     fetchCurrencies();
-  }, []);
+  }, [searchParams]);
+
+  // Check if current pair is favorite
+  const isPairFavorite = isFavorite(fromCurrency.ticker, toCurrency.ticker);
+
+  const handleToggleFavorite = () => {
+    toggleFavorite({
+      from: fromCurrency.ticker,
+      to: toCurrency.ticker,
+      fromName: fromCurrency.name,
+      toName: toCurrency.name,
+      fromImage: fromCurrency.image,
+      toImage: toCurrency.image,
+      displayFrom: fromCurrency.ticker,
+      displayTo: toCurrency.ticker,
+    });
+  };
 
   const calculateRate = useCallback(async () => {
     const amount = parseFloat(fromAmount);
@@ -196,8 +235,25 @@ export function ExchangeWidget() {
   return (
     <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
       <CardContent className="p-0">
+        {/* Header with favorite button */}
+        <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">You send</span>
+          <button
+            onClick={handleToggleFavorite}
+            className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+            title={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Star 
+              className={cn(
+                "w-4 h-4 transition-colors",
+                isPairFavorite ? "fill-warning text-warning" : "text-muted-foreground hover:text-warning"
+              )} 
+            />
+          </button>
+        </div>
+
         {/* From Section */}
-        <div className="p-4 sm:p-5 border-b border-border">
+        <div className="p-4 sm:p-5 pt-2 border-b border-border">
           <div className="flex items-center justify-between gap-4">
             <CurrencySelector
               value={fromCurrency}
