@@ -377,10 +377,20 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error('ChangeNow API error:', response.status, data);
-      return new Response(JSON.stringify({ error: (data as Record<string, unknown>)?.message || 'API error', details: data }), {
-        status: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+
+      // IMPORTANT: Return 200 so the web client can handle provider errors gracefully.
+      // We only use non-2xx for our own validation / rate-limit responses above.
+      return new Response(
+        JSON.stringify({
+          error: (data as Record<string, unknown>)?.message || 'API error',
+          details: data,
+          httpStatus: response.status,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     return new Response(JSON.stringify(data), {
