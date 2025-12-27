@@ -8,6 +8,7 @@ import { Currency, popularCurrencies } from "@/data/currencies";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { ExchangeForm } from "./ExchangeForm";
+import { PriceChart } from "./PriceChart";
 import { changeNowService } from "@/services/changenow";
 
 export function ExchangeWidget() {
@@ -277,6 +278,15 @@ export function ExchangeWidget() {
             <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
             <span className="text-warning">{pairError || "This trading pair is not available. Please select different currencies."}</span>
           </div>
+        )}
+
+        {/* Price Chart */}
+        {!pairUnavailable && (
+          <PriceChart
+            fromCurrency={fromCurrency}
+            toCurrency={toCurrency}
+            currentRate={exchangeRate}
+          />
         )}
 
         {/* Exchange Rate Display */}
