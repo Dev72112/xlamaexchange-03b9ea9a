@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencySelector } from "./CurrencySelector";
+import { DexTokenSelector } from "./DexTokenSelector";
 import { Currency, popularCurrencies } from "@/data/currencies";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
@@ -18,8 +19,19 @@ import { ModeToggle, ExchangeMode } from "./ModeToggle";
 import { ChainSelector } from "./ChainSelector";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import { useWallet } from "@/contexts/WalletContext";
-import { Chain, getPrimaryChain, getChainByChainId, NATIVE_TOKEN_ADDRESS } from "@/data/chains";
-import { okxDexService, OkxToken, OkxQuote } from "@/services/okxdex";
+import { Chain, getPrimaryChain, NATIVE_TOKEN_ADDRESS } from "@/data/chains";
+import { OkxToken } from "@/services/okxdex";
+import { useDexTokens } from "@/hooks/useDexTokens";
+import { useDexQuote } from "@/hooks/useDexQuote";
+import { useDexSwap } from "@/hooks/useDexSwap";
+import { SlippageSettings } from "./SlippageSettings";
+import { DexQuoteInfo } from "./DexQuoteInfo";
+import { DexSwapProgress } from "./DexSwapProgress";
+import { SwapBridgeToggle, SwapMode } from "./SwapBridgeToggle";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 
 // Detect network from ticker and name
 function detectNetwork(ticker: string, name: string): string | undefined {
@@ -54,10 +66,11 @@ export function ExchangeWidget() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
-  const { isConnected, address, chainId, chain: walletChain, switchChain } = useWallet();
+  const { isConnected, address, chainId, switchChain } = useWallet();
   
   // Exchange mode state
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
+  const [swapMode, setSwapMode] = useState<SwapMode>('swap');
   const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
   
   // Common state
@@ -80,14 +93,64 @@ export function ExchangeWidget() {
   const [autoRefreshCountdown, setAutoRefreshCountdown] = useState(30);
   
   // DEX-specific state
-  const [dexTokens, setDexTokens] = useState<OkxToken[]>([]);
-  const [dexQuote, setDexQuote] = useState<OkxQuote | null>(null);
+  const [slippage, setSlippage] = useState<string>("0.5");
   const [fromDexToken, setFromDexToken] = useState<OkxToken | null>(null);
   const [toDexToken, setToDexToken] = useState<OkxToken | null>(null);
-  const [slippage, setSlippage] = useState<string>("0.5");
+  const [showSwapProgress, setShowSwapProgress] = useState(false);
+  
+  // DEX hooks
+  const { tokens: dexTokens, nativeToken, isLoading: tokensLoading, refetch: refetchTokens } = useDexTokens(
+    exchangeMode === 'dex' ? selectedChain : null
+  );
+  
+  const { 
+    quote: dexQuote, 
+    formattedOutputAmount: dexOutputAmount,
+    exchangeRate: dexExchangeRate,
+    isLoading: quoteLoading, 
+    error: quoteError,
+    lastUpdated: quoteLastUpdated,
+    refetch: refetchQuote,
+  } = useDexQuote({
+    chain: selectedChain,
+    fromToken: fromDexToken,
+    toToken: toDexToken,
+    amount: fromAmount,
+    slippage,
+    enabled: exchangeMode === 'dex' && isConnected && !!fromDexToken && !!toDexToken,
+  });
+
+  const { 
+    step: swapStep, 
+    txHash, 
+    error: swapError, 
+    isLoading: swapLoading, 
+    executeSwap, 
+    reset: resetSwap 
+  } = useDexSwap();
   
   // Check if wallet is on correct chain for DEX mode
   const isOnCorrectChain = chainId === selectedChain.chainId;
+
+  // Set default DEX tokens when tokens load
+  useEffect(() => {
+    if (exchangeMode === 'dex' && dexTokens.length > 0) {
+      if (!fromDexToken && nativeToken) {
+        setFromDexToken(nativeToken);
+      }
+      if (!toDexToken) {
+        const usdt = dexTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDT');
+        const usdc = dexTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDC');
+        setToDexToken(usdt || usdc || dexTokens[0] || null);
+      }
+    }
+  }, [exchangeMode, dexTokens, nativeToken, fromDexToken, toDexToken]);
+
+  // Reset DEX tokens when chain changes
+  useEffect(() => {
+    setFromDexToken(null);
+    setToDexToken(null);
+  }, [selectedChain.chainIndex]);
 
   // Fetch available currencies on mount
   const fetchCurrencies = useCallback(async () => {
@@ -158,6 +221,8 @@ export function ExchangeWidget() {
   };
 
   const calculateRate = useCallback(async () => {
+    if (exchangeMode === 'dex') return; // DEX uses useDexQuote hook
+    
     const amount = parseFloat(fromAmount);
     if (!fromAmount || amount <= 0) {
       setToAmount("");
@@ -221,22 +286,31 @@ export function ExchangeWidget() {
     } finally {
       setIsLoading(false);
     }
-  }, [fromAmount, fromCurrency.ticker, toCurrency.ticker, rateType, toast]);
+  }, [fromAmount, fromCurrency.ticker, toCurrency.ticker, rateType, toast, exchangeMode]);
 
-  // Debounced rate calculation
+  // Debounced rate calculation for instant mode
   useEffect(() => {
-    const debounce = setTimeout(calculateRate, 500);
-    return () => clearTimeout(debounce);
-  }, [calculateRate]);
+    if (exchangeMode === 'instant') {
+      const debounce = setTimeout(calculateRate, 500);
+      return () => clearTimeout(debounce);
+    }
+  }, [calculateRate, exchangeMode]);
 
   // Auto-refresh countdown and rate refresh every 30 seconds
   useEffect(() => {
-    if (!exchangeRate || isLoading || pairUnavailable) return;
+    const hasRate = exchangeMode === 'instant' ? exchangeRate : dexExchangeRate;
+    const loading = exchangeMode === 'instant' ? isLoading : quoteLoading;
+    
+    if (!hasRate || loading || pairUnavailable) return;
     
     const countdownInterval = setInterval(() => {
       setAutoRefreshCountdown(prev => {
         if (prev <= 1) {
-          calculateRate();
+          if (exchangeMode === 'instant') {
+            calculateRate();
+          } else {
+            refetchQuote();
+          }
           return 30;
         }
         return prev - 1;
@@ -244,31 +318,88 @@ export function ExchangeWidget() {
     }, 1000);
 
     return () => clearInterval(countdownInterval);
-  }, [exchangeRate, isLoading, pairUnavailable, calculateRate]);
+  }, [exchangeMode, exchangeRate, dexExchangeRate, isLoading, quoteLoading, pairUnavailable, calculateRate, refetchQuote]);
 
   // Reset countdown when rate is manually refreshed or currencies change
   useEffect(() => {
     setAutoRefreshCountdown(30);
-  }, [fromCurrency.ticker, toCurrency.ticker, fromAmount]);
+  }, [fromCurrency.ticker, toCurrency.ticker, fromAmount, fromDexToken?.tokenContractAddress, toDexToken?.tokenContractAddress]);
 
   const handleSwapCurrencies = () => {
-    const tempCurrency = fromCurrency;
-    setFromCurrency(toCurrency);
-    setToCurrency(tempCurrency);
-    setFromAmount(toAmount);
+    if (exchangeMode === 'instant') {
+      const tempCurrency = fromCurrency;
+      setFromCurrency(toCurrency);
+      setToCurrency(tempCurrency);
+      setFromAmount(toAmount);
+    } else {
+      const tempToken = fromDexToken;
+      setFromDexToken(toDexToken);
+      setToDexToken(tempToken);
+      setFromAmount(dexOutputAmount || "1");
+    }
   };
 
   const handleExchange = () => {
-    const amount = parseFloat(fromAmount);
-    if (!fromAmount || amount < minAmount) {
-      toast({
-        title: "Invalid amount",
-        description: `Minimum amount is ${minAmount} ${fromCurrency.ticker.toUpperCase()}`,
-        variant: "destructive",
+    if (exchangeMode === 'instant') {
+      const amount = parseFloat(fromAmount);
+      if (!fromAmount || amount < minAmount) {
+        toast({
+          title: "Invalid amount",
+          description: `Minimum amount is ${minAmount} ${fromCurrency.ticker.toUpperCase()}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      setShowExchangeForm(true);
+    } else {
+      // DEX swap
+      if (!isConnected) {
+        toast({
+          title: "Wallet Required",
+          description: "Please connect your wallet to swap",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!isOnCorrectChain) {
+        toast({
+          title: "Wrong Network",
+          description: `Please switch to ${selectedChain.name}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!fromDexToken || !toDexToken) {
+        toast({
+          title: "Select Tokens",
+          description: "Please select both tokens to swap",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setShowSwapProgress(true);
+      executeSwap({
+        chain: selectedChain,
+        fromToken: fromDexToken,
+        toToken: toDexToken,
+        amount: fromAmount,
+        slippage,
+        onSuccess: (hash) => {
+          toast({
+            title: "Swap Complete!",
+            description: `Transaction: ${hash.slice(0, 10)}...`,
+          });
+        },
+        onError: (err) => {
+          toast({
+            title: "Swap Failed",
+            description: err,
+            variant: "destructive",
+          });
+        },
       });
-      return;
     }
-    setShowExchangeForm(true);
   };
 
   if (showExchangeForm) {
@@ -318,327 +449,433 @@ export function ExchangeWidget() {
           <div className="p-4 sm:p-5 pt-0">
             <Skeleton className="h-12 w-full rounded-xl" />
           </div>
-          <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-            <Skeleton className="h-4 w-56 mx-auto" />
-          </div>
         </CardContent>
       </Card>
     );
   }
 
+  // Determine current output amount and rate based on mode
+  const currentOutputAmount = exchangeMode === 'instant' ? toAmount : dexOutputAmount;
+  const currentRate = exchangeMode === 'instant' ? exchangeRate : dexExchangeRate;
+  const currentLoading = exchangeMode === 'instant' ? isLoading : quoteLoading;
+  const currentError = exchangeMode === 'instant' ? pairError : quoteError;
+
   return (
-    <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-      <CardContent className="p-0">
-        {/* Mode Toggle and Wallet Button Header */}
-        <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between gap-3">
-          <ModeToggle mode={exchangeMode} onModeChange={setExchangeMode} />
-          <div className="flex items-center gap-2">
-            {exchangeMode === 'dex' && (
-              <ChainSelector 
-                selectedChain={selectedChain} 
-                onChainSelect={setSelectedChain} 
-              />
-            )}
-            <WalletButton />
-          </div>
-        </div>
-        
-        {/* DEX Mode: Wallet connection prompt */}
-        {exchangeMode === 'dex' && !isConnected && (
-          <div className="mx-4 sm:mx-5 mt-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-            <div className="flex items-center gap-2 text-sm">
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="text-foreground">Connect your wallet to use DEX mode</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              DEX swaps require a connected wallet for on-chain transactions
-            </p>
-          </div>
-        )}
-        
-        {/* DEX Mode: Wrong chain warning */}
-        {exchangeMode === 'dex' && isConnected && !isOnCorrectChain && (
-          <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm">
-                <AlertTriangle className="w-4 h-4 text-warning" />
-                <span className="text-warning">Switch to {selectedChain.name}</span>
-              </div>
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => selectedChain.chainId && switchChain(selectedChain.chainId)}
-                className="h-7 text-xs"
-              >
-                Switch Network
-              </Button>
+    <>
+      <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <CardContent className="p-0">
+          {/* Mode Toggle and Wallet Button Header */}
+          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between gap-3">
+            <ModeToggle mode={exchangeMode} onModeChange={setExchangeMode} />
+            <div className="flex items-center gap-2">
+              {exchangeMode === 'dex' && (
+                <>
+                  <SlippageSettings slippage={slippage} onSlippageChange={setSlippage} />
+                  <ChainSelector 
+                    selectedChain={selectedChain} 
+                    onChainSelect={setSelectedChain} 
+                  />
+                </>
+              )}
+              <WalletButton />
             </div>
           </div>
-        )}
-        
-        {/* Header with favorite button */}
-        <div className="px-4 sm:px-5 pt-4 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">You send</span>
-          <button
-            onClick={handleToggleFavorite}
-            className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-            title={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Star 
-              className={cn(
-                "w-4 h-4 transition-colors",
-                isPairFavorite ? "fill-warning text-warning" : "text-muted-foreground hover:text-warning"
-              )} 
-            />
-          </button>
-        </div>
 
-        {/* From Section */}
-        <div className="p-4 sm:p-5 pt-2 border-b border-border">
-          <div className="flex items-center justify-between gap-4">
-            <CurrencySelector
-              value={fromCurrency}
-              onChange={setFromCurrency}
-              excludeTicker={toCurrency.ticker}
-              currencies={currencies}
-              isLoading={currenciesLoading}
-            />
-            <Input
-              type="number"
-              value={fromAmount}
-              onChange={(e) => setFromAmount(e.target.value)}
-              placeholder="0"
-              className="border-0 bg-transparent text-right text-2xl sm:text-3xl font-medium focus-visible:ring-0 p-0 h-auto flex-1 min-w-0"
-            />
-          </div>
-          {minAmount > 0 && parseFloat(fromAmount) < minAmount && (
-            <p className="text-xs text-warning mt-2">
-              Min: {minAmount} {fromCurrency.ticker.toUpperCase()}
-            </p>
+          {/* DEX Mode: Swap/Bridge Toggle */}
+          {exchangeMode === 'dex' && (
+            <div className="px-4 sm:px-5 pt-3 flex items-center justify-between">
+              <SwapBridgeToggle mode={swapMode} onModeChange={setSwapMode} disabled={swapMode === 'bridge'} />
+              {swapMode === 'bridge' && (
+                <span className="text-xs text-muted-foreground">Coming soon</span>
+              )}
+            </div>
           )}
-        </div>
-
-        {/* Swap Button */}
-        <div className="relative h-0">
-          <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 z-10">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleSwapCurrencies}
-              className="rounded-full h-10 w-10 bg-background border-2 border-border hover:bg-secondary shadow-sm"
-            >
-              <ArrowRightLeft className="w-4 h-4 rotate-90" />
-            </Button>
-          </div>
-        </div>
-
-        {/* To Section */}
-        <div className={`p-4 sm:p-5 ${pairUnavailable ? 'bg-warning/5' : ''}`}>
-          <div className="flex items-center justify-between gap-4">
-            <CurrencySelector
-              value={toCurrency}
-              onChange={setToCurrency}
-              excludeTicker={fromCurrency.ticker}
-              currencies={currencies}
-              isLoading={currenciesLoading}
-            />
-            <div className="flex-1 text-right text-2xl sm:text-3xl font-medium font-mono min-w-0 truncate">
-              {isLoading ? (
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground ml-auto" />
-              ) : pairUnavailable ? (
-                <span className="text-warning text-lg flex items-center justify-end gap-2">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span>Unavailable</span>
-                </span>
-              ) : toAmount ? (
-                parseFloat(toAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })
-              ) : (
-                <span className="text-muted-foreground">0</span>
-              )}
+          
+          {/* DEX Mode: Wallet connection prompt */}
+          {exchangeMode === 'dex' && !isConnected && (
+            <div className="mx-4 sm:mx-5 mt-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                <Wallet className="w-4 h-4 text-primary" />
+                <span className="text-foreground">Connect your wallet to use DEX mode</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                DEX swaps require a connected wallet for on-chain transactions
+              </p>
             </div>
-          </div>
-        </div>
-
-        {/* Rate Info */}
-        {exchangeRate && !isLoading && !pairUnavailable && (
-          <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              {rateType === "fixed" && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded">
-                  <Lock className="w-3 h-3" />
-                  Locked
-                </span>
-              )}
-              <span>
-                1 {fromCurrency.ticker.toUpperCase()} = {exchangeRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toCurrency.ticker.toUpperCase()}
-              </span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" className="inline-flex">
-                    <Info className="w-3.5 h-3.5 cursor-help" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[280px]">
-                  {rateType === "fixed" ? (
-                    <p className="text-xs">
-                      <strong className="text-primary">Fixed rate</strong> - This rate is guaranteed for 10 minutes. You'll receive exactly this amount.
-                    </p>
-                  ) : (
-                    <p className="text-xs">
-                      <strong className="text-warning">Floating rate</strong> - Rate may change during the exchange based on market conditions. You could receive more or less.
-                    </p>
-                  )}
-                </TooltipContent>
-              </Tooltip>
+          )}
+          
+          {/* DEX Mode: Wrong chain warning */}
+          {exchangeMode === 'dex' && isConnected && !isOnCorrectChain && (
+            <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="w-4 h-4 text-warning" />
+                  <span className="text-warning">Switch to {selectedChain.name}</span>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => selectedChain.chainId && switchChain(selectedChain.chainId)}
+                  className="h-7 text-xs"
+                >
+                  Switch Network
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Header with favorite button */}
+          <div className="px-4 sm:px-5 pt-4 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">You send</span>
+            {exchangeMode === 'instant' && (
               <button
-                onClick={calculateRate}
-                disabled={isLoading}
-                className="p-1 hover:bg-secondary rounded transition-colors"
-                title="Refresh rate"
+                onClick={handleToggleFavorite}
+                className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                title={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
               >
-                <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+                <Star 
+                  className={cn(
+                    "w-4 h-4 transition-colors",
+                    isPairFavorite ? "fill-warning text-warning" : "text-muted-foreground hover:text-warning"
+                  )} 
+                />
               </button>
+            )}
+          </div>
+
+          {/* From Section */}
+          <div className="p-4 sm:p-5 pt-2 border-b border-border">
+            <div className="flex items-center justify-between gap-4">
+              {exchangeMode === 'instant' ? (
+                <CurrencySelector
+                  value={fromCurrency}
+                  onChange={setFromCurrency}
+                  excludeTicker={toCurrency.ticker}
+                  currencies={currencies}
+                  isLoading={currenciesLoading}
+                />
+              ) : (
+                <DexTokenSelector
+                  value={fromDexToken}
+                  onChange={setFromDexToken}
+                  tokens={dexTokens}
+                  nativeToken={nativeToken}
+                  chain={selectedChain}
+                  excludeAddress={toDexToken?.tokenContractAddress}
+                  isLoading={tokensLoading}
+                />
+              )}
+              <Input
+                type="number"
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
+                placeholder="0"
+                className="border-0 bg-transparent text-right text-2xl sm:text-3xl font-medium focus-visible:ring-0 p-0 h-auto flex-1 min-w-0"
+              />
             </div>
-            {lastUpdated && (
-              <p className="text-center text-xs text-muted-foreground/60 mt-1">
-                Auto-refresh in {autoRefreshCountdown}s
+            {exchangeMode === 'instant' && minAmount > 0 && parseFloat(fromAmount) < minAmount && (
+              <p className="text-xs text-warning mt-2">
+                Min: {minAmount} {fromCurrency.ticker.toUpperCase()}
               </p>
             )}
           </div>
-        )}
 
-        {/* Error Display */}
-        {pairUnavailable && (
-          <div className="px-4 sm:px-5 pb-4">
-            <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg text-sm text-warning">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span className="flex-1">{pairError || "This trading pair is not available."}</span>
-              <button
-                onClick={calculateRate}
-                className="p-1.5 hover:bg-warning/20 rounded transition-colors shrink-0"
-                title="Retry"
+          {/* Swap Button */}
+          <div className="relative h-0">
+            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 z-10">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleSwapCurrencies}
+                className="rounded-full h-10 w-10 bg-background border-2 border-border hover:bg-secondary shadow-sm"
               >
-                <RefreshCw className="w-4 h-4" />
-              </button>
+                <ArrowRightLeft className="w-4 h-4 rotate-90" />
+              </Button>
             </div>
           </div>
-        )}
 
-        {/* Currencies Error Display */}
-        {currenciesError && (
-          <div className="px-4 sm:px-5 pb-4">
-            <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg text-sm text-muted-foreground">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span className="flex-1">{currenciesError}</span>
-              <button
-                onClick={fetchCurrencies}
-                className="p-1.5 hover:bg-secondary rounded transition-colors shrink-0"
-                title="Retry loading currencies"
-              >
-                <RefreshCw className={cn("w-4 h-4", currenciesLoading && "animate-spin")} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Convert Button */}
-        <div className="p-4 sm:p-5 pt-0">
-          <Button
-            size="lg"
-            className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 font-medium rounded-xl"
-            onClick={handleExchange}
-            disabled={isLoading || !toAmount || pairUnavailable}
-          >
-            {pairUnavailable ? "Pair Unavailable" : "Convert"}
-          </Button>
-        </div>
-
-        {/* Footer Info */}
-        <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-          <div className="flex flex-col gap-3">
-            {/* Rate Type Toggle - Only show in Instant mode */}
-            {exchangeMode === 'instant' && (
-              <div className="flex items-center justify-center gap-3">
-                <div className="flex items-center gap-1.5 text-xs">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span className={rateType === "standard" ? "text-foreground font-medium" : "text-muted-foreground"}>
-                    Floating
-                  </span>
-                </div>
-                <Switch
-                  checked={rateType === "fixed"}
-                  onCheckedChange={(checked) => setRateType(checked ? "fixed" : "standard")}
-                  className="data-[state=checked]:bg-primary"
+          {/* To Section */}
+          <div className={`p-4 sm:p-5 ${pairUnavailable ? 'bg-warning/5' : ''}`}>
+            <div className="flex items-center justify-between gap-4">
+              {exchangeMode === 'instant' ? (
+                <CurrencySelector
+                  value={toCurrency}
+                  onChange={setToCurrency}
+                  excludeTicker={fromCurrency.ticker}
+                  currencies={currencies}
+                  isLoading={currenciesLoading}
                 />
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span className={rateType === "fixed" ? "text-foreground font-medium" : "text-muted-foreground"}>
-                    Fixed
+              ) : (
+                <DexTokenSelector
+                  value={toDexToken}
+                  onChange={setToDexToken}
+                  tokens={dexTokens}
+                  nativeToken={nativeToken}
+                  chain={selectedChain}
+                  excludeAddress={fromDexToken?.tokenContractAddress}
+                  isLoading={tokensLoading}
+                />
+              )}
+              <div className="flex-1 text-right text-2xl sm:text-3xl font-medium font-mono min-w-0 truncate">
+                {currentLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground ml-auto" />
+                ) : pairUnavailable ? (
+                  <span className="text-warning text-lg flex items-center justify-end gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>Unavailable</span>
                   </span>
-                </div>
+                ) : currentOutputAmount ? (
+                  parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })
+                ) : (
+                  <span className="text-muted-foreground">0</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Rate Info */}
+          {currentRate && !currentLoading && !pairUnavailable && (
+            <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                {exchangeMode === 'instant' && rateType === "fixed" && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded">
+                    <Lock className="w-3 h-3" />
+                    Locked
+                  </span>
+                )}
+                <span>
+                  1 {exchangeMode === 'instant' ? fromCurrency.ticker.toUpperCase() : fromDexToken?.tokenSymbol || ''} = {currentRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {exchangeMode === 'instant' ? toCurrency.ticker.toUpperCase() : toDexToken?.tokenSymbol || ''}
+                </span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button type="button" className="inline-flex">
-                      <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      <Info className="w-3.5 h-3.5 cursor-help" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[280px]">
-                    <div className="text-xs space-y-2">
-                      <p>
-                        <strong className="text-primary">Fixed rate:</strong> Price is locked for 10 minutes. No surprises - you get exactly what you see.
+                    {exchangeMode === 'instant' ? (
+                      rateType === "fixed" ? (
+                        <p className="text-xs">
+                          <strong className="text-primary">Fixed rate</strong> - This rate is guaranteed for 10 minutes.
+                        </p>
+                      ) : (
+                        <p className="text-xs">
+                          <strong className="text-warning">Floating rate</strong> - Rate may change during the exchange.
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-xs">
+                        <strong className="text-primary">DEX rate</strong> - Best rate aggregated from multiple DEXs.
                       </p>
-                      <p>
-                        <strong className="text-warning">Floating rate:</strong> Rate follows the market. Could be better or worse by the time your deposit confirms.
-                      </p>
-                    </div>
+                    )}
                   </TooltipContent>
                 </Tooltip>
+                <button
+                  onClick={() => exchangeMode === 'instant' ? calculateRate() : refetchQuote()}
+                  disabled={currentLoading}
+                  className="p-1 hover:bg-secondary rounded transition-colors"
+                  title="Refresh rate"
+                >
+                  <RefreshCw className={cn("w-3.5 h-3.5", currentLoading && "animate-spin")} />
+                </button>
               </div>
-            )}
-            
-            {/* DEX mode info */}
-            {exchangeMode === 'dex' && (
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <img 
-                  src={selectedChain.icon} 
-                  alt={selectedChain.name}
-                  className="w-4 h-4 rounded-full" 
-                />
-                <span>Swapping on {selectedChain.name}</span>
-                {selectedChain.isPrimary && (
-                  <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-medium rounded">
-                    Featured
-                  </span>
-                )}
-              </div>
-            )}
-            
-            {/* Footer Info */}
-            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-              {exchangeMode === 'instant' ? (
-                <>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    2-20 min
-                  </span>
-                  <span>•</span>
-                  <span>No registration</span>
-                  <span>•</span>
-                  <span>All fees included</span>
-                </>
-              ) : (
-                <>
-                  <span>400+ DEXs</span>
-                  <span>•</span>
-                  <span>Best rates</span>
-                  <span>•</span>
-                  <span>Slippage: {slippage}%</span>
-                </>
+              {(lastUpdated || quoteLastUpdated) && (
+                <p className="text-center text-xs text-muted-foreground/60 mt-1">
+                  Auto-refresh in {autoRefreshCountdown}s
+                </p>
               )}
             </div>
+          )}
+
+          {/* DEX Quote Info */}
+          {exchangeMode === 'dex' && dexQuote && !quoteLoading && (
+            <div className="px-4 sm:px-5 pb-4">
+              <DexQuoteInfo
+                quote={dexQuote}
+                fromToken={fromDexToken}
+                toToken={toDexToken}
+                chain={selectedChain}
+                isLoading={quoteLoading}
+                slippage={slippage}
+                inputAmount={fromAmount}
+                outputAmount={dexOutputAmount}
+              />
+            </div>
+          )}
+
+          {/* Error Display */}
+          {(pairUnavailable || (exchangeMode === 'dex' && quoteError)) && (
+            <div className="px-4 sm:px-5 pb-4">
+              <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg text-sm text-warning">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{currentError || "This trading pair is not available."}</span>
+                <button
+                  onClick={() => exchangeMode === 'instant' ? calculateRate() : refetchQuote()}
+                  className="p-1.5 hover:bg-warning/20 rounded transition-colors shrink-0"
+                  title="Retry"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Currencies Error Display */}
+          {currenciesError && (
+            <div className="px-4 sm:px-5 pb-4">
+              <div className="flex items-center gap-2 p-3 bg-muted/50 border border-border rounded-lg text-sm text-muted-foreground">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{currenciesError}</span>
+                <button
+                  onClick={fetchCurrencies}
+                  className="p-1.5 hover:bg-secondary rounded transition-colors shrink-0"
+                  title="Retry loading currencies"
+                >
+                  <RefreshCw className={cn("w-4 h-4", currenciesLoading && "animate-spin")} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Convert Button */}
+          <div className="p-4 sm:p-5 pt-0">
+            <Button
+              size="lg"
+              className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 font-medium rounded-xl"
+              onClick={handleExchange}
+              disabled={
+                currentLoading || 
+                !currentOutputAmount || 
+                pairUnavailable ||
+                (exchangeMode === 'dex' && (!isConnected || !isOnCorrectChain || swapLoading))
+              }
+            >
+              {exchangeMode === 'dex' && !isConnected ? (
+                "Connect Wallet"
+              ) : exchangeMode === 'dex' && !isOnCorrectChain ? (
+                `Switch to ${selectedChain.name}`
+              ) : pairUnavailable ? (
+                "Pair Unavailable"
+              ) : swapLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Swapping...
+                </>
+              ) : exchangeMode === 'dex' ? (
+                "Swap"
+              ) : (
+                "Convert"
+              )}
+            </Button>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+
+          {/* Footer Info */}
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+            <div className="flex flex-col gap-3">
+              {/* Rate Type Toggle - Only show in Instant mode */}
+              {exchangeMode === 'instant' && (
+                <div className="flex items-center justify-center gap-3">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span className={rateType === "standard" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                      Floating
+                    </span>
+                  </div>
+                  <Switch
+                    checked={rateType === "fixed"}
+                    onCheckedChange={(checked) => setRateType(checked ? "fixed" : "standard")}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span className={rateType === "fixed" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                      Fixed
+                    </span>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex">
+                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[280px]">
+                      <div className="text-xs space-y-2">
+                        <p>
+                          <strong className="text-primary">Fixed rate:</strong> Price is locked for 10 minutes.
+                        </p>
+                        <p>
+                          <strong className="text-warning">Floating rate:</strong> Rate follows the market.
+                        </p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+              
+              {/* DEX mode info */}
+              {exchangeMode === 'dex' && (
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <img 
+                    src={selectedChain.icon} 
+                    alt={selectedChain.name}
+                    className="w-4 h-4 rounded-full" 
+                  />
+                  <span>Swapping on {selectedChain.name}</span>
+                  {selectedChain.isPrimary && (
+                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-medium rounded">
+                      Featured
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {/* Footer Info */}
+              <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                {exchangeMode === 'instant' ? (
+                  <>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      2-20 min
+                    </span>
+                    <span>•</span>
+                    <span>No registration</span>
+                    <span>•</span>
+                    <span>All fees included</span>
+                  </>
+                ) : (
+                  <>
+                    <span>400+ DEXs</span>
+                    <span>•</span>
+                    <span>Best rates</span>
+                    <span>•</span>
+                    <span>Slippage: {slippage}%</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* DEX Swap Progress Dialog */}
+      <Dialog open={showSwapProgress} onOpenChange={setShowSwapProgress}>
+        <DialogContent className="sm:max-w-md">
+          <DexSwapProgress
+            step={swapStep}
+            txHash={txHash}
+            error={swapError}
+            chain={selectedChain}
+            onClose={() => {
+              setShowSwapProgress(false);
+              resetSwap();
+            }}
+            onRetry={() => {
+              resetSwap();
+              handleExchange();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
