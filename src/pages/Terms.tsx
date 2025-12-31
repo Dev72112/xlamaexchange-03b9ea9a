@@ -5,10 +5,10 @@ const Terms = () => {
   return (
     <Layout>
       <Helmet>
-        <title>Terms of Use - CryptoSwap</title>
+        <title>Terms of Use - xlama</title>
         <meta
           name="description"
-          content="CryptoSwap Terms of Use. Read our terms and conditions for using our cryptocurrency exchange service."
+          content="xlama Terms of Use. Read our terms and conditions for using our cryptocurrency exchange service."
         />
       </Helmet>
 
@@ -24,7 +24,7 @@ const Terms = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">1. Acceptance of Terms</h2>
               <p className="text-muted-foreground">
-                By accessing and using CryptoSwap ("the Service"), you accept and agree to be bound by 
+                By accessing and using xlama ("the Service"), you accept and agree to be bound by 
                 these Terms of Use. If you do not agree to these terms, please do not use our service.
               </p>
             </section>
@@ -32,16 +32,18 @@ const Terms = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">2. Description of Service</h2>
               <p className="text-muted-foreground">
-                CryptoSwap provides a non-custodial cryptocurrency exchange service that allows users to 
-                exchange one cryptocurrency for another. We act as an intermediary service provider and do 
-                not hold or store user funds beyond what is necessary to complete an exchange.
+                xlama is a hybrid cryptocurrency exchange platform offering two modes:
               </p>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                <li><strong>Instant Mode:</strong> Non-custodial exchange service powered by ChangeNow API that allows users to exchange cryptocurrencies without registration.</li>
+                <li><strong>DEX Mode:</strong> Decentralized exchange aggregator powered by OKX DEX that enables on-chain token swaps directly from your wallet.</li>
+              </ul>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">3. Eligibility</h2>
               <p className="text-muted-foreground">
-                You must be at least 18 years old to use this service. By using CryptoSwap, you represent 
+                You must be at least 18 years old to use this service. By using xlama, you represent 
                 and warrant that you are of legal age and have the legal capacity to enter into these Terms.
               </p>
             </section>
@@ -50,33 +52,34 @@ const Terms = () => {
               <h2 className="text-2xl font-semibold">4. User Responsibilities</h2>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li>Ensure all wallet addresses provided are correct and valid</li>
-                <li>Send the exact amount specified for the exchange</li>
+                <li>Verify transaction details before confirming any swap</li>
+                <li>Secure your wallet private keys and seed phrases</li>
+                <li>Understand that on-chain transactions are irreversible</li>
                 <li>Not use the service for any illegal or unauthorized purpose</li>
-                <li>Not attempt to manipulate or exploit the service</li>
                 <li>Comply with all applicable laws and regulations in your jurisdiction</li>
               </ul>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">5. Exchange Process</h2>
-              <p className="text-muted-foreground">
-                When you initiate an exchange, you agree to send the specified amount of cryptocurrency to 
-                the deposit address provided. The exchange rate shown at the time of confirmation is 
-                subject to the following:
-              </p>
+              <h2 className="text-2xl font-semibold">5. DEX Mode Specific Terms</h2>
+              <p className="text-muted-foreground">When using DEX Mode, you acknowledge and agree that:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                <li><strong>Standard Rate:</strong> May fluctuate based on market conditions</li>
-                <li><strong>Fixed Rate:</strong> Locked for 15 minutes from exchange creation</li>
+                <li>You are interacting directly with smart contracts on public blockchains</li>
+                <li>Token approvals grant spending permissions to DEX contracts</li>
+                <li>Gas fees are required for on-chain transactions and are non-refundable</li>
+                <li>Slippage settings affect transaction execution and may result in different output amounts</li>
+                <li>Smart contracts carry inherent risks including potential bugs or exploits</li>
               </ul>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">6. Refunds</h2>
-              <p className="text-muted-foreground">
-                If an exchange cannot be completed and you have provided a valid refund address, we will 
-                attempt to refund your funds minus any network fees incurred. Refunds are not guaranteed 
-                if an invalid refund address is provided.
-              </p>
+              <h2 className="text-2xl font-semibold">6. Instant Mode Specific Terms</h2>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                <li><strong>Standard Rate:</strong> May fluctuate based on market conditions</li>
+                <li><strong>Fixed Rate:</strong> Locked for 15 minutes from exchange creation</li>
+                <li>Send the exact amount specified for the exchange</li>
+                <li>Provide valid refund address for potential refunds</li>
+              </ul>
             </section>
 
             <section className="space-y-4">
@@ -87,20 +90,29 @@ const Terms = () => {
                 <li>Exchange funds obtained through illegal means</li>
                 <li>Violate any applicable anti-money laundering (AML) regulations</li>
                 <li>Attempt to circumvent our security measures</li>
+                <li>Manipulate prices or exploit smart contract vulnerabilities</li>
               </ul>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">8. Limitation of Liability</h2>
               <p className="text-muted-foreground">
-                CryptoSwap is provided "as is" without warranties of any kind. We are not liable for any 
-                losses resulting from market volatility, blockchain delays, user errors, or circumstances 
-                beyond our control.
+                xlama is provided "as is" without warranties of any kind. We are not liable for any 
+                losses resulting from market volatility, blockchain delays, smart contract failures, 
+                user errors, wallet compromises, or circumstances beyond our control.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">9. Changes to Terms</h2>
+              <h2 className="text-2xl font-semibold">9. Third-Party Services</h2>
+              <p className="text-muted-foreground">
+                Our service integrates with ChangeNow and OKX DEX. These third-party services have their 
+                own terms and conditions. We are not responsible for any issues arising from their services.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold">10. Changes to Terms</h2>
               <p className="text-muted-foreground">
                 We reserve the right to modify these Terms at any time. Continued use of the service after 
                 changes constitutes acceptance of the new Terms.
@@ -108,11 +120,11 @@ const Terms = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">10. Contact</h2>
+              <h2 className="text-2xl font-semibold">11. Contact</h2>
               <p className="text-muted-foreground">
                 For questions about these Terms, please contact us at{" "}
-                <a href="mailto:support@cryptoswap.com" className="text-primary hover:underline">
-                  support@cryptoswap.com
+                <a href="mailto:support@xlama.exchange" className="text-primary hover:underline">
+                  support@xlama.exchange
                 </a>
               </p>
             </section>

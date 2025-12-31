@@ -62,7 +62,11 @@ function detectNetwork(ticker: string, name: string): string | undefined {
   return undefined;
 }
 
-export function ExchangeWidget() {
+interface ExchangeWidgetProps {
+  onModeChange?: (mode: ExchangeMode) => void;
+}
+
+export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
@@ -465,9 +469,9 @@ export function ExchangeWidget() {
       <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <CardContent className="p-0">
           {/* Mode Toggle and Wallet Button Header */}
-          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between gap-3">
-            <ModeToggle mode={exchangeMode} onModeChange={setExchangeMode} />
-            <div className="flex items-center gap-2">
+          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <ModeToggle mode={exchangeMode} onModeChange={(mode) => { setExchangeMode(mode); onModeChange?.(mode); }} />
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
               {exchangeMode === 'dex' && (
                 <>
                   <SlippageSettings slippage={slippage} onSlippageChange={setSlippage} />

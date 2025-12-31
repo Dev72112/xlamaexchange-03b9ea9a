@@ -1,91 +1,119 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
+import { DexHowItWorks } from "@/components/DexHowItWorks";
 import { Features } from "@/components/Features";
 import { TrendingPairs } from "@/components/TrendingPairs";
+import { TrendingTokens } from "@/components/TrendingTokens";
 import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { TransactionTracker } from "@/components/TransactionTracker";
+import { DexTransactionHistory } from "@/components/DexTransactionHistory";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
 import { Helmet } from "react-helmet-async";
-import { Shield, Zap, Clock, RefreshCw } from "lucide-react";
+import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
+
+type ExchangeMode = 'instant' | 'dex';
 
 const Index = () => {
   const navigate = useNavigate();
   const widgetRef = useRef<HTMLDivElement>(null);
+  const [currentMode, setCurrentMode] = useState<ExchangeMode>('instant');
 
   const handleSelectPair = useCallback((from: string, to: string) => {
-    // Update URL params to trigger widget update
     navigate(`/?from=${from}&to=${to}`, { replace: true });
-    // Scroll to widget
     widgetRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [navigate]);
+
+  const handleModeChange = useCallback((mode: ExchangeMode) => {
+    setCurrentMode(mode);
+  }, []);
+
+  // Feature cards based on mode
+  const instantFeatures = [
+    { icon: RefreshCw, title: "Real-time data", description: "Our crypto converter is updated on-demand, just refresh the page for the latest rate." },
+    { icon: Zap, title: "900+ cryptocurrencies", description: "You can convert between a large selection of cryptocurrencies at any time." },
+    { icon: Shield, title: "Easy to use", description: "Simply select your assets, enter your desired amount, and convert for real-time price data." },
+    { icon: Clock, title: "No account needed", description: "Our converter is publicly available with no registration required. Fast and anonymous." },
+  ];
+
+  const dexFeatures = [
+    { icon: Wallet, title: "Connect & Swap", description: "Connect your wallet and swap tokens directly on-chain with instant execution." },
+    { icon: Layers, title: "400+ DEXs", description: "Best rates aggregated from 400+ decentralized exchanges across 20+ chains." },
+    { icon: TrendingUp, title: "Low Slippage", description: "Smart routing ensures optimal price with minimal slippage on every swap." },
+    { icon: Globe, title: "Multi-Chain", description: "Swap tokens on Ethereum, Base, Polygon, Arbitrum, X Layer, and many more." },
+  ];
+
+  const features = currentMode === 'instant' ? instantFeatures : dexFeatures;
+  const sectionTitle = currentMode === 'instant' 
+    ? "Make the most of our converter" 
+    : "Make the most of our DEX swap";
+
   return (
     <Layout>
       <Helmet>
         <title>xlama - Fast & Secure Cryptocurrency Exchange | Best Rates</title>
         <meta
           name="description"
-          content="Exchange cryptocurrencies instantly with no registration. Fast, secure, and anonymous crypto swaps with the best rates. 900+ coins supported."
+          content="Exchange cryptocurrencies instantly with no registration. Fast, secure, and anonymous crypto swaps with the best rates. 900+ coins supported. DEX aggregation across 400+ exchanges."
         />
-        <meta name="keywords" content="crypto exchange, bitcoin swap, ethereum exchange, cryptocurrency, no KYC, instant swap" />
+        <meta name="keywords" content="crypto exchange, bitcoin swap, ethereum exchange, dex aggregator, defi swap, no KYC, instant swap" />
       </Helmet>
 
-      {/* Hero Section - OKX Style Clean Layout */}
+      {/* Hero Section */}
       <section className="py-12 sm:py-16 lg:py-20">
         <div className="container px-4 sm:px-6">
           {/* Title */}
           <div className="text-center mb-10 sm:mb-12">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-4 tracking-tight">
-              Crypto converter and calculator
+              {currentMode === 'instant' ? 'Crypto converter and calculator' : 'DEX Swap Aggregator'}
             </h1>
             <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
-              This page displays the real-time conversion rate of crypto against its cash equivalent. 
-              You can instantly convert 900+ popular cryptocurrencies with the best available rates.
+              {currentMode === 'instant' 
+                ? 'This page displays the real-time conversion rate of crypto against its cash equivalent. You can instantly convert 900+ popular cryptocurrencies with the best available rates.'
+                : 'Swap tokens directly from your wallet with the best rates from 400+ DEXs. Connect your wallet, select tokens, and swap on-chain across 20+ networks.'
+              }
             </p>
           </div>
 
-          {/* Exchange Widget - Centered */}
+          {/* Exchange Widget */}
           <div ref={widgetRef} className="max-w-xl mx-auto mb-16">
-            <ExchangeWidget />
+            <ExchangeWidget onModeChange={handleModeChange} />
           </div>
 
-          {/* Feature Cards - OKX Style */}
+          {/* Feature Cards */}
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-xl sm:text-2xl font-semibold mb-6">Make the most of our converter</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6">{sectionTitle}</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FeatureCard
-                icon={RefreshCw}
-                title="Real-time data"
-                description="Our crypto converter is updated on-demand, just refresh the page for the latest rate."
-              />
-              <FeatureCard
-                icon={Zap}
-                title="900+ cryptocurrencies"
-                description="You can convert between a large selection of cryptocurrencies at any time."
-              />
-              <FeatureCard
-                icon={Shield}
-                title="Easy to use"
-                description="Simply select your assets, enter your desired amount, and convert for real-time price data."
-              />
-              <FeatureCard
-                icon={Clock}
-                title="No account needed"
-                description="Our converter is publicly available with no registration required. Fast and anonymous."
-              />
+              {features.map((feature, index) => (
+                <FeatureCard key={index} {...feature} />
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      <FavoritePairsSection />
-      <TrendingPairs onSelectPair={handleSelectPair} />
-      <TransactionTracker />
+      {/* Mode-aware sections */}
+      {currentMode === 'instant' ? (
+        <>
+          <FavoritePairsSection />
+          <TrendingPairs onSelectPair={handleSelectPair} />
+          <TransactionTracker />
+        </>
+      ) : (
+        <>
+          <TrendingTokens />
+          <DexTransactionHistory />
+        </>
+      )}
+      
       <PriceAlerts />
-      <HowItWorks />
+      
+      {/* Mode-aware How It Works */}
+      {currentMode === 'instant' ? <HowItWorks /> : <DexHowItWorks />}
+      
       <Features />
       <Partners />
     </Layout>
