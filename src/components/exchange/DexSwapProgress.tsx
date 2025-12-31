@@ -2,8 +2,7 @@ import { Check, Loader2, X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chain } from "@/data/chains";
 import { cn } from "@/lib/utils";
-
-type SwapStep = 'idle' | 'checking-approval' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
+import { SwapStep } from "@/hooks/useDexSwap";
 
 interface DexSwapProgressProps {
   step: SwapStep;
@@ -16,7 +15,7 @@ interface DexSwapProgressProps {
 
 const STEP_CONFIG: Record<SwapStep, { label: string; description: string }> = {
   'idle': { label: 'Ready', description: 'Ready to swap' },
-  'checking-approval': { label: 'Checking Approval', description: 'Checking token allowance...' },
+  'checking-allowance': { label: 'Checking Allowance', description: 'Verifying token approval...' },
   'approving': { label: 'Approving', description: 'Please approve the token spend in your wallet' },
   'swapping': { label: 'Swapping', description: 'Please confirm the swap in your wallet' },
   'confirming': { label: 'Confirming', description: 'Waiting for transaction confirmation...' },
@@ -93,8 +92,8 @@ export function DexSwapProgress({
       {/* Step progress */}
       {isActive && (
         <div className="flex items-center justify-center gap-2">
-          {['approving', 'swapping', 'confirming'].map((s, i) => {
-            const steps = ['approving', 'swapping', 'confirming'];
+          {['checking-allowance', 'approving', 'swapping', 'confirming'].map((s, i) => {
+            const steps = ['checking-allowance', 'approving', 'swapping', 'confirming'];
             const currentIndex = steps.indexOf(step);
             const stepIndex = i;
             const isStepComplete = stepIndex < currentIndex;

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
-import { Star, Menu, X, Search, Clock } from "lucide-react";
+import { Star, Menu, X, Search, Clock, ArrowRightLeft } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ export function Header() {
   const isActive = (path: string) => location.pathname === path;
 
   const navLinks = [
-    { path: "/", label: "Exchange" },
+    { path: "/", label: "Exchange", icon: ArrowRightLeft },
     { path: "/favorites", label: "Favorites", icon: Star },
     { path: "/history", label: "History", icon: Clock },
   ];
@@ -28,7 +28,7 @@ export function Header() {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">X</span>
             </div>
-            <span className="text-foreground">xlama</span>
+            <span className="text-foreground hidden sm:inline">xlama</span>
           </Link>
 
           {/* Desktop Nav */}

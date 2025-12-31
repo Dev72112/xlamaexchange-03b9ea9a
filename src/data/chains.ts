@@ -156,5 +156,13 @@ export function getEvmChains(): Chain[] {
   return SUPPORTED_CHAINS.filter(c => c.isEvm);
 }
 
+// Default fallback icon
+export const DEFAULT_CHAIN_ICON = 'https://ui-avatars.com/api/?name=C&background=6366f1&color=fff&size=128';
+
+// Get chain icon with fallback
+export function getChainIcon(chain: Chain): string {
+  return chain.icon || DEFAULT_CHAIN_ICON;
+}
+
 // Native token address for EVM chains (used for native ETH, BNB, etc.)
 export const NATIVE_TOKEN_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';

@@ -7,17 +7,21 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-4">
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">X</span>
+              </div>
               <span className="text-foreground">xlama</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Fast, secure, and anonymous cryptocurrency exchange. Swap coins instantly.
+              Fast, secure, and anonymous cryptocurrency exchange. Instant swaps and DEX aggregation with the best rates.
             </p>
           </div>
 
           <div>
             <h4 className="font-semibold mb-4">Exchange</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link to="/" className="hover:text-foreground transition-colors">Swap Crypto</Link></li>
+              <li><Link to="/" className="hover:text-foreground transition-colors">Instant Swap</Link></li>
+              <li><Link to="/" className="hover:text-foreground transition-colors">DEX Aggregator</Link></li>
               <li><a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a></li>
             </ul>
           </div>
@@ -43,6 +47,9 @@ export function Footer() {
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} xlama. All rights reserved.
           </p>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span>Powered by ChangeNow & OKX DEX</span>
+          </div>
         </div>
       </div>
     </footer>
