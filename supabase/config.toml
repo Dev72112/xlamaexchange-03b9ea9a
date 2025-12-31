@@ -2,3 +2,6 @@ project_id = "mnziekrimlmvnrcwgmbk"
 
 [functions.changenow]
 verify_jwt = false
+
+[functions.okx-dex]
+verify_jwt = false
