@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
-import { okxDexService, OkxToken, OkxSwapData } from '@/services/okxdex';
+import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { useWallet } from '@/contexts/WalletContext';
+import { useToast } from '@/hooks/use-toast';
 
-type SwapStep = 'idle' | 'checking-approval' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
+export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
 interface UseDexSwapOptions {
   chain: Chain;
@@ -15,8 +16,12 @@ interface UseDexSwapOptions {
   onError?: (error: string) => void;
 }
 
+// ERC20 ABI for allowance check
+const ERC20_ALLOWANCE_ABI = '0xdd62ed3e'; // allowance(address,address)
+
 export function useDexSwap() {
   const { address, getProvider, isConnected } = useWallet();
+  const { toast } = useToast();
   const [step, setStep] = useState<SwapStep>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +46,7 @@ export function useDexSwap() {
     setIsLoading(true);
     setError(null);
     setTxHash(null);
+    setStep('idle');
 
     try {
       const provider = getProvider();
@@ -48,39 +54,119 @@ export function useDexSwap() {
 
       // Convert amount to smallest unit
       const decimals = parseInt(fromToken.decimals);
-      const amountInSmallestUnit = (parseFloat(amount) * Math.pow(10, decimals)).toString();
+      const amountInSmallestUnit = (parseFloat(amount) * Math.pow(10, decimals)).toFixed(0);
 
-      // Check if token needs approval (not native token)
-      if (fromToken.tokenContractAddress.toLowerCase() !== NATIVE_TOKEN_ADDRESS.toLowerCase()) {
-        setStep('checking-approval');
+      const isNativeToken = fromToken.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+
+      // For non-native tokens, check and handle approval
+      if (!isNativeToken) {
+        setStep('checking-allowance');
         
-        // Get approval transaction
+        toast({
+          title: "Checking Allowance",
+          description: "Verifying token approval status...",
+        });
+
+        // Get approval transaction info to find spender address
         const approveData = await okxDexService.getApproveTransaction(
           chain.chainIndex,
           fromToken.tokenContractAddress,
           amountInSmallestUnit
         );
 
-        if (approveData && approveData.data) {
-          setStep('approving');
+        if (approveData && approveData.dexContractAddress) {
+          // Check current allowance using eth_call
+          const spenderAddress = approveData.dexContractAddress.toLowerCase().replace('0x', '');
+          const ownerAddress = address.toLowerCase().replace('0x', '');
           
-          // Send approval transaction
-          const approveTxHash = await provider.request({
-            method: 'eth_sendTransaction',
-            params: [{
-              from: address,
-              to: approveData.dexContractAddress,
-              data: approveData.data,
-              gas: approveData.gasLimit ? `0x${parseInt(approveData.gasLimit).toString(16)}` : undefined,
-            }],
-          });
+          // Encode allowance(owner, spender) call
+          const allowanceData = ERC20_ALLOWANCE_ABI + 
+            ownerAddress.padStart(64, '0') + 
+            spenderAddress.padStart(64, '0');
 
-          // Wait for approval confirmation
-          await waitForTransaction(provider, approveTxHash as string);
+          try {
+            const allowanceResult = await provider.request({
+              method: 'eth_call',
+              params: [{
+                to: fromToken.tokenContractAddress,
+                data: allowanceData,
+              }, 'latest'],
+            });
+
+            const currentAllowance = BigInt(allowanceResult || '0x0');
+            const requiredAmount = BigInt(amountInSmallestUnit);
+
+            console.log('Current allowance:', currentAllowance.toString());
+            console.log('Required amount:', requiredAmount.toString());
+
+            // If current allowance is less than required, request approval
+            if (currentAllowance < requiredAmount) {
+              setStep('approving');
+              
+              toast({
+                title: "Approval Required",
+                description: `Please approve ${fromToken.tokenSymbol} spending in your wallet`,
+              });
+
+              // Send approval transaction
+              const approveTxHash = await provider.request({
+                method: 'eth_sendTransaction',
+                params: [{
+                  from: address,
+                  to: fromToken.tokenContractAddress,
+                  data: approveData.data,
+                  gas: approveData.gasLimit ? `0x${parseInt(approveData.gasLimit).toString(16)}` : undefined,
+                }],
+              });
+
+              toast({
+                title: "Approval Submitted",
+                description: "Waiting for confirmation...",
+              });
+
+              // Wait for approval confirmation
+              await waitForTransaction(provider, approveTxHash as string);
+
+              toast({
+                title: "Approval Confirmed",
+                description: `${fromToken.tokenSymbol} approved for spending`,
+              });
+            } else {
+              console.log('Sufficient allowance already exists');
+            }
+          } catch (allowanceError) {
+            console.error('Error checking allowance:', allowanceError);
+            // If we can't check allowance, try to approve anyway
+            if (approveData.data) {
+              setStep('approving');
+              
+              toast({
+                title: "Approval Required",
+                description: `Please approve ${fromToken.tokenSymbol} spending in your wallet`,
+              });
+
+              const approveTxHash = await provider.request({
+                method: 'eth_sendTransaction',
+                params: [{
+                  from: address,
+                  to: fromToken.tokenContractAddress,
+                  data: approveData.data,
+                  gas: approveData.gasLimit ? `0x${parseInt(approveData.gasLimit).toString(16)}` : undefined,
+                }],
+              });
+
+              await waitForTransaction(provider, approveTxHash as string);
+            }
+          }
         }
       }
 
       setStep('swapping');
+      
+      toast({
+        title: "Preparing Swap",
+        description: "Getting best route...",
+      });
 
       // Get swap transaction data
       const swapData = await okxDexService.getSwapData(
@@ -93,16 +179,37 @@ export function useDexSwap() {
       );
 
       if (!swapData?.tx) {
-        throw new Error('Failed to get swap transaction data');
+        throw new Error('Failed to get swap transaction data. Try adjusting slippage or amount.');
+      }
+
+      toast({
+        title: "Confirm Swap",
+        description: "Please confirm the transaction in your wallet",
+      });
+
+      // Prepare transaction value
+      let txValue = '0x0';
+      if (swapData.tx.value) {
+        try {
+          // Handle both decimal and hex formats
+          const valueStr = swapData.tx.value.toString();
+          if (valueStr.startsWith('0x')) {
+            txValue = valueStr;
+          } else {
+            txValue = `0x${BigInt(valueStr).toString(16)}`;
+          }
+        } catch {
+          txValue = '0x0';
+        }
       }
 
       // Send swap transaction
       const hash = await provider.request({
         method: 'eth_sendTransaction',
         params: [{
-          from: swapData.tx.from,
+          from: swapData.tx.from || address,
           to: swapData.tx.to,
-          value: swapData.tx.value ? `0x${BigInt(swapData.tx.value).toString(16)}` : '0x0',
+          value: txValue,
           data: swapData.tx.data,
           gas: swapData.tx.gas ? `0x${parseInt(swapData.tx.gas).toString(16)}` : undefined,
         }],
@@ -111,21 +218,51 @@ export function useDexSwap() {
       setStep('confirming');
       setTxHash(hash as string);
 
+      toast({
+        title: "Transaction Submitted",
+        description: "Waiting for confirmation...",
+      });
+
       // Wait for confirmation
       await waitForTransaction(provider, hash as string);
 
       setStep('complete');
+      
+      toast({
+        title: "Swap Complete! 🎉",
+        description: `Successfully swapped ${amount} ${fromToken.tokenSymbol} for ${toToken.tokenSymbol}`,
+      });
+      
       onSuccess?.(hash as string);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Swap error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Swap failed';
+      
+      let errorMessage = 'Swap failed';
+      
+      if (err.code === 4001 || err.message?.includes('rejected')) {
+        errorMessage = 'Transaction rejected by user';
+      } else if (err.message?.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for gas';
+      } else if (err.message?.includes('execution reverted')) {
+        errorMessage = 'Transaction would fail. Try increasing slippage.';
+      } else if (err.message) {
+        errorMessage = err.message.slice(0, 100);
+      }
+      
       setError(errorMessage);
       setStep('error');
+      
+      toast({
+        title: "Swap Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
       onError?.(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, getProvider]);
+  }, [isConnected, address, getProvider, toast]);
 
   const reset = useCallback(() => {
     setStep('idle');
@@ -155,11 +292,14 @@ async function waitForTransaction(provider: any, txHash: string, maxAttempts = 6
 
       if (receipt) {
         if (receipt.status === '0x0') {
-          throw new Error('Transaction failed');
+          throw new Error('Transaction failed on chain');
         }
         return;
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message?.includes('failed')) {
+        throw err;
+      }
       // Receipt not available yet, continue polling
     }
 
