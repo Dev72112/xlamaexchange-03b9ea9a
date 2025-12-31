@@ -19,6 +19,9 @@ const VALID_ACTIONS = [
   'swap',
   'approve-transaction',
   'liquidity',
+  'token-info',
+  'cross-chain-quote',
+  'cross-chain-swap',
 ] as const;
 
 type ValidAction = typeof VALID_ACTIONS[number];
@@ -33,6 +36,9 @@ const RATE_LIMITS: Record<ValidAction, number> = {
   'swap': 30,
   'approve-transaction': 30,
   'liquidity': 30,
+  'token-info': 30,
+  'cross-chain-quote': 30,
+  'cross-chain-swap': 20,
 };
 
 function checkRateLimit(action: ValidAction, clientIp: string): boolean {
@@ -238,6 +244,127 @@ serve(async (req) => {
           );
         }
         response = await okxRequest('/liquidity', { chainIndex });
+        break;
+      }
+
+      case 'token-info': {
+        const { chainIndex, tokenAddress } = params;
+        if (!chainIndex || !tokenAddress) {
+          return new Response(
+            JSON.stringify({ error: 'chainIndex and tokenAddress are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        // Fetch all tokens and find the matching one
+        response = await okxRequest('/all-tokens', { chainIndex });
+        const tokensData = await response.json();
+        if (tokensData.code === '0' || tokensData.code === 0) {
+          const foundToken = tokensData.data?.find(
+            (t: any) => t.tokenContractAddress?.toLowerCase() === tokenAddress.toLowerCase()
+          );
+          if (foundToken) {
+            return new Response(
+              JSON.stringify(foundToken),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+        return new Response(
+          JSON.stringify({ error: 'Token not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'cross-chain-quote': {
+        const { 
+          fromChainIndex, 
+          toChainIndex, 
+          fromTokenAddress, 
+          toTokenAddress, 
+          amount, 
+          slippage,
+          userWalletAddress 
+        } = params;
+        
+        if (!fromChainIndex || !toChainIndex || !fromTokenAddress || !toTokenAddress || !amount) {
+          return new Response(
+            JSON.stringify({ error: 'Missing required parameters for cross-chain quote' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // OKX Cross-chain API endpoint
+        const crossChainUrl = 'https://www.okx.com/api/v5/dex/cross-chain';
+        const queryString = buildQueryString({
+          fromChainIndex,
+          toChainIndex,
+          fromTokenAddress,
+          toTokenAddress,
+          amount,
+          slippage: slippage || '0.5',
+          userWalletAddress,
+        });
+        const requestPath = `/api/v5/dex/cross-chain/quote${queryString}`;
+        const timestamp = new Date().toISOString();
+        const signature = await generateSignature(timestamp, 'GET', requestPath);
+        
+        const headers = {
+          'OK-ACCESS-KEY': OKX_API_KEY,
+          'OK-ACCESS-SIGN': signature,
+          'OK-ACCESS-TIMESTAMP': timestamp,
+          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
+          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
+          'Content-Type': 'application/json',
+        };
+        
+        response = await fetch(`${crossChainUrl}/quote${queryString}`, { method: 'GET', headers });
+        break;
+      }
+
+      case 'cross-chain-swap': {
+        const { 
+          fromChainIndex, 
+          toChainIndex, 
+          fromTokenAddress, 
+          toTokenAddress, 
+          amount, 
+          slippage,
+          userWalletAddress,
+          receiveAddress
+        } = params;
+        
+        if (!fromChainIndex || !toChainIndex || !fromTokenAddress || !toTokenAddress || !amount || !userWalletAddress) {
+          return new Response(
+            JSON.stringify({ error: 'Missing required parameters for cross-chain swap' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const crossChainUrl = 'https://www.okx.com/api/v5/dex/cross-chain';
+        const queryString = buildQueryString({
+          fromChainIndex,
+          toChainIndex,
+          fromTokenAddress,
+          toTokenAddress,
+          amount,
+          slippage: slippage || '0.5',
+          userWalletAddress,
+          receiveAddress: receiveAddress || userWalletAddress,
+        });
+        const requestPath = `/api/v5/dex/cross-chain/swap${queryString}`;
+        const timestamp = new Date().toISOString();
+        const signature = await generateSignature(timestamp, 'GET', requestPath);
+        
+        const headers = {
+          'OK-ACCESS-KEY': OKX_API_KEY,
+          'OK-ACCESS-SIGN': signature,
+          'OK-ACCESS-TIMESTAMP': timestamp,
+          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
+          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
+          'Content-Type': 'application/json',
+        };
+        
+        response = await fetch(`${crossChainUrl}/swap${queryString}`, { method: 'GET', headers });
         break;
       }
       
