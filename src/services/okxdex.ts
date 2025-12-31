@@ -139,6 +139,57 @@ class OkxDexService {
   async getLiquidity(chainIndex: string): Promise<any[]> {
     return this.callApi<any[]>('liquidity', { chainIndex });
   }
+
+  async getTokenInfo(chainIndex: string, tokenAddress: string): Promise<OkxToken | null> {
+    try {
+      const result = await this.callApi<OkxToken>('token-info', { chainIndex, tokenAddress });
+      return result;
+    } catch {
+      return null;
+    }
+  }
+
+  async getCrossChainQuote(
+    fromChainIndex: string,
+    toChainIndex: string,
+    fromTokenAddress: string,
+    toTokenAddress: string,
+    amount: string,
+    slippage: string = '0.5',
+    userWalletAddress: string
+  ): Promise<any> {
+    return this.callApi<any>('cross-chain-quote', {
+      fromChainIndex,
+      toChainIndex,
+      fromTokenAddress,
+      toTokenAddress,
+      amount,
+      slippage,
+      userWalletAddress,
+    });
+  }
+
+  async getCrossChainSwap(
+    fromChainIndex: string,
+    toChainIndex: string,
+    fromTokenAddress: string,
+    toTokenAddress: string,
+    amount: string,
+    slippage: string = '0.5',
+    userWalletAddress: string,
+    receiveAddress: string
+  ): Promise<any> {
+    return this.callApi<any>('cross-chain-swap', {
+      fromChainIndex,
+      toChainIndex,
+      fromTokenAddress,
+      toTokenAddress,
+      amount,
+      slippage,
+      userWalletAddress,
+      receiveAddress,
+    });
+  }
 }
 
 export const okxDexService = new OkxDexService();

@@ -54,6 +54,9 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = true
               src={selectedChain.icon} 
               alt={selectedChain.name} 
               className="w-5 h-5 rounded-full"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${selectedChain.shortName}&background=6366f1&color=fff`;
+              }}
             />
             <span className="hidden sm:inline">{selectedChain.shortName}</span>
           </div>
@@ -76,6 +79,9 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = true
               src={chain.icon} 
               alt={chain.name} 
               className="w-6 h-6 rounded-full"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${chain.shortName}&background=6366f1&color=fff`;
+              }}
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">

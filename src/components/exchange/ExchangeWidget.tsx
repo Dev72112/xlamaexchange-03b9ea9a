@@ -24,10 +24,12 @@ import { OkxToken } from "@/services/okxdex";
 import { useDexTokens } from "@/hooks/useDexTokens";
 import { useDexQuote } from "@/hooks/useDexQuote";
 import { useDexSwap } from "@/hooks/useDexSwap";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { SlippageSettings } from "./SlippageSettings";
 import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
 import { SwapBridgeToggle, SwapMode } from "./SwapBridgeToggle";
+import { SwapReviewModal } from "./SwapReviewModal";
 import {
   Dialog,
   DialogContent,
@@ -101,6 +103,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [fromDexToken, setFromDexToken] = useState<OkxToken | null>(null);
   const [toDexToken, setToDexToken] = useState<OkxToken | null>(null);
   const [showSwapProgress, setShowSwapProgress] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   
   // DEX hooks
   const { tokens: dexTokens, nativeToken, isLoading: tokensLoading, refetch: refetchTokens } = useDexTokens(
@@ -132,9 +135,30 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     executeSwap, 
     reset: resetSwap 
   } = useDexSwap();
+
+  // Token balance hook for DEX mode
+  const { formatted: fromTokenBalance, loading: balanceLoading, refetch: refetchBalance } = useTokenBalance(
+    exchangeMode === 'dex' ? fromDexToken : null,
+    selectedChain.chainIndex
+  );
   
   // Check if wallet is on correct chain for DEX mode
   const isOnCorrectChain = chainId === selectedChain.chainId;
+
+  // Handle MAX button
+  const handleMaxClick = useCallback(() => {
+    if (fromTokenBalance && fromTokenBalance !== '0' && fromTokenBalance !== '< 0.000001') {
+      // For native tokens, leave some for gas (0.01)
+      const isNativeToken = fromDexToken?.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+      if (isNativeToken) {
+        const balance = parseFloat(fromTokenBalance);
+        const maxAmount = Math.max(0, balance - 0.01);
+        setFromAmount(maxAmount.toString());
+      } else {
+        setFromAmount(fromTokenBalance);
+      }
+    }
+  }, [fromTokenBalance, fromDexToken]);
 
   // Set default DEX tokens when tokens load
   useEffect(() => {
@@ -382,28 +406,35 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         return;
       }
       
-      setShowSwapProgress(true);
-      executeSwap({
-        chain: selectedChain,
-        fromToken: fromDexToken,
-        toToken: toDexToken,
-        amount: fromAmount,
-        slippage,
-        onSuccess: (hash) => {
-          toast({
-            title: "Swap Complete!",
-            description: `Transaction: ${hash.slice(0, 10)}...`,
-          });
-        },
-        onError: (err) => {
-          toast({
-            title: "Swap Failed",
-            description: err,
-            variant: "destructive",
-          });
-        },
-      });
+      // Show review modal first
+      setShowReviewModal(true);
     }
+  };
+
+  const handleConfirmSwap = () => {
+    setShowReviewModal(false);
+    setShowSwapProgress(true);
+    executeSwap({
+      chain: selectedChain,
+      fromToken: fromDexToken!,
+      toToken: toDexToken!,
+      amount: fromAmount,
+      slippage,
+      onSuccess: (hash) => {
+        toast({
+          title: "Swap Complete!",
+          description: `Transaction: ${hash.slice(0, 10)}...`,
+        });
+        refetchBalance();
+      },
+      onError: (err) => {
+        toast({
+          title: "Swap Failed",
+          description: err,
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   if (showExchangeForm) {
@@ -488,9 +519,9 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           {/* DEX Mode: Swap/Bridge Toggle */}
           {exchangeMode === 'dex' && (
             <div className="px-4 sm:px-5 pt-3 flex items-center justify-between">
-              <SwapBridgeToggle mode={swapMode} onModeChange={setSwapMode} disabled={swapMode === 'bridge'} />
+              <SwapBridgeToggle mode={swapMode} onModeChange={setSwapMode} />
               {swapMode === 'bridge' && (
-                <span className="text-xs text-muted-foreground">Coming soon</span>
+                <span className="text-xs text-muted-foreground">Cross-chain</span>
               )}
             </div>
           )}
@@ -581,6 +612,23 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               <p className="text-xs text-warning mt-2">
                 Min: {minAmount} {fromCurrency.ticker.toUpperCase()}
               </p>
+            )}
+            {/* DEX Balance Display */}
+            {exchangeMode === 'dex' && isConnected && fromDexToken && (
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-muted-foreground">
+                  Balance: {balanceLoading ? '...' : fromTokenBalance} {fromDexToken.tokenSymbol}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-primary hover:text-primary"
+                  onClick={handleMaxClick}
+                  disabled={!fromTokenBalance || fromTokenBalance === '0'}
+                >
+                  MAX
+                </Button>
+              </div>
             )}
           </div>
 
@@ -875,9 +923,29 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             }}
             onRetry={() => {
               resetSwap();
-              handleExchange();
+              handleConfirmSwap();
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* DEX Review Modal */}
+      <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+        <DialogContent className="sm:max-w-md">
+          {fromDexToken && toDexToken && dexQuote && (
+            <SwapReviewModal
+              fromToken={fromDexToken}
+              toToken={toDexToken}
+              fromAmount={fromAmount}
+              toAmount={dexOutputAmount || '0'}
+              quote={dexQuote}
+              chain={selectedChain}
+              slippage={slippage}
+              onConfirm={handleConfirmSwap}
+              onCancel={() => setShowReviewModal(false)}
+              isLoading={swapLoading}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

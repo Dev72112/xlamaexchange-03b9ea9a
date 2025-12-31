@@ -155,7 +155,14 @@ export function DexTokenSelector({
         {/* Chain indicator */}
         {chain && (
           <div className="px-4 py-2 bg-secondary/50 border-b border-border flex items-center gap-2">
-            <img src={chain.icon} alt={chain.name} className="w-4 h-4 rounded-full" />
+            <img 
+              src={chain.icon} 
+              alt={chain.name} 
+              className="w-4 h-4 rounded-full" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${chain.shortName}&background=6366f1&color=fff`;
+              }}
+            />
             <span className="text-xs text-muted-foreground">Tokens on {chain.name}</span>
           </div>
         )}
