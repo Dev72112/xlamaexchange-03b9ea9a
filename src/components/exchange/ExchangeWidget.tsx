@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,12 @@ import { changeNowService } from "@/services/changenow";
 import { useFavoritePairs } from "@/hooks/useFavoritePairs";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { ModeToggle, ExchangeMode } from "./ModeToggle";
+import { ChainSelector } from "./ChainSelector";
+import { WalletButton } from "@/components/wallet/WalletButton";
+import { useWallet } from "@/contexts/WalletContext";
+import { Chain, getPrimaryChain, getChainByChainId, NATIVE_TOKEN_ADDRESS } from "@/data/chains";
+import { okxDexService, OkxToken, OkxQuote } from "@/services/okxdex";
 
 // Detect network from ticker and name
 function detectNetwork(ticker: string, name: string): string | undefined {
@@ -48,6 +54,13 @@ export function ExchangeWidget() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
+  const { isConnected, address, chainId, chain: walletChain, switchChain } = useWallet();
+  
+  // Exchange mode state
+  const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
+  const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
+  
+  // Common state
   const [currencies, setCurrencies] = useState<Currency[]>(popularCurrencies);
   const [currenciesLoading, setCurrenciesLoading] = useState(true);
   const [fromCurrency, setFromCurrency] = useState<Currency>(popularCurrencies[0]);
@@ -65,6 +78,16 @@ export function ExchangeWidget() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [currenciesError, setCurrenciesError] = useState<string | null>(null);
   const [autoRefreshCountdown, setAutoRefreshCountdown] = useState(30);
+  
+  // DEX-specific state
+  const [dexTokens, setDexTokens] = useState<OkxToken[]>([]);
+  const [dexQuote, setDexQuote] = useState<OkxQuote | null>(null);
+  const [fromDexToken, setFromDexToken] = useState<OkxToken | null>(null);
+  const [toDexToken, setToDexToken] = useState<OkxToken | null>(null);
+  const [slippage, setSlippage] = useState<string>("0.5");
+  
+  // Check if wallet is on correct chain for DEX mode
+  const isOnCorrectChain = chainId === selectedChain.chainId;
 
   // Fetch available currencies on mount
   const fetchCurrencies = useCallback(async () => {
@@ -306,8 +329,55 @@ export function ExchangeWidget() {
   return (
     <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
       <CardContent className="p-0">
+        {/* Mode Toggle and Wallet Button Header */}
+        <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between gap-3">
+          <ModeToggle mode={exchangeMode} onModeChange={setExchangeMode} />
+          <div className="flex items-center gap-2">
+            {exchangeMode === 'dex' && (
+              <ChainSelector 
+                selectedChain={selectedChain} 
+                onChainSelect={setSelectedChain} 
+              />
+            )}
+            <WalletButton />
+          </div>
+        </div>
+        
+        {/* DEX Mode: Wallet connection prompt */}
+        {exchangeMode === 'dex' && !isConnected && (
+          <div className="mx-4 sm:mx-5 mt-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
+              <Wallet className="w-4 h-4 text-primary" />
+              <span className="text-foreground">Connect your wallet to use DEX mode</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              DEX swaps require a connected wallet for on-chain transactions
+            </p>
+          </div>
+        )}
+        
+        {/* DEX Mode: Wrong chain warning */}
+        {exchangeMode === 'dex' && isConnected && !isOnCorrectChain && (
+          <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm">
+                <AlertTriangle className="w-4 h-4 text-warning" />
+                <span className="text-warning">Switch to {selectedChain.name}</span>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => selectedChain.chainId && switchChain(selectedChain.chainId)}
+                className="h-7 text-xs"
+              >
+                Switch Network
+              </Button>
+            </div>
+          </div>
+        )}
+        
         {/* Header with favorite button */}
-        <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between">
+        <div className="px-4 sm:px-5 pt-4 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">You send</span>
           <button
             onClick={handleToggleFavorite}
@@ -486,54 +556,85 @@ export function ExchangeWidget() {
         {/* Footer Info */}
         <div className="px-4 sm:px-5 pb-4 sm:pb-5">
           <div className="flex flex-col gap-3">
-            {/* Rate Type Toggle */}
-            <div className="flex items-center justify-center gap-3">
-              <div className="flex items-center gap-1.5 text-xs">
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span className={rateType === "standard" ? "text-foreground font-medium" : "text-muted-foreground"}>
-                  Floating
-                </span>
+            {/* Rate Type Toggle - Only show in Instant mode */}
+            {exchangeMode === 'instant' && (
+              <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span className={rateType === "standard" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                    Floating
+                  </span>
+                </div>
+                <Switch
+                  checked={rateType === "fixed"}
+                  onCheckedChange={(checked) => setRateType(checked ? "fixed" : "standard")}
+                  className="data-[state=checked]:bg-primary"
+                />
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span className={rateType === "fixed" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                    Fixed
+                  </span>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="inline-flex">
+                      <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[280px]">
+                    <div className="text-xs space-y-2">
+                      <p>
+                        <strong className="text-primary">Fixed rate:</strong> Price is locked for 10 minutes. No surprises - you get exactly what you see.
+                      </p>
+                      <p>
+                        <strong className="text-warning">Floating rate:</strong> Rate follows the market. Could be better or worse by the time your deposit confirms.
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <Switch
-                checked={rateType === "fixed"}
-                onCheckedChange={(checked) => setRateType(checked ? "fixed" : "standard")}
-                className="data-[state=checked]:bg-primary"
-              />
-              <div className="flex items-center gap-1.5 text-xs">
-                <Lock className="w-3.5 h-3.5" />
-                <span className={rateType === "fixed" ? "text-foreground font-medium" : "text-muted-foreground"}>
-                  Fixed
-                </span>
+            )}
+            
+            {/* DEX mode info */}
+            {exchangeMode === 'dex' && (
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <img 
+                  src={selectedChain.icon} 
+                  alt={selectedChain.name}
+                  className="w-4 h-4 rounded-full" 
+                />
+                <span>Swapping on {selectedChain.name}</span>
+                {selectedChain.isPrimary && (
+                  <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-medium rounded">
+                    Featured
+                  </span>
+                )}
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" className="inline-flex">
-                    <Info className="w-3 h-3 text-muted-foreground cursor-help" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[280px]">
-                  <div className="text-xs space-y-2">
-                    <p>
-                      <strong className="text-primary">Fixed rate:</strong> Price is locked for 10 minutes. No surprises - you get exactly what you see.
-                    </p>
-                    <p>
-                      <strong className="text-warning">Floating rate:</strong> Rate follows the market. Could be better or worse by the time your deposit confirms.
-                    </p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+            )}
             
             {/* Footer Info */}
             <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                2-20 min
-              </span>
-              <span>•</span>
-              <span>No registration</span>
-              <span>•</span>
-              <span>All fees included</span>
+              {exchangeMode === 'instant' ? (
+                <>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    2-20 min
+                  </span>
+                  <span>•</span>
+                  <span>No registration</span>
+                  <span>•</span>
+                  <span>All fees included</span>
+                </>
+              ) : (
+                <>
+                  <span>400+ DEXs</span>
+                  <span>•</span>
+                  <span>Best rates</span>
+                  <span>•</span>
+                  <span>Slippage: {slippage}%</span>
+                </>
+              )}
             </div>
           </div>
         </div>
