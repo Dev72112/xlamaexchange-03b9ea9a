@@ -36,10 +36,17 @@ export function DexQuoteInfo({
     ? (parseFloat(outputAmount) * (1 - parseFloat(slippage) / 100)).toFixed(6)
     : '0';
 
-  // Format gas estimate
-  const gasEstimate = quote.estimateGasFee 
-    ? (parseFloat(quote.estimateGasFee) / 1e18).toFixed(6)
-    : null;
+  // Format gas estimate - handle different formats
+  const gasEstimate = (() => {
+    if (!quote.estimateGasFee) return null;
+    const fee = parseFloat(quote.estimateGasFee);
+    if (isNaN(fee) || fee === 0) return null;
+    // If value is very large, it's likely in wei
+    const inEth = fee > 1e12 ? fee / 1e18 : fee;
+    // Format with appropriate precision
+    if (inEth < 0.000001) return '< 0.000001';
+    return inEth.toFixed(6);
+  })();
 
   // Get route info
   const routes = quote.routerResult?.routes || [];

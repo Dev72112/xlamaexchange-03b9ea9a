@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Settings, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Info, Sparkles, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,19 +13,30 @@ import { cn } from "@/lib/utils";
 interface SlippageSettingsProps {
   slippage: string;
   onSlippageChange: (slippage: string) => void;
+  autoSlippage?: string;
+  isAutoEnabled?: boolean;
+  onAutoChange?: (enabled: boolean) => void;
 }
 
-const PRESET_SLIPPAGES = ['0.1', '0.5', '1.0', '3.0'];
+const PRESET_SLIPPAGES = ['0.5', '1.0', '3.0'];
 
-export function SlippageSettings({ slippage, onSlippageChange }: SlippageSettingsProps) {
+export function SlippageSettings({ 
+  slippage, 
+  onSlippageChange, 
+  autoSlippage,
+  isAutoEnabled = false,
+  onAutoChange,
+}: SlippageSettingsProps) {
   const [open, setOpen] = useState(false);
   const [customSlippage, setCustomSlippage] = useState("");
 
+  const displaySlippage = isAutoEnabled && autoSlippage ? autoSlippage : slippage;
   const isPreset = PRESET_SLIPPAGES.includes(slippage);
-  const isHighSlippage = parseFloat(slippage) >= 5;
-  const isLowSlippage = parseFloat(slippage) < 0.1;
+  const isHighSlippage = parseFloat(displaySlippage) >= 5;
+  const isLowSlippage = parseFloat(displaySlippage) < 0.1;
 
   const handlePresetClick = (value: string) => {
+    onAutoChange?.(false);
     onSlippageChange(value);
     setCustomSlippage("");
   };
@@ -40,8 +51,13 @@ export function SlippageSettings({ slippage, onSlippageChange }: SlippageSetting
     
     const num = parseFloat(formatted);
     if (!isNaN(num) && num > 0 && num <= 50) {
+      onAutoChange?.(false);
       onSlippageChange(formatted);
     }
+  };
+
+  const handleAutoToggle = () => {
+    onAutoChange?.(!isAutoEnabled);
   };
 
   return (
@@ -52,12 +68,17 @@ export function SlippageSettings({ slippage, onSlippageChange }: SlippageSetting
           size="sm"
           className={cn(
             "h-7 px-2 gap-1.5 text-xs",
-            isHighSlippage && "text-warning",
-            isLowSlippage && "text-destructive"
+            isAutoEnabled && "text-primary",
+            !isAutoEnabled && isHighSlippage && "text-warning",
+            !isAutoEnabled && isLowSlippage && "text-destructive"
           )}
         >
-          <Settings className="w-3.5 h-3.5" />
-          <span>{slippage}%</span>
+          {isAutoEnabled ? (
+            <Sparkles className="w-3.5 h-3.5" />
+          ) : (
+            <Settings className="w-3.5 h-3.5" />
+          )}
+          <span>{isAutoEnabled ? 'Auto' : `${displaySlippage}%`}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-4" align="end">
@@ -80,12 +101,33 @@ export function SlippageSettings({ slippage, onSlippageChange }: SlippageSetting
             </div>
           </div>
 
+          {/* Auto mode button */}
+          {onAutoChange && (
+            <Button
+              variant={isAutoEnabled ? "default" : "outline"}
+              size="sm"
+              className={cn(
+                "w-full h-9 gap-2",
+                isAutoEnabled && "bg-primary text-primary-foreground"
+              )}
+              onClick={handleAutoToggle}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Auto
+              {isAutoEnabled && (
+                <span className="ml-auto text-xs opacity-80">
+                  {autoSlippage}%
+                </span>
+              )}
+            </Button>
+          )}
+
           {/* Preset buttons */}
           <div className="flex gap-2">
             {PRESET_SLIPPAGES.map(value => (
               <Button
                 key={value}
-                variant={slippage === value ? "default" : "outline"}
+                variant={!isAutoEnabled && slippage === value ? "default" : "outline"}
                 size="sm"
                 className="flex-1 h-8"
                 onClick={() => handlePresetClick(value)}
@@ -101,7 +143,7 @@ export function SlippageSettings({ slippage, onSlippageChange }: SlippageSetting
             <div className="relative flex-1">
               <Input
                 type="text"
-                value={!isPreset ? slippage : customSlippage}
+                value={!isAutoEnabled && !isPreset ? slippage : customSlippage}
                 onChange={(e) => handleCustomChange(e.target.value)}
                 placeholder="0.5"
                 className="pr-6 h-8 text-sm"
@@ -110,13 +152,23 @@ export function SlippageSettings({ slippage, onSlippageChange }: SlippageSetting
             </div>
           </div>
 
+          {/* Auto mode explanation */}
+          {isAutoEnabled && autoSlippage && (
+            <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 p-2 rounded flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+              <span>
+                Auto slippage adjusts based on price impact. Current: <strong>{autoSlippage}%</strong>
+              </span>
+            </div>
+          )}
+
           {/* Warnings */}
-          {isHighSlippage && (
+          {!isAutoEnabled && isHighSlippage && (
             <p className="text-xs text-warning bg-warning/10 p-2 rounded">
               ⚠️ High slippage. Your transaction may be frontrun.
             </p>
           )}
-          {isLowSlippage && (
+          {!isAutoEnabled && isLowSlippage && (
             <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">
               ⚠️ Very low slippage. Transaction may fail.
             </p>

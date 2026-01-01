@@ -62,11 +62,23 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateTransaction = useCallback((hash: string, updates: Partial<DexTransaction>) => {
-    setTransactions(prev => prev.map(tx => 
-      tx.hash === hash || tx.id.startsWith(hash) || (hash === '' && tx.hash === '')
-        ? { ...tx, ...updates }
-        : tx
-    ));
+    setTransactions(prev => prev.map(tx => {
+      // Match by hash, id prefix, or empty hash for pending transactions
+      const matches = tx.hash === hash || 
+        tx.id.startsWith(hash) || 
+        (hash === '' && tx.hash === '') ||
+        (updates.hash && tx.id.includes('pending'));
+      
+      if (matches) {
+        // If we're updating with a new hash, update the id too
+        const newTx = { ...tx, ...updates };
+        if (updates.hash && tx.hash === '') {
+          newTx.id = `${updates.hash}-${tx.timestamp}`;
+        }
+        return newTx;
+      }
+      return tx;
+    }));
   }, []);
 
   const removeTransaction = useCallback((id: string) => {
