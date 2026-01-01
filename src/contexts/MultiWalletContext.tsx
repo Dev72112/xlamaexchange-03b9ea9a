@@ -478,7 +478,7 @@ export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
       <SolanaWalletProvider wallets={solanaWallets} autoConnect>
         <SuiClientProvider networks={suiNetworks} defaultNetwork="mainnet">
           <SuiWalletProvider autoConnect>
-            <TonConnectUIProvider manifestUrl="https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json">
+            <TonConnectUIProvider manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}>
               <MultiWalletProviderInner>
                 {children}
               </MultiWalletProviderInner>
