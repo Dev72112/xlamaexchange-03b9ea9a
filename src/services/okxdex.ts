@@ -141,12 +141,11 @@ class OkxDexService {
   }
 
   async getTokenInfo(chainIndex: string, tokenAddress: string): Promise<OkxToken | null> {
-    try {
-      const result = await this.callApi<OkxToken>('token-info', { chainIndex, tokenAddress });
-      return result;
-    } catch {
+    const result = await this.callApi<OkxToken>('token-info', { chainIndex, tokenAddress });
+    if (!result || !result.tokenSymbol) {
       return null;
     }
+    return result;
   }
 
   async getCrossChainQuote(
