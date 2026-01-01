@@ -23,9 +23,34 @@ interface DexTokenSelectorProps {
   isLoading?: boolean;
 }
 
-// Check if string looks like a contract address
-function isContractAddress(query: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/i.test(query.trim());
+// Check if string looks like a contract address for any supported chain type
+function isContractAddress(query: string, chain: Chain | null): boolean {
+  const trimmed = query.trim();
+  
+  if (!chain) {
+    // Fallback: check common formats
+    return /^0x[a-fA-F0-9]{40,64}$/i.test(trimmed) || // EVM or Sui
+           /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed); // Solana/Tron base58
+  }
+  
+  // Chain-specific validation
+  switch (chain.chainIndex) {
+    case '501': // Solana - Base58, typically 32-44 chars
+      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed);
+    
+    case '195': // Tron - Base58 starting with T, 34 chars
+      return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(trimmed);
+    
+    case '784': // Sui - 0x followed by 64 hex chars
+      return /^0x[a-fA-F0-9]{64}$/i.test(trimmed);
+    
+    case '607': // TON - Various formats (EQ, UQ, or raw)
+      return /^(EQ|UQ)[A-Za-z0-9_-]{46}$/.test(trimmed) || 
+             /^0:[a-fA-F0-9]{64}$/.test(trimmed);
+    
+    default: // EVM chains - 0x followed by 40 hex chars
+      return /^0x[a-fA-F0-9]{40}$/i.test(trimmed);
+  }
 }
 
 export function DexTokenSelector({ 
@@ -66,7 +91,7 @@ export function DexTokenSelector({
   // Fetch custom token by address
   useEffect(() => {
     const query = searchQuery.trim();
-    if (!isContractAddress(query) || !chain) {
+    if (!isContractAddress(query, chain) || !chain) {
       setCustomToken(null);
       setCustomTokenError(null);
       return;
@@ -307,7 +332,7 @@ export function DexTokenSelector({
               // Search results
               <div className="space-y-2">
                 {/* Custom token from address search */}
-                {isContractAddress(searchQuery.trim()) && (
+                {isContractAddress(searchQuery.trim(), chain) && (
                   <div className="space-y-1">
                     {isLoadingCustom ? (
                       <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
@@ -339,7 +364,7 @@ export function DexTokenSelector({
                     </div>
                     {searchResults.map((t, i) => renderTokenItem(t, false, `search-${i}-`))}
                   </div>
-                ) : !isContractAddress(searchQuery.trim()) ? (
+                ) : !isContractAddress(searchQuery.trim(), chain) ? (
                   <div className="py-8 text-center text-sm text-muted-foreground">
                     <p>No tokens found</p>
                     <p className="text-xs mt-1">Try pasting a contract address</p>
