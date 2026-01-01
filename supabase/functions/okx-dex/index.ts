@@ -22,6 +22,7 @@ const VALID_ACTIONS = [
   'token-info',
   'cross-chain-quote',
   'cross-chain-swap',
+  'token-price',
 ] as const;
 
 type ValidAction = typeof VALID_ACTIONS[number];
@@ -39,6 +40,7 @@ const RATE_LIMITS: Record<ValidAction, number> = {
   'token-info': 30,
   'cross-chain-quote': 30,
   'cross-chain-swap': 20,
+  'token-price': 60,
 };
 
 function checkRateLimit(action: ValidAction, clientIp: string): boolean {
@@ -412,6 +414,35 @@ serve(async (req) => {
         };
         
         response = await fetch(`${crossChainUrl}/swap${queryString}`, { method: 'GET', headers });
+        break;
+      }
+
+      case 'token-price': {
+        const { chainIndex, tokenAddress } = params;
+        if (!chainIndex || !tokenAddress) {
+          return new Response(
+            JSON.stringify({ error: 'chainIndex and tokenAddress are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Use market-data API for token price
+        const marketUrl = 'https://www.okx.com/api/v5/dex/market';
+        const queryStr = buildQueryString({ chainIndex, tokenContractAddress: tokenAddress });
+        const requestPath = `/api/v5/dex/market/token-price${queryStr}`;
+        const timestamp = new Date().toISOString();
+        const signature = await generateSignature(timestamp, 'GET', requestPath);
+        
+        const headers = {
+          'OK-ACCESS-KEY': OKX_API_KEY,
+          'OK-ACCESS-SIGN': signature,
+          'OK-ACCESS-TIMESTAMP': timestamp,
+          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
+          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
+          'Content-Type': 'application/json',
+        };
+        
+        response = await fetch(`${marketUrl}/token-price${queryStr}`, { method: 'GET', headers });
         break;
       }
       

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,8 @@ import { SlippageSettings } from "./SlippageSettings";
 import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
 import { SwapReviewModal } from "./SwapReviewModal";
+import { HighPriceImpactModal } from "./HighPriceImpactModal";
+import { useTokenPrices } from "@/hooks/useTokenPrice";
 import {
   Dialog,
   DialogContent,
@@ -103,6 +105,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [toDexToken, setToDexToken] = useState<OkxToken | null>(null);
   const [showSwapProgress, setShowSwapProgress] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showHighImpactModal, setShowHighImpactModal] = useState(false);
   
   // DEX hooks - tokens for source chain
   const { tokens: dexTokens, nativeToken, isLoading: tokensLoading, refetch: refetchTokens } = useDexTokens(
@@ -144,6 +147,15 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     exchangeMode === 'dex' && isConnected ? fromDexToken : null,
     selectedChain.chainIndex
   );
+
+  // Token prices hook for USD display
+  const { fromUsdValue, toUsdValue } = useTokenPrices(
+    exchangeMode === 'dex' ? selectedChain.chainIndex : null,
+    fromDexToken,
+    toDexToken,
+    fromAmount,
+    dexOutputAmount || ''
+  );
   
   // Check if wallet is on correct chain for DEX mode
   const isOnCorrectChain = chainId === selectedChain.chainId;
@@ -156,6 +168,14 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     const amount = parseFloat(fromAmount);
     return !isNaN(balance) && !isNaN(amount) && amount > balance;
   }, [isConnected, fromTokenBalance, fromAmount]);
+
+  // Check price impact for warning modal
+  const priceImpact = useMemo(() => {
+    if (!dexQuote?.priceImpactPercentage) return 0;
+    return parseFloat(dexQuote.priceImpactPercentage);
+  }, [dexQuote?.priceImpactPercentage]);
+
+  const isHighPriceImpact = priceImpact > 5;
 
   // Handle MAX button
   const handleMaxClick = useCallback(() => {
@@ -426,9 +446,20 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         return;
       }
       
-      // Show review modal first
+      // Check for high price impact - show warning modal first
+      if (isHighPriceImpact) {
+        setShowHighImpactModal(true);
+        return;
+      }
+      
+      // Show review modal
       setShowReviewModal(true);
     }
+  };
+
+  const handleHighImpactConfirm = () => {
+    setShowHighImpactModal(false);
+    setShowReviewModal(true);
   };
 
   const handleConfirmSwap = () => {
@@ -704,13 +735,20 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   isLoading={tokensLoading}
                 />
               )}
-              <Input
-                type="number"
-                value={fromAmount}
-                onChange={(e) => setFromAmount(e.target.value)}
-                placeholder="0"
-                className="border-0 bg-transparent text-right text-2xl sm:text-3xl font-medium focus-visible:ring-0 p-0 h-auto flex-1 min-w-0"
-              />
+              <div className="flex-1 min-w-0">
+                <Input
+                  type="number"
+                  value={fromAmount}
+                  onChange={(e) => setFromAmount(e.target.value)}
+                  placeholder="0"
+                  className="border-0 bg-transparent text-right text-2xl sm:text-3xl font-medium focus-visible:ring-0 p-0 h-auto"
+                />
+                {exchangeMode === 'dex' && fromUsdValue && (
+                  <div className="text-right text-xs text-muted-foreground mt-0.5">
+                    {fromUsdValue}
+                  </div>
+                )}
+              </div>
             </div>
             {exchangeMode === 'instant' && minAmount > 0 && parseFloat(fromAmount) < minAmount && (
               <p className="text-xs text-warning mt-2">
@@ -776,18 +814,25 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   isLoading={tokensLoading}
                 />
               )}
-              <div className="flex-1 text-right text-2xl sm:text-3xl font-medium font-mono min-w-0 truncate">
-                {currentLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground ml-auto" />
-                ) : pairUnavailable ? (
-                  <span className="text-warning text-lg flex items-center justify-end gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>Unavailable</span>
-                  </span>
-                ) : currentOutputAmount ? (
-                  parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })
-                ) : (
-                  <span className="text-muted-foreground">0</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-right text-2xl sm:text-3xl font-medium font-mono truncate">
+                  {currentLoading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground ml-auto" />
+                  ) : pairUnavailable ? (
+                    <span className="text-warning text-lg flex items-center justify-end gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>Unavailable</span>
+                    </span>
+                  ) : currentOutputAmount ? (
+                    parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })
+                  ) : (
+                    <span className="text-muted-foreground">0</span>
+                  )}
+                </div>
+                {exchangeMode === 'dex' && toUsdValue && !currentLoading && currentOutputAmount && (
+                  <div className="text-right text-xs text-muted-foreground mt-0.5">
+                    {toUsdValue}
+                  </div>
                 )}
               </div>
             </div>
@@ -1054,6 +1099,19 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               isLoading={swapLoading}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* High Price Impact Warning Modal */}
+      <Dialog open={showHighImpactModal} onOpenChange={setShowHighImpactModal}>
+        <DialogContent className="sm:max-w-md">
+          <HighPriceImpactModal
+            priceImpact={priceImpact}
+            fromSymbol={fromDexToken?.tokenSymbol || ''}
+            toSymbol={toDexToken?.tokenSymbol || ''}
+            onConfirm={handleHighImpactConfirm}
+            onCancel={() => setShowHighImpactModal(false)}
+          />
         </DialogContent>
       </Dialog>
     </>

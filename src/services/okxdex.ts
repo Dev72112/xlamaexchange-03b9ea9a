@@ -140,6 +140,16 @@ class OkxDexService {
     return this.callApi<any[]>('liquidity', { chainIndex });
   }
 
+  async getTokenPrice(chainIndex: string, tokenAddress: string): Promise<{ price: string } | null> {
+    try {
+      const result = await this.callApi<{ price: string }>('token-price', { chainIndex, tokenAddress });
+      return result;
+    } catch (err) {
+      console.error('Failed to get token price:', err);
+      return null;
+    }
+  }
+
   async getTokenInfo(chainIndex: string, tokenAddress: string): Promise<OkxToken | null> {
     const result = await this.callApi<OkxToken>('token-info', { chainIndex, tokenAddress });
     if (!result || !result.tokenSymbol) {
