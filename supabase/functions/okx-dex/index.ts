@@ -9,7 +9,12 @@ const OKX_API_KEY = Deno.env.get('OKX_API_KEY') || '';
 const OKX_SECRET_KEY = Deno.env.get('OKX_SECRET_KEY') || '';
 const OKX_API_PASSPHRASE = Deno.env.get('OKX_API_PASSPHRASE') || '';
 const OKX_PROJECT_ID = Deno.env.get('OKX_PROJECT_ID') || '';
+const OKX_REFERRER_WALLET_ADDRESS = Deno.env.get('OKX_REFERRER_WALLET_ADDRESS') || '';
 const OKX_DEX_API_URL = 'https://www.okx.com/api/v5/dex/aggregator';
+
+// Commission fee percentage (0.5% = 50/50 split with OKX's typical 1% trading fee)
+// Max is 3% for EVM chains, 10% for Solana
+const COMMISSION_FEE_PERCENT = '0.5';
 
 // Valid actions
 const VALID_ACTIONS = [
@@ -183,13 +188,23 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        response = await okxRequest('/quote', {
+        
+        // Build quote params with optional commission fee
+        const quoteParams: Record<string, string | number | undefined> = {
           chainIndex,
           fromTokenAddress,
           toTokenAddress,
           amount,
           slippage: slippage || '0.5',
-        });
+        };
+        
+        // Add commission fee if referrer wallet is configured
+        if (OKX_REFERRER_WALLET_ADDRESS) {
+          quoteParams.feePercent = COMMISSION_FEE_PERCENT;
+          quoteParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+        }
+        
+        response = await okxRequest('/quote', quoteParams);
         break;
       }
       
@@ -210,14 +225,23 @@ serve(async (req) => {
           );
         }
         
-        response = await okxRequest('/swap', {
+        // Build swap params with optional commission fee
+        const swapParams: Record<string, string | number | undefined> = {
           chainIndex,
           fromTokenAddress,
           toTokenAddress,
           amount,
           slippage: slippage || '0.5',
           userWalletAddress,
-        });
+        };
+        
+        // Add commission fee if referrer wallet is configured
+        if (OKX_REFERRER_WALLET_ADDRESS) {
+          swapParams.feePercent = COMMISSION_FEE_PERCENT;
+          swapParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+        }
+        
+        response = await okxRequest('/swap', swapParams);
         break;
       }
       
