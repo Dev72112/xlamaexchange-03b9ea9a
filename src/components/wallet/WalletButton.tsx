@@ -102,6 +102,13 @@ export function WalletButton() {
     return false;
   };
 
+  // Fallback icon handler
+  const handleIconError = (e: React.SyntheticEvent<HTMLImageElement>, name: string) => {
+    const target = e.target as HTMLImageElement;
+    target.onerror = null;
+    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name.slice(0, 2))}&background=6366f1&color=fff&size=64`;
+  };
+
   if (isConnected && address) {
     return (
       <DropdownMenu>
@@ -113,6 +120,7 @@ export function WalletButton() {
                   src={chain.icon} 
                   alt={chain.name} 
                   className="w-4 h-4 rounded-full"
+                  onError={(e) => handleIconError(e, chain.shortName)}
                 />
               )}
               <span className="hidden sm:inline">{truncateAddress(address)}</span>

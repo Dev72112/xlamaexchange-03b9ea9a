@@ -32,9 +32,10 @@ export function useDexTokens(chain: Chain | null) {
     fetchTokens();
   }, [fetchTokens]);
 
-  // Deduplicate tokens - keep ones with valid logos
+  // Deduplicate tokens - keep ones with valid logos and proper names
   const tokens = useMemo(() => {
     const seen = new Map<string, OkxToken>();
+    const symbolMap = new Map<string, OkxToken>(); // Track best token per symbol
     
     for (const token of rawTokens) {
       if (!token.tokenSymbol || !token.tokenContractAddress) continue;
@@ -48,28 +49,43 @@ export function useDexTokens(chain: Chain | null) {
       // Check if we already have this exact contract address
       if (seen.has(key)) continue;
       
-      // Check for duplicate symbols with different addresses
-      const existingWithSymbol = Array.from(seen.values()).find(
-        t => t.tokenSymbol.toUpperCase() === symbolKey
-      );
+      // Check for valid logo
+      const hasValidLogo = token.tokenLogoUrl && 
+        !token.tokenLogoUrl.includes('undefined') && 
+        !token.tokenLogoUrl.includes('null') &&
+        token.tokenLogoUrl.startsWith('http');
+      
+      // Check for duplicate symbols with different addresses - keep best one
+      const existingWithSymbol = symbolMap.get(symbolKey);
       
       if (existingWithSymbol) {
-        // Keep the one with a valid logo
-        const hasValidLogo = token.tokenLogoUrl && 
-          !token.tokenLogoUrl.includes('undefined') && 
-          token.tokenLogoUrl.startsWith('http');
         const existingHasValidLogo = existingWithSymbol.tokenLogoUrl && 
           !existingWithSymbol.tokenLogoUrl.includes('undefined') && 
+          !existingWithSymbol.tokenLogoUrl.includes('null') &&
           existingWithSymbol.tokenLogoUrl.startsWith('http');
         
-        if (hasValidLogo && !existingHasValidLogo) {
+        // Prefer token with valid logo and proper name (not just symbol)
+        const hasBetterName = token.tokenName && 
+          token.tokenName.length > symbolKey.length &&
+          token.tokenName.toLowerCase() !== symbolKey.toLowerCase();
+        const existingHasBetterName = existingWithSymbol.tokenName && 
+          existingWithSymbol.tokenName.length > symbolKey.length &&
+          existingWithSymbol.tokenName.toLowerCase() !== symbolKey.toLowerCase();
+        
+        // Score tokens: logo worth 2 points, good name worth 1 point
+        const score = (hasValidLogo ? 2 : 0) + (hasBetterName ? 1 : 0);
+        const existingScore = (existingHasValidLogo ? 2 : 0) + (existingHasBetterName ? 1 : 0);
+        
+        if (score > existingScore) {
           // Remove old one and add new one
           seen.delete(existingWithSymbol.tokenContractAddress.toLowerCase());
           seen.set(key, token);
+          symbolMap.set(symbolKey, token);
         }
         // Otherwise keep existing
       } else {
         seen.set(key, token);
+        symbolMap.set(symbolKey, token);
       }
     }
     

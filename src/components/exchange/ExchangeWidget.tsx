@@ -192,10 +192,24 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     }
   }, [fromTokenBalance, fromDexToken]);
 
-  // Set default DEX tokens when tokens load
+  // Track the chain index to detect changes
+  const [lastChainIndex, setLastChainIndex] = useState<string>(selectedChain.chainIndex);
+
+  // Reset DEX tokens when chain changes - must run first
   useEffect(() => {
-    if (exchangeMode === 'dex' && dexTokens.length > 0) {
-      if (!fromDexToken && nativeToken) {
+    if (selectedChain.chainIndex !== lastChainIndex) {
+      console.log('Chain changed from', lastChainIndex, 'to', selectedChain.chainIndex, '- resetting tokens');
+      setFromDexToken(null);
+      setToDexToken(null);
+      setLastChainIndex(selectedChain.chainIndex);
+    }
+  }, [selectedChain.chainIndex, lastChainIndex]);
+
+  // Set default DEX tokens when tokens load for the current chain
+  useEffect(() => {
+    if (exchangeMode === 'dex' && dexTokens.length > 0 && nativeToken) {
+      // Only set if tokens are null (after reset or initial load)
+      if (!fromDexToken) {
         setFromDexToken(nativeToken);
       }
       if (!toDexToken) {
@@ -205,12 +219,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       }
     }
   }, [exchangeMode, dexTokens, nativeToken, fromDexToken, toDexToken]);
-
-  // Reset DEX tokens when chain changes
-  useEffect(() => {
-    setFromDexToken(null);
-    setToDexToken(null);
-  }, [selectedChain.chainIndex]);
 
   // Fetch available currencies on mount
   const fetchCurrencies = useCallback(async () => {
