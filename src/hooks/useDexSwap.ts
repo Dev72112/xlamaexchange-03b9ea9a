@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
-import { useWallet } from '@/contexts/WalletContext';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
@@ -33,7 +33,7 @@ function toSmallestUnit(amount: string, decimals: number): string {
 }
 
 export function useDexSwap() {
-  const { address, getProvider, isConnected } = useWallet();
+  const { activeAddress: address, getEvmProvider, isConnected } = useMultiWallet();
   const { toast } = useToast();
   const [step, setStep] = useState<SwapStep>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function useDexSwap() {
     setStep('idle');
 
     try {
-      const provider = getProvider();
+      const provider = getEvmProvider();
       if (!provider) throw new Error('No provider available');
 
       // Convert amount to smallest unit without scientific notation
@@ -276,7 +276,7 @@ export function useDexSwap() {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, getProvider, toast]);
+  }, [isConnected, address, getEvmProvider, toast]);
 
   const reset = useCallback(() => {
     setStep('idle');

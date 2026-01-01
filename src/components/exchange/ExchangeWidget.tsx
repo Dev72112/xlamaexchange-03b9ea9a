@@ -17,8 +17,8 @@ import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ModeToggle, ExchangeMode } from "./ModeToggle";
 import { ChainSelector } from "./ChainSelector";
-import { WalletButton } from "@/components/wallet/WalletButton";
-import { useWallet } from "@/contexts/WalletContext";
+import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
+import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { Chain, getPrimaryChain, NATIVE_TOKEN_ADDRESS } from "@/data/chains";
 import { OkxToken } from "@/services/okxdex";
 import { useDexTokens } from "@/hooks/useDexTokens";
@@ -74,7 +74,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
-  const { isConnected, address, chainId, switchChain } = useWallet();
+  const { isConnected, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain } = useMultiWallet();
   
   // Exchange mode state
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
@@ -158,7 +158,9 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   );
   
   // Check if wallet is on correct chain for DEX mode
-  const isOnCorrectChain = chainId === selectedChain.chainId;
+  const isOnCorrectChain = selectedChain.isEvm 
+    ? chainId === selectedChain.chainId 
+    : isConnectedToChain(selectedChain);
 
   // Check for insufficient balance
   const hasInsufficientBalance = useMemo(() => {
@@ -194,6 +196,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
   // Track the chain index to detect changes
   const [lastChainIndex, setLastChainIndex] = useState<string>(selectedChain.chainIndex);
+
+  // Sync selectedChain with activeChain in wallet context
+  useEffect(() => {
+    setActiveChain(selectedChain);
+  }, [selectedChain, setActiveChain]);
 
   // Reset DEX tokens when chain changes - must run first
   useEffect(() => {
@@ -430,11 +437,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         return;
       }
 
-      // Non‑EVM chains need a different wallet integration than EVM (Ethereum-style) providers
-      if (!selectedChain.isEvm) {
+      // For non-EVM chains, check if we're connected to the right chain
+      if (!selectedChain.isEvm && !isOnCorrectChain) {
         toast({
-          title: "Non‑EVM Chain",
-          description: "Wallet switching/swaps for this network aren't supported in this build yet. Quotes still work.",
+          title: `Connect ${selectedChain.name} Wallet`,
+          description: `Please connect a ${selectedChain.name} wallet to swap on this network.`,
         });
         return;
       }
@@ -599,11 +606,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       if (!isConnected) {
         return "Connect Wallet";
       }
-      if (!selectedChain.isEvm) {
-        return "Non‑EVM Swap Unavailable";
-      }
       if (!isOnCorrectChain) {
-        return `Switch to ${selectedChain.name}`;
+        if (selectedChain.isEvm) {
+          return `Switch to ${selectedChain.name}`;
+        }
+        return `Connect ${selectedChain.name} Wallet`;
       }
       if (hasInsufficientBalance) {
         return "Insufficient Balance";
@@ -631,7 +638,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     pairUnavailable ||
     (exchangeMode === 'dex' &&
       (!isConnected ||
-        !selectedChain.isEvm ||
         !isOnCorrectChain ||
         swapLoading ||
         hasInsufficientBalance));
@@ -683,7 +689,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   />
                 </>
               )}
-              <WalletButton />
+              <MultiWalletButton />
             </div>
           </div>
           

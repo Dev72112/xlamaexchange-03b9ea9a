@@ -109,6 +109,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   
   // Sui wallet hooks  
   const suiCurrentWallet = useCurrentWallet();
+  const suiWallets = useWallets();
   const suiAccount = useCurrentAccount();
   const suiDisconnect = useDisconnectWallet();
   const suiConnect = useConnectWallet();
@@ -302,8 +303,8 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     setIsConnecting(true);
     setError(null);
     try {
-      if (suiCurrentWallet.wallets.length > 0) {
-        await suiConnect.mutateAsync({ wallet: suiCurrentWallet.wallets[0] });
+      if (suiWallets.length > 0) {
+        await suiConnect.mutateAsync({ wallet: suiWallets[0] });
       } else {
         throw new Error('No Sui wallet detected');
       }
@@ -313,7 +314,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     } finally {
       setIsConnecting(false);
     }
-  }, [suiConnect, suiCurrentWallet.wallets]);
+  }, [suiConnect, suiWallets]);
 
   // Connect TON
   const connectTon = useCallback(async () => {
