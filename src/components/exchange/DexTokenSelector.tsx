@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
-import { Check, ChevronDown, Loader2, Search, Star } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Check, ChevronDown, Loader2, Search, Star, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { OkxToken } from "@/services/okxdex";
+import { OkxToken, okxDexService } from "@/services/okxdex";
 import { Chain } from "@/data/chains";
 
 interface DexTokenSelectorProps {
@@ -24,6 +24,11 @@ interface DexTokenSelectorProps {
 // Popular tokens to feature at the top
 const POPULAR_SYMBOLS = ['ETH', 'USDT', 'USDC', 'WETH', 'WBTC', 'DAI', 'OKB', 'MATIC', 'BNB', 'AVAX'];
 
+// Check if string looks like a contract address
+function isContractAddress(query: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/i.test(query.trim());
+}
+
 export function DexTokenSelector({ 
   value, 
   onChange, 
@@ -35,6 +40,65 @@ export function DexTokenSelector({
 }: DexTokenSelectorProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [customToken, setCustomToken] = useState<OkxToken | null>(null);
+  const [isLoadingCustom, setIsLoadingCustom] = useState(false);
+  const [customTokenError, setCustomTokenError] = useState<string | null>(null);
+
+  // Reset custom token state when popup closes or chain changes
+  useEffect(() => {
+    if (!open) {
+      setCustomToken(null);
+      setCustomTokenError(null);
+      setIsLoadingCustom(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setCustomToken(null);
+    setCustomTokenError(null);
+  }, [chain?.chainIndex]);
+
+  // Fetch custom token by address
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!isContractAddress(query) || !chain) {
+      setCustomToken(null);
+      setCustomTokenError(null);
+      return;
+    }
+
+    // Check if token already exists in list
+    const existingToken = tokens.find(
+      t => t.tokenContractAddress.toLowerCase() === query.toLowerCase()
+    );
+    if (existingToken) {
+      setCustomToken(null);
+      setCustomTokenError(null);
+      return;
+    }
+
+    // Fetch token info
+    const fetchToken = async () => {
+      setIsLoadingCustom(true);
+      setCustomTokenError(null);
+      try {
+        const tokenInfo = await okxDexService.getTokenInfo(chain.chainIndex, query);
+        if (tokenInfo) {
+          setCustomToken(tokenInfo);
+        } else {
+          setCustomTokenError("Token not found on this chain");
+        }
+      } catch (err) {
+        console.error('Failed to fetch custom token:', err);
+        setCustomTokenError("Failed to load token info");
+      } finally {
+        setIsLoadingCustom(false);
+      }
+    };
+
+    const debounce = setTimeout(fetchToken, 500);
+    return () => clearTimeout(debounce);
+  }, [searchQuery, chain, tokens]);
 
   // Filter and group tokens
   const { popularTokens, stableTokens, otherTokens, searchResults, totalCount } = useMemo(() => {
@@ -48,7 +112,7 @@ export function DexTokenSelector({
 
     const total = filtered.length;
 
-    // Search filter
+    // Search filter - also search by contract address
     const searchFiltered = searchQuery
       ? filtered.filter(t =>
           t.tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -85,16 +149,18 @@ export function DexTokenSelector({
     onChange(token);
     setOpen(false);
     setSearchQuery("");
+    setCustomToken(null);
   }, [onChange]);
 
-  const renderTokenItem = (token: OkxToken) => (
+  const renderTokenItem = (token: OkxToken, isCustom = false, keyPrefix = '') => (
     <div
-      key={token.tokenContractAddress}
+      key={`${keyPrefix}${token.tokenContractAddress}`}
       onClick={() => handleSelect(token)}
       className={cn(
         "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
         "hover:bg-accent/50",
-        value?.tokenContractAddress === token.tokenContractAddress && "bg-accent"
+        value?.tokenContractAddress === token.tokenContractAddress && "bg-accent",
+        isCustom && "border border-primary/30 bg-primary/5"
       )}
     >
       <img
@@ -106,8 +172,18 @@ export function DexTokenSelector({
         }}
       />
       <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="font-semibold uppercase text-sm truncate">{token.tokenSymbol}</div>
+        <div className="font-semibold uppercase text-sm truncate flex items-center gap-1">
+          {token.tokenSymbol}
+          {isCustom && (
+            <span className="text-[10px] px-1 py-0.5 bg-primary/20 text-primary rounded">Custom</span>
+          )}
+        </div>
         <div className="text-xs text-muted-foreground truncate">{token.tokenName}</div>
+        {isCustom && (
+          <div className="text-[10px] text-muted-foreground font-mono truncate">
+            {token.tokenContractAddress.slice(0, 10)}...{token.tokenContractAddress.slice(-8)}
+          </div>
+        )}
       </div>
       {value?.tokenContractAddress === token.tokenContractAddress && (
         <Check className="h-4 w-4 text-primary shrink-0" />
@@ -171,7 +247,7 @@ export function DexTokenSelector({
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
-            placeholder={`Search ${totalCount} tokens...`}
+            placeholder="Search or paste address..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
@@ -189,18 +265,46 @@ export function DexTokenSelector({
               </div>
             ) : searchQuery ? (
               // Search results
-              searchResults.length > 0 ? (
-                <div className="space-y-1">
-                  <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
-                    Results ({searchResults.length})
+              <div className="space-y-2">
+                {/* Custom token from address search */}
+                {isContractAddress(searchQuery.trim()) && (
+                  <div className="space-y-1">
+                    {isLoadingCustom ? (
+                      <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Loading token info...</span>
+                      </div>
+                    ) : customTokenError ? (
+                      <div className="flex items-center gap-2 px-3 py-3 text-sm text-destructive bg-destructive/10 rounded-lg">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>{customTokenError}</span>
+                      </div>
+                    ) : customToken ? (
+                      <>
+                        <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
+                          Found by Address
+                        </div>
+                        {renderTokenItem(customToken, true)}
+                      </>
+                    ) : null}
                   </div>
-                  {searchResults.map(renderTokenItem)}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  No tokens found
-                </div>
-              )
+                )}
+
+                {/* Regular search results */}
+                {searchResults.length > 0 ? (
+                  <div className="space-y-1">
+                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
+                      Results ({searchResults.length})
+                    </div>
+                    {searchResults.map((t, i) => renderTokenItem(t, false, `search-${i}-`))}
+                  </div>
+                ) : !isContractAddress(searchQuery.trim()) ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    <p>No tokens found</p>
+                    <p className="text-xs mt-1">Try pasting a contract address</p>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               // Grouped view
               <div className="space-y-4">
@@ -210,21 +314,21 @@ export function DexTokenSelector({
                       <Star className="w-3 h-3 fill-warning text-warning" />
                       Popular
                     </div>
-                    {popularTokens.map(renderTokenItem)}
+                    {popularTokens.map((t, i) => renderTokenItem(t, false, `pop-${i}-`))}
                   </div>
                 )}
                 
                 {stableTokens.length > 0 && (
                   <div className="space-y-1">
                     <div className="px-3 py-2 text-xs font-medium text-muted-foreground">Stablecoins</div>
-                    {stableTokens.map(renderTokenItem)}
+                    {stableTokens.map((t, i) => renderTokenItem(t, false, `stable-${i}-`))}
                   </div>
                 )}
                 
                 {otherTokens.length > 0 && (
                   <div className="space-y-1">
                     <div className="px-3 py-2 text-xs font-medium text-muted-foreground">All Tokens</div>
-                    {otherTokens.map(renderTokenItem)}
+                    {otherTokens.map((t, i) => renderTokenItem(t, false, `other-${i}-`))}
                   </div>
                 )}
               </div>
