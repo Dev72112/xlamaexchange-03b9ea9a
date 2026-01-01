@@ -41,8 +41,8 @@ function isContractAddress(query: string, chain: Chain | null): boolean {
     case '195': // Tron - Base58 starting with T, 34 chars
       return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(trimmed);
     
-    case '784': // Sui - 0x followed by 64 hex chars
-      return /^0x[a-fA-F0-9]{64}$/i.test(trimmed);
+    case '784': // Sui - 0x followed by 64 hex chars, optionally with ::module::TYPE
+      return /^0x[a-fA-F0-9]{64}(::[a-zA-Z_][a-zA-Z0-9_]*::[a-zA-Z_][a-zA-Z0-9_]*)?$/i.test(trimmed);
     
     case '607': // TON - Various formats (EQ, UQ, or raw)
       return /^(EQ|UQ)[A-Za-z0-9_-]{46}$/.test(trimmed) || 
