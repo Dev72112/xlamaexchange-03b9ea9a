@@ -13,7 +13,7 @@ export interface DexTransaction {
   toTokenLogo?: string;
   status: 'pending' | 'confirmed' | 'failed';
   timestamp: number;
-  type: 'swap' | 'approve' | 'bridge';
+  type: 'swap' | 'approve';
   explorerUrl?: string;
 }
 
