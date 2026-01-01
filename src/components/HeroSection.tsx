@@ -1,53 +1,27 @@
-import { ArrowRight, ExternalLink, TrendingUp, Activity, Layers, Zap } from "lucide-react";
+import { ArrowRight, ExternalLink, Shield, Zap, Globe, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useDexStats } from "@/hooks/useDexStats";
-import { Skeleton } from "@/components/ui/skeleton";
-
-function formatVolume(value: number): string {
-  if (value >= 1_000_000_000_000) {
-    return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
-  }
-  if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(2)}B`;
-  }
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(2)}M`;
-  }
-  return `$${value.toLocaleString()}`;
-}
-
-function formatChange(value: number): string {
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
-}
 
 export function HeroSection() {
-  const { data: stats, isLoading, isError } = useDexStats();
-
-  const statItems = [
+  const features = [
     {
-      icon: Activity,
-      label: "24h Volume",
-      value: stats?.total24h,
-      change: stats?.change_1d,
+      icon: Globe,
+      label: "25+ Chains",
+      description: "Multi-chain support",
     },
     {
-      icon: TrendingUp,
-      label: "7d Volume",
-      value: stats?.total7d,
-      change: stats?.change_7d,
+      icon: Coins,
+      label: "900+ Tokens",
+      description: "Instant swaps",
     },
     {
-      icon: Layers,
-      label: "30d Volume",
-      value: stats?.total30d,
-      change: stats?.change_1m,
+      icon: Shield,
+      label: "Non-Custodial",
+      description: "Your keys, your crypto",
     },
     {
       icon: Zap,
-      label: "DEX Protocols",
-      value: stats?.protocols,
-      isCount: true,
+      label: "Best Rates",
+      description: "Aggregated liquidity",
     },
   ];
 
@@ -132,39 +106,22 @@ export function HeroSection() {
             </Button>
           </div>
 
-          {/* Stats Grid */}
+          {/* Features Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {statItems.map((stat, index) => (
+            {features.map((feature) => (
               <div 
-                key={stat.label}
+                key={feature.label}
                 className="p-4 sm:p-6 rounded-xl bg-card/50 backdrop-blur-sm border border-border hover:border-primary/30 transition-colors"
               >
-                <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
-                  <stat.icon className="h-4 w-4" />
-                  <span className="text-xs sm:text-sm font-medium">{stat.label}</span>
+                <div className="flex items-center justify-center gap-2 text-primary mb-2">
+                  <feature.icon className="h-5 w-5" />
                 </div>
-                
-                {isLoading ? (
-                  <Skeleton className="h-8 w-24 mx-auto" />
-                ) : isError ? (
-                  <span className="text-lg font-semibold text-muted-foreground">--</span>
-                ) : (
-                  <>
-                    <div className="text-xl sm:text-2xl font-bold">
-                      {stat.isCount 
-                        ? `${stat.value?.toLocaleString()}+` 
-                        : formatVolume(stat.value || 0)
-                      }
-                    </div>
-                    {stat.change !== undefined && (
-                      <div className={`text-xs sm:text-sm font-medium mt-1 ${
-                        stat.change >= 0 ? "text-green-500" : "text-red-500"
-                      }`}>
-                        {formatChange(stat.change)}
-                      </div>
-                    )}
-                  </>
-                )}
+                <div className="text-xl sm:text-2xl font-bold">
+                  {feature.label}
+                </div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  {feature.description}
+                </div>
               </div>
             ))}
           </div>
