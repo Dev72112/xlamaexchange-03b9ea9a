@@ -210,13 +210,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     }
   }, [exchangeMode, swapMode, destTokens, destNativeToken, toDexToken]);
 
-  // Reset DEX tokens when source chain changes
+  // Reset DEX tokens when source chain changes - BOTH tokens in swap mode
   useEffect(() => {
     setFromDexToken(null);
-    if (swapMode === 'swap') {
-      setToDexToken(null);
-    }
-  }, [selectedChain.chainIndex, swapMode]);
+    setToDexToken(null); // Always reset both when chain changes
+  }, [selectedChain.chainIndex]);
 
   // Reset destination token when dest chain changes in bridge mode
   useEffect(() => {
