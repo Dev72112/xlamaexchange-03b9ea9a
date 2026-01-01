@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Flame, ArrowRight, Loader2, Star, TrendingUp, Zap } from "lucide-react";
+import { Flame, ArrowRight, Star, TrendingUp, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { changeNowService } from "@/services/changenow";
 import { defiLlamaService } from "@/services/defillama";
 import { useFavoritePairs, FavoritePair } from "@/hooks/useFavoritePairs";
@@ -118,19 +119,25 @@ export function TrendingPairs({ onSelectPair }: TrendingPairsProps = {}) {
                 Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border animate-pulse"
+                    className="flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border"
                   >
                     <div className="flex items-center gap-2 sm:gap-3">
                       <div className="flex -space-x-2 shrink-0">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted" />
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted" />
+                        <Skeleton className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
+                        <Skeleton className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
                       </div>
                       <div className="space-y-2">
-                        <div className="w-16 sm:w-20 h-3 sm:h-4 bg-muted rounded" />
-                        <div className="w-12 sm:w-16 h-2 sm:h-3 bg-muted rounded" />
+                        <Skeleton className="w-16 sm:w-20 h-3 sm:h-4" />
+                        <Skeleton className="w-12 sm:w-16 h-2 sm:h-3" />
                       </div>
                     </div>
-                    <div className="w-12 sm:w-16 h-5 sm:h-6 bg-muted rounded" />
+                    <div className="flex items-center gap-2">
+                      <div className="space-y-1">
+                        <Skeleton className="w-12 sm:w-16 h-4" />
+                        <Skeleton className="w-8 h-3 ml-auto" />
+                      </div>
+                      <Skeleton className="w-7 h-7 sm:w-8 sm:h-8 rounded-full" />
+                    </div>
                   </div>
                 ))
               ) : (
