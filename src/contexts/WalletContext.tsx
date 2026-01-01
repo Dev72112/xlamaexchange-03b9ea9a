@@ -168,7 +168,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
     localStorage.removeItem('walletType');
   }, [getProvider, removeListeners]);
 
-  // Switch chain
+  // Switch chain (EVM only)
   const switchChain = useCallback(async (targetChainId: number) => {
     const provider = getProvider();
     if (!provider) {
@@ -178,6 +178,10 @@ export function WalletProvider({ children }: WalletProviderProps) {
     const targetChain = getChainByChainId(targetChainId);
     if (!targetChain) {
       throw new Error('Unsupported chain');
+    }
+
+    if (!targetChain.isEvm) {
+      throw new Error(`Network switching is only supported for EVM chains. Please switch to ${targetChain.name} inside your wallet.`);
     }
 
     const chainIdHex = `0x${targetChainId.toString(16)}`;

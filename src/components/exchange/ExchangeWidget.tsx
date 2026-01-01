@@ -429,6 +429,16 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         });
         return;
       }
+
+      // Non‑EVM chains need a different wallet integration than EVM (Ethereum-style) providers
+      if (!selectedChain.isEvm) {
+        toast({
+          title: "Non‑EVM Chain",
+          description: "Wallet switching/swaps for this network aren't supported in this build yet. Quotes still work.",
+        });
+        return;
+      }
+
       if (!isOnCorrectChain) {
         toast({
           title: "Wrong Network",
@@ -589,6 +599,9 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       if (!isConnected) {
         return "Connect Wallet";
       }
+      if (!selectedChain.isEvm) {
+        return "Non‑EVM Swap Unavailable";
+      }
       if (!isOnCorrectChain) {
         return `Switch to ${selectedChain.name}`;
       }
@@ -605,18 +618,23 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       }
       return "Swap";
     }
-    
+
     if (pairUnavailable) {
       return "Pair Unavailable";
     }
     return "Convert";
   };
 
-  const isSwapButtonDisabled = 
-    currentLoading || 
-    !currentOutputAmount || 
+  const isSwapButtonDisabled =
+    currentLoading ||
+    !currentOutputAmount ||
     pairUnavailable ||
-    (exchangeMode === 'dex' && (!isConnected || !isOnCorrectChain || swapLoading || hasInsufficientBalance));
+    (exchangeMode === 'dex' &&
+      (!isConnected ||
+        !selectedChain.isEvm ||
+        !isOnCorrectChain ||
+        swapLoading ||
+        hasInsufficientBalance));
 
   // Calculate gas fee for display
   const getGasDisplay = () => {
@@ -682,16 +700,16 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           )}
           
-          {/* DEX Mode: Wrong chain warning */}
-          {exchangeMode === 'dex' && isConnected && !isOnCorrectChain && (
+          {/* DEX Mode: Wrong chain warning (EVM only) */}
+          {exchangeMode === 'dex' && isConnected && selectedChain.isEvm && !isOnCorrectChain && (
             <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-sm">
                   <AlertTriangle className="w-4 h-4 text-warning" />
                   <span className="text-warning">Switch to {selectedChain.name}</span>
                 </div>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => selectedChain.chainId && switchChain(selectedChain.chainId)}
                   className="h-7 text-xs"
@@ -699,6 +717,19 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   Switch Network
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* DEX Mode: Non‑EVM info */}
+          {exchangeMode === 'dex' && selectedChain && !selectedChain.isEvm && (
+            <div className="mx-4 sm:mx-5 mt-3 p-3 bg-secondary/50 border border-border rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                <Info className="w-4 h-4 text-muted-foreground" />
+                <span className="text-foreground">Non‑EVM wallet switching isn’t supported yet</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Quotes work, but swaps require a chain‑specific wallet integration for {selectedChain.name}.
+              </p>
             </div>
           )}
           
