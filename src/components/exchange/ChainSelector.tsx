@@ -16,12 +16,16 @@ interface ChainSelectorProps {
   selectedChain: Chain;
   onChainSelect: (chain: Chain) => void;
   showOnlyEvm?: boolean;
+  excludeChainIndex?: string;
 }
 
-export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = true }: ChainSelectorProps) {
+export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = true, excludeChainIndex }: ChainSelectorProps) {
   const { chainId, switchChain, isConnected } = useWallet();
   
-  const chains = showOnlyEvm ? getEvmChains() : SUPPORTED_CHAINS;
+  const allChains = showOnlyEvm ? getEvmChains() : SUPPORTED_CHAINS;
+  const chains = excludeChainIndex 
+    ? allChains.filter(c => c.chainIndex !== excludeChainIndex)
+    : allChains;
   
   // Check if wallet is on the selected chain
   const isOnCorrectChain = chainId === selectedChain.chainId;

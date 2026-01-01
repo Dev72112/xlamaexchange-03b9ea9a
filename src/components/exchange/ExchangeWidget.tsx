@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,12 +19,13 @@ import { ModeToggle, ExchangeMode } from "./ModeToggle";
 import { ChainSelector } from "./ChainSelector";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import { useWallet } from "@/contexts/WalletContext";
-import { Chain, getPrimaryChain, NATIVE_TOKEN_ADDRESS } from "@/data/chains";
+import { Chain, getPrimaryChain, NATIVE_TOKEN_ADDRESS, SUPPORTED_CHAINS } from "@/data/chains";
 import { OkxToken } from "@/services/okxdex";
 import { useDexTokens } from "@/hooks/useDexTokens";
 import { useDexQuote } from "@/hooks/useDexQuote";
 import { useDexSwap } from "@/hooks/useDexSwap";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useDexTransactionHistory } from "@/hooks/useDexTransactionHistory";
 import { SlippageSettings } from "./SlippageSettings";
 import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
@@ -78,6 +79,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
   const [swapMode, setSwapMode] = useState<SwapMode>('swap');
   const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
+  const [destChain, setDestChain] = useState<Chain>(() => {
+    // Default to different chain for bridge
+    const chains = SUPPORTED_CHAINS.filter(c => c.chainIndex !== getPrimaryChain().chainIndex);
+    return chains[0] || getPrimaryChain();
+  });
   
   // Common state
   const [currencies, setCurrencies] = useState<Currency[]>(popularCurrencies);
@@ -109,6 +115,14 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { tokens: dexTokens, nativeToken, isLoading: tokensLoading, refetch: refetchTokens } = useDexTokens(
     exchangeMode === 'dex' ? selectedChain : null
   );
+  
+  // Destination chain tokens for bridge mode
+  const { tokens: destTokens, nativeToken: destNativeToken, isLoading: destTokensLoading } = useDexTokens(
+    exchangeMode === 'dex' && swapMode === 'bridge' ? destChain : null
+  );
+  
+  // Transaction history hook
+  const { addTransaction, updateTransaction } = useDexTransactionHistory();
   
   const { 
     quote: dexQuote, 
@@ -166,19 +180,38 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       if (!fromDexToken && nativeToken) {
         setFromDexToken(nativeToken);
       }
-      if (!toDexToken) {
+      // For swap mode, use same chain tokens. For bridge mode, use dest chain tokens
+      if (swapMode === 'swap' && !toDexToken) {
         const usdt = dexTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDT');
         const usdc = dexTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDC');
         setToDexToken(usdt || usdc || dexTokens[0] || null);
       }
     }
-  }, [exchangeMode, dexTokens, nativeToken, fromDexToken, toDexToken]);
+  }, [exchangeMode, dexTokens, nativeToken, fromDexToken, toDexToken, swapMode]);
+
+  // Set default destination token for bridge mode
+  useEffect(() => {
+    if (exchangeMode === 'dex' && swapMode === 'bridge' && destTokens.length > 0) {
+      if (!toDexToken || !destTokens.find(t => t.tokenContractAddress === toDexToken.tokenContractAddress)) {
+        const usdt = destTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDT');
+        const usdc = destTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDC');
+        setToDexToken(usdt || usdc || destNativeToken || destTokens[0] || null);
+      }
+    }
+  }, [exchangeMode, swapMode, destTokens, destNativeToken, toDexToken]);
 
   // Reset DEX tokens when chain changes
   useEffect(() => {
     setFromDexToken(null);
     setToDexToken(null);
   }, [selectedChain.chainIndex]);
+
+  // Reset destination token when dest chain changes in bridge mode
+  useEffect(() => {
+    if (swapMode === 'bridge') {
+      setToDexToken(null);
+    }
+  }, [destChain.chainIndex, swapMode]);
 
   // Fetch available currencies on mount
   const fetchCurrencies = useCallback(async () => {
@@ -414,6 +447,23 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const handleConfirmSwap = () => {
     setShowReviewModal(false);
     setShowSwapProgress(true);
+    
+    // Add to transaction history as pending
+    const pendingTx = addTransaction({
+      hash: '', // Will be updated
+      chainId: selectedChain.chainIndex,
+      chainName: selectedChain.name,
+      fromTokenSymbol: fromDexToken!.tokenSymbol,
+      fromTokenAmount: fromAmount,
+      fromTokenLogo: fromDexToken!.tokenLogoUrl,
+      toTokenSymbol: toDexToken!.tokenSymbol,
+      toTokenAmount: dexOutputAmount || '0',
+      toTokenLogo: toDexToken!.tokenLogoUrl,
+      status: 'pending',
+      type: swapMode === 'bridge' ? 'bridge' : 'swap',
+      explorerUrl: '',
+    });
+    
     executeSwap({
       chain: selectedChain,
       fromToken: fromDexToken!,
@@ -421,13 +471,23 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       amount: fromAmount,
       slippage,
       onSuccess: (hash) => {
+        // Update transaction with hash and confirmed status
+        updateTransaction(pendingTx.hash || hash, {
+          hash,
+          status: 'confirmed',
+          explorerUrl: `${selectedChain.blockExplorer}/tx/${hash}`,
+        });
         toast({
-          title: "Swap Complete!",
-          description: `Transaction: ${hash.slice(0, 10)}...`,
+          title: "Swap Complete! 🎉",
+          description: `Successfully swapped ${fromAmount} ${fromDexToken!.tokenSymbol} for ${toDexToken!.tokenSymbol}`,
         });
         refetchBalance();
       },
       onError: (err) => {
+        // Update transaction as failed
+        updateTransaction(pendingTx.hash, {
+          status: 'failed',
+        });
         toast({
           title: "Swap Failed",
           description: err,
@@ -521,7 +581,15 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             <div className="px-4 sm:px-5 pt-3 flex items-center justify-between">
               <SwapBridgeToggle mode={swapMode} onModeChange={setSwapMode} />
               {swapMode === 'bridge' && (
-                <span className="text-xs text-muted-foreground">Cross-chain</span>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span>{selectedChain.shortName}</span>
+                  <ArrowRight className="w-3 h-3" />
+                  <ChainSelector 
+                    selectedChain={destChain} 
+                    onChainSelect={setDestChain}
+                    excludeChainIndex={selectedChain.chainIndex}
+                  />
+                </div>
               )}
             </div>
           )}
@@ -656,6 +724,16 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   excludeTicker={fromCurrency.ticker}
                   currencies={currencies}
                   isLoading={currenciesLoading}
+                />
+              ) : swapMode === 'bridge' ? (
+                <DexTokenSelector
+                  value={toDexToken}
+                  onChange={setToDexToken}
+                  tokens={destTokens}
+                  nativeToken={destNativeToken}
+                  chain={destChain}
+                  excludeAddress={undefined}
+                  isLoading={destTokensLoading}
                 />
               ) : (
                 <DexTokenSelector

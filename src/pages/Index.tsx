@@ -6,7 +6,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { DexHowItWorks } from "@/components/DexHowItWorks";
 import { Features } from "@/components/Features";
 import { TrendingPairs } from "@/components/TrendingPairs";
-import { TrendingTokens } from "@/components/TrendingTokens";
+
 import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { TransactionTracker } from "@/components/TransactionTracker";
 import { DexTransactionHistory } from "@/components/DexTransactionHistory";
@@ -104,7 +104,6 @@ const Index = () => {
         </>
       ) : (
         <>
-          <TrendingTokens />
           <DexTransactionHistory />
         </>
       )}

@@ -1,66 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
-import { History, ExternalLink, Loader2, Wallet, ArrowRight, Clock } from "lucide-react";
+import { History, ExternalLink, Wallet, ArrowRight, Clock, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useWallet } from "@/contexts/WalletContext";
-import { Chain, getChainByChainId, getChainIcon } from "@/data/chains";
+import { useDexTransactionHistory } from "@/hooks/useDexTransactionHistory";
 import { cn } from "@/lib/utils";
 
-interface Transaction {
-  hash: string;
-  from: string;
-  to: string;
-  value: string;
-  timestamp: number;
-  status: 'pending' | 'confirmed' | 'failed';
-  type: 'swap' | 'approve' | 'transfer';
-}
-
 export function DexTransactionHistory() {
-  const { isConnected, address, chain, chainId } = useWallet();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Mock transaction history - in production, this would fetch from an indexer
-  const fetchTransactions = useCallback(async () => {
-    if (!isConnected || !address) return;
-    
-    setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mock data - replace with actual indexer/explorer API
-    const mockTransactions: Transaction[] = [
-      {
-        hash: '0x1234...5678',
-        from: 'ETH',
-        to: 'USDC',
-        value: '0.5 ETH → 1,675 USDC',
-        timestamp: Date.now() - 3600000,
-        status: 'confirmed',
-        type: 'swap',
-      },
-      {
-        hash: '0xabcd...efgh',
-        from: 'USDT',
-        to: 'ETH',
-        value: '1,000 USDT → 0.3 ETH',
-        timestamp: Date.now() - 86400000,
-        status: 'confirmed',
-        type: 'swap',
-      },
-    ];
-    
-    setTransactions(mockTransactions);
-    setIsLoading(false);
-  }, [isConnected, address]);
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions, chainId]);
+  const { isConnected, chain } = useWallet();
+  const { transactions, removeTransaction, clearHistory } = useDexTransactionHistory();
 
   const formatTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -68,11 +16,6 @@ export function DexTransactionHistory() {
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
-  };
-
-  const getExplorerUrl = (hash: string) => {
-    if (!chain) return '#';
-    return `${chain.blockExplorer}/tx/${hash}`;
   };
 
   if (!isConnected) {
@@ -105,61 +48,72 @@ export function DexTransactionHistory() {
                 <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10">
                   <History className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
-                Transaction History
+                Swap History
               </CardTitle>
-              {chain && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <img 
-                    src={getChainIcon(chain)} 
-                    alt={chain.name}
-                    className="w-4 h-4 rounded-full"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${chain.shortName}&background=random&size=32`;
-                    }}
-                  />
-                  {chain.name}
-                </div>
+              {transactions.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearHistory}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Clear All
+                </Button>
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Your recent on-chain swaps
+              Your recent on-chain swaps made on this site
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-10 h-10 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="w-24 h-4" />
-                      <Skeleton className="w-16 h-3" />
-                    </div>
-                  </div>
-                  <Skeleton className="w-20 h-6" />
-                </div>
-              ))
-            ) : transactions.length === 0 ? (
+            {transactions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
                 <p className="mb-2">No transactions yet</p>
-                <p className="text-xs">Your swap history will appear here</p>
+                <p className="text-xs">Your swap history will appear here after you make swaps</p>
               </div>
             ) : (
-              transactions.map((tx, index) => (
+              transactions.slice(0, 10).map((tx) => (
                 <div
-                  key={index}
+                  key={tx.id}
                   className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border hover:border-border/80 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      <ArrowRight className="w-4 h-4 text-primary" />
+                    <div className="flex items-center -space-x-2">
+                      {tx.fromTokenLogo && (
+                        <img 
+                          src={tx.fromTokenLogo} 
+                          alt={tx.fromTokenSymbol}
+                          className="w-7 h-7 rounded-full border-2 border-background"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.fromTokenSymbol}&background=random`;
+                          }}
+                        />
+                      )}
+                      {tx.toTokenLogo && (
+                        <img 
+                          src={tx.toTokenLogo} 
+                          alt={tx.toTokenSymbol}
+                          className="w-7 h-7 rounded-full border-2 border-background"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.toTokenSymbol}&background=random`;
+                          }}
+                        />
+                      )}
                     </div>
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{tx.value}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatTimeAgo(tx.timestamp)}
+                      <div className="font-medium text-sm truncate flex items-center gap-1">
+                        {parseFloat(tx.fromTokenAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })} {tx.fromTokenSymbol}
+                        <ArrowRight className="w-3 h-3 text-muted-foreground inline shrink-0" />
+                        {parseFloat(tx.toTokenAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })} {tx.toTokenSymbol}
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-2">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatTimeAgo(tx.timestamp)}
+                        </span>
+                        <span>•</span>
+                        <span>{tx.chainName}</span>
                       </div>
                     </div>
                   </div>
@@ -175,26 +129,29 @@ export function DexTransactionHistory() {
                     >
                       {tx.status}
                     </Badge>
+                    {tx.explorerUrl && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        asChild
+                      >
+                        <a href={tx.explorerUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
-                      asChild
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeTransaction(tx.id)}
                     >
-                      <a href={getExplorerUrl(tx.hash)} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
               ))
-            )}
-            
-            {transactions.length > 0 && (
-              <Button variant="outline" className="w-full" onClick={fetchTransactions}>
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Refresh
-              </Button>
             )}
           </CardContent>
         </Card>
