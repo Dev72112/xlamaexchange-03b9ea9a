@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import FAQ from "./pages/FAQ";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import About from "./pages/About";
 import Favorites from "./pages/Favorites";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
@@ -34,6 +35,7 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/favorites" element={<Favorites />} />
                   <Route path="/history" element={<History />} />
+                  <Route path="/about" element={<About />} />
                   <Route path="/faq" element={<FAQ />} />
                   <Route path="/terms" element={<Terms />} />
                   <Route path="/privacy" element={<Privacy />} />

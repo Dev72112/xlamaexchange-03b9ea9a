@@ -15,6 +15,7 @@ const walletPartners = [
   { name: "Sui Wallet", icon: suiWalletLogo, url: "https://sui.io", chain: "Sui" },
   { name: "Tonkeeper", icon: tonkeeperLogo, url: "https://tonkeeper.com", chain: "TON" },
   { name: "TokenPocket", icon: tokenpocketLogo, url: "https://www.tokenpocket.pro", chain: "Multi-chain" },
+  { name: "TronLink", icon: "https://www.tronlink.org/images/logo.png", url: "https://www.tronlink.org", chain: "Tron" },
 ];
 
 export function Partners() {
