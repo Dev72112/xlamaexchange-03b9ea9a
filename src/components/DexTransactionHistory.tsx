@@ -2,12 +2,12 @@ import { History, ExternalLink, Wallet, ArrowRight, Clock, Trash2 } from "lucide
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useWallet } from "@/contexts/WalletContext";
+import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { cn } from "@/lib/utils";
 
 export function DexTransactionHistory() {
-  const { isConnected } = useWallet();
+  const { isConnected } = useMultiWallet();
   const { transactions, removeTransaction, clearHistory } = useDexTransactions();
 
   const formatTimeAgo = (timestamp: number) => {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useWallet } from '@/contexts/WalletContext';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { OkxToken } from '@/services/okxdex';
 import { NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 
@@ -13,7 +13,7 @@ interface TokenBalance {
 }
 
 export function useTokenBalance(token: OkxToken | null, chainIndex?: string) {
-  const { address, isConnected, getProvider, chainId } = useWallet();
+  const { activeAddress: address, isConnected, getEvmProvider, evmChainId: chainId } = useMultiWallet();
   const [balance, setBalance] = useState<TokenBalance>({
     balance: '0',
     formatted: '0',
@@ -29,7 +29,7 @@ export function useTokenBalance(token: OkxToken | null, chainIndex?: string) {
     setBalance(prev => ({ ...prev, loading: true }));
 
     try {
-      const provider = getProvider();
+      const provider = getEvmProvider();
       if (!provider) {
         setBalance({ balance: '0', formatted: '0', loading: false });
         return;
@@ -86,7 +86,7 @@ export function useTokenBalance(token: OkxToken | null, chainIndex?: string) {
       console.error('Error fetching token balance:', err);
       setBalance({ balance: '0', formatted: '0', loading: false });
     }
-  }, [isConnected, address, token, getProvider]);
+  }, [isConnected, address, token, getEvmProvider]);
 
   // Fetch on mount and when dependencies change
   useEffect(() => {
@@ -109,7 +109,7 @@ export function useTokenBalance(token: OkxToken | null, chainIndex?: string) {
 
 // Hook to get multiple token balances
 export function useTokenBalances(tokens: OkxToken[]) {
-  const { address, isConnected, getProvider, chainId } = useWallet();
+  const { activeAddress: address, isConnected, getEvmProvider, evmChainId: chainId } = useMultiWallet();
   const [balances, setBalances] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
 
@@ -122,7 +122,7 @@ export function useTokenBalances(tokens: OkxToken[]) {
     setLoading(true);
 
     try {
-      const provider = getProvider();
+      const provider = getEvmProvider();
       if (!provider) return;
 
       const newBalances = new Map<string, string>();
@@ -181,7 +181,7 @@ export function useTokenBalances(tokens: OkxToken[]) {
     } finally {
       setLoading(false);
     }
-  }, [isConnected, address, tokens, getProvider]);
+  }, [isConnected, address, tokens, getEvmProvider]);
 
   useEffect(() => {
     fetchBalances();

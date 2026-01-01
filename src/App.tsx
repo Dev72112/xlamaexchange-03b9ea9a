@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { WalletProvider } from "@/contexts/WalletContext";
+import { MultiWalletProvider } from "@/contexts/MultiWalletContext";
 import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import Index from "./pages/Index";
 import FAQ from "./pages/FAQ";
@@ -15,13 +15,16 @@ import Favorites from "./pages/Favorites";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 
+// Import Sui dapp-kit styles
+import '@mysten/dapp-kit/dist/index.css';
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark">
-        <WalletProvider>
+        <MultiWalletProvider>
           <DexTransactionProvider>
             <TooltipProvider>
               <Toaster />
@@ -39,7 +42,7 @@ const App = () => (
               </BrowserRouter>
             </TooltipProvider>
           </DexTransactionProvider>
-        </WalletProvider>
+        </MultiWalletProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </HelmetProvider>

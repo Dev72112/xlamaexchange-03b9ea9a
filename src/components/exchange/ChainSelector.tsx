@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Chain, SUPPORTED_CHAINS, getEvmChains, getNonEvmChains } from '@/data/chains';
-import { useWallet } from '@/contexts/WalletContext';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { cn } from '@/lib/utils';
 
 interface ChainSelectorProps {
@@ -19,7 +19,7 @@ interface ChainSelectorProps {
 }
 
 export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = false, excludeChainIndex }: ChainSelectorProps) {
-  const { chainId, switchChain, isConnected } = useWallet();
+  const { evmChainId: chainId, switchEvmChain: switchChain, isConnected } = useMultiWallet();
   const [open, setOpen] = React.useState(false);
   
   const evmChains = getEvmChains().filter(c => c.chainIndex !== excludeChainIndex);
