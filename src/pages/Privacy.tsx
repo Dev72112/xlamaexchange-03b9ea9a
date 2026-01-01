@@ -18,7 +18,7 @@ const Privacy = () => {
           
           <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
             <p className="text-muted-foreground">
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: January 1, 2026
             </p>
 
             <section className="space-y-4">
@@ -100,8 +100,9 @@ const Privacy = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">7. Wallet Security</h2>
               <p className="text-muted-foreground">
-                When using DEX Mode, you connect your own wallet. We never have access to your private 
-                keys or seed phrase. You are responsible for securing your wallet credentials.
+                When using DEX Mode, you connect your own wallet (MetaMask, Phantom, Solflare, Sui Wallet, 
+                Tonkeeper, TokenPocket, or others). We never have access to your private keys or seed phrase. 
+                You are responsible for securing your wallet credentials.
               </p>
             </section>
 
@@ -109,7 +110,8 @@ const Privacy = () => {
               <h2 className="text-2xl font-semibold">8. Cookies and Local Storage</h2>
               <p className="text-muted-foreground">
                 We use cookies and local storage to remember your preferences (theme, wallet connection 
-                status) and improve your experience. You can control these through your browser settings.
+                status, recent tokens) and improve your experience. You can control these through your 
+                browser settings.
               </p>
             </section>
 
@@ -127,9 +129,10 @@ const Privacy = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">10. Third-Party Services</h2>
               <p className="text-muted-foreground">
-                Our service integrates with ChangeNow for instant exchanges and OKX DEX for on-chain 
-                swaps. Their privacy practices are governed by their own privacy policies. We encourage 
-                you to review their terms.
+                Our service integrates with ChangeNow for instant exchanges, OKX DEX for on-chain 
+                swaps, and various wallet providers including Phantom, Solflare, MetaMask, Sui Wallet, 
+                Tonkeeper, and TokenPocket. Their privacy practices are governed by their own privacy 
+                policies. We encourage you to review their terms.
               </p>
             </section>
 
@@ -145,8 +148,8 @@ const Privacy = () => {
               <h2 className="text-2xl font-semibold">12. Contact Us</h2>
               <p className="text-muted-foreground">
                 For questions about this Privacy Policy or our privacy practices, please contact us at{" "}
-                <a href="mailto:privacy@xlama.exchange" className="text-primary hover:underline">
-                  privacy@xlama.exchange
+                <a href="mailto:support.xlama@defixlama.com" className="text-primary hover:underline">
+                  support.xlama@defixlama.com
                 </a>
               </p>
             </section>

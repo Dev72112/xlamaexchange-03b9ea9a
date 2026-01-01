@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Mail } from "lucide-react";
 
 export function Footer() {
   return (
@@ -13,7 +14,7 @@ export function Footer() {
               <span className="text-foreground">xlama</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Fast, secure, and anonymous cryptocurrency exchange. Instant swaps and DEX aggregation with the best rates.
+              Fast, secure, and anonymous cryptocurrency exchange. Instant swaps and DEX aggregation with the best rates across 20+ chains.
             </p>
           </div>
 
@@ -30,7 +31,12 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link></li>
-              <li><a href="mailto:support@xlama.exchange" className="hover:text-foreground transition-colors">Contact Us</a></li>
+              <li>
+                <a href="mailto:support.xlama@defixlama.com" className="hover:text-foreground transition-colors flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" />
+                  Contact Us
+                </a>
+              </li>
             </ul>
           </div>
 

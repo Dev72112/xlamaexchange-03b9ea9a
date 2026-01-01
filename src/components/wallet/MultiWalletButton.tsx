@@ -19,6 +19,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMultiWallet, ChainType } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
 
+// Import wallet logos
+import phantomLogo from '@/assets/wallets/phantom-logo.png';
+import solflareLogo from '@/assets/wallets/solflare-logo.png';
+import suiWalletLogo from '@/assets/wallets/sui-wallet-logo.png';
+import tonkeeperLogo from '@/assets/wallets/tonkeeper-logo.jpeg';
+import tokenpocketLogo from '@/assets/wallets/tokenpocket-logo.png';
+import okxWalletLogo from '@/assets/wallets/okx-wallet-logo.png';
+
 interface WalletOption {
   id: string;
   name: string;
@@ -33,8 +41,8 @@ const walletOptions: WalletOption[] = [
   {
     id: 'okx',
     name: 'OKX Wallet',
-    icon: 'https://static.okx.com/cdn/wallet/logo/okxwallet.png',
-    description: 'For EVM chains (Ethereum, X Layer, etc.)',
+    icon: okxWalletLogo,
+    description: 'Multi-chain wallet for EVM, Solana & more',
     installUrl: 'https://www.okx.com/web3',
     chainType: 'evm',
   },
@@ -42,7 +50,7 @@ const walletOptions: WalletOption[] = [
     id: 'metamask',
     name: 'MetaMask',
     icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg',
-    description: 'For EVM chains',
+    description: 'Popular Ethereum & EVM wallet',
     installUrl: 'https://metamask.io/download/',
     chainType: 'evm',
   },
@@ -50,16 +58,16 @@ const walletOptions: WalletOption[] = [
   {
     id: 'phantom',
     name: 'Phantom',
-    icon: 'https://phantom.app/img/phantom-logo.svg',
-    description: 'For Solana',
+    icon: phantomLogo,
+    description: 'Leading Solana wallet',
     installUrl: 'https://phantom.app/',
     chainType: 'solana',
   },
   {
     id: 'solflare',
     name: 'Solflare',
-    icon: 'https://solflare.com/assets/logo.svg',
-    description: 'For Solana',
+    icon: solflareLogo,
+    description: 'Secure Solana wallet',
     installUrl: 'https://solflare.com/',
     chainType: 'solana',
   },
@@ -68,16 +76,24 @@ const walletOptions: WalletOption[] = [
     id: 'tronlink',
     name: 'TronLink',
     icon: 'https://www.tronlink.org/images/logo.png',
-    description: 'For TRON network',
+    description: 'Official TRON wallet',
     installUrl: 'https://www.tronlink.org/',
+    chainType: 'tron',
+  },
+  {
+    id: 'tokenpocket',
+    name: 'TokenPocket',
+    icon: tokenpocketLogo,
+    description: 'Multi-chain crypto wallet',
+    installUrl: 'https://www.tokenpocket.pro/',
     chainType: 'tron',
   },
   // Sui
   {
     id: 'sui-wallet',
     name: 'Sui Wallet',
-    icon: 'https://sui.io/favicon.svg',
-    description: 'For Sui network',
+    icon: suiWalletLogo,
+    description: 'Official Sui network wallet',
     installUrl: 'https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil',
     chainType: 'sui',
   },
@@ -85,8 +101,8 @@ const walletOptions: WalletOption[] = [
   {
     id: 'tonkeeper',
     name: 'Tonkeeper',
-    icon: 'https://tonkeeper.com/assets/tonkeeper-logo.svg',
-    description: 'For TON network',
+    icon: tonkeeperLogo,
+    description: 'Premier TON wallet',
     installUrl: 'https://tonkeeper.com/',
     chainType: 'ton',
   },
@@ -180,17 +196,14 @@ export function MultiWalletButton() {
     }
   };
 
-  // Get the address for the current active chain type
   const displayAddress = activeAddress;
 
-  // Fallback icon handler
   const handleIconError = (e: React.SyntheticEvent<HTMLImageElement>, name: string) => {
     const target = e.target as HTMLImageElement;
     target.onerror = null;
     target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name.slice(0, 2))}&background=6366f1&color=fff&size=64`;
   };
 
-  // Get connected wallet info for dropdown
   const getConnectedWalletLabel = () => {
     if (activeChainType === 'evm' && evmAddress) return 'EVM Wallet';
     if (activeChainType === 'solana' && solanaAddress) return 'Solana Wallet';
@@ -228,11 +241,7 @@ export function MultiWalletButton() {
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleCopyAddress}>
-            {copied ? (
-              <Check className="w-4 h-4 mr-2" />
-            ) : (
-              <Copy className="w-4 h-4 mr-2" />
-            )}
+            {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
             Copy Address
           </DropdownMenuItem>
           {activeChain && (
@@ -251,29 +260,20 @@ export function MultiWalletButton() {
     );
   }
 
-  // Filter wallets by chain type for the selected tab
   const filteredWallets = walletOptions.filter(w => w.chainType === selectedTab);
 
   return (
     <>
-      <Button 
-        onClick={() => setIsDialogOpen(true)} 
-        disabled={isConnecting}
-        className="gap-2"
-      >
+      <Button onClick={() => setIsDialogOpen(true)} disabled={isConnecting} className="gap-2">
         <Wallet className="w-4 h-4" />
-        <span className="hidden sm:inline">
-          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-        </span>
+        <span className="hidden sm:inline">{isConnecting ? 'Connecting...' : 'Connect Wallet'}</span>
       </Button>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Connect Wallet</DialogTitle>
-            <DialogDescription>
-              Choose a wallet for your selected network.
-            </DialogDescription>
+            <DialogDescription>Choose a wallet for your selected network.</DialogDescription>
           </DialogHeader>
           
           <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as ChainType)} className="w-full">
@@ -297,7 +297,7 @@ export function MultiWalletButton() {
                     <img 
                       src={wallet.icon} 
                       alt={wallet.name} 
-                      className="w-10 h-10 rounded-lg"
+                      className="w-10 h-10 rounded-lg object-cover"
                       onError={(e) => handleIconError(e, wallet.name)}
                     />
                     <div className="flex-1">
@@ -309,9 +309,7 @@ export function MultiWalletButton() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {wallet.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{wallet.description}</p>
                     </div>
                   </button>
                 ))}
