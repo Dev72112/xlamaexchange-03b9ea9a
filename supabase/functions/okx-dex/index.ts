@@ -255,22 +255,69 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        // Fetch all tokens and find the matching one
-        response = await okxRequest('/all-tokens', { chainIndex });
-        const tokensData = await response.json();
-        if (tokensData.code === '0' || tokensData.code === 0) {
-          const foundToken = tokensData.data?.find(
-            (t: any) => t.tokenContractAddress?.toLowerCase() === tokenAddress.toLowerCase()
-          );
-          if (foundToken) {
+        
+        console.log(`Fetching token info for ${tokenAddress} on chain ${chainIndex}`);
+        
+        // First try to find in all-tokens list
+        try {
+          const tokensResponse = await okxRequest('/all-tokens', { chainIndex });
+          const tokensData = await tokensResponse.json();
+          
+          if (tokensData.code === '0' || tokensData.code === 0) {
+            const foundToken = tokensData.data?.find(
+              (t: any) => t.tokenContractAddress?.toLowerCase() === tokenAddress.toLowerCase()
+            );
+            if (foundToken) {
+              console.log(`Found token in list: ${foundToken.tokenSymbol}`);
+              return new Response(
+                JSON.stringify(foundToken),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching all-tokens:', err);
+        }
+        
+        // If not in list, try quote endpoint with a small amount to get token info
+        // This is a workaround since OKX doesn't have a dedicated token-info endpoint
+        try {
+          const nativeAddress = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+          const quoteResponse = await okxRequest('/quote', {
+            chainIndex,
+            fromTokenAddress: tokenAddress,
+            toTokenAddress: nativeAddress,
+            amount: '1000000000000000000', // 1 token with 18 decimals
+            slippage: '0.5',
+          });
+          
+          const quoteData = await quoteResponse.json();
+          console.log('Quote response for token info:', quoteData);
+          
+          if ((quoteData.code === '0' || quoteData.code === 0) && quoteData.data?.[0]) {
+            const quote = quoteData.data[0];
+            // Extract token info from quote response
+            const tokenInfo = {
+              tokenContractAddress: tokenAddress,
+              tokenSymbol: quote.fromToken?.tokenSymbol || 'UNKNOWN',
+              tokenName: quote.fromToken?.tokenName || quote.fromToken?.tokenSymbol || 'Unknown Token',
+              decimals: quote.fromToken?.decimals || '18',
+              tokenLogoUrl: quote.fromToken?.tokenLogoUrl || '',
+            };
+            console.log('Extracted token info from quote:', tokenInfo);
             return new Response(
-              JSON.stringify(foundToken),
+              JSON.stringify(tokenInfo),
               { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
+        } catch (err) {
+          console.error('Error getting token via quote:', err);
         }
+        
+        // Token not found
+        console.log(`Token ${tokenAddress} not found on chain ${chainIndex}`);
         return new Response(
-          JSON.stringify({ error: 'Token not found' }),
+          JSON.stringify({ error: 'Token not found on this chain' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

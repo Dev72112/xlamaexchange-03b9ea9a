@@ -82,21 +82,34 @@ export function DexTokenSelector({
       setIsLoadingCustom(true);
       setCustomTokenError(null);
       try {
+        console.log('Searching for token by address:', query, 'on chain:', chain.chainIndex);
         const tokenInfo = await okxDexService.getTokenInfo(chain.chainIndex, query);
-        if (tokenInfo) {
-          setCustomToken(tokenInfo);
+        console.log('Token info result:', tokenInfo);
+        
+        if (tokenInfo && tokenInfo.tokenSymbol) {
+          setCustomToken({
+            ...tokenInfo,
+            tokenContractAddress: query,
+            isCustom: true,
+          } as OkxToken);
+          setCustomTokenError(null);
         } else {
           setCustomTokenError("Token not found on this chain");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to fetch custom token:', err);
-        setCustomTokenError("Failed to load token info");
+        const errorMsg = err?.message || '';
+        if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+          setCustomTokenError("Token not found on this chain");
+        } else {
+          setCustomTokenError("Failed to load token. Try again.");
+        }
       } finally {
         setIsLoadingCustom(false);
       }
     };
 
-    const debounce = setTimeout(fetchToken, 500);
+    const debounce = setTimeout(fetchToken, 600);
     return () => clearTimeout(debounce);
   }, [searchQuery, chain, tokens]);
 

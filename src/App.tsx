@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { WalletProvider } from "@/contexts/WalletContext";
+import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import Index from "./pages/Index";
 import FAQ from "./pages/FAQ";
 import Terms from "./pages/Terms";
@@ -21,21 +22,23 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark">
         <WalletProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/favorites" element={<Favorites />} />
-                <Route path="/history" element={<History />} />
-                <Route path="/faq" element={<FAQ />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
+          <DexTransactionProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/favorites" element={<Favorites />} />
+                  <Route path="/history" element={<History />} />
+                  <Route path="/faq" element={<FAQ />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/privacy" element={<Privacy />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </DexTransactionProvider>
         </WalletProvider>
       </ThemeProvider>
     </QueryClientProvider>

@@ -25,7 +25,7 @@ import { useDexTokens } from "@/hooks/useDexTokens";
 import { useDexQuote } from "@/hooks/useDexQuote";
 import { useDexSwap } from "@/hooks/useDexSwap";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
-import { useDexTransactionHistory } from "@/hooks/useDexTransactionHistory";
+import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { SlippageSettings } from "./SlippageSettings";
 import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
@@ -121,8 +121,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     exchangeMode === 'dex' && swapMode === 'bridge' ? destChain : null
   );
   
-  // Transaction history hook
-  const { addTransaction, updateTransaction } = useDexTransactionHistory();
+  // Transaction history from context (shared across app)
+  const { addTransaction, updateTransaction } = useDexTransactions();
   
   const { 
     quote: dexQuote, 
@@ -576,14 +576,24 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           </div>
 
-          {/* DEX Mode: Swap/Bridge Toggle */}
+          {/* DEX Mode: Swap/Bridge Toggle with Chain Selectors */}
           {exchangeMode === 'dex' && (
-            <div className="px-4 sm:px-5 pt-3 flex items-center justify-between">
+            <div className="px-4 sm:px-5 pt-3 flex flex-col gap-2">
               <SwapBridgeToggle mode={swapMode} onModeChange={setSwapMode} />
               {swapMode === 'bridge' && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span>{selectedChain.shortName}</span>
-                  <ArrowRight className="w-3 h-3" />
+                <div className="flex items-center justify-center gap-2 p-2 bg-secondary/30 rounded-lg border border-border">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-md border border-border">
+                    <img 
+                      src={selectedChain.icon} 
+                      alt={selectedChain.name} 
+                      className="w-4 h-4 rounded-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${selectedChain.shortName}&background=6366f1&color=fff`;
+                      }}
+                    />
+                    <span className="text-xs font-medium">{selectedChain.shortName}</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
                   <ChainSelector 
                     selectedChain={destChain} 
                     onChainSelect={setDestChain}
@@ -863,6 +873,25 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 >
                   <RefreshCw className={cn("w-4 h-4", currenciesLoading && "animate-spin")} />
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Gas Estimation - DEX Mode */}
+          {exchangeMode === 'dex' && dexQuote?.estimateGasFee && !quoteLoading && (
+            <div className="px-4 sm:px-5 pb-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground p-2 bg-secondary/30 rounded-lg">
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                  </svg>
+                  Est. Gas Fee
+                </span>
+                <span className="font-mono">
+                  ~{(parseFloat(dexQuote.estimateGasFee) / 1e18).toFixed(6)} {selectedChain.nativeCurrency.symbol}
+                </span>
               </div>
             </div>
           )}
