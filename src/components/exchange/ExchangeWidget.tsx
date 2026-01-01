@@ -31,6 +31,7 @@ import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
 import { SwapBridgeToggle, SwapMode } from "./SwapBridgeToggle";
 import { SwapReviewModal } from "./SwapReviewModal";
+import { useBridgeQuote } from "@/hooks/useBridgeQuote";
 import {
   Dialog,
   DialogContent,
@@ -139,7 +140,27 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     toToken: toDexToken,
     amount: fromAmount,
     slippage,
-    enabled: exchangeMode === 'dex' && !!fromDexToken && !!toDexToken, // No wallet required for quotes
+    enabled: exchangeMode === 'dex' && swapMode === 'swap' && !!fromDexToken && !!toDexToken, // Only for swap mode
+  });
+
+  // Bridge quote hook - works without wallet connection
+  const {
+    quote: bridgeQuoteData,
+    formattedOutputAmount: bridgeOutputAmount,
+    exchangeRate: bridgeExchangeRate,
+    isLoading: bridgeQuoteLoading,
+    error: bridgeQuoteError,
+    lastUpdated: bridgeLastUpdated,
+    refetch: refetchBridgeQuote,
+  } = useBridgeQuote({
+    fromChain: selectedChain,
+    toChain: destChain,
+    fromToken: fromDexToken,
+    toToken: toDexToken,
+    amount: fromAmount,
+    slippage,
+    userAddress: address || undefined,
+    enabled: exchangeMode === 'dex' && swapMode === 'bridge' && !!fromDexToken && !!toDexToken, // Only for bridge mode
   });
 
   const { 
@@ -575,10 +596,24 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   }
 
   // Determine current output amount and rate based on mode
-  const currentOutputAmount = exchangeMode === 'instant' ? toAmount : dexOutputAmount;
-  const currentRate = exchangeMode === 'instant' ? exchangeRate : dexExchangeRate;
-  const currentLoading = exchangeMode === 'instant' ? isLoading : quoteLoading;
-  const currentError = exchangeMode === 'instant' ? pairError : quoteError;
+  const currentOutputAmount = exchangeMode === 'instant' 
+    ? toAmount 
+    : (swapMode === 'bridge' ? bridgeOutputAmount : dexOutputAmount);
+  const currentRate = exchangeMode === 'instant' 
+    ? exchangeRate 
+    : (swapMode === 'bridge' ? bridgeExchangeRate : dexExchangeRate);
+  const currentLoading = exchangeMode === 'instant' 
+    ? isLoading 
+    : (swapMode === 'bridge' ? bridgeQuoteLoading : quoteLoading);
+  const currentError = exchangeMode === 'instant' 
+    ? pairError 
+    : (swapMode === 'bridge' ? bridgeQuoteError : quoteError);
+  const currentLastUpdated = exchangeMode === 'instant'
+    ? lastUpdated
+    : (swapMode === 'bridge' ? bridgeLastUpdated : quoteLastUpdated);
+  const currentRefetch = exchangeMode === 'instant'
+    ? calculateRate
+    : (swapMode === 'bridge' ? refetchBridgeQuote : refetchQuote);
 
   // Determine button state and text for DEX mode
   const getSwapButtonContent = () => {
@@ -872,7 +907,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   </TooltipContent>
                 </Tooltip>
                 <button
-                  onClick={() => exchangeMode === 'instant' ? calculateRate() : refetchQuote()}
+                  onClick={() => currentRefetch()}
                   disabled={currentLoading}
                   className="p-1 hover:bg-secondary rounded transition-colors"
                   title="Refresh rate"
@@ -880,7 +915,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   <RefreshCw className={cn("w-3.5 h-3.5", currentLoading && "animate-spin")} />
                 </button>
               </div>
-              {(lastUpdated || quoteLastUpdated) && (
+              {currentLastUpdated && (
                 <p className="text-center text-xs text-muted-foreground/60 mt-1">
                   Auto-refresh in {autoRefreshCountdown}s
                 </p>
@@ -888,8 +923,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           )}
 
-          {/* DEX Quote Info */}
-          {exchangeMode === 'dex' && dexQuote && !quoteLoading && (
+          {/* DEX Quote Info - swap mode only */}
+          {exchangeMode === 'dex' && swapMode === 'swap' && dexQuote && !quoteLoading && (
             <div className="px-4 sm:px-5 pb-4">
               <DexQuoteInfo
                 quote={dexQuote}
@@ -905,13 +940,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           )}
 
           {/* Error Display */}
-          {(pairUnavailable || (exchangeMode === 'dex' && quoteError)) && (
+          {(pairUnavailable || (exchangeMode === 'dex' && currentError)) && (
             <div className="px-4 sm:px-5 pb-4">
               <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg text-sm text-warning">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span className="flex-1 break-words">{currentError || "This trading pair is not available."}</span>
                 <button
-                  onClick={() => exchangeMode === 'instant' ? calculateRate() : refetchQuote()}
+                  onClick={() => currentRefetch()}
                   className="p-1.5 hover:bg-warning/20 rounded transition-colors shrink-0"
                   title="Retry"
                 >
@@ -939,17 +974,60 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           )}
 
           {/* Gas Estimation - DEX Mode */}
-          {exchangeMode === 'dex' && dexQuote?.estimateGasFee && !quoteLoading && (
-            <div className="px-4 sm:px-5 pb-3">
+          {exchangeMode === 'dex' && swapMode === 'swap' && dexQuote?.estimateGasFee && !quoteLoading && (() => {
+            const fee = parseFloat(dexQuote.estimateGasFee);
+            // Only show gas if we can calculate a reasonable value
+            // If the value is huge (> 1e12), it's in wei and needs conversion
+            // If already small (< 1000), it might be pre-formatted
+            let displayFee: string | null = null;
+            if (!isNaN(fee) && fee > 0) {
+              if (fee > 1e12) {
+                // Value is in wei, convert to native token
+                displayFee = (fee / 1e18).toFixed(6);
+              } else if (fee < 1) {
+                // Already in native token format
+                displayFee = fee.toFixed(6);
+              }
+              // If fee is between 1 and 1e12, it's likely gas units, not a displayable fee
+            }
+            
+            if (!displayFee || displayFee === '0.000000') return null;
+            
+            return (
+              <div className="px-4 sm:px-5 pb-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground p-2.5 bg-secondary/30 rounded-lg border border-border/50">
+                  <span className="flex items-center gap-1.5">
+                    <Fuel className="w-3.5 h-3.5" />
+                    Estimated Gas
+                  </span>
+                  <span className="font-mono font-medium">
+                    ~{displayFee} {selectedChain.nativeCurrency.symbol}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Bridge Mode Info */}
+          {exchangeMode === 'dex' && swapMode === 'bridge' && bridgeQuoteData && !bridgeQuoteLoading && (
+            <div className="px-4 sm:px-5 pb-3 space-y-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground p-2.5 bg-secondary/30 rounded-lg border border-border/50">
                 <span className="flex items-center gap-1.5">
-                  <Fuel className="w-3.5 h-3.5" />
-                  Estimated Gas
+                  <Clock className="w-3.5 h-3.5" />
+                  Estimated Time
                 </span>
-                <span className="font-mono font-medium">
-                  ~{(parseFloat(dexQuote.estimateGasFee) / 1e18).toFixed(6)} {selectedChain.nativeCurrency.symbol}
+                <span className="font-medium">
+                  ~{bridgeQuoteData.estimatedTime}
                 </span>
               </div>
+              {bridgeQuoteData.minAmount && (
+                <div className="flex items-center gap-2 p-2.5 bg-warning/10 border border-warning/20 rounded-lg text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+                  <span className="text-warning">
+                    Minimum: {(parseFloat(bridgeQuoteData.minAmount) / Math.pow(10, parseInt(fromDexToken?.decimals || '18'))).toFixed(4)} {fromDexToken?.tokenSymbol}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

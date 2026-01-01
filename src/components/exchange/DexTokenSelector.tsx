@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { OkxToken, okxDexService } from "@/services/okxdex";
 import { Chain } from "@/data/chains";
 import { useRecentTokens } from "@/hooks/useRecentTokens";
-import { useToast } from "@/hooks/use-toast";
+import { CustomTokenConfirmDialog } from "./CustomTokenConfirmDialog";
 
 interface DexTokenSelectorProps {
   value: OkxToken | null;
@@ -42,7 +42,8 @@ export function DexTokenSelector({
   const [customToken, setCustomToken] = useState<OkxToken | null>(null);
   const [isLoadingCustom, setIsLoadingCustom] = useState(false);
   const [customTokenError, setCustomTokenError] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingCustomToken, setPendingCustomToken] = useState<OkxToken | null>(null);
   
   // Recent tokens hook
   const { recentTokens, addRecentToken, clearRecentTokens } = useRecentTokens(chain?.chainIndex || '');
@@ -153,13 +154,11 @@ export function DexTokenSelector({
   }, [recentTokens, excludeAddress]);
 
   const handleSelect = useCallback((token: OkxToken, isCustom = false) => {
-    // Show warning for custom tokens
     if (isCustom) {
-      toast({
-        title: "⚠️ Custom Token Warning",
-        description: "This token is not on the verified list. Please verify the contract address before trading.",
-        variant: "destructive",
-      });
+      // For custom tokens, show confirmation dialog first
+      setPendingCustomToken(token);
+      setShowConfirmDialog(true);
+      return;
     }
     
     // Add to recent tokens
@@ -169,7 +168,26 @@ export function DexTokenSelector({
     setOpen(false);
     setSearchQuery("");
     setCustomToken(null);
-  }, [onChange, addRecentToken, toast]);
+  }, [onChange, addRecentToken]);
+
+  const handleConfirmCustomToken = useCallback(() => {
+    if (pendingCustomToken) {
+      // Mark as confirmed custom token
+      const confirmedToken = { ...pendingCustomToken, isCustom: true } as OkxToken;
+      addRecentToken(confirmedToken);
+      onChange(confirmedToken);
+    }
+    setShowConfirmDialog(false);
+    setPendingCustomToken(null);
+    setOpen(false);
+    setSearchQuery("");
+    setCustomToken(null);
+  }, [pendingCustomToken, onChange, addRecentToken]);
+
+  const handleCancelCustomToken = useCallback(() => {
+    setShowConfirmDialog(false);
+    setPendingCustomToken(null);
+  }, []);
 
   const renderTokenItem = (token: OkxToken, isCustom = false, keyPrefix = '') => (
     <div
@@ -365,6 +383,16 @@ export function DexTokenSelector({
           </div>
         </ScrollArea>
       </PopoverContent>
+
+      {/* Custom Token Confirmation Dialog */}
+      <CustomTokenConfirmDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        token={pendingCustomToken}
+        chain={chain}
+        onConfirm={handleConfirmCustomToken}
+        onCancel={handleCancelCustomToken}
+      />
     </Popover>
   );
 }

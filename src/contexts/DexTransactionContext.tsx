@@ -61,20 +61,42 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
     return newTx;
   }, []);
 
-  const updateTransaction = useCallback((hash: string, updates: Partial<DexTransaction>) => {
+  const updateTransaction = useCallback((hashOrId: string, updates: Partial<DexTransaction>) => {
     setTransactions(prev => prev.map(tx => {
-      // Match by hash, id prefix, or empty hash for pending transactions
-      const matches = tx.hash === hash || 
-        tx.id.startsWith(hash) || 
-        (hash === '' && tx.hash === '') ||
-        (updates.hash && tx.id.includes('pending'));
+      // Match strategies:
+      // 1. Exact hash match (for transactions with known hashes)
+      const matchesExactHash = tx.hash !== '' && tx.hash === hashOrId;
       
-      if (matches) {
-        // If we're updating with a new hash, update the id too
+      // 2. ID match (for direct ID updates)
+      const matchesId = tx.id === hashOrId;
+      
+      // 3. Pending transaction that needs a hash (when updating with new hash)
+      const isPendingNeedingHash = tx.status === 'pending' && 
+        tx.hash === '' && 
+        updates.hash && 
+        (hashOrId === '' || hashOrId === tx.id || tx.id.includes('pending'));
+      
+      // 4. Find most recent pending transaction when hashOrId is empty
+      const isLatestPending = hashOrId === '' && 
+        tx.status === 'pending' && 
+        tx.hash === '' &&
+        updates.status;
+      
+      if (matchesExactHash || matchesId || isPendingNeedingHash || isLatestPending) {
         const newTx = { ...tx, ...updates };
+        
+        // Update ID when adding hash to pending transaction
         if (updates.hash && tx.hash === '') {
           newTx.id = `${updates.hash}-${tx.timestamp}`;
+          newTx.hash = updates.hash;
         }
+        
+        console.log('Updating transaction:', { 
+          oldStatus: tx.status, 
+          newStatus: newTx.status, 
+          hash: newTx.hash?.slice(0, 10) 
+        });
+        
         return newTx;
       }
       return tx;
