@@ -8,79 +8,65 @@ import {
 } from "@/components/ui/accordion";
 
 const faqs = [
-  // General
   {
     question: "What is xlama?",
-    answer:
-      "xlama is a hybrid cryptocurrency exchange platform that offers two modes: Instant Mode (powered by ChangeNow) for quick cross-chain swaps, and DEX Mode (powered by OKX DEX) for on-chain swaps with the best rates from 400+ decentralized exchanges.",
+    answer: "xlama is a hybrid cryptocurrency exchange platform that offers two modes: Instant Mode (powered by ChangeNow) for quick cross-chain swaps, and DEX Mode (powered by OKX DEX) for on-chain swaps with the best rates from 400+ decentralized exchanges across 20+ chains.",
   },
   {
     question: "Do I need to create an account?",
-    answer:
-      "No registration is required for Instant Mode swaps. For DEX Mode, you simply connect your wallet (OKX Wallet or MetaMask) - no account creation needed.",
+    answer: "No registration is required for Instant Mode swaps. For DEX Mode, you simply connect your wallet (MetaMask, Phantom, OKX Wallet, Solflare, Sui Wallet, Tonkeeper, or TokenPocket) - no account creation needed.",
   },
   {
     question: "What cryptocurrencies can I exchange?",
-    answer:
-      "In Instant Mode, we support 900+ cryptocurrencies including Bitcoin, Ethereum, Solana, and many more. In DEX Mode, you can swap any token available on supported chains including Ethereum, Base, Polygon, Arbitrum, and more.",
+    answer: "In Instant Mode, we support 900+ cryptocurrencies including Bitcoin, Ethereum, Solana, and many more. In DEX Mode, you can swap any token available on supported chains including Ethereum, Solana, Base, Polygon, Arbitrum, Sui, TON, Tron and more.",
   },
-  // Instant Mode
+  {
+    question: "Which blockchains are supported?",
+    answer: "We support a wide range of blockchains including Ethereum, Solana, Base, Polygon, Arbitrum, Optimism, BNB Smart Chain, Avalanche, Sui, TON, Tron, X Layer, zkSync, Linea, Fantom, Mantle, Blast, Scroll, and many more.",
+  },
   {
     question: "How long does an Instant Mode exchange take?",
-    answer:
-      "Most exchanges complete within 10-30 minutes, depending on blockchain network speed and confirmation times. Fixed-rate exchanges lock your rate for 15 minutes.",
+    answer: "Most exchanges complete within 10-30 minutes, depending on blockchain network speed and confirmation times. Fixed-rate exchanges lock your rate for 15 minutes.",
   },
   {
     question: "What's the difference between Standard and Fixed rates?",
-    answer:
-      "Standard (floating) rate may fluctuate during the exchange based on market conditions. Fixed rate is locked for 15 minutes from exchange creation - you'll receive exactly what was quoted.",
+    answer: "Standard (floating) rate may fluctuate during the exchange based on market conditions. Fixed rate is locked for 15 minutes from exchange creation - you'll receive exactly what was quoted.",
   },
-  // DEX Mode
   {
     question: "What is DEX Mode?",
-    answer:
-      "DEX Mode allows you to swap tokens directly on-chain through decentralized exchanges. It aggregates rates from 400+ DEXs to find you the best price. Swaps are executed instantly on the blockchain.",
+    answer: "DEX Mode allows you to swap tokens directly on-chain through decentralized exchanges. It aggregates rates from 400+ DEXs to find you the best price. Swaps are executed instantly on the blockchain with full transparency.",
   },
   {
-    question: "How do I connect my wallet for DEX swaps?",
-    answer:
-      "Click the 'Connect Wallet' button and choose OKX Wallet or MetaMask. Make sure you're connected to the correct network for your swap. We support 20+ chains including Ethereum, Base, Polygon, and X Layer.",
+    question: "Which wallets can I use for DEX swaps?",
+    answer: "We support multiple wallets across different blockchains: MetaMask and OKX Wallet for EVM chains, Phantom and Solflare for Solana, Sui Wallet for Sui network, Tonkeeper for TON, and TronLink and TokenPocket for Tron.",
   },
   {
     question: "What is token approval?",
-    answer:
-      "Before swapping ERC-20 tokens, you need to approve the DEX contract to spend your tokens. This is a one-time transaction per token that requires a small gas fee. Native tokens like ETH don't require approval.",
+    answer: "Before swapping ERC-20 or SPL tokens, you need to approve the DEX contract to spend your tokens. This is a one-time transaction per token that requires a small gas fee. Native tokens like ETH or SOL don't require approval.",
   },
   {
     question: "Why do I need to pay gas fees in DEX mode?",
-    answer:
-      "DEX swaps are on-chain transactions that require gas fees paid to blockchain validators. Gas costs vary by network - Layer 2 chains like Base, Arbitrum, and X Layer typically have much lower fees than Ethereum mainnet.",
+    answer: "DEX swaps are on-chain transactions that require gas fees paid to blockchain validators. Gas costs vary by network - Solana, Layer 2 chains like Base, Arbitrum, and X Layer typically have much lower fees than Ethereum mainnet.",
   },
   {
     question: "What is slippage and how do I set it?",
-    answer:
-      "Slippage is the maximum price difference you're willing to accept between the quoted price and execution price. We recommend 0.5% for most swaps, but volatile tokens may need 1-3%. You can adjust this in the settings.",
+    answer: "Slippage is the maximum price difference you're willing to accept between the quoted price and execution price. We recommend 0.5% for most swaps, but volatile tokens may need 1-3%. You can adjust this in the settings.",
   },
-  {
-    question: "What chains are supported in DEX mode?",
-    answer:
-      "We support 20+ chains including X Layer (featured), Ethereum, Base, Polygon, Arbitrum, Optimism, BNB Smart Chain, Avalanche, zkSync, Linea, Fantom, Mantle, Blast, Scroll, and more.",
-  },
-  // Fees & Security
   {
     question: "What fees do you charge?",
-    answer:
-      "For Instant Mode, fees are included in the displayed rate - what you see is what you get. For DEX Mode, you only pay blockchain gas fees. We don't add extra fees on top of DEX rates.",
+    answer: "For Instant Mode, fees are included in the displayed rate - what you see is what you get. For DEX Mode, you only pay blockchain gas fees. We don't add extra fees on top of DEX rates.",
   },
   {
     question: "Is my exchange anonymous?",
-    answer:
-      "Instant Mode requires no personal information or KYC. DEX Mode connects to your wallet but doesn't require any personal data - your transactions are on-chain and pseudonymous.",
+    answer: "Instant Mode requires no personal information or KYC. DEX Mode connects to your wallet but doesn't require any personal data - your transactions are on-chain and pseudonymous.",
+  },
+  {
+    question: "Is xlama safe to use?",
+    answer: "Yes. xlama is non-custodial, meaning we never hold your funds. For Instant Mode, swaps are processed by ChangeNow. For DEX Mode, you interact directly with audited smart contracts while your private keys remain in your wallet.",
   },
   {
     question: "How can I track my exchange?",
-    answer:
-      "For Instant Mode, use the transaction ID provided to track status on our platform. For DEX Mode, you can view your transaction directly on the blockchain explorer for the chain you're using.",
+    answer: "For Instant Mode, use the transaction ID provided to track status on our platform. For DEX Mode, you can view your transaction directly on the blockchain explorer for the chain you're using.",
   },
 ];
 
@@ -91,7 +77,7 @@ const FAQ = () => {
         <title>FAQ - xlama | Frequently Asked Questions</title>
         <meta
           name="description"
-          content="Find answers to common questions about xlama cryptocurrency exchange. Learn about Instant Mode, DEX Mode, wallet connection, rates, fees, and security."
+          content="Find answers to common questions about xlama cryptocurrency exchange. Learn about Instant Mode, DEX Mode, wallet connection, supported chains, rates, fees, and security."
         />
       </Helmet>
 
@@ -129,7 +115,7 @@ const FAQ = () => {
               Can't find the answer you're looking for? Reach out to our support team.
             </p>
             <a
-              href="mailto:support@xlama.exchange"
+              href="mailto:support.xlama@defixlama.com"
               className="text-primary hover:underline font-medium"
             >
               Contact Support →

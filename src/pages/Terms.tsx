@@ -18,7 +18,7 @@ const Terms = () => {
           
           <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
             <p className="text-muted-foreground">
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: January 1, 2026
             </p>
 
             <section className="space-y-4">
@@ -36,7 +36,7 @@ const Terms = () => {
               </p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li><strong>Instant Mode:</strong> Non-custodial exchange service powered by ChangeNow API that allows users to exchange cryptocurrencies without registration.</li>
-                <li><strong>DEX Mode:</strong> Decentralized exchange aggregator powered by OKX DEX that enables on-chain token swaps directly from your wallet.</li>
+                <li><strong>DEX Mode:</strong> Decentralized exchange aggregator powered by OKX DEX that enables on-chain token swaps directly from your wallet across multiple blockchains including Ethereum, Solana, Sui, TON, Tron, and more.</li>
               </ul>
             </section>
 
@@ -61,7 +61,21 @@ const Terms = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">5. DEX Mode Specific Terms</h2>
+              <h2 className="text-2xl font-semibold">5. Supported Wallets</h2>
+              <p className="text-muted-foreground">
+                We support various wallets across multiple blockchains:
+              </p>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                <li><strong>EVM Chains:</strong> MetaMask, OKX Wallet</li>
+                <li><strong>Solana:</strong> Phantom, Solflare</li>
+                <li><strong>Sui:</strong> Sui Wallet</li>
+                <li><strong>TON:</strong> Tonkeeper</li>
+                <li><strong>Tron:</strong> TronLink, TokenPocket</li>
+              </ul>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold">6. DEX Mode Specific Terms</h2>
               <p className="text-muted-foreground">When using DEX Mode, you acknowledge and agree that:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li>You are interacting directly with smart contracts on public blockchains</li>
@@ -69,11 +83,12 @@ const Terms = () => {
                 <li>Gas fees are required for on-chain transactions and are non-refundable</li>
                 <li>Slippage settings affect transaction execution and may result in different output amounts</li>
                 <li>Smart contracts carry inherent risks including potential bugs or exploits</li>
+                <li>Cross-chain swaps may involve bridges with their own associated risks</li>
               </ul>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">6. Instant Mode Specific Terms</h2>
+              <h2 className="text-2xl font-semibold">7. Instant Mode Specific Terms</h2>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li><strong>Standard Rate:</strong> May fluctuate based on market conditions</li>
                 <li><strong>Fixed Rate:</strong> Locked for 15 minutes from exchange creation</li>
@@ -83,7 +98,7 @@ const Terms = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">7. Prohibited Activities</h2>
+              <h2 className="text-2xl font-semibold">8. Prohibited Activities</h2>
               <p className="text-muted-foreground">You agree not to:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li>Use the service for money laundering or terrorist financing</li>
@@ -91,28 +106,30 @@ const Terms = () => {
                 <li>Violate any applicable anti-money laundering (AML) regulations</li>
                 <li>Attempt to circumvent our security measures</li>
                 <li>Manipulate prices or exploit smart contract vulnerabilities</li>
+                <li>Use automated bots or scripts in an unauthorized manner</li>
               </ul>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">8. Limitation of Liability</h2>
+              <h2 className="text-2xl font-semibold">9. Limitation of Liability</h2>
               <p className="text-muted-foreground">
                 xlama is provided "as is" without warranties of any kind. We are not liable for any 
                 losses resulting from market volatility, blockchain delays, smart contract failures, 
-                user errors, wallet compromises, or circumstances beyond our control.
+                user errors, wallet compromises, bridge failures, or circumstances beyond our control.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">9. Third-Party Services</h2>
+              <h2 className="text-2xl font-semibold">10. Third-Party Services</h2>
               <p className="text-muted-foreground">
-                Our service integrates with ChangeNow and OKX DEX. These third-party services have their 
-                own terms and conditions. We are not responsible for any issues arising from their services.
+                Our service integrates with ChangeNow, OKX DEX, and various wallet providers. These 
+                third-party services have their own terms and conditions. We are not responsible for 
+                any issues arising from their services.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">10. Changes to Terms</h2>
+              <h2 className="text-2xl font-semibold">11. Changes to Terms</h2>
               <p className="text-muted-foreground">
                 We reserve the right to modify these Terms at any time. Continued use of the service after 
                 changes constitutes acceptance of the new Terms.
@@ -120,11 +137,11 @@ const Terms = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">11. Contact</h2>
+              <h2 className="text-2xl font-semibold">12. Contact</h2>
               <p className="text-muted-foreground">
                 For questions about these Terms, please contact us at{" "}
-                <a href="mailto:support@xlama.exchange" className="text-primary hover:underline">
-                  support@xlama.exchange
+                <a href="mailto:support.xlama@defixlama.com" className="text-primary hover:underline">
+                  support.xlama@defixlama.com
                 </a>
               </p>
             </section>
