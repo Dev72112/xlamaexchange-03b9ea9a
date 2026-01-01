@@ -12,9 +12,10 @@ const OKX_PROJECT_ID = Deno.env.get('OKX_PROJECT_ID') || '';
 const OKX_REFERRER_WALLET_ADDRESS = Deno.env.get('OKX_REFERRER_WALLET_ADDRESS') || '';
 const OKX_DEX_API_URL = 'https://www.okx.com/api/v5/dex/aggregator';
 
-// Commission fee percentage (0.5% = 50/50 split with OKX's typical 1% trading fee)
+// Commission fee percentage for partner revenue
 // Max is 3% for EVM chains, 10% for Solana
-const COMMISSION_FEE_PERCENT = '0.5';
+// Using 1.5% as a balanced rate for good revenue without impacting user experience too much
+const COMMISSION_FEE_PERCENT = '1.5';
 
 // Valid actions
 const VALID_ACTIONS = [
