@@ -260,15 +260,69 @@ serve(async (req) => {
         
         console.log(`Fetching token info for ${tokenAddress} on chain ${chainIndex}`);
         
+        // Chain-specific native token addresses for quote fallback
+        const getNativeTokenAddress = (chain: string): string => {
+          switch (chain) {
+            case '501': // Solana - wrapped SOL
+              return 'So11111111111111111111111111111111111111112';
+            case '195': // Tron
+              return 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'; // WTRX
+            case '784': // Sui
+              return '0x2::sui::SUI';
+            case '607': // TON
+              return 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c'; // native TON
+            default: // EVM chains
+              return '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+          }
+        };
+
+        // Chain-specific default decimals
+        const getDefaultDecimals = (chain: string): string => {
+          switch (chain) {
+            case '501': // Solana SPL tokens typically use 6 or 9 decimals
+              return '9';
+            case '195': // Tron
+              return '6';
+            case '784': // Sui
+              return '9';
+            case '607': // TON
+              return '9';
+            default:
+              return '18';
+          }
+        };
+
+        // Chain-specific default amount for quote (accounting for decimals)
+        const getDefaultAmount = (chain: string): string => {
+          switch (chain) {
+            case '501': // Solana - 9 decimals
+              return '1000000000';
+            case '195': // Tron - 6 decimals
+              return '1000000';
+            case '784': // Sui - 9 decimals
+              return '1000000000';
+            case '607': // TON - 9 decimals
+              return '1000000000';
+            default: // EVM - 18 decimals
+              return '1000000000000000000';
+          }
+        };
+        
         // First try to find in all-tokens list
         try {
           const tokensResponse = await okxRequest('/all-tokens', { chainIndex });
           const tokensData = await tokensResponse.json();
           
           if (tokensData.code === '0' || tokensData.code === 0) {
-            const foundToken = tokensData.data?.find(
-              (t: any) => t.tokenContractAddress?.toLowerCase() === tokenAddress.toLowerCase()
-            );
+            // For non-EVM chains, do case-sensitive comparison
+            const isNonEvmChain = ['501', '195', '784', '607'].includes(chainIndex);
+            const foundToken = tokensData.data?.find((t: any) => {
+              if (isNonEvmChain) {
+                return t.tokenContractAddress === tokenAddress;
+              }
+              return t.tokenContractAddress?.toLowerCase() === tokenAddress.toLowerCase();
+            });
+            
             if (foundToken) {
               console.log(`Found token in list: ${foundToken.tokenSymbol}`);
               return new Response(
@@ -284,12 +338,16 @@ serve(async (req) => {
         // If not in list, try quote endpoint with a small amount to get token info
         // This is a workaround since OKX doesn't have a dedicated token-info endpoint
         try {
-          const nativeAddress = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+          const nativeAddress = getNativeTokenAddress(chainIndex);
+          const defaultAmount = getDefaultAmount(chainIndex);
+          
+          console.log(`Trying quote with native token ${nativeAddress} and amount ${defaultAmount}`);
+          
           const quoteResponse = await okxRequest('/quote', {
             chainIndex,
             fromTokenAddress: tokenAddress,
             toTokenAddress: nativeAddress,
-            amount: '1000000000000000000', // 1 token with 18 decimals
+            amount: defaultAmount,
             slippage: '0.5',
           });
           
@@ -303,7 +361,7 @@ serve(async (req) => {
               tokenContractAddress: tokenAddress,
               tokenSymbol: quote.fromToken?.tokenSymbol || 'UNKNOWN',
               tokenName: quote.fromToken?.tokenName || quote.fromToken?.tokenSymbol || 'Unknown Token',
-              decimals: quote.fromToken?.decimals || '18',
+              decimals: quote.fromToken?.decimals || getDefaultDecimals(chainIndex),
               tokenLogoUrl: quote.fromToken?.tokenLogoUrl || '',
             };
             console.log('Extracted token info from quote:', tokenInfo);
