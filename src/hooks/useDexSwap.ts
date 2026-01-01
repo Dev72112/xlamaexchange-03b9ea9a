@@ -12,12 +12,25 @@ interface UseDexSwapOptions {
   toToken: OkxToken;
   amount: string;
   slippage: string;
+  approveAmount?: string; // Custom approval amount from AllowanceModal
   onSuccess?: (txHash: string) => void;
   onError?: (error: string) => void;
 }
 
 // ERC20 ABI for allowance check
 const ERC20_ALLOWANCE_ABI = '0xdd62ed3e'; // allowance(address,address)
+
+// Convert amount to smallest unit without scientific notation
+function toSmallestUnit(amount: string, decimals: number): string {
+  if (!amount || isNaN(parseFloat(amount))) return '0';
+  
+  const [whole, fraction = ''] = amount.split('.');
+  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
+  const combined = whole + paddedFraction;
+  
+  // Remove leading zeros but keep at least "0"
+  return combined.replace(/^0+/, '') || '0';
+}
 
 export function useDexSwap() {
   const { address, getProvider, isConnected } = useWallet();
@@ -33,6 +46,7 @@ export function useDexSwap() {
     toToken,
     amount,
     slippage,
+    approveAmount,
     onSuccess,
     onError,
   }: UseDexSwapOptions) => {
@@ -52,9 +66,9 @@ export function useDexSwap() {
       const provider = getProvider();
       if (!provider) throw new Error('No provider available');
 
-      // Convert amount to smallest unit
+      // Convert amount to smallest unit without scientific notation
       const decimals = parseInt(fromToken.decimals);
-      const amountInSmallestUnit = (parseFloat(amount) * Math.pow(10, decimals)).toFixed(0);
+      const amountInSmallestUnit = toSmallestUnit(amount, decimals);
 
       const isNativeToken = fromToken.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
 

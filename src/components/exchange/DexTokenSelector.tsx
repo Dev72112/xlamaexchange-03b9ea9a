@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Check, ChevronDown, Loader2, Search, Star, AlertCircle } from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, Clock, AlertCircle, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { OkxToken, okxDexService } from "@/services/okxdex";
 import { Chain } from "@/data/chains";
+import { useRecentTokens } from "@/hooks/useRecentTokens";
+import { useToast } from "@/hooks/use-toast";
 
 interface DexTokenSelectorProps {
   value: OkxToken | null;
@@ -20,9 +22,6 @@ interface DexTokenSelectorProps {
   excludeAddress?: string;
   isLoading?: boolean;
 }
-
-// Popular tokens to feature at the top
-const POPULAR_SYMBOLS = ['ETH', 'USDT', 'USDC', 'WETH', 'WBTC', 'DAI', 'OKB', 'MATIC', 'BNB', 'AVAX'];
 
 // Check if string looks like a contract address
 function isContractAddress(query: string): boolean {
@@ -43,6 +42,10 @@ export function DexTokenSelector({
   const [customToken, setCustomToken] = useState<OkxToken | null>(null);
   const [isLoadingCustom, setIsLoadingCustom] = useState(false);
   const [customTokenError, setCustomTokenError] = useState<string | null>(null);
+  const { toast } = useToast();
+  
+  // Recent tokens hook
+  const { recentTokens, addRecentToken, clearRecentTokens } = useRecentTokens(chain?.chainIndex || '');
 
   // Reset custom token state when popup closes or chain changes
   useEffect(() => {
@@ -50,6 +53,7 @@ export function DexTokenSelector({
       setCustomToken(null);
       setCustomTokenError(null);
       setIsLoadingCustom(false);
+      setSearchQuery("");
     }
   }, [open]);
 
@@ -113,8 +117,8 @@ export function DexTokenSelector({
     return () => clearTimeout(debounce);
   }, [searchQuery, chain, tokens]);
 
-  // Filter and group tokens
-  const { popularTokens, stableTokens, otherTokens, searchResults, totalCount } = useMemo(() => {
+  // Filter tokens - simple flat list without groupings
+  const { filteredTokens, searchResults, totalCount } = useMemo(() => {
     // Add native token at the start
     const allTokens = nativeToken ? [nativeToken, ...tokens] : tokens;
     
@@ -134,46 +138,48 @@ export function DexTokenSelector({
         ).slice(0, 50)
       : [];
 
-    // Group by category
-    const popular = filtered.filter(t => 
-      POPULAR_SYMBOLS.includes(t.tokenSymbol.toUpperCase()) ||
-      t.tokenContractAddress.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
-    ).slice(0, 12);
-
-    const stables = filtered.filter(t =>
-      ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FRAX'].includes(t.tokenSymbol.toUpperCase()) &&
-      !popular.includes(t)
-    ).slice(0, 10);
-
-    const others = filtered.filter(t => 
-      !popular.includes(t) && !stables.includes(t)
-    ).slice(0, 50);
-
     return {
-      popularTokens: popular,
-      stableTokens: stables,
-      otherTokens: others,
+      filteredTokens: filtered.slice(0, 100), // Limit to 100 for performance
       searchResults: searchFiltered,
       totalCount: total,
     };
   }, [tokens, nativeToken, excludeAddress, searchQuery]);
 
-  const handleSelect = useCallback((token: OkxToken) => {
+  // Filter recent tokens to only show valid ones
+  const validRecentTokens = useMemo(() => {
+    return recentTokens.filter(
+      t => t.tokenContractAddress.toLowerCase() !== excludeAddress?.toLowerCase()
+    );
+  }, [recentTokens, excludeAddress]);
+
+  const handleSelect = useCallback((token: OkxToken, isCustom = false) => {
+    // Show warning for custom tokens
+    if (isCustom) {
+      toast({
+        title: "⚠️ Custom Token Warning",
+        description: "This token is not on the verified list. Please verify the contract address before trading.",
+        variant: "destructive",
+      });
+    }
+    
+    // Add to recent tokens
+    addRecentToken(token);
+    
     onChange(token);
     setOpen(false);
     setSearchQuery("");
     setCustomToken(null);
-  }, [onChange]);
+  }, [onChange, addRecentToken, toast]);
 
   const renderTokenItem = (token: OkxToken, isCustom = false, keyPrefix = '') => (
     <div
       key={`${keyPrefix}${token.tokenContractAddress}`}
-      onClick={() => handleSelect(token)}
+      onClick={() => handleSelect(token, isCustom)}
       className={cn(
         "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
         "hover:bg-accent/50",
         value?.tokenContractAddress === token.tokenContractAddress && "bg-accent",
-        isCustom && "border border-primary/30 bg-primary/5"
+        isCustom && "border border-warning/30 bg-warning/5"
       )}
     >
       <img
@@ -188,7 +194,10 @@ export function DexTokenSelector({
         <div className="font-semibold uppercase text-sm truncate flex items-center gap-1">
           {token.tokenSymbol}
           {isCustom && (
-            <span className="text-[10px] px-1 py-0.5 bg-primary/20 text-primary rounded">Custom</span>
+            <span className="text-[10px] px-1 py-0.5 bg-warning/20 text-warning rounded flex items-center gap-0.5">
+              <AlertTriangle className="w-2.5 h-2.5" />
+              Custom
+            </span>
           )}
         </div>
         <div className="text-xs text-muted-foreground truncate">{token.tokenName}</div>
@@ -294,10 +303,11 @@ export function DexTokenSelector({
                       </div>
                     ) : customToken ? (
                       <>
-                        <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
-                          Found by Address
+                        <div className="px-3 py-2 text-xs font-medium text-warning flex items-center gap-1.5">
+                          <AlertTriangle className="w-3 h-3" />
+                          Found by Address (Unverified)
                         </div>
-                        {renderTokenItem(customToken, true)}
+                        {renderTokenItem(customToken, true, 'custom-')}
                       </>
                     ) : null}
                   </div>
@@ -319,31 +329,37 @@ export function DexTokenSelector({
                 ) : null}
               </div>
             ) : (
-              // Grouped view
+              // Default view - Recent + All tokens
               <div className="space-y-4">
-                {popularTokens.length > 0 && (
+                {/* Recent tokens */}
+                {validRecentTokens.length > 0 && (
                   <div className="space-y-1">
-                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Star className="w-3 h-3 fill-warning text-warning" />
-                      Popular
+                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3" />
+                        Recent
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          clearRecentTokens();
+                        }}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    {popularTokens.map((t, i) => renderTokenItem(t, false, `pop-${i}-`))}
+                    {validRecentTokens.map((t, i) => renderTokenItem(t, (t as any).isCustom, `recent-${i}-`))}
                   </div>
                 )}
-                
-                {stableTokens.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground">Stablecoins</div>
-                    {stableTokens.map((t, i) => renderTokenItem(t, false, `stable-${i}-`))}
+
+                {/* All tokens - flat list */}
+                <div className="space-y-1">
+                  <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
+                    All Tokens ({filteredTokens.length})
                   </div>
-                )}
-                
-                {otherTokens.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground">All Tokens</div>
-                    {otherTokens.map((t, i) => renderTokenItem(t, false, `other-${i}-`))}
-                  </div>
-                )}
+                  {filteredTokens.map((t, i) => renderTokenItem(t, false, `token-${i}-`))}
+                </div>
               </div>
             )}
           </div>

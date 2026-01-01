@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, ArrowRight } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, ArrowRight, Fuel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -111,7 +111,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [showSwapProgress, setShowSwapProgress] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   
-  // DEX hooks
+  // DEX hooks - tokens for source chain
   const { tokens: dexTokens, nativeToken, isLoading: tokensLoading, refetch: refetchTokens } = useDexTokens(
     exchangeMode === 'dex' ? selectedChain : null
   );
@@ -124,6 +124,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   // Transaction history from context (shared across app)
   const { addTransaction, updateTransaction } = useDexTransactions();
   
+  // Enable quotes without wallet connection
   const { 
     quote: dexQuote, 
     formattedOutputAmount: dexOutputAmount,
@@ -138,7 +139,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     toToken: toDexToken,
     amount: fromAmount,
     slippage,
-    enabled: exchangeMode === 'dex' && isConnected && !!fromDexToken && !!toDexToken,
+    enabled: exchangeMode === 'dex' && !!fromDexToken && !!toDexToken, // No wallet required for quotes
   });
 
   const { 
@@ -152,12 +153,21 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
   // Token balance hook for DEX mode
   const { formatted: fromTokenBalance, loading: balanceLoading, refetch: refetchBalance } = useTokenBalance(
-    exchangeMode === 'dex' ? fromDexToken : null,
+    exchangeMode === 'dex' && isConnected ? fromDexToken : null,
     selectedChain.chainIndex
   );
   
   // Check if wallet is on correct chain for DEX mode
   const isOnCorrectChain = chainId === selectedChain.chainId;
+
+  // Check for insufficient balance
+  const hasInsufficientBalance = useMemo(() => {
+    if (!isConnected || !fromTokenBalance || !fromAmount) return false;
+    if (fromTokenBalance === '< 0.000001' || fromTokenBalance === '0') return parseFloat(fromAmount) > 0;
+    const balance = parseFloat(fromTokenBalance);
+    const amount = parseFloat(fromAmount);
+    return !isNaN(balance) && !isNaN(amount) && amount > balance;
+  }, [isConnected, fromTokenBalance, fromAmount]);
 
   // Handle MAX button
   const handleMaxClick = useCallback(() => {
@@ -180,7 +190,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       if (!fromDexToken && nativeToken) {
         setFromDexToken(nativeToken);
       }
-      // For swap mode, use same chain tokens. For bridge mode, use dest chain tokens
+      // For swap mode, use same chain tokens
       if (swapMode === 'swap' && !toDexToken) {
         const usdt = dexTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDT');
         const usdc = dexTokens.find(t => t.tokenSymbol.toUpperCase() === 'USDC');
@@ -200,11 +210,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     }
   }, [exchangeMode, swapMode, destTokens, destNativeToken, toDexToken]);
 
-  // Reset DEX tokens when chain changes
+  // Reset DEX tokens when source chain changes
   useEffect(() => {
     setFromDexToken(null);
-    setToDexToken(null);
-  }, [selectedChain.chainIndex]);
+    if (swapMode === 'swap') {
+      setToDexToken(null);
+    }
+  }, [selectedChain.chainIndex, swapMode]);
 
   // Reset destination token when dest chain changes in bridge mode
   useEffect(() => {
@@ -212,6 +224,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       setToDexToken(null);
     }
   }, [destChain.chainIndex, swapMode]);
+
+  // Reset toDexToken when switching between swap and bridge modes
+  useEffect(() => {
+    setToDexToken(null);
+  }, [swapMode]);
 
   // Fetch available currencies on mount
   const fetchCurrencies = useCallback(async () => {
@@ -392,12 +409,14 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       setFromCurrency(toCurrency);
       setToCurrency(tempCurrency);
       setFromAmount(toAmount);
-    } else {
+    } else if (swapMode === 'swap') {
+      // Only allow swap in swap mode (same chain)
       const tempToken = fromDexToken;
       setFromDexToken(toDexToken);
       setToDexToken(tempToken);
       setFromAmount(dexOutputAmount || "1");
     }
+    // In bridge mode, swapping doesn't make sense as chains are different
   };
 
   const handleExchange = () => {
@@ -434,6 +453,14 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         toast({
           title: "Select Tokens",
           description: "Please select both tokens to swap",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (hasInsufficientBalance) {
+        toast({
+          title: "Insufficient Balance",
+          description: `You don't have enough ${fromDexToken.tokenSymbol}`,
           variant: "destructive",
         });
         return;
@@ -555,6 +582,41 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const currentLoading = exchangeMode === 'instant' ? isLoading : quoteLoading;
   const currentError = exchangeMode === 'instant' ? pairError : quoteError;
 
+  // Determine button state and text for DEX mode
+  const getSwapButtonContent = () => {
+    if (exchangeMode === 'dex') {
+      if (!isConnected) {
+        return "Connect Wallet";
+      }
+      if (!isOnCorrectChain) {
+        return `Switch to ${selectedChain.name}`;
+      }
+      if (hasInsufficientBalance) {
+        return "Insufficient Balance";
+      }
+      if (swapLoading) {
+        return (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            Swapping...
+          </>
+        );
+      }
+      return swapMode === 'bridge' ? "Bridge" : "Swap";
+    }
+    
+    if (pairUnavailable) {
+      return "Pair Unavailable";
+    }
+    return "Convert";
+  };
+
+  const isSwapButtonDisabled = 
+    currentLoading || 
+    !currentOutputAmount || 
+    pairUnavailable ||
+    (exchangeMode === 'dex' && (!isConnected || !isOnCorrectChain || swapLoading || hasInsufficientBalance));
+
   return (
     <>
       <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
@@ -566,10 +628,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               {exchangeMode === 'dex' && (
                 <>
                   <SlippageSettings slippage={slippage} onSlippageChange={setSlippage} />
-                  <ChainSelector 
-                    selectedChain={selectedChain} 
-                    onChainSelect={setSelectedChain} 
-                  />
+                  {swapMode === 'swap' && (
+                    <ChainSelector 
+                      selectedChain={selectedChain} 
+                      onChainSelect={setSelectedChain} 
+                    />
+                  )}
                 </>
               )}
               <WalletButton />
@@ -581,19 +645,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             <div className="px-4 sm:px-5 pt-3 flex flex-col gap-2">
               <SwapBridgeToggle mode={swapMode} onModeChange={setSwapMode} />
               {swapMode === 'bridge' && (
-                <div className="flex items-center justify-center gap-2 p-2 bg-secondary/30 rounded-lg border border-border">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-md border border-border">
-                    <img 
-                      src={selectedChain.icon} 
-                      alt={selectedChain.name} 
-                      className="w-4 h-4 rounded-full"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${selectedChain.shortName}&background=6366f1&color=fff`;
-                      }}
-                    />
-                    <span className="text-xs font-medium">{selectedChain.shortName}</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                <div className="flex items-center justify-center gap-2 p-3 bg-secondary/30 rounded-lg border border-border">
+                  <ChainSelector 
+                    selectedChain={selectedChain} 
+                    onChainSelect={setSelectedChain}
+                    excludeChainIndex={destChain.chainIndex}
+                  />
+                  <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   <ChainSelector 
                     selectedChain={destChain} 
                     onChainSelect={setDestChain}
@@ -604,15 +662,15 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           )}
           
-          {/* DEX Mode: Wallet connection prompt */}
+          {/* DEX Mode: Wallet connection prompt - show quotes are available */}
           {exchangeMode === 'dex' && !isConnected && (
             <div className="mx-4 sm:mx-5 mt-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
               <div className="flex items-center gap-2 text-sm">
                 <Wallet className="w-4 h-4 text-primary" />
-                <span className="text-foreground">Connect your wallet to use DEX mode</span>
+                <span className="text-foreground">Connect wallet to swap</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                DEX swaps require a connected wallet for on-chain transactions
+                View live quotes below • Connect when ready to trade
               </p>
             </div>
           )}
@@ -658,7 +716,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
           {/* From Section */}
           <div className="p-4 sm:p-5 pt-2 border-b border-border">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               {exchangeMode === 'instant' ? (
                 <CurrencySelector
                   value={fromCurrency}
@@ -674,7 +732,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   tokens={dexTokens}
                   nativeToken={nativeToken}
                   chain={selectedChain}
-                  excludeAddress={toDexToken?.tokenContractAddress}
+                  excludeAddress={swapMode === 'swap' ? toDexToken?.tokenContractAddress : undefined}
                   isLoading={tokensLoading}
                 />
               )}
@@ -694,8 +752,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             {/* DEX Balance Display */}
             {exchangeMode === 'dex' && isConnected && fromDexToken && (
               <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-muted-foreground">
+                <span className={cn(
+                  "text-xs",
+                  hasInsufficientBalance ? "text-destructive" : "text-muted-foreground"
+                )}>
                   Balance: {balanceLoading ? '...' : fromTokenBalance} {fromDexToken.tokenSymbol}
+                  {hasInsufficientBalance && " (Insufficient)"}
                 </span>
                 <Button
                   variant="ghost"
@@ -717,7 +779,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 variant="outline"
                 size="icon"
                 onClick={handleSwapCurrencies}
-                className="rounded-full h-10 w-10 bg-background border-2 border-border hover:bg-secondary shadow-sm"
+                disabled={swapMode === 'bridge'}
+                className="rounded-full h-10 w-10 bg-background border-2 border-border hover:bg-secondary shadow-sm disabled:opacity-50"
               >
                 <ArrowRightLeft className="w-4 h-4 rotate-90" />
               </Button>
@@ -726,7 +789,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
           {/* To Section */}
           <div className={`p-4 sm:p-5 ${pairUnavailable ? 'bg-warning/5' : ''}`}>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               {exchangeMode === 'instant' ? (
                 <CurrencySelector
                   value={toCurrency}
@@ -848,7 +911,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             <div className="px-4 sm:px-5 pb-4">
               <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg text-sm text-warning">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span className="flex-1">{currentError || "This trading pair is not available."}</span>
+                <span className="flex-1 break-words">{currentError || "This trading pair is not available."}</span>
                 <button
                   onClick={() => exchangeMode === 'instant' ? calculateRate() : refetchQuote()}
                   className="p-1.5 hover:bg-warning/20 rounded transition-colors shrink-0"
@@ -880,16 +943,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           {/* Gas Estimation - DEX Mode */}
           {exchangeMode === 'dex' && dexQuote?.estimateGasFee && !quoteLoading && (
             <div className="px-4 sm:px-5 pb-3">
-              <div className="flex items-center justify-between text-xs text-muted-foreground p-2 bg-secondary/30 rounded-lg">
+              <div className="flex items-center justify-between text-xs text-muted-foreground p-2.5 bg-secondary/30 rounded-lg border border-border/50">
                 <span className="flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                    <path d="M2 17l10 5 10-5"/>
-                    <path d="M2 12l10 5 10-5"/>
-                  </svg>
-                  Est. Gas Fee
+                  <Fuel className="w-3.5 h-3.5" />
+                  Estimated Gas
                 </span>
-                <span className="font-mono">
+                <span className="font-mono font-medium">
                   ~{(parseFloat(dexQuote.estimateGasFee) / 1e18).toFixed(6)} {selectedChain.nativeCurrency.symbol}
                 </span>
               </div>
@@ -900,31 +959,16 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           <div className="p-4 sm:p-5 pt-0">
             <Button
               size="lg"
-              className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 font-medium rounded-xl"
-              onClick={handleExchange}
-              disabled={
-                currentLoading || 
-                !currentOutputAmount || 
-                pairUnavailable ||
-                (exchangeMode === 'dex' && (!isConnected || !isOnCorrectChain || swapLoading))
-              }
-            >
-              {exchangeMode === 'dex' && !isConnected ? (
-                "Connect Wallet"
-              ) : exchangeMode === 'dex' && !isOnCorrectChain ? (
-                `Switch to ${selectedChain.name}`
-              ) : pairUnavailable ? (
-                "Pair Unavailable"
-              ) : swapLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Swapping...
-                </>
-              ) : exchangeMode === 'dex' ? (
-                "Swap"
-              ) : (
-                "Convert"
+              className={cn(
+                "w-full h-12 font-medium rounded-xl",
+                hasInsufficientBalance && exchangeMode === 'dex'
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "bg-foreground text-background hover:bg-foreground/90"
               )}
+              onClick={handleExchange}
+              disabled={isSwapButtonDisabled}
+            >
+              {getSwapButtonContent()}
             </Button>
           </div>
 
@@ -974,22 +1018,41 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               {/* DEX mode info */}
               {exchangeMode === 'dex' && (
                 <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <img 
-                    src={selectedChain.icon} 
-                    alt={selectedChain.name}
-                    className="w-4 h-4 rounded-full" 
-                  />
-                  <span>Swapping on {selectedChain.name}</span>
-                  {selectedChain.isPrimary && (
-                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-medium rounded">
-                      Featured
-                    </span>
+                  {swapMode === 'bridge' ? (
+                    <>
+                      <img 
+                        src={selectedChain.icon} 
+                        alt={selectedChain.name}
+                        className="w-4 h-4 rounded-full" 
+                      />
+                      <span>→</span>
+                      <img 
+                        src={destChain.icon} 
+                        alt={destChain.name}
+                        className="w-4 h-4 rounded-full" 
+                      />
+                      <span>Cross-chain bridge</span>
+                    </>
+                  ) : (
+                    <>
+                      <img 
+                        src={selectedChain.icon} 
+                        alt={selectedChain.name}
+                        className="w-4 h-4 rounded-full" 
+                      />
+                      <span>Swapping on {selectedChain.name}</span>
+                      {selectedChain.isPrimary && (
+                        <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-medium rounded">
+                          Featured
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               )}
               
               {/* Footer Info */}
-              <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+              <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground flex-wrap">
                 {exchangeMode === 'instant' ? (
                   <>
                     <span className="flex items-center gap-1">
