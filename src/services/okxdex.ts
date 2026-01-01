@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { withRetry, getUserFriendlyErrorMessage } from '@/lib/api-utils';
 
 export interface OkxToken {
   tokenContractAddress: string;
@@ -62,20 +63,21 @@ export interface OkxChain {
 
 class OkxDexService {
   private async callApi<T>(action: string, params: Record<string, any> = {}): Promise<T> {
-    const { data, error } = await supabase.functions.invoke('okx-dex', {
-      body: { action, params },
+    return withRetry(async () => {
+      const { data, error } = await supabase.functions.invoke('okx-dex', {
+        body: { action, params },
+      });
+
+      if (error) {
+        throw new Error(getUserFriendlyErrorMessage(error));
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data as T;
     });
-
-    if (error) {
-      console.error('OKX DEX API error:', error);
-      throw new Error(error.message || 'Failed to call OKX DEX API');
-    }
-
-    if (data?.error) {
-      throw new Error(data.error);
-    }
-
-    return data as T;
   }
 
   async getSupportedChains(): Promise<OkxChain[]> {
@@ -144,8 +146,7 @@ class OkxDexService {
     try {
       const result = await this.callApi<{ price: string }>('token-price', { chainIndex, tokenAddress });
       return result;
-    } catch (err) {
-      console.error('Failed to get token price:', err);
+    } catch {
       return null;
     }
   }
