@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { withRetry, getUserFriendlyErrorMessage } from "@/lib/api-utils";
 
 export interface ApiCurrency {
   ticker: string;
@@ -49,33 +50,33 @@ export interface TransactionStatus {
 
 class ChangeNowService {
   private async callApi<T>(action: string, params: Record<string, any> = {}): Promise<T> {
-    const { data, error } = await supabase.functions.invoke('changenow', {
-      body: { action, params },
+    return withRetry(async () => {
+      const { data, error } = await supabase.functions.invoke('changenow', {
+        body: { action, params },
+      });
+
+      if (error) {
+        throw new Error(getUserFriendlyErrorMessage(error));
+      }
+
+      if (data?.error) {
+        // Preserve specific error codes for callers to handle
+        const apiError = data.details?.error || data.error;
+        const apiMessage = data.details?.message || data.error;
+        if (apiError === 'pair_is_inactive') {
+          throw new Error('pair_is_inactive');
+        }
+        if (apiError === 'fixed_rate_not_enabled') {
+          throw new Error('fixed_rate_not_enabled');
+        }
+        if (apiError === 'deposit_too_small') {
+          throw new Error(`deposit_too_small: ${apiMessage}`);
+        }
+        throw new Error(apiMessage || apiError || data.error);
+      }
+
+      return data as T;
     });
-
-    if (error) {
-      console.error('ChangeNow API error:', error);
-      throw new Error(error.message || 'Failed to call ChangeNow API');
-    }
-
-    if (data?.error) {
-      // Provide more descriptive error messages
-      const apiError = data.details?.error || data.error;
-      const apiMessage = data.details?.message || data.error;
-      if (apiError === 'pair_is_inactive') {
-        throw new Error('pair_is_inactive');
-      }
-      if (apiError === 'fixed_rate_not_enabled') {
-        throw new Error('fixed_rate_not_enabled');
-      }
-      if (apiError === 'deposit_too_small') {
-        // Include the full message so callers can detect this error
-        throw new Error(`deposit_too_small: ${apiMessage}`);
-      }
-      throw new Error(apiMessage || apiError || data.error);
-    }
-
-    return data as T;
   }
 
   async getCurrencies(): Promise<ApiCurrency[]> {

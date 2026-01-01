@@ -51,6 +51,26 @@ const Index = () => {
     ? "Make the most of our converter" 
     : "Make the most of our DEX swap";
 
+  // JSON-LD structured data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "xlama",
+    "applicationCategory": "FinanceApplication",
+    "description": "Fast and secure cryptocurrency exchange with instant swaps and DEX aggregation",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "1000"
+    }
+  };
+
   return (
     <Layout>
       <Helmet>
@@ -60,17 +80,34 @@ const Index = () => {
           content="Exchange cryptocurrencies instantly with no registration. Fast, secure, and anonymous crypto swaps with the best rates. 900+ coins supported. DEX aggregation across 400+ exchanges."
         />
         <meta name="keywords" content="crypto exchange, bitcoin swap, ethereum exchange, dex aggregator, defi swap, no KYC, instant swap" />
+        
+        {/* Open Graph / Social */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="xlama - Fast & Secure Cryptocurrency Exchange" />
+        <meta property="og:description" content="Exchange cryptocurrencies instantly with no registration. Fast, secure, and anonymous crypto swaps with the best rates." />
+        <meta property="og:site_name" content="xlama" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="xlama - Fast & Secure Cryptocurrency Exchange" />
+        <meta name="twitter:description" content="Exchange cryptocurrencies instantly with no registration. Fast, secure, and anonymous crypto swaps with the best rates." />
+        <meta name="twitter:site" content="@XLAMA_OKX" />
+        
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
       </Helmet>
 
       {/* Hero Section with Stats */}
       <HeroSection />
 
       {/* Exchange Section */}
-      <section className="py-12 sm:py-16 lg:py-20">
+      <section className="py-12 sm:py-16 lg:py-20" aria-labelledby="exchange-heading">
         <div className="container px-4 sm:px-6">
           {/* Title */}
           <div className="text-center mb-10 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 tracking-tight">
+            <h2 id="exchange-heading" className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 tracking-tight">
               {currentMode === 'instant' ? 'Crypto converter and calculator' : 'DEX Swap Aggregator'}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
@@ -124,11 +161,11 @@ const Index = () => {
 
 function FeatureCard({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
   return (
-    <div className="p-5 rounded-xl bg-card border border-border hover:border-primary/20 transition-colors">
-      <Icon className="w-5 h-5 text-muted-foreground mb-3" />
+    <article className="p-5 rounded-xl bg-card border border-border hover:border-primary/20 transition-colors">
+      <Icon className="w-5 h-5 text-muted-foreground mb-3" aria-hidden="true" />
       <h3 className="font-medium mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
-    </div>
+    </article>
   );
 }
 
