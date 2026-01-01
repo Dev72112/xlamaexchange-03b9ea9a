@@ -13,6 +13,7 @@ interface DexQuoteInfoProps {
   slippage: string;
   inputAmount: string;
   outputAmount: string;
+  gasEstimateNative?: string;
 }
 
 export function DexQuoteInfo({
@@ -24,6 +25,7 @@ export function DexQuoteInfo({
   slippage,
   inputAmount,
   outputAmount,
+  gasEstimateNative,
 }: DexQuoteInfoProps) {
   if (!quote || !fromToken || !toToken || !chain) return null;
 
@@ -35,18 +37,6 @@ export function DexQuoteInfo({
   const minReceived = outputAmount 
     ? (parseFloat(outputAmount) * (1 - parseFloat(slippage) / 100)).toFixed(6)
     : '0';
-
-  // Format gas estimate - handle different formats
-  const gasEstimate = (() => {
-    if (!quote.estimateGasFee) return null;
-    const fee = parseFloat(quote.estimateGasFee);
-    if (isNaN(fee) || fee === 0) return null;
-    // If value is very large, it's likely in wei
-    const inEth = fee > 1e12 ? fee / 1e18 : fee;
-    // Format with appropriate precision
-    if (inEth < 0.000001) return '< 0.000001';
-    return inEth.toFixed(6);
-  })();
 
   // Get route info
   const routes = quote.routerResult?.routes || [];
@@ -101,7 +91,7 @@ export function DexQuoteInfo({
           {isLoading ? (
             <Loader2 className="w-3 h-3 animate-spin" />
           ) : (
-            `-${priceImpact.toFixed(2)}%`
+            `${priceImpact >= 0 ? '-' : ''}${Math.abs(priceImpact).toFixed(2)}%`
           )}
         </span>
       </div>
@@ -127,14 +117,14 @@ export function DexQuoteInfo({
       </div>
 
       {/* Gas Estimate */}
-      {gasEstimate && (
+      {gasEstimateNative && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Fuel className="w-3 h-3 text-muted-foreground" />
             <span className="text-muted-foreground">Est. Gas</span>
           </div>
           <span className="font-mono text-xs">
-            ~{gasEstimate} {chain.nativeCurrency.symbol}
+            ~{gasEstimateNative} {chain.nativeCurrency.symbol}
           </span>
         </div>
       )}

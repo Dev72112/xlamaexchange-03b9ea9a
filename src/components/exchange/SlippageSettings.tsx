@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Settings, Info, Sparkles, Check } from "lucide-react";
+import { useState } from "react";
+import { Settings, Info, Sparkles, AlertTriangle, Shield, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { SlippageRecommendation } from "@/hooks/useAutoSlippage";
 
 interface SlippageSettingsProps {
   slippage: string;
@@ -16,6 +17,7 @@ interface SlippageSettingsProps {
   autoSlippage?: string;
   isAutoEnabled?: boolean;
   onAutoChange?: (enabled: boolean) => void;
+  recommendation?: SlippageRecommendation | null;
 }
 
 const PRESET_SLIPPAGES = ['0.5', '1.0', '3.0'];
@@ -26,6 +28,7 @@ export function SlippageSettings({
   autoSlippage,
   isAutoEnabled = false,
   onAutoChange,
+  recommendation,
 }: SlippageSettingsProps) {
   const [open, setOpen] = useState(false);
   const [customSlippage, setCustomSlippage] = useState("");
@@ -60,6 +63,13 @@ export function SlippageSettings({
     onAutoChange?.(!isAutoEnabled);
   };
 
+  const applyRecommendation = () => {
+    if (recommendation) {
+      onAutoChange?.(false);
+      onSlippageChange(recommendation.recommended);
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -81,7 +91,7 @@ export function SlippageSettings({
           <span>{isAutoEnabled ? 'Auto' : `${displaySlippage}%`}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-4" align="end">
+      <PopoverContent className="w-80 p-4" align="end">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -101,6 +111,38 @@ export function SlippageSettings({
             </div>
           </div>
 
+          {/* Smart Recommendation */}
+          {recommendation && (
+            <div className={cn(
+              "p-3 rounded-lg border text-sm",
+              recommendation.level === 'safe' && "bg-primary/5 border-primary/20",
+              recommendation.level === 'warning' && "bg-warning/10 border-warning/20",
+              recommendation.level === 'danger' && "bg-destructive/10 border-destructive/20"
+            )}>
+              <div className="flex items-start gap-2">
+                {recommendation.level === 'safe' && <Shield className="w-4 h-4 text-primary mt-0.5 shrink-0" />}
+                {recommendation.level === 'warning' && <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />}
+                {recommendation.level === 'danger' && <TrendingDown className="w-4 h-4 text-destructive mt-0.5 shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">Recommended: {recommendation.recommended}%</span>
+                    {recommendation.recommended !== slippage && !isAutoEnabled && (
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-6 text-xs px-2"
+                        onClick={applyRecommendation}
+                      >
+                        Apply
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{recommendation.reason}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Auto mode button */}
           {onAutoChange && (
             <Button
@@ -113,8 +155,8 @@ export function SlippageSettings({
               onClick={handleAutoToggle}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Auto
-              {isAutoEnabled && (
+              Auto-adjust based on market
+              {isAutoEnabled && autoSlippage && (
                 <span className="ml-auto text-xs opacity-80">
                   {autoSlippage}%
                 </span>
@@ -152,25 +194,17 @@ export function SlippageSettings({
             </div>
           </div>
 
-          {/* Auto mode explanation */}
-          {isAutoEnabled && autoSlippage && (
-            <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 p-2 rounded flex items-start gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-              <span>
-                Auto slippage adjusts based on price impact. Current: <strong>{autoSlippage}%</strong>
-              </span>
-            </div>
-          )}
-
           {/* Warnings */}
           {!isAutoEnabled && isHighSlippage && (
-            <p className="text-xs text-warning bg-warning/10 p-2 rounded">
-              ⚠️ High slippage. Your transaction may be frontrun.
+            <p className="text-xs text-warning bg-warning/10 p-2 rounded flex items-center gap-1.5">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
+              High slippage. Your transaction may be frontrun.
             </p>
           )}
           {!isAutoEnabled && isLowSlippage && (
-            <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">
-              ⚠️ Very low slippage. Transaction may fail.
+            <p className="text-xs text-destructive bg-destructive/10 p-2 rounded flex items-center gap-1.5">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
+              Very low slippage. Transaction may fail.
             </p>
           )}
         </div>

@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowDown, CheckCircle2, Info, Shield } from "lucide-react";
+import { AlertTriangle, ArrowDown, CheckCircle2, Info, Shield, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { OkxToken, OkxQuote } from "@/services/okxdex";
@@ -13,6 +13,7 @@ interface SwapReviewModalProps {
   quote: OkxQuote;
   chain: Chain;
   slippage: string;
+  gasEstimateNative?: string;
   onConfirm: () => void;
   onCancel: () => void;
   isLoading?: boolean;
@@ -26,6 +27,7 @@ export function SwapReviewModal({
   quote,
   chain,
   slippage,
+  gasEstimateNative,
   onConfirm,
   onCancel,
   isLoading,
@@ -41,11 +43,6 @@ export function SwapReviewModal({
   // Calculate exchange rate
   const rate = parseFloat(toAmount) / parseFloat(fromAmount);
 
-  // Format gas estimate
-  const gasEstimate = quote.estimateGasFee 
-    ? `${(parseFloat(quote.estimateGasFee) / 1e18).toFixed(6)} ${chain.nativeCurrency.symbol}`
-    : 'Estimated';
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -59,22 +56,22 @@ export function SwapReviewModal({
       {/* Token swap visual */}
       <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
         {/* From */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src={fromToken.tokenLogoUrl || `https://ui-avatars.com/api/?name=${fromToken.tokenSymbol}&background=random`}
               alt={fromToken.tokenSymbol}
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 rounded-full shrink-0"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${fromToken.tokenSymbol}&background=random`;
               }}
             />
-            <div>
-              <div className="font-semibold">{fromToken.tokenSymbol}</div>
-              <div className="text-xs text-muted-foreground">{fromToken.tokenName}</div>
+            <div className="min-w-0">
+              <div className="font-semibold truncate">{fromToken.tokenSymbol}</div>
+              <div className="text-xs text-muted-foreground truncate">{fromToken.tokenName}</div>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <div className="text-xl font-mono">-{parseFloat(fromAmount).toLocaleString(undefined, { maximumFractionDigits: 8 })}</div>
           </div>
         </div>
@@ -87,22 +84,22 @@ export function SwapReviewModal({
         </div>
 
         {/* To */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src={toToken.tokenLogoUrl || `https://ui-avatars.com/api/?name=${toToken.tokenSymbol}&background=random`}
               alt={toToken.tokenSymbol}
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 rounded-full shrink-0"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${toToken.tokenSymbol}&background=random`;
               }}
             />
-            <div>
-              <div className="font-semibold">{toToken.tokenSymbol}</div>
-              <div className="text-xs text-muted-foreground">{toToken.tokenName}</div>
+            <div className="min-w-0">
+              <div className="font-semibold truncate">{toToken.tokenSymbol}</div>
+              <div className="text-xs text-muted-foreground truncate">{toToken.tokenName}</div>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <div className="text-xl font-mono text-primary">+{parseFloat(toAmount).toLocaleString(undefined, { maximumFractionDigits: 8 })}</div>
           </div>
         </div>
@@ -130,7 +127,7 @@ export function SwapReviewModal({
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Rate</span>
-          <span>1 {fromToken.tokenSymbol} = {rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toToken.tokenSymbol}</span>
+          <span className="font-mono text-xs">1 {fromToken.tokenSymbol} = {rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toToken.tokenSymbol}</span>
         </div>
 
         <div className="flex justify-between">
@@ -139,6 +136,7 @@ export function SwapReviewModal({
             <Info className="w-3 h-3" />
           </div>
           <span className={cn(
+            "font-mono text-xs",
             hasHighPriceImpact && "text-destructive",
             hasPriceImpactWarning && !hasHighPriceImpact && "text-warning"
           )}>
@@ -148,12 +146,12 @@ export function SwapReviewModal({
 
         <div className="flex justify-between">
           <span className="text-muted-foreground">Minimum Received</span>
-          <span>{minReceived.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toToken.tokenSymbol}</span>
+          <span className="font-mono text-xs">{minReceived.toLocaleString(undefined, { maximumFractionDigits: 6 })} {toToken.tokenSymbol}</span>
         </div>
 
         <div className="flex justify-between">
           <span className="text-muted-foreground">Max Slippage</span>
-          <span>{slippage}%</span>
+          <span className="font-mono text-xs">{slippage}%</span>
         </div>
 
         <div className="flex justify-between">
@@ -164,19 +162,21 @@ export function SwapReviewModal({
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${chain.shortName}&background=random`;
               }}
             />
-            <span>{chain.name}</span>
+            <span className="text-xs">{chain.name}</span>
           </div>
         </div>
 
         <div className="flex justify-between">
           <span className="text-muted-foreground">Estimated Gas</span>
-          <span>{gasEstimate}</span>
+          <span className="font-mono text-xs">
+            {gasEstimateNative ? `~${gasEstimateNative} ${chain.nativeCurrency.symbol}` : 'Calculating...'}
+          </span>
         </div>
 
         {quote.routerResult?.routes && quote.routerResult.routes.length > 0 && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">Route</span>
-            <span className="text-xs">
+            <span className="text-xs truncate max-w-[150px]">
               {quote.routerResult.routes[0]?.subRoutes?.map(r => r.dexName).slice(0, 2).join(' → ') || 'Direct'}
             </span>
           </div>
@@ -197,20 +197,20 @@ export function SwapReviewModal({
       <div className="flex gap-3">
         <Button
           variant="outline"
-          className="flex-1"
+          className="flex-1 h-11"
           onClick={onCancel}
           disabled={isLoading}
         >
           Cancel
         </Button>
         <Button
-          className="flex-1"
+          className="flex-1 h-11"
           onClick={onConfirm}
           disabled={isLoading}
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
-              <span className="animate-spin">⏳</span>
+              <Loader2 className="w-4 h-4 animate-spin" />
               Swapping...
             </span>
           ) : (
