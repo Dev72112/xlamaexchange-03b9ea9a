@@ -6,7 +6,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { DexHowItWorks } from "@/components/DexHowItWorks";
 import { Features } from "@/components/Features";
 import { TrendingPairs } from "@/components/TrendingPairs";
-
+import { HeroSection } from "@/components/HeroSection";
 import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { TransactionTracker } from "@/components/TransactionTracker";
 import { DexTransactionHistory } from "@/components/DexTransactionHistory";
@@ -62,14 +62,17 @@ const Index = () => {
         <meta name="keywords" content="crypto exchange, bitcoin swap, ethereum exchange, dex aggregator, defi swap, no KYC, instant swap" />
       </Helmet>
 
-      {/* Hero Section */}
+      {/* Hero Section with Stats */}
+      <HeroSection />
+
+      {/* Exchange Section */}
       <section className="py-12 sm:py-16 lg:py-20">
         <div className="container px-4 sm:px-6">
           {/* Title */}
           <div className="text-center mb-10 sm:mb-12">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-4 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 tracking-tight">
               {currentMode === 'instant' ? 'Crypto converter and calculator' : 'DEX Swap Aggregator'}
-            </h1>
+            </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
               {currentMode === 'instant' 
                 ? 'This page displays the real-time conversion rate of crypto against its cash equivalent. You can instantly convert 900+ popular cryptocurrencies with the best available rates.'
@@ -79,13 +82,13 @@ const Index = () => {
           </div>
 
           {/* Exchange Widget */}
-          <div ref={widgetRef} className="max-w-xl mx-auto mb-16">
+          <div id="exchange-widget" ref={widgetRef} className="max-w-xl mx-auto mb-16">
             <ExchangeWidget onModeChange={handleModeChange} />
           </div>
 
           {/* Feature Cards */}
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-xl sm:text-2xl font-semibold mb-6">{sectionTitle}</h2>
+            <h3 className="text-xl sm:text-2xl font-semibold mb-6">{sectionTitle}</h3>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {features.map((feature, index) => (
                 <FeatureCard key={index} {...feature} />
