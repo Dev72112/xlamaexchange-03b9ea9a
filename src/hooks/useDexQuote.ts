@@ -11,6 +11,18 @@ interface UseDexQuoteOptions {
   enabled?: boolean;
 }
 
+// Convert amount to smallest unit without scientific notation
+function toSmallestUnit(amount: string, decimals: number): string {
+  if (!amount || isNaN(parseFloat(amount))) return '0';
+  
+  const [whole, fraction = ''] = amount.split('.');
+  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
+  const combined = whole + paddedFraction;
+  
+  // Remove leading zeros but keep at least "0"
+  return combined.replace(/^0+/, '') || '0';
+}
+
 export function useDexQuote({
   chain,
   fromToken,
@@ -32,6 +44,7 @@ export function useDexQuote({
     }
     abortControllerRef.current = new AbortController();
 
+    // Allow quotes without wallet connection - only check for valid input
     if (!chain || !fromToken || !toToken || !amount || parseFloat(amount) <= 0 || !enabled) {
       setQuote(null);
       setError(null);
@@ -42,9 +55,9 @@ export function useDexQuote({
     setError(null);
 
     try {
-      // Convert amount to smallest unit (wei, etc.)
+      // Convert amount to smallest unit without scientific notation
       const decimals = parseInt(fromToken.decimals);
-      const amountInSmallestUnit = (parseFloat(amount) * Math.pow(10, decimals)).toString();
+      const amountInSmallestUnit = toSmallestUnit(amount, decimals);
 
       const data = await okxDexService.getQuote(
         chain.chainIndex,
