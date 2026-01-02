@@ -10,63 +10,63 @@ import {
 const faqs = [
   {
     question: "What is xlama?",
-    answer: "xlama is a hybrid cryptocurrency exchange platform that offers two modes: Instant Mode (powered by ChangeNow) for quick cross-chain swaps, and DEX Mode (powered by OKX DEX) for on-chain swaps with the best rates from 400+ decentralized exchanges across 20+ chains.",
+    answer: "xlama is a multi-chain cryptocurrency exchange aggregator that supports 25+ blockchain networks. We offer two modes: Instant Mode (via ChangeNOW) for cross-chain swaps with 900+ tokens, and DEX Mode (via OKX DEX) for on-chain swaps aggregated from 400+ decentralized exchanges.",
+  },
+  {
+    question: "How many wallets do you support?",
+    answer: "We support 526+ wallets through WalletConnect integration, including MetaMask, Trust Wallet, Rainbow, Coinbase Wallet, and hundreds more. We also have native integrations for Phantom, Solflare (Solana), Sui Wallet, Suiet (Sui), Tonkeeper (TON), and TronLink (Tron).",
+  },
+  {
+    question: "Which blockchain networks are supported?",
+    answer: "We support 25+ networks including EVM chains (Ethereum, Polygon, Arbitrum, Optimism, Base, BNB Chain, Avalanche, Fantom, zkSync, Linea, Scroll, X Layer, Mantle, Blast) and non-EVM chains (Solana, Sui, TON, and Tron).",
   },
   {
     question: "Do I need to create an account?",
-    answer: "No registration is required for Instant Mode swaps. For DEX Mode, you simply connect your wallet (MetaMask, Phantom, OKX Wallet, Solflare, Sui Wallet, Tonkeeper, or TokenPocket) - no account creation needed.",
+    answer: "No registration required. For DEX Mode, simply connect your wallet - we support 526+ wallets via WalletConnect plus native integrations for Solana, Sui, TON, and Tron wallets. For Instant Mode, no wallet connection is needed.",
   },
   {
-    question: "What cryptocurrencies can I exchange?",
-    answer: "In Instant Mode, we support 900+ cryptocurrencies including Bitcoin, Ethereum, Solana, and many more. In DEX Mode, you can swap any token available on supported chains including Ethereum, Solana, Base, Polygon, Arbitrum, Sui, TON, Tron and more.",
+    question: "What's the difference between Instant and DEX mode?",
+    answer: "Instant Mode (ChangeNOW) is ideal for cross-chain swaps - send crypto and receive different crypto on another blockchain. DEX Mode (OKX DEX) is for same-chain swaps directly on the blockchain, aggregating rates from 400+ DEXs for the best prices.",
   },
   {
-    question: "Which blockchains are supported?",
-    answer: "We support a wide range of blockchains including Ethereum, Solana, Base, Polygon, Arbitrum, Optimism, BNB Smart Chain, Avalanche, Sui, TON, Tron, X Layer, zkSync, Linea, Fantom, Mantle, Blast, Scroll, and many more.",
+    question: "How do Solana swaps work?",
+    answer: "Connect Phantom or Solflare wallet, select Solana network, and swap any SPL token. We aggregate rates from Jupiter, Raydium, Orca, and other Solana DEXs. Transactions confirm in ~400ms with minimal gas fees (usually under $0.01).",
   },
   {
-    question: "How long does an Instant Mode exchange take?",
-    answer: "Most exchanges complete within 10-30 minutes, depending on blockchain network speed and confirmation times. Fixed-rate exchanges lock your rate for 15 minutes.",
+    question: "How do Sui swaps work?",
+    answer: "Connect Sui Wallet or Suiet, select SUI network, then swap SUI or any Sui tokens. Our DEX aggregator finds the best rates across Sui DEXs. Transactions are extremely fast (~2 seconds) with minimal fees.",
   },
   {
-    question: "What's the difference between Standard and Fixed rates?",
-    answer: "Standard (floating) rate may fluctuate during the exchange based on market conditions. Fixed rate is locked for 15 minutes from exchange creation - you'll receive exactly what was quoted.",
+    question: "How do TON swaps work?",
+    answer: "Connect Tonkeeper wallet to swap on TON network. We aggregate rates from TON DEXs like STON.fi and DeDust. TON transactions typically confirm in about 5 seconds with low fees.",
   },
   {
-    question: "What is DEX Mode?",
-    answer: "DEX Mode allows you to swap tokens directly on-chain through decentralized exchanges. It aggregates rates from 400+ DEXs to find you the best price. Swaps are executed instantly on the blockchain with full transparency.",
+    question: "How do Tron swaps work?",
+    answer: "Install TronLink extension or app, connect to swap TRX and TRC-20 tokens. We aggregate rates from SunSwap and other Tron DEXs. Transactions confirm in about 3 seconds.",
   },
   {
-    question: "Which wallets can I use for DEX swaps?",
-    answer: "We support multiple wallets across different blockchains: MetaMask and OKX Wallet for EVM chains, Phantom and Solflare for Solana, Sui Wallet for Sui network, Tonkeeper for TON, and TronLink and TokenPocket for Tron.",
+    question: "Why do I need to approve tokens before swapping?",
+    answer: "For ERC-20, SPL, and similar tokens (not native coins), you must first approve the DEX contract to spend your tokens. This is a one-time security approval per token. Native coins like ETH, SOL, SUI, TON, and TRX don't require approval.",
   },
   {
-    question: "What is token approval?",
-    answer: "Before swapping ERC-20 or SPL tokens, you need to approve the DEX contract to spend your tokens. This is a one-time transaction per token that requires a small gas fee. Native tokens like ETH or SOL don't require approval.",
+    question: "What is slippage?",
+    answer: "Slippage is the maximum price difference you'll accept between the quote and execution. We recommend 0.5-1% for stablecoins and 1-3% for volatile tokens. Adjust in the settings gear icon before swapping.",
   },
   {
-    question: "Why do I need to pay gas fees in DEX mode?",
-    answer: "DEX swaps are on-chain transactions that require gas fees paid to blockchain validators. Gas costs vary by network - Solana, Layer 2 chains like Base, Arbitrum, and X Layer typically have much lower fees than Ethereum mainnet.",
-  },
-  {
-    question: "What is slippage and how do I set it?",
-    answer: "Slippage is the maximum price difference you're willing to accept between the quoted price and execution price. We recommend 0.5% for most swaps, but volatile tokens may need 1-3%. You can adjust this in the settings.",
+    question: "What is price impact?",
+    answer: "Price impact shows how your trade affects the token's price due to available liquidity. Large trades in low-liquidity pools can cause significant impact. We show warnings for impact over 5% - consider splitting large trades.",
   },
   {
     question: "What fees do you charge?",
-    answer: "For Instant Mode, fees are included in the displayed rate - what you see is what you get. For DEX Mode, you only pay blockchain gas fees. We don't add extra fees on top of DEX rates.",
+    answer: "For DEX swaps, we include a small 1.5% commission in the quote. For Instant swaps via ChangeNOW, fees are included in the exchange rate. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
   },
   {
-    question: "Is my exchange anonymous?",
-    answer: "Instant Mode requires no personal information or KYC. DEX Mode connects to your wallet but doesn't require any personal data - your transactions are on-chain and pseudonymous.",
+    question: "How can I track my transaction?",
+    answer: "For DEX swaps, we show real-time progress with estimated confirmation times. Once submitted, you can view your transaction on the blockchain explorer (Etherscan, Solscan, SuiScan, TONScan, TronScan, etc.) using the provided link. For Instant swaps, use the Transaction Tracker on our homepage.",
   },
   {
     question: "Is xlama safe to use?",
-    answer: "Yes. xlama is non-custodial, meaning we never hold your funds. For Instant Mode, swaps are processed by ChangeNow. For DEX Mode, you interact directly with audited smart contracts while your private keys remain in your wallet.",
-  },
-  {
-    question: "How can I track my exchange?",
-    answer: "For Instant Mode, use the transaction ID provided to track status on our platform. For DEX Mode, you can view your transaction directly on the blockchain explorer for the chain you're using.",
+    answer: "Yes! xlama is completely non-custodial - we never hold your funds or access your private keys. DEX swaps interact directly with audited smart contracts. Instant swaps are processed by ChangeNOW, a trusted exchange partner since 2017.",
   },
 ];
 
