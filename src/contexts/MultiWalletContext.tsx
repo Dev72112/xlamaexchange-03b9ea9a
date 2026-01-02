@@ -21,7 +21,7 @@ import { getFullnodeUrl } from '@mysten/sui/client';
 import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } from '@tonconnect/ui-react';
 
 // WalletConnect / Wagmi
-import { connect as wagmiConnect, disconnect as wagmiDisconnect, getAccount, watchAccount, switchChain } from '@wagmi/core';
+import { connect as wagmiConnect, disconnect as wagmiDisconnect, getAccount, watchAccount, switchChain, getWalletClient } from '@wagmi/core';
 import { walletConnect } from '@wagmi/connectors';
 import { wagmiConfig, WALLETCONNECT_PROJECT_ID } from '@/config/walletconnect';
 import { supabase } from '@/integrations/supabase/client';
@@ -82,7 +82,7 @@ interface MultiWalletContextType {
   openInWallet: (walletId: string) => void;
   
   // Chain-specific providers
-  getEvmProvider: () => any;
+  getEvmProvider: () => Promise<any>;
   getSolanaConnection: () => Connection | null;
   getSolanaWallet: () => any;
   getTronWeb: () => any;
@@ -229,12 +229,37 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     return false;
   }, [evmAddress, evmChainId, solanaAddress, tronAddress, suiAddress, tonAddress]);
 
-  // EVM provider
-  const getEvmProvider = useCallback(() => {
+  // Sync helper: raw injected provider (for disconnect/switchChain where we only need injected)
+  const getInjectedEvmProvider = useCallback(() => {
     if (evmWalletType === 'okx' && window.okxwallet) return window.okxwallet;
     if (evmWalletType === 'metamask' && window.ethereum) return window.ethereum;
     return window.ethereum || null;
   }, [evmWalletType]);
+
+  // EVM provider (async) - returns a provider object with a `request` method
+  // For WalletConnect we wrap wagmi's walletClient; for injected we use the browser provider.
+  const getEvmProvider = useCallback(async () => {
+    // WalletConnect / wagmi path
+    if (useWagmi && evmChainId) {
+      try {
+        const walletClient = await getWalletClient(wagmiConfig, { chainId: evmChainId as any });
+        if (walletClient) {
+          // Wrap walletClient.transport.request so that the provider interface is consistent
+          return {
+            request: async (args: { method: string; params?: any[] }) => {
+              return walletClient.transport.request(args as any);
+            },
+          };
+        }
+      } catch (e) {
+        console.warn('WalletConnect provider unavailable:', e);
+        return null;
+      }
+    }
+
+    // Injected provider path
+    return getInjectedEvmProvider();
+  }, [useWagmi, evmChainId, getInjectedEvmProvider]);
 
   // Solana connection
   const solanaConnection = useMemo(() => new Connection(solanaEndpoint), []);
@@ -568,8 +593,8 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
   // Disconnect all
   const disconnect = useCallback(() => {
-    // EVM - legacy provider
-    const evmProvider = getEvmProvider();
+    // EVM - legacy provider (sync)
+    const evmProvider = getInjectedEvmProvider();
     if (evmProvider && !useWagmi) {
       evmProvider.removeListener('accountsChanged', handleEvmAccountsChanged);
       evmProvider.removeListener('chainChanged', handleEvmChainChanged);
@@ -608,7 +633,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
     setError(null);
     setConnectionStatus('disconnected');
-  }, [getEvmProvider, useWagmi, handleEvmAccountsChanged, handleEvmChainChanged, solanaWallet, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet]);
+  }, [getInjectedEvmProvider, useWagmi, handleEvmAccountsChanged, handleEvmChainChanged, solanaWallet, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet]);
 
   // Switch EVM chain
   const switchEvmChain = useCallback(async (targetChainId: number) => {
@@ -618,7 +643,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       return;
     }
 
-    const provider = getEvmProvider();
+    const provider = getInjectedEvmProvider();
     if (!provider) throw new Error('No wallet connected');
 
     const targetChain = getChainByChainId(targetChainId);
@@ -648,7 +673,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
         throw switchError;
       }
     }
-  }, [getEvmProvider, useWagmi]);
+  }, [getInjectedEvmProvider, useWagmi]);
 
   // Auto-reconnect EVM
   useEffect(() => {
