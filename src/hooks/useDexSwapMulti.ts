@@ -3,7 +3,8 @@ import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
-import { Transaction, VersionedTransaction, SystemProgram, PublicKey, Connection } from '@solana/web3.js';
+import { Transaction, VersionedTransaction, Connection } from '@solana/web3.js';
+import { useAppKitProvider } from '@reown/appkit/react';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
@@ -34,11 +35,15 @@ export function useDexSwapMulti() {
     activeChainType, 
     activeAddress, 
     isConnected,
+    solanaAddress,
     getEvmProvider,
-    getSolanaWallet,
     getTronWeb,
     getSuiClient,
   } = useMultiWallet();
+  
+  // Get Solana provider from AppKit
+  const { walletProvider: solanaProvider } = useAppKitProvider<any>('solana');
+  
   const { toast } = useToast();
   const [step, setStep] = useState<SwapStep>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -119,7 +124,7 @@ export function useDexSwapMulti() {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, activeAddress, activeChainType, getEvmProvider, getSolanaWallet, getTronWeb, getSuiClient, toast]);
+  }, [isConnected, activeAddress, activeChainType, getEvmProvider, solanaAddress, solanaProvider, getTronWeb, getSuiClient, toast]);
 
   // EVM Swap (existing logic)
   const executeEvmSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
@@ -232,10 +237,9 @@ export function useDexSwapMulti() {
     onSuccess?.(hash);
   };
 
-  // Solana Swap
+  // Solana Swap - uses AppKit's Solana provider
   const executeSolanaSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
-    const solanaWallet = getSolanaWallet();
-    if (!solanaWallet?.connected || !solanaWallet?.publicKey) {
+    if (!solanaAddress) {
       throw new Error('Solana wallet not connected');
     }
 
@@ -248,7 +252,7 @@ export function useDexSwapMulti() {
       fromToken.tokenContractAddress,
       toToken.tokenContractAddress,
       amountInSmallestUnit,
-      solanaWallet.publicKey.toBase58(),
+      solanaAddress,
       slippage
     );
 
@@ -256,22 +260,39 @@ export function useDexSwapMulti() {
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your wallet' });
 
-    // Decode and sign the transaction
+    // Decode and sign the transaction using AppKit's Solana provider
     const txBuffer = Buffer.from(swapData.tx.data, 'base64');
     let signature: string;
+    const connection = new Connection('https://api.mainnet-beta.solana.com');
 
     try {
       // Try as versioned transaction first
       const versionedTx = VersionedTransaction.deserialize(txBuffer);
-      const signedTx = await solanaWallet.signTransaction(versionedTx);
-      const connection = new Connection('https://api.mainnet-beta.solana.com');
-      signature = await connection.sendRawTransaction(signedTx.serialize());
-    } catch {
+      
+      if (solanaProvider?.signAndSendTransaction) {
+        // Use AppKit's signAndSendTransaction
+        const result = await solanaProvider.signAndSendTransaction(versionedTx);
+        signature = result.signature;
+      } else if (solanaProvider?.signTransaction) {
+        const signedTx = await solanaProvider.signTransaction(versionedTx);
+        signature = await connection.sendRawTransaction(signedTx.serialize());
+      } else {
+        throw new Error('Solana wallet does not support transaction signing');
+      }
+    } catch (versionedError) {
       // Fallback to legacy transaction
+      console.log('Trying legacy transaction format...');
       const legacyTx = Transaction.from(txBuffer);
-      const signedTx = await solanaWallet.signTransaction(legacyTx);
-      const connection = new Connection('https://api.mainnet-beta.solana.com');
-      signature = await connection.sendRawTransaction(signedTx.serialize());
+      
+      if (solanaProvider?.signAndSendTransaction) {
+        const result = await solanaProvider.signAndSendTransaction(legacyTx);
+        signature = result.signature;
+      } else if (solanaProvider?.signTransaction) {
+        const signedTx = await solanaProvider.signTransaction(legacyTx);
+        signature = await connection.sendRawTransaction(signedTx.serialize());
+      } else {
+        throw new Error('Solana wallet does not support transaction signing');
+      }
     }
 
     setStep('confirming');
@@ -279,7 +300,6 @@ export function useDexSwapMulti() {
     toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
 
     // Wait for confirmation
-    const connection = new Connection('https://api.mainnet-beta.solana.com');
     await connection.confirmTransaction(signature, 'confirmed');
 
     setStep('complete');
