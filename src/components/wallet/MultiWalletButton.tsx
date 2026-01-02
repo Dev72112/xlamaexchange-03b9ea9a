@@ -27,7 +27,6 @@ import phantomLogo from '@/assets/wallets/phantom-logo.png';
 import solflareLogo from '@/assets/wallets/solflare-logo.png';
 import suiWalletLogo from '@/assets/wallets/sui-wallet-logo.png';
 import tonkeeperLogo from '@/assets/wallets/tonkeeper-logo.jpeg';
-import tokenpocketLogo from '@/assets/wallets/tokenpocket-logo.png';
 import okxWalletLogo from '@/assets/wallets/okx-wallet-logo.png';
 
 interface WalletOption {
@@ -40,7 +39,7 @@ interface WalletOption {
 }
 
 const walletOptions: WalletOption[] = [
-  // EVM
+  // EVM - On mobile, these will trigger WalletConnect
   {
     id: 'okx',
     name: 'OKX Wallet',
@@ -74,7 +73,7 @@ const walletOptions: WalletOption[] = [
     installUrl: 'https://solflare.com/',
     chainType: 'solana',
   },
-  // Tron
+  // Tron - Only TronLink (TokenPocket removed as it doesn't support Tron properly)
   {
     id: 'tronlink',
     name: 'TronLink',
@@ -83,21 +82,21 @@ const walletOptions: WalletOption[] = [
     installUrl: 'https://www.tronlink.org/',
     chainType: 'tron',
   },
-  {
-    id: 'tokenpocket',
-    name: 'TokenPocket',
-    icon: tokenpocketLogo,
-    description: 'Multi-chain crypto wallet',
-    installUrl: 'https://www.tokenpocket.pro/',
-    chainType: 'tron',
-  },
-  // Sui
+  // Sui - Multiple wallet options
   {
     id: 'sui-wallet',
     name: 'Sui Wallet',
     icon: suiWalletLogo,
     description: 'Official Sui network wallet',
     installUrl: 'https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil',
+    chainType: 'sui',
+  },
+  {
+    id: 'suiet',
+    name: 'Suiet',
+    icon: 'https://suiet.app/logo.svg',
+    description: 'Open-source Sui wallet',
+    installUrl: 'https://suiet.app/',
     chainType: 'sui',
   },
   // TON
@@ -155,16 +154,24 @@ export function MultiWalletButton() {
       
       switch (wallet.chainType) {
         case 'evm':
-          connected = await connectEvm(wallet.id as 'okx' | 'metamask');
+          // On mobile without injected provider, use WalletConnect instead of deep-links
+          if (isMobile && !isInsideWallet && !isWalletAvailable(wallet.id)) {
+            // Close dialog and trigger WalletConnect
+            setIsDialogOpen(false);
+            await new Promise((r) => setTimeout(r, 75));
+            connected = await connectEvm(undefined, true);
+          } else {
+            connected = await connectEvm(wallet.id as 'okx' | 'metamask');
+          }
           break;
         case 'solana':
           connected = await connectSolana(wallet.id as 'phantom' | 'solflare');
           break;
         case 'tron':
-          connected = await connectTron(wallet.id as 'tronlink' | 'tokenpocket');
+          connected = await connectTron(wallet.id as 'tronlink');
           break;
         case 'sui':
-          connected = await connectSui();
+          connected = await connectSui(wallet.id);
           break;
         case 'ton':
           // Open Tonkeeper-only picker instead
@@ -191,7 +198,7 @@ export function MultiWalletButton() {
     } finally {
       setConnectingWallet(null);
     }
-  }, [connectEvm, connectSolana, connectTron, connectSui, toast]);
+  }, [connectEvm, connectSolana, connectTron, connectSui, toast, isMobile, isInsideWallet, isWalletAvailable]);
 
   const handleWalletConnectEvm = useCallback(async () => {
     setConnectingWallet('walletconnect');

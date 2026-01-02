@@ -38,7 +38,7 @@ import {
 
 // Types
 export type ChainType = 'evm' | 'solana' | 'tron' | 'sui' | 'ton';
-export type WalletType = 'okx' | 'metamask' | 'walletconnect' | 'phantom' | 'solflare' | 'tronlink' | 'tokenpocket' | 'sui-wallet' | 'tonkeeper' | null;
+export type WalletType = 'okx' | 'metamask' | 'walletconnect' | 'phantom' | 'solflare' | 'tronlink' | 'sui-wallet' | 'suiet' | 'tonkeeper' | null;
 
 // Connection status for UI feedback
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -72,8 +72,8 @@ interface MultiWalletContextType {
   // Methods
   connectEvm: (preferredWallet?: WalletType, useWalletConnect?: boolean) => Promise<boolean>;
   connectSolana: (preferredWallet?: 'phantom' | 'solflare') => Promise<boolean>;
-  connectTron: (preferredWallet?: 'tronlink' | 'tokenpocket') => Promise<boolean>;
-  connectSui: () => Promise<boolean>;
+  connectTron: (preferredWallet?: 'tronlink') => Promise<boolean>;
+  connectSui: (preferredWallet?: string) => Promise<boolean>;
   connectTon: () => Promise<boolean>;
   disconnect: () => void;
   switchEvmChain: (chainId: number) => Promise<void>;
@@ -539,22 +539,32 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     }
   }, []);
 
-  // Connect Sui with improved detection
-  const connectSui = useCallback(async (): Promise<boolean> => {
+  // Connect Sui with improved detection and wallet selection
+  const connectSui = useCallback(async (preferredWallet?: string): Promise<boolean> => {
     setIsConnecting(true);
     setConnectionStatus('connecting');
     setError(null);
     
     try {
       if (suiWallets.length > 0) {
-        await suiConnect.mutateAsync({ wallet: suiWallets[0] });
+        // Find preferred wallet if specified
+        let targetWallet = preferredWallet
+          ? suiWallets.find((w) => w.name.toLowerCase().includes(preferredWallet.replace('-wallet', '').toLowerCase()))
+          : null;
+        
+        // Fall back to first available wallet
+        if (!targetWallet) {
+          targetWallet = suiWallets[0];
+        }
+        
+        await suiConnect.mutateAsync({ wallet: targetWallet });
         setConnectionStatus('connected');
         return true;
       } else {
         if (isMobileBrowser()) {
           throw new Error('No Sui wallet detected. Please open this site in the Sui Wallet app browser.');
         }
-        throw new Error('No Sui wallet detected. Please install the Sui Wallet extension.');
+        throw new Error('No Sui wallet detected. Please install Sui Wallet or Suiet extension.');
       }
     } catch (err: any) {
       setError(err.message);
