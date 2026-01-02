@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Wallet, ChevronDown, ExternalLink, LogOut, Copy, Check } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Wallet, ChevronDown, ExternalLink, LogOut, Copy, Check, Loader2, Smartphone, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -16,8 +16,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useMultiWallet, ChainType } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
+import { isMobileBrowser, isInWalletBrowser, getWalletInstallUrl } from '@/lib/wallet-deeplinks';
+import { TonWalletPicker } from './TonWalletPicker';
 
 // Import wallet logos
 import phantomLogo from '@/assets/wallets/phantom-logo.png';
@@ -126,49 +129,118 @@ export function MultiWalletButton() {
     connectSui,
     connectTon,
     disconnect,
+    isWalletAvailable,
+    openInWallet,
   } = useMultiWallet();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTonPickerOpen, setIsTonPickerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedTab, setSelectedTab] = useState<ChainType>('evm');
+  const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const isMobile = isMobileBrowser();
+  const isInsideWallet = isInWalletBrowser();
 
   const truncateAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  const handleConnect = async (wallet: WalletOption) => {
+  const handleConnect = useCallback(async (wallet: WalletOption) => {
+    setConnectingWallet(wallet.id);
+    
     try {
+      let connected = false;
+      
       switch (wallet.chainType) {
         case 'evm':
-          await connectEvm(wallet.id as 'okx' | 'metamask');
+          connected = await connectEvm(wallet.id as 'okx' | 'metamask');
           break;
         case 'solana':
-          await connectSolana();
+          connected = await connectSolana(wallet.id as 'phantom' | 'solflare');
           break;
         case 'tron':
-          await connectTron();
+          connected = await connectTron(wallet.id as 'tronlink' | 'tokenpocket');
           break;
         case 'sui':
-          await connectSui();
+          connected = await connectSui();
           break;
         case 'ton':
-          await connectTon();
-          break;
+          // Open Tonkeeper-only picker instead
+          setIsDialogOpen(false);
+          setIsTonPickerOpen(true);
+          setConnectingWallet(null);
+          return; // Don't show toast yet
       }
-      setIsDialogOpen(false);
-      toast({
-        title: 'Wallet Connected',
-        description: `${wallet.name} connected successfully.`,
-      });
+      
+      if (connected) {
+        setIsDialogOpen(false);
+        toast({
+          title: 'Wallet Connected',
+          description: `${wallet.name} connected successfully.`,
+        });
+      }
+      // If not connected but no error, it means deep-link was opened
     } catch (error: any) {
       toast({
         title: 'Connection Failed',
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setConnectingWallet(null);
     }
-  };
+  }, [connectEvm, connectSolana, connectTron, connectSui, toast]);
+
+  const handleWalletConnectEvm = useCallback(async () => {
+    setConnectingWallet('walletconnect');
+    try {
+      const connected = await connectEvm(undefined, true);
+      if (connected) {
+        setIsDialogOpen(false);
+        toast({
+          title: 'Wallet Connected',
+          description: 'Connected via WalletConnect.',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Connection Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setConnectingWallet(null);
+    }
+  }, [connectEvm, toast]);
+
+  const handleTonConnectionSuccess = useCallback(() => {
+    toast({
+      title: 'Wallet Connected',
+      description: 'Tonkeeper connected successfully.',
+    });
+  }, [toast]);
+
+  const handleTonConnectionError = useCallback((error: string) => {
+    toast({
+      title: 'Connection Failed',
+      description: error,
+      variant: 'destructive',
+    });
+  }, [toast]);
+
+  const handleOpenInWallet = useCallback((walletId: string) => {
+    openInWallet(walletId);
+    toast({
+      title: 'Opening Wallet',
+      description: 'Redirecting to wallet app...',
+    });
+  }, [openInWallet, toast]);
+
+  const handleInstallWallet = useCallback((wallet: WalletOption) => {
+    window.open(wallet.installUrl, '_blank');
+  }, []);
 
   const handleDisconnect = () => {
     disconnect();
@@ -287,32 +359,84 @@ export function MultiWalletButton() {
             
             <TabsContent value={selectedTab} className="mt-0">
               <div className="grid gap-3">
-                {filteredWallets.map((wallet) => (
+                {/* WalletConnect option for EVM on mobile */}
+                {selectedTab === 'evm' && isMobile && !isInsideWallet && (
                   <button
-                    key={wallet.id}
-                    onClick={() => handleConnect(wallet)}
-                    disabled={isConnecting}
-                    className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left group"
+                    onClick={handleWalletConnectEvm}
+                    disabled={connectingWallet !== null}
+                    className="flex items-center gap-4 p-4 rounded-lg border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left group"
                   >
-                    <img 
-                      src={wallet.icon} 
-                      alt={wallet.name} 
-                      className="w-10 h-10 rounded-lg object-cover"
-                      onError={(e) => handleIconError(e, wallet.name)}
-                    />
+                    <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                      <Wifi className="w-5 h-5 text-primary" />
+                    </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{wallet.name}</span>
-                        {wallet.id === 'okx' && (
-                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded">
-                            Recommended
-                          </span>
-                        )}
+                        <span className="font-medium">WalletConnect</span>
+                        <Badge variant="secondary" className="text-[10px]">Recommended</Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">{wallet.description}</p>
+                      <p className="text-sm text-muted-foreground">Scan QR with any wallet</p>
                     </div>
+                    {connectingWallet === 'walletconnect' && (
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    )}
                   </button>
-                ))}
+                )}
+
+                {filteredWallets.map((wallet) => {
+                  const available = isWalletAvailable(wallet.id);
+                  const isConnectingThis = connectingWallet === wallet.id;
+                  const showMobileOptions = isMobile && !isInsideWallet && !available && wallet.chainType !== 'ton';
+                  
+                  return (
+                    <div key={wallet.id} className="space-y-2">
+                      <button
+                        onClick={() => available || wallet.chainType === 'ton' ? handleConnect(wallet) : handleInstallWallet(wallet)}
+                        disabled={connectingWallet !== null}
+                        className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left group w-full"
+                      >
+                        <img 
+                          src={wallet.icon} 
+                          alt={wallet.name} 
+                          className="w-10 h-10 rounded-lg object-cover"
+                          onError={(e) => handleIconError(e, wallet.name)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{wallet.name}</span>
+                            {wallet.id === 'okx' && (
+                              <Badge variant="secondary" className="text-[10px]">Recommended</Badge>
+                            )}
+                            {available && wallet.chainType !== 'ton' && (
+                              <Badge variant="outline" className="text-[10px] text-green-600 border-green-600/30">
+                                Detected
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{wallet.description}</p>
+                        </div>
+                        {isConnectingThis && (
+                          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                        )}
+                        {!available && wallet.chainType !== 'ton' && !isMobile && (
+                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </button>
+                      
+                      {/* Mobile: Open in Wallet option */}
+                      {showMobileOptions && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-2 text-xs"
+                          onClick={() => handleOpenInWallet(wallet.id)}
+                        >
+                          <Smartphone className="w-3 h-3" />
+                          Open in {wallet.name} App
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </TabsContent>
           </Tabs>
@@ -322,6 +446,14 @@ export function MultiWalletButton() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Tonkeeper-only picker for TON */}
+      <TonWalletPicker
+        open={isTonPickerOpen}
+        onOpenChange={setIsTonPickerOpen}
+        onConnectionSuccess={handleTonConnectionSuccess}
+        onConnectionError={handleTonConnectionError}
+      />
     </>
   );
 }
