@@ -102,33 +102,39 @@ const wcFromStorage =
 
 export const WALLETCONNECT_PROJECT_ID = wcFromEnv || wcFromStorage;
 
-const connectors = [
-  injected({
-    shimDisconnect: true,
-  }),
-];
+// Build connectors list - only include WalletConnect if Project ID is available
+const getConnectors = () => {
+  // Always include injected
+  const list = [
+    injected({
+      shimDisconnect: true,
+    }),
+  ];
 
-// Important: Do NOT create the WalletConnect connector if the Project ID is missing.
-// Otherwise the modal can show "Project ID Not Configured" even before our runtime fetch kicks in.
-if (WALLETCONNECT_PROJECT_ID) {
-  connectors.push(
-    walletConnect({
-      projectId: WALLETCONNECT_PROJECT_ID,
-      showQrModal: true,
-      metadata: {
-        name: 'XLama Exchange',
-        description: 'Multi-chain DEX Aggregator',
-        url: typeof window !== 'undefined' ? window.location.origin : 'https://xlama.exchange',
-        icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : ''],
-      },
-    })
-  );
-}
+  // Important: Do NOT create the WalletConnect connector if the Project ID is missing.
+  // Otherwise the modal can show "Project ID Not Configured".
+  if (WALLETCONNECT_PROJECT_ID) {
+    list.push(
+      walletConnect({
+        projectId: WALLETCONNECT_PROJECT_ID,
+        showQrModal: true,
+        metadata: {
+          name: 'XLama Exchange',
+          description: 'Multi-chain DEX Aggregator',
+          url: typeof window !== 'undefined' ? window.location.origin : 'https://xlama.exchange',
+          icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : ''],
+        },
+      }) as ReturnType<typeof injected>
+    );
+  }
+
+  return list;
+};
 
 // Create wagmi config
 export const wagmiConfig = createConfig({
   chains: supportedChains,
-  connectors,
+  connectors: getConnectors(),
   transports: {
     [xlayer.id]: http(),
     [mainnet.id]: http(),
