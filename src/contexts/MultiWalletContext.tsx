@@ -439,15 +439,38 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     try {
       const isMobileExternalBrowser = isMobileBrowser() && !isInWalletBrowser();
 
-      // If user taps Phantom on a mobile browser (not inside a wallet), use Solana Mobile Wallet Adapter (MWA)
-      // so Phantom can connect via the wallet app without requiring the in-wallet browser.
-      let targetWallet =
-        preferredWallet === 'phantom' && isMobileExternalBrowser
-          ? solanaWallet.wallets.find((w) => w.adapter.name.toLowerCase().includes('mobile'))
-          : undefined;
+      // On mobile external browser, prioritize Mobile Wallet Adapter for seamless redirect
+      if (isMobileExternalBrowser) {
+        const mwaAdapter = solanaWallet.wallets.find((w) => 
+          w.adapter.name.toLowerCase().includes('mobile')
+        );
+        
+        if (mwaAdapter) {
+          await solanaWallet.select(mwaAdapter.adapter.name as WalletName);
+          await solanaWallet.connect();
+          setConnectionStatus('connected');
+          return true;
+        }
+        
+        // Fallback to deep-link if MWA not available
+        if (preferredWallet) {
+          openWalletDeeplink(preferredWallet);
+          setIsConnecting(false);
+          setConnectionStatus('disconnected');
+          return false;
+        }
+      }
 
-      // Otherwise, find the preferred wallet adapter
-      if (!targetWallet) {
+      // Desktop: Find the preferred wallet adapter by exact name match first
+      let targetWallet = solanaWallet.wallets.find((w) => {
+        const name = w.adapter.name.toLowerCase();
+        if (preferredWallet === 'phantom') return name === 'phantom';
+        if (preferredWallet === 'solflare') return name === 'solflare';
+        return false;
+      });
+
+      // If exact match not found, try partial match
+      if (!targetWallet && preferredWallet) {
         targetWallet = solanaWallet.wallets.find((w) => {
           const name = w.adapter.name.toLowerCase();
           if (preferredWallet === 'phantom') return name.includes('phantom');
@@ -456,30 +479,28 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
         });
       }
 
-      // If preferred wallet not found
+      // If preferred wallet not found, check if it's even installed
       if (preferredWallet && !targetWallet) {
-        // Check if wallet is available as injected
         if (!isSolanaWalletAvailable(preferredWallet)) {
-          if (isMobileBrowser()) {
-            // Open deep-link on mobile
-            openWalletDeeplink(preferredWallet);
-            setIsConnecting(false);
-            setConnectionStatus('disconnected');
-            return false;
-          } else {
-            const walletName = preferredWallet === 'phantom' ? 'Phantom' : 'Solflare';
-            throw new Error(`${walletName} is not installed. Please install from ${preferredWallet}.app`);
-          }
+          const walletName = preferredWallet === 'phantom' ? 'Phantom' : 'Solflare';
+          throw new Error(`${walletName} is not installed. Please install from ${preferredWallet}.app`);
         }
       }
 
-      // Use target wallet or first available
+      // Use target wallet or first available (skip MWA on desktop)
       if (targetWallet) {
         await solanaWallet.select(targetWallet.adapter.name as WalletName);
-      } else if (solanaWallet.wallets.length > 0) {
-        await solanaWallet.select(solanaWallet.wallets[0].adapter.name as WalletName);
       } else {
-        throw new Error('No Solana wallet detected. Please install Phantom or Solflare.');
+        const desktopWallets = solanaWallet.wallets.filter(
+          (w) => !w.adapter.name.toLowerCase().includes('mobile')
+        );
+        if (desktopWallets.length > 0) {
+          await solanaWallet.select(desktopWallets[0].adapter.name as WalletName);
+        } else if (solanaWallet.wallets.length > 0) {
+          await solanaWallet.select(solanaWallet.wallets[0].adapter.name as WalletName);
+        } else {
+          throw new Error('No Solana wallet detected. Please install Phantom or Solflare.');
+        }
       }
       
       await solanaWallet.connect();
@@ -547,9 +568,16 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     
     try {
       if (suiWallets.length > 0) {
-        // Find preferred wallet if specified
+        // Normalize wallet id for matching
+        const normalizedPref = preferredWallet?.replace('-wallet', '').replace('-', '').toLowerCase();
+        
+        // Find preferred wallet if specified with flexible matching
         let targetWallet = preferredWallet
-          ? suiWallets.find((w) => w.name.toLowerCase().includes(preferredWallet.replace('-wallet', '').toLowerCase()))
+          ? suiWallets.find((w) => {
+              const wName = w.name.toLowerCase().replace(/\s+/g, '');
+              // Match "sui wallet" -> "sui", "suiet" -> "suiet"
+              return wName.includes(normalizedPref || '') || normalizedPref?.includes(wName);
+            })
           : null;
         
         // Fall back to first available wallet
