@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Shield, BarChart3, Megaphone } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export interface CookiePreferences {
   essential: boolean;
@@ -55,6 +56,7 @@ export function CookiePreferencesModal({
     analytics: false,
     marketing: false,
   });
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
@@ -74,6 +76,10 @@ export function CookiePreferencesModal({
     saveCookiePreferences(preferences);
     onOpenChange(false);
     onSave?.();
+    toast({
+      title: "Preferences Saved",
+      description: "Your cookie preferences have been updated.",
+    });
   };
 
   const handleAcceptAll = () => {
@@ -81,6 +87,10 @@ export function CookiePreferencesModal({
     saveCookiePreferences(allAccepted);
     onOpenChange(false);
     onSave?.();
+    toast({
+      title: "Cookies Accepted",
+      description: "All cookies have been enabled.",
+    });
   };
 
   const categories = [

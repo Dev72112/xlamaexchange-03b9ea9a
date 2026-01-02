@@ -1,0 +1,26 @@
+{
+  "name": "xlama - Crypto Exchange",
+  "short_name": "xlama",
+  "description": "Fast and secure cryptocurrency exchange - swap coins instantly across 20+ chains",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "utilities"],
+  "lang": "en"
+}

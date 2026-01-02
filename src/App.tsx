@@ -16,6 +16,7 @@ import Privacy from "./pages/Privacy";
 import About from "./pages/About";
 import Favorites from "./pages/Favorites";
 import History from "./pages/History";
+import CookiesPolicy from "./pages/CookiesPolicy";
 import NotFound from "./pages/NotFound";
 
 // Import Sui dapp-kit styles
@@ -40,6 +41,7 @@ const App = () => (
                     <Route path="/faq" element={<FAQ />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/cookies" element={<CookiesPolicy />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                   <CookieConsent />
