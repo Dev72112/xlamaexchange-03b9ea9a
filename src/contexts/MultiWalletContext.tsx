@@ -8,7 +8,7 @@ import { wagmiConfig } from '@/config/appkit';
 import { switchChain, getWalletClient } from '@wagmi/core';
 
 // Sui
-import { SuiClientProvider, WalletProvider as SuiWalletProvider, useCurrentWallet, useCurrentAccount, useDisconnectWallet, useConnectWallet, useSuiClient, useWallets } from '@mysten/dapp-kit';
+import { SuiClientProvider, WalletProvider as SuiWalletProvider, useCurrentWallet, useCurrentAccount, useDisconnectWallet, useConnectWallet, useSuiClient, useWallets, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
 
 // TON
@@ -72,6 +72,8 @@ interface MultiWalletContextType {
   getSolanaWallet: () => any;
   getTronWeb: () => any;
   getSuiClient: () => any;
+  getTonConnectUI: () => any;
+  signAndExecuteSuiTransaction: (transaction: any) => Promise<any>;
   
   // Active chain selection
   setActiveChain: (chain: Chain) => void;
@@ -128,6 +130,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const suiDisconnect = useDisconnectWallet();
   const suiConnect = useConnectWallet();
   const suiClient = useSuiClient();
+  const suiSignAndExecute = useSignAndExecuteTransaction();
   const suiAddress = suiAccount?.address || null;
   
   // TON wallet hooks
@@ -284,6 +287,14 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
   // Sui client
   const getSuiClient = useCallback(() => suiClient, [suiClient]);
+  
+  // TON Connect UI for transactions
+  const getTonConnectUI = useCallback(() => tonConnectUI, [tonConnectUI]);
+  
+  // Sui signAndExecuteTransaction wrapper
+  const signAndExecuteSuiTransaction = useCallback(async (transaction: any) => {
+    return suiSignAndExecute.mutateAsync({ transaction });
+  }, [suiSignAndExecute]);
 
   // Connect Tron (manual - not supported by AppKit)
   const connectTron = useCallback(async (preferredWallet?: 'tronlink'): Promise<boolean> => {
@@ -458,6 +469,8 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     getSolanaWallet,
     getTronWeb,
     getSuiClient,
+    getTonConnectUI,
+    signAndExecuteSuiTransaction,
     setActiveChain,
     activeChain,
     isConnectedToChain,
