@@ -77,6 +77,12 @@ export const evmNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   klaytn,
 ];
 
+// All networks including Solana
+export const allNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  ...evmNetworks,
+  solana,
+];
+
 // AppKit metadata
 export const appKitMetadata = {
   name: 'XLama Exchange',
@@ -85,11 +91,12 @@ export const appKitMetadata = {
   icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : '/favicon.ico'],
 };
 
-// Project ID from environment or localStorage
+// Project ID from environment or localStorage - use a fallback for development
 const getProjectId = (): string => {
   const fromEnv = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
   const fromStorage = typeof window !== 'undefined' ? localStorage.getItem('walletconnectProjectId') || '' : '';
-  return fromEnv || fromStorage;
+  // Use a development/test project ID if none is configured (public demo ID)
+  return fromEnv || fromStorage || 'demo-project-id';
 };
 
 export const projectId = getProjectId();
@@ -105,47 +112,23 @@ export const solanaAdapter = new SolanaAdapter({
   wallets: [], // AppKit auto-detects Phantom, Solflare, etc.
 });
 
-// All networks including Solana
-const allNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
-  ...evmNetworks,
-  solana,
-];
-
-// Create AppKit instance (only if projectId exists)
-let appKitInstance: ReturnType<typeof createAppKit> | null = null;
-
-export function initializeAppKit() {
-  if (!projectId) {
-    console.warn('WalletConnect Project ID not found. AppKit will not be initialized.');
-    return null;
-  }
-
-  if (appKitInstance) {
-    return appKitInstance;
-  }
-
-  appKitInstance = createAppKit({
-    adapters: [wagmiAdapter, solanaAdapter],
-    networks: allNetworks,
-    projectId,
-    metadata: appKitMetadata,
-    features: {
-      analytics: true,
-      socials: false,
-      email: false,
-    },
-    themeMode: 'dark',
-    themeVariables: {
-      '--w3m-accent': 'hsl(142, 71%, 45%)', // Match app primary color
-      '--w3m-border-radius-master': '0.5rem',
-    },
-  });
-
-  return appKitInstance;
-}
+// Create AppKit instance immediately
+export const appKit = createAppKit({
+  adapters: [wagmiAdapter, solanaAdapter],
+  networks: allNetworks,
+  projectId,
+  metadata: appKitMetadata,
+  features: {
+    analytics: false,
+    socials: false,
+    email: false,
+  },
+  themeMode: 'dark',
+  themeVariables: {
+    '--w3m-accent': 'hsl(142, 71%, 45%)', // Match app primary color
+    '--w3m-border-radius-master': '0.5rem',
+  },
+});
 
 // Export the wagmi config from adapter
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
-
-// Lazy initialization - will be called in App.tsx
-export const getAppKit = () => appKitInstance;
