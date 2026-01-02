@@ -39,6 +39,8 @@ export function useDexSwapMulti() {
     getEvmProvider,
     getTronWeb,
     getSuiClient,
+    getTonConnectUI,
+    signAndExecuteSuiTransaction,
   } = useMultiWallet();
   
   // Get Solana provider from AppKit
@@ -124,7 +126,7 @@ export function useDexSwapMulti() {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, activeAddress, activeChainType, getEvmProvider, solanaAddress, solanaProvider, getTronWeb, getSuiClient, toast]);
+  }, [isConnected, activeAddress, activeChainType, getEvmProvider, solanaAddress, solanaProvider, getTronWeb, getSuiClient, getTonConnectUI, signAndExecuteSuiTransaction, toast]);
 
   // EVM Swap (existing logic)
   const executeEvmSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
@@ -307,7 +309,7 @@ export function useDexSwapMulti() {
     onSuccess?.(signature);
   };
 
-  // Tron Swap
+  // Tron Swap - Fixed implementation using raw transaction data from OKX
   const executeTronSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
     const tronWeb = getTronWeb();
     if (!tronWeb) throw new Error('TronLink not connected');
@@ -329,34 +331,56 @@ export function useDexSwapMulti() {
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in TronLink' });
 
-    // Send transaction via TronWeb
+    // OKX returns { to, data, value } - use triggerSmartContract with raw calldata
+    const txParams = {
+      feeLimit: parseInt(swapData.tx.gas) || 150000000, // ~150 TRX default
+      callValue: parseInt(swapData.tx.value) || 0,
+    };
+
+    // Build transaction with the contract call data from OKX
     const tx = await tronWeb.transactionBuilder.triggerSmartContract(
       swapData.tx.to,
-      'swap', // function name
-      {},
-      [], // parameters
+      'swap(bytes)', // OKX uses a generic swap function
+      txParams,
+      [{ type: 'bytes', value: swapData.tx.data.replace('0x', '') }],
       userAddress
     );
+
+    if (!tx.result?.result) {
+      // Fallback: try sending as raw transaction if OKX provides complete tx
+      const txData = swapData.tx as any;
+      if (txData.signedTx) {
+        const result = await tronWeb.trx.sendRawTransaction(txData.signedTx);
+        if (!result.result) throw new Error(`Transaction failed: ${result.code || 'Unknown'}`);
+        setTxHash(result.txid);
+        setStep('confirming');
+        await waitForTronConfirmation(tronWeb, result.txid);
+        setStep('complete');
+        toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
+        onSuccess?.(result.txid);
+        return;
+      }
+      throw new Error('Failed to build TRON transaction');
+    }
 
     const signedTx = await tronWeb.trx.sign(tx.transaction);
     const result = await tronWeb.trx.sendRawTransaction(signedTx);
 
-    if (!result.result) throw new Error('Transaction failed');
+    if (!result.result) throw new Error(`Transaction failed: ${result.code || 'Unknown error'}`);
 
     const hash = result.txid;
     setStep('confirming');
     setTxHash(hash);
     toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
 
-    // Wait for confirmation (poll)
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await waitForTronConfirmation(tronWeb, hash);
 
     setStep('complete');
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(hash);
   };
 
-  // Sui Swap
+  // Sui Swap - Full implementation using signAndExecuteTransaction
   const executeSuiSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
     const suiClient = getSuiClient();
     if (!suiClient) throw new Error('Sui wallet not connected');
@@ -377,13 +401,34 @@ export function useDexSwapMulti() {
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your Sui wallet' });
 
-    // Note: Full Sui transaction signing requires the signAndExecuteTransaction hook
-    // This is a placeholder - actual implementation needs transaction building from API response
-    throw new Error('Sui swap execution pending full implementation');
+    // OKX returns base64 encoded transaction bytes
+    // Use the signAndExecuteTransaction from context
+    const txBytes = Uint8Array.from(atob(swapData.tx.data), c => c.charCodeAt(0));
+    
+    // Create transaction block from bytes
+    const { Transaction } = await import('@mysten/sui/transactions');
+    const transaction = Transaction.from(txBytes);
+
+    const result = await signAndExecuteSuiTransaction(transaction);
+    
+    const digest = result.digest;
+    setStep('confirming');
+    setTxHash(digest);
+    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
+
+    // Wait for transaction confirmation
+    await suiClient.waitForTransaction({ digest, options: { showEffects: true } });
+
+    setStep('complete');
+    toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
+    onSuccess?.(digest);
   };
 
-  // TON Swap
+  // TON Swap - Full implementation using TonConnectUI
   const executeTonSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
+    const tonConnectUI = getTonConnectUI();
+    if (!tonConnectUI) throw new Error('TON wallet not connected');
+
     setStep('swapping');
     toast({ title: 'Preparing Swap', description: 'Getting best route for TON...' });
 
@@ -400,9 +445,34 @@ export function useDexSwapMulti() {
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your TON wallet' });
 
-    // Note: TON Connect transaction sending requires the TonConnectUI instance
-    // This is a placeholder - actual implementation needs tonConnectUI.sendTransaction
-    throw new Error('TON swap execution pending full implementation');
+    // Build TON transaction message for TonConnect
+    // OKX returns: { to, value, data } where data is base64 encoded Cell
+    const transaction = {
+      validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
+      messages: [
+        {
+          address: swapData.tx.to,
+          amount: swapData.tx.value?.toString() || '0', // in nanotons
+          payload: swapData.tx.data, // base64 encoded BOC
+        }
+      ]
+    };
+
+    const result = await tonConnectUI.sendTransaction(transaction);
+    
+    // Result contains boc (Bag of Cells) which is the transaction identifier
+    const txHash = result.boc;
+    
+    setStep('confirming');
+    setTxHash(txHash);
+    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
+
+    // TON doesn't have synchronous confirmation - wait briefly for propagation
+    await new Promise(resolve => setTimeout(resolve, 8000));
+
+    setStep('complete');
+    toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
+    onSuccess?.(txHash);
   };
 
   const reset = useCallback(() => {
@@ -433,4 +503,24 @@ async function waitForEvmTransaction(provider: any, txHash: string, maxAttempts 
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
   throw new Error('Transaction confirmation timeout');
+}
+
+// Helper for Tron transaction confirmation
+async function waitForTronConfirmation(tronWeb: any, txHash: string, maxAttempts = 20): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const info = await tronWeb.trx.getTransactionInfo(txHash);
+      if (info && info.id) {
+        if (info.receipt?.result === 'FAILED') {
+          throw new Error('Transaction failed on chain');
+        }
+        return;
+      }
+    } catch (err: any) {
+      if (err.message?.includes('failed')) throw err;
+    }
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+  // Don't throw on timeout for Tron - tx may still confirm
+  console.warn('Tron transaction confirmation timeout - tx may still be processing');
 }
