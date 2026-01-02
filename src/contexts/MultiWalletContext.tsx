@@ -136,6 +136,10 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
+
+  // Keep a stable WalletConnect connector instance to avoid modal / session issues.
+  const wcConnectorRef = useRef<ReturnType<typeof walletConnect> | null>(null);
+  const wcProjectIdRef = useRef<string>('');
   
   // Track TON connection state separately
   const tonConnectionStarted = useRef(false);
@@ -291,8 +295,8 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
           throw new Error('WalletConnect is not configured. Please set up your project ID.');
         }
 
-        const result = await wagmiConnect(wagmiConfig, {
-          connector: walletConnect({
+        if (!wcConnectorRef.current || wcProjectIdRef.current !== projectId) {
+          wcConnectorRef.current = walletConnect({
             projectId,
             showQrModal: true,
             metadata: {
@@ -301,7 +305,12 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
               url: typeof window !== 'undefined' ? window.location.origin : 'https://xlama.exchange',
               icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : ''],
             },
-          }),
+          });
+          wcProjectIdRef.current = projectId;
+        }
+
+        const result = await wagmiConnect(wagmiConfig, {
+          connector: wcConnectorRef.current!,
         });
 
         if (result.accounts?.[0]) {
