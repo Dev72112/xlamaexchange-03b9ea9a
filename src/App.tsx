@@ -8,6 +8,7 @@ import { MultiWalletProvider } from "@/contexts/MultiWalletContext";
 import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CookieConsent } from "@/components/CookieConsent";
+import { TrackingProvider } from "@/components/TrackingProvider";
 import Index from "./pages/Index";
 import FAQ from "./pages/FAQ";
 import Terms from "./pages/Terms";
@@ -30,17 +31,19 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/favorites" element={<Favorites />} />
-                  <Route path="/history" element={<History />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/faq" element={<FAQ />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <CookieConsent />
+                <TrackingProvider>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/favorites" element={<Favorites />} />
+                    <Route path="/history" element={<History />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/faq" element={<FAQ />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                  <CookieConsent />
+                </TrackingProvider>
               </BrowserRouter>
             </TooltipProvider>
           </DexTransactionProvider>

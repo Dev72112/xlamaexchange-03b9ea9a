@@ -35,6 +35,8 @@ export function getCookiePreferences(): CookiePreferences {
 export function saveCookiePreferences(preferences: CookiePreferences) {
   localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(preferences));
   localStorage.setItem("xlama-cookie-consent", "customized");
+  // Dispatch event to notify tracking system of preference changes
+  window.dispatchEvent(new Event("cookie-preferences-updated"));
 }
 
 interface CookiePreferencesModalProps {
