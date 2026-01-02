@@ -10,7 +10,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const projectId = Deno.env.get("VITE_WALLETCONNECT_PROJECT_ID") || "";
+  const projectId =
+    Deno.env.get("VITE_WALLETCONNECT_PROJECT_ID") ||
+    Deno.env.get("WALLETCONNECT_PROJECT_ID") ||
+    "";
 
   return new Response(
     JSON.stringify({ projectId, configured: Boolean(projectId) }),

@@ -1,13 +1,13 @@
 // WalletConnect configuration for EVM chains
 import { createConfig, http } from '@wagmi/core';
 import { injected, walletConnect } from '@wagmi/connectors';
-import { 
-  mainnet, 
-  bsc, 
-  polygon, 
-  arbitrum, 
-  optimism, 
-  avalanche, 
+import {
+  mainnet,
+  bsc,
+  polygon,
+  arbitrum,
+  optimism,
+  avalanche,
   base,
   linea,
   scroll,
@@ -21,7 +21,7 @@ import {
   blast,
   mode,
   aurora,
-  klaytn
+  klaytn,
 } from 'viem/chains';
 import { defineChain } from 'viem';
 
@@ -95,16 +95,23 @@ export const supportedChains = [
   klaytn,
 ] as const;
 
-// WalletConnect Project ID from environment
-export const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
+// WalletConnect Project ID from environment (with runtime fallback to localStorage)
+const wcFromEnv = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
+const wcFromStorage =
+  typeof window !== 'undefined' ? window.localStorage.getItem('walletconnectProjectId') || '' : '';
 
-// Create wagmi config
-export const wagmiConfig = createConfig({
-  chains: supportedChains,
-  connectors: [
-    injected({
-      shimDisconnect: true,
-    }),
+export const WALLETCONNECT_PROJECT_ID = wcFromEnv || wcFromStorage;
+
+const connectors = [
+  injected({
+    shimDisconnect: true,
+  }),
+];
+
+// Important: Do NOT create the WalletConnect connector if the Project ID is missing.
+// Otherwise the modal can show "Project ID Not Configured" even before our runtime fetch kicks in.
+if (WALLETCONNECT_PROJECT_ID) {
+  connectors.push(
     walletConnect({
       projectId: WALLETCONNECT_PROJECT_ID,
       showQrModal: true,
@@ -114,8 +121,14 @@ export const wagmiConfig = createConfig({
         url: typeof window !== 'undefined' ? window.location.origin : 'https://xlama.exchange',
         icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : ''],
       },
-    }),
-  ],
+    })
+  );
+}
+
+// Create wagmi config
+export const wagmiConfig = createConfig({
+  chains: supportedChains,
+  connectors,
   transports: {
     [xlayer.id]: http(),
     [mainnet.id]: http(),
@@ -142,7 +155,7 @@ export const wagmiConfig = createConfig({
 });
 
 // Export chain ID mapping for easy lookup
-export const chainIdToViem: Record<number, typeof supportedChains[number]> = {
+export const chainIdToViem: Record<number, (typeof supportedChains)[number]> = {
   196: xlayer,
   1: mainnet,
   56: bsc,

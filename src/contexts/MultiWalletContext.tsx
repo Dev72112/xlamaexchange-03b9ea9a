@@ -3,8 +3,14 @@ import { Chain, getChainByChainId, getPrimaryChain } from '@/data/chains';
 
 // Solana
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
-import { WalletAdapterNetwork, WalletName } from '@solana/wallet-adapter-base';
+import { WalletAdapterNetwork, WalletName, type Adapter } from '@solana/wallet-adapter-base';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
+import {
+  SolanaMobileWalletAdapter,
+  createDefaultAddressSelector,
+  createDefaultAuthorizationResultCache,
+  createDefaultWalletNotFoundHandler,
+} from '@solana-mobile/wallet-adapter-mobile';
 import { Connection } from '@solana/web3.js';
 
 // Sui
@@ -397,13 +403,24 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     setError(null);
     
     try {
-      // Find the preferred wallet adapter
-      let targetWallet = solanaWallet.wallets.find(w => {
-        const name = w.adapter.name.toLowerCase();
-        if (preferredWallet === 'phantom') return name.includes('phantom');
-        if (preferredWallet === 'solflare') return name.includes('solflare');
-        return false;
-      });
+      const isMobileExternalBrowser = isMobileBrowser() && !isInWalletBrowser();
+
+      // If user taps Phantom on a mobile browser (not inside a wallet), use Solana Mobile Wallet Adapter (MWA)
+      // so Phantom can connect via the wallet app without requiring the in-wallet browser.
+      let targetWallet =
+        preferredWallet === 'phantom' && isMobileExternalBrowser
+          ? solanaWallet.wallets.find((w) => w.adapter.name.toLowerCase().includes('mobile'))
+          : undefined;
+
+      // Otherwise, find the preferred wallet adapter
+      if (!targetWallet) {
+        targetWallet = solanaWallet.wallets.find((w) => {
+          const name = w.adapter.name.toLowerCase();
+          if (preferredWallet === 'phantom') return name.includes('phantom');
+          if (preferredWallet === 'solflare') return name.includes('solflare');
+          return false;
+        });
+      }
 
       // If preferred wallet not found
       if (preferredWallet && !targetWallet) {
@@ -726,13 +743,28 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 // Outer provider wrapping all wallet SDKs
 export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
   // Solana wallets
-  const solanaWallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-    ],
-    []
-  );
+  const solanaWallets = useMemo(() => {
+    const wallets: Adapter[] = [new PhantomWalletAdapter(), new SolflareWalletAdapter()];
+
+    // Enable Solana Mobile Wallet Adapter (MWA) for mobile browsers (external), to support Phantom mobile connect.
+    if (isMobileBrowser() && !isInWalletBrowser()) {
+      wallets.unshift(
+        new SolanaMobileWalletAdapter({
+          addressSelector: createDefaultAddressSelector(),
+          authorizationResultCache: createDefaultAuthorizationResultCache(),
+          onWalletNotFound: createDefaultWalletNotFoundHandler(),
+          cluster: solanaNetwork,
+          appIdentity: {
+            name: 'XLama Exchange',
+            uri: window.location.origin,
+            icon: `${window.location.origin}/favicon.ico`,
+          },
+        }) as unknown as Adapter
+      );
+    }
+
+    return wallets;
+  }, []);
 
   return (
     <ConnectionProvider endpoint={solanaEndpoint}>
