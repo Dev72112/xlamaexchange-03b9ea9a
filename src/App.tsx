@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { MultiWalletProvider } from "@/contexts/MultiWalletContext";
 import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
 import FAQ from "./pages/FAQ";
 import Terms from "./pages/Terms";
@@ -39,6 +40,7 @@ const App = () => (
                   <Route path="/privacy" element={<Privacy />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <CookieConsent />
               </BrowserRouter>
             </TooltipProvider>
           </DexTransactionProvider>
