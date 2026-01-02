@@ -50,11 +50,13 @@ export function isSolanaWalletAvailable(walletId: string): boolean {
   
   switch (walletId) {
     case 'phantom':
-      return !!(window as any).phantom?.solana;
+      // Check for Phantom specifically with isPhantom flag
+      return !!(window as any).phantom?.solana?.isPhantom;
     case 'solflare':
-      return !!(window as any).solflare;
+      // Check for Solflare with isSolflare flag
+      return !!((window as any).solflare?.isSolflare);
     default:
-      return !!((window as any).phantom?.solana || (window as any).solflare);
+      return !!((window as any).phantom?.solana?.isPhantom || (window as any).solflare?.isSolflare);
   }
 }
 
@@ -117,8 +119,18 @@ export const walletDeeplinks: Record<string, DeeplinkConfig> = {
   tronlink: {
     id: 'tronlink',
     name: 'TronLink',
-    deeplink: (dappUrl: string) => 
-      `tronlink://dapp?url=${encodeURIComponent(dappUrl)}`,
+    deeplink: (dappUrl: string) => {
+      // Use tronlinkoutside protocol for proper dApp connection
+      const params = {
+        url: dappUrl,
+        action: 'open',
+        protocol: 'tronlink',
+        version: '1.0',
+      };
+      return `tronlinkoutside://pull.activity?param=${encodeURIComponent(JSON.stringify(params))}`;
+    },
+    universalLink: (dappUrl: string) => 
+      `https://link.tronlink.org/dapp?url=${encodeURIComponent(dappUrl)}`,
   },
   tokenpocket: {
     id: 'tokenpocket',

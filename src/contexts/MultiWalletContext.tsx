@@ -439,29 +439,46 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     try {
       const isMobileExternalBrowser = isMobileBrowser() && !isInWalletBrowser();
 
-      // On mobile external browser, prioritize Mobile Wallet Adapter for seamless redirect
+      // On mobile external browser, use Mobile Wallet Adapter (MWA) for Phantom
       if (isMobileExternalBrowser) {
-        const mwaAdapter = solanaWallet.wallets.find((w) => 
-          w.adapter.name.toLowerCase().includes('mobile')
-        );
-        
-        if (mwaAdapter) {
-          await solanaWallet.select(mwaAdapter.adapter.name as WalletName);
-          await solanaWallet.connect();
-          setConnectionStatus('connected');
-          return true;
+        // For Phantom on mobile, MWA is the best approach
+        if (preferredWallet === 'phantom' || !preferredWallet) {
+          const mwaAdapter = solanaWallet.wallets.find((w) => 
+            w.adapter.name.toLowerCase().includes('mobile')
+          );
+          
+          if (mwaAdapter) {
+            console.log('Using Mobile Wallet Adapter for Solana');
+            await solanaWallet.select(mwaAdapter.adapter.name as WalletName);
+            await solanaWallet.connect();
+            setConnectionStatus('connected');
+            return true;
+          }
         }
         
-        // Fallback to deep-link if MWA not available
-        if (preferredWallet) {
-          openWalletDeeplink(preferredWallet);
+        // For Solflare on mobile, deep-link to open in Solflare browser
+        if (preferredWallet === 'solflare') {
+          openWalletDeeplink('solflare');
           setIsConnecting(false);
           setConnectionStatus('disconnected');
           return false;
         }
       }
 
-      // Desktop: Find the preferred wallet adapter by exact name match first
+      // Desktop: Check if the preferred wallet extension is installed
+      if (preferredWallet === 'phantom') {
+        const phantomInstalled = !!(window as any).phantom?.solana?.isPhantom;
+        if (!phantomInstalled) {
+          throw new Error('Phantom is not installed. Please install from phantom.app');
+        }
+      } else if (preferredWallet === 'solflare') {
+        const solflareInstalled = !!(window as any).solflare?.isSolflare;
+        if (!solflareInstalled) {
+          throw new Error('Solflare is not installed. Please install from solflare.com');
+        }
+      }
+
+      // Find the preferred wallet adapter
       let targetWallet = solanaWallet.wallets.find((w) => {
         const name = w.adapter.name.toLowerCase();
         if (preferredWallet === 'phantom') return name === 'phantom';
@@ -479,18 +496,12 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
         });
       }
 
-      // If preferred wallet not found, check if it's even installed
-      if (preferredWallet && !targetWallet) {
-        if (!isSolanaWalletAvailable(preferredWallet)) {
-          const walletName = preferredWallet === 'phantom' ? 'Phantom' : 'Solflare';
-          throw new Error(`${walletName} is not installed. Please install from ${preferredWallet}.app`);
-        }
-      }
-
-      // Use target wallet or first available (skip MWA on desktop)
+      // Use target wallet or first available desktop wallet
       if (targetWallet) {
+        console.log('Selecting Solana wallet:', targetWallet.adapter.name);
         await solanaWallet.select(targetWallet.adapter.name as WalletName);
       } else {
+        // Filter out MWA on desktop
         const desktopWallets = solanaWallet.wallets.filter(
           (w) => !w.adapter.name.toLowerCase().includes('mobile')
         );
@@ -507,6 +518,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       setConnectionStatus('connected');
       return true;
     } catch (err: any) {
+      console.error('Solana connection error:', err);
       setError(err.message);
       setConnectionStatus('error');
       throw err;
@@ -516,42 +528,56 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   }, [solanaWallet]);
 
   // Connect Tron with improved detection
-  const connectTron = useCallback(async (preferredWallet?: 'tronlink' | 'tokenpocket'): Promise<boolean> => {
+  const connectTron = useCallback(async (preferredWallet?: 'tronlink'): Promise<boolean> => {
     setIsConnecting(true);
     setConnectionStatus('connecting');
     setError(null);
     
     try {
-      if (!isTronWalletAvailable()) {
-        if (isMobileBrowser()) {
-          // Open deep-link on mobile
-          openWalletDeeplink(preferredWallet || 'tronlink');
-          setIsConnecting(false);
-          setConnectionStatus('disconnected');
-          return false;
-        }
-        throw new Error('No Tron wallet detected. Please install TronLink.');
+      // On mobile, always use deep-link to open in TronLink browser
+      if (isMobileBrowser() && !isInWalletBrowser()) {
+        console.log('Opening TronLink deep-link for mobile');
+        openWalletDeeplink('tronlink');
+        setIsConnecting(false);
+        setConnectionStatus('disconnected');
+        return false;
       }
 
+      // Check if TronLink is available (desktop or in-wallet browser)
+      if (!isTronWalletAvailable()) {
+        throw new Error('TronLink is not installed. Please install from tronlink.org');
+      }
+
+      // Try TronLink API first
       if (window.tronLink) {
+        console.log('Requesting TronLink accounts...');
         const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
         if (res.code === 200) {
-          setTronAddress(window.tronLink.tronWeb.defaultAddress.base58);
-          setConnectionStatus('connected');
-          localStorage.setItem('tronWalletConnected', 'true');
-          return true;
+          const address = window.tronLink.tronWeb?.defaultAddress?.base58;
+          if (address) {
+            setTronAddress(address);
+            setConnectionStatus('connected');
+            localStorage.setItem('tronWalletConnected', 'true');
+            return true;
+          }
+        } else if (res.code === 4001) {
+          throw new Error('TronLink connection rejected by user');
         } else {
-          throw new Error('TronLink connection rejected');
+          throw new Error(`TronLink connection failed: ${res.message || 'Unknown error'}`);
         }
-      } else if (window.tronWeb?.defaultAddress?.base58) {
+      }
+      
+      // Fallback: Check if already connected via tronWeb
+      if (window.tronWeb?.defaultAddress?.base58) {
         setTronAddress(window.tronWeb.defaultAddress.base58);
         setConnectionStatus('connected');
         localStorage.setItem('tronWalletConnected', 'true');
         return true;
       }
       
-      throw new Error('Failed to connect to Tron wallet');
+      throw new Error('Failed to connect to TronLink. Please unlock your wallet.');
     } catch (err: any) {
+      console.error('Tron connection error:', err);
       setError(err.message);
       setConnectionStatus('error');
       throw err;

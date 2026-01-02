@@ -36,10 +36,12 @@ interface WalletOption {
   description: string;
   installUrl: string;
   chainType: ChainType;
+  desktopOnly?: boolean; // Hide on mobile (use WalletConnect instead)
+  mobileNote?: string; // Note to show on mobile
 }
 
 const walletOptions: WalletOption[] = [
-  // EVM - On mobile, these will trigger WalletConnect
+  // EVM - Desktop only, mobile uses WalletConnect
   {
     id: 'okx',
     name: 'OKX Wallet',
@@ -47,6 +49,7 @@ const walletOptions: WalletOption[] = [
     description: 'Multi-chain wallet for EVM, Solana & more',
     installUrl: 'https://www.okx.com/web3',
     chainType: 'evm',
+    desktopOnly: true,
   },
   {
     id: 'metamask',
@@ -55,6 +58,7 @@ const walletOptions: WalletOption[] = [
     description: 'Popular Ethereum & EVM wallet',
     installUrl: 'https://metamask.io/download/',
     chainType: 'evm',
+    desktopOnly: true,
   },
   // Solana
   {
@@ -64,6 +68,7 @@ const walletOptions: WalletOption[] = [
     description: 'Leading Solana wallet',
     installUrl: 'https://phantom.app/',
     chainType: 'solana',
+    mobileNote: 'Opens Phantom app',
   },
   {
     id: 'solflare',
@@ -72,8 +77,9 @@ const walletOptions: WalletOption[] = [
     description: 'Secure Solana wallet',
     installUrl: 'https://solflare.com/',
     chainType: 'solana',
+    mobileNote: 'Open in Solflare browser',
   },
-  // Tron - Only TronLink (TokenPocket removed as it doesn't support Tron properly)
+  // Tron - Only TronLink
   {
     id: 'tronlink',
     name: 'TronLink',
@@ -81,6 +87,7 @@ const walletOptions: WalletOption[] = [
     description: 'Official TRON wallet',
     installUrl: 'https://www.tronlink.org/',
     chainType: 'tron',
+    mobileNote: 'Open in TronLink browser',
   },
   // Sui - Multiple wallet options
   {
@@ -346,7 +353,12 @@ export function MultiWalletButton() {
     );
   }
 
-  const filteredWallets = walletOptions.filter(w => w.chainType === selectedTab);
+  // Filter wallets by chain type, and hide desktop-only wallets on mobile
+  const filteredWallets = walletOptions.filter(w => {
+    if (w.chainType !== selectedTab) return false;
+    if (w.desktopOnly && isMobile && !isInsideWallet) return false;
+    return true;
+  });
 
   return (
     <>
