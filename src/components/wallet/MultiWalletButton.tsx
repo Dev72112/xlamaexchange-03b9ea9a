@@ -390,7 +390,7 @@ export function MultiWalletButton() {
                   return (
                     <div key={wallet.id} className="space-y-2">
                       <button
-                        onClick={() => available || wallet.chainType === 'ton' ? handleConnect(wallet) : handleInstallWallet(wallet)}
+                        onClick={() => handleConnect(wallet)}
                         disabled={connectingWallet !== null}
                         className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left group w-full"
                       >
@@ -416,9 +416,6 @@ export function MultiWalletButton() {
                         </div>
                         {isConnectingThis && (
                           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                        )}
-                        {!available && wallet.chainType !== 'ton' && !isMobile && (
-                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
                         )}
                       </button>
                       

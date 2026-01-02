@@ -95,9 +95,8 @@ export const supportedChains = [
   klaytn,
 ] as const;
 
-// WalletConnect Project ID - you can get one at https://cloud.walletconnect.com
-// Using a placeholder that works for development
-const WALLETCONNECT_PROJECT_ID = 'a4c5fe67e6c6c1a7c4c30b6e3b4e5f6g';
+// WalletConnect Project ID from environment
+export const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
 
 // Create wagmi config
 export const wagmiConfig = createConfig({

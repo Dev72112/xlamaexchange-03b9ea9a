@@ -16,8 +16,8 @@ import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } fr
 
 // WalletConnect / Wagmi
 import { connect as wagmiConnect, disconnect as wagmiDisconnect, getAccount, watchAccount, switchChain } from '@wagmi/core';
-import { injected, walletConnect } from '@wagmi/connectors';
-import { wagmiConfig, supportedChains } from '@/config/walletconnect';
+import { walletConnect } from '@wagmi/connectors';
+import { wagmiConfig, WALLETCONNECT_PROJECT_ID } from '@/config/walletconnect';
 
 // Utilities
 import { 
@@ -261,30 +261,36 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     setError(null);
 
     try {
-      // Option 1: Use WalletConnect for mobile or when explicitly requested
-      if (useWalletConnectModal || (isMobileBrowser() && !isInWalletBrowser())) {
-        try {
-          const result = await wagmiConnect(wagmiConfig, {
-            connector: walletConnect({
-              projectId: 'a4c5fe67e6c6c1a7c4c30b6e3b4e5f6g',
-              showQrModal: true,
-            }),
-          });
-          
-          if (result.accounts?.[0]) {
-            setEvmAddress(result.accounts[0]);
-            setEvmChainId(result.chainId);
-            setEvmWalletType('walletconnect');
-            setUseWagmi(true);
-            setConnectionStatus('connected');
-            localStorage.setItem('evmWalletConnected', 'true');
-            localStorage.setItem('evmWalletType', 'walletconnect');
-            return true;
-          }
-        } catch (wcError: any) {
-          // If WalletConnect fails, try injected
-          console.log('WalletConnect failed, trying injected:', wcError);
+      // Option 1: Use WalletConnect when explicitly requested
+      if (useWalletConnectModal) {
+        if (!WALLETCONNECT_PROJECT_ID) {
+          throw new Error('WalletConnect is not configured. Please set up your project ID.');
         }
+        
+        const result = await wagmiConnect(wagmiConfig, {
+          connector: walletConnect({
+            projectId: WALLETCONNECT_PROJECT_ID,
+            showQrModal: true,
+            metadata: {
+              name: 'XLama Exchange',
+              description: 'Multi-chain DEX Aggregator',
+              url: typeof window !== 'undefined' ? window.location.origin : 'https://xlama.exchange',
+              icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : ''],
+            },
+          }),
+        });
+        
+        if (result.accounts?.[0]) {
+          setEvmAddress(result.accounts[0]);
+          setEvmChainId(result.chainId);
+          setEvmWalletType('walletconnect');
+          setUseWagmi(true);
+          setConnectionStatus('connected');
+          localStorage.setItem('evmWalletConnected', 'true');
+          localStorage.setItem('evmWalletType', 'walletconnect');
+          return true;
+        }
+        throw new Error('WalletConnect connection failed. Please try again.');
       }
 
       // Option 2: Use injected provider
