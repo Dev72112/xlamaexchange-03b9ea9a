@@ -85,7 +85,7 @@ const Favorites = () => {
         ) : isLoading ? (
           <FavoriteCardsSkeleton count={favorites.length || 3} />
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-3 content-fade-in">
             {favorites.map((pair) => {
               const rateKey = `${pair.from}-${pair.to}`;
               const rate = rates?.[rateKey];
