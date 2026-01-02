@@ -1,4 +1,4 @@
-import { ExternalLink, Wallet } from "lucide-react";
+import { ExternalLink, Wallet, Shield, Zap, Globe } from "lucide-react";
 import changeNowLogo from "@/assets/changenow-logo.jpg";
 import phantomLogo from '@/assets/wallets/phantom-logo.png';
 import solflareLogo from '@/assets/wallets/solflare-logo.png';
@@ -27,7 +27,7 @@ export function Partners() {
           <p className="text-sm text-muted-foreground">Trusted technology partners for seamless crypto exchange</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
           {/* ChangeNow Partner */}
           <a
             href="https://changenow.io"
@@ -80,18 +80,28 @@ export function Partners() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center max-w-[200px]">
-              Best rates from 400+ DEXs across 20+ chains
+              Best rates from 400+ DEXs across 25+ chains
             </p>
           </a>
         </div>
 
-        {/* Wallet Partners */}
+        {/* 526+ Wallets Highlight */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="inline-flex items-center gap-3 px-6 py-3 bg-primary/10 border border-primary/20 rounded-full mb-4">
             <Wallet className="w-5 h-5 text-primary" />
-            <h3 className="text-lg sm:text-xl font-semibold">Supported Wallets</h3>
+            <span className="text-lg font-semibold">
+              <span className="text-primary">526+</span> Wallets Supported
+            </span>
           </div>
-          <p className="text-sm text-muted-foreground">Connect with your favorite wallet across multiple blockchains</p>
+          <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+            Connect with virtually any wallet through WalletConnect, including MetaMask, 
+            Trust Wallet, Rainbow, and hundreds more across all supported chains.
+          </p>
+        </div>
+
+        {/* Featured Wallet Partners */}
+        <div className="text-center mb-6">
+          <h3 className="text-sm font-medium text-muted-foreground mb-4">Featured Wallet Integrations</h3>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mb-12">
@@ -121,27 +131,27 @@ export function Partners() {
           ))}
         </div>
 
-        {/* Trust badges */}
-        <div className="flex flex-wrap justify-center gap-4 sm:gap-8 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-success" />
-            Non-custodial Exchange
+        {/* Trust badges - Enhanced */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-4xl mx-auto">
+          <div className="flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50">
+            <Shield className="w-6 h-6 text-primary mb-1" />
+            <span className="text-xs font-medium text-center">Non-Custodial</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-success" />
-            No KYC Required
+          <div className="flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50">
+            <Zap className="w-6 h-6 text-primary mb-1" />
+            <span className="text-xs font-medium text-center">Instant Swaps</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-success" />
-            400+ DEXs Aggregated
+          <div className="flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50">
+            <Globe className="w-6 h-6 text-primary mb-1" />
+            <span className="text-xs font-medium text-center">25+ Networks</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-success" />
-            Multi-Chain Support
+          <div className="flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50">
+            <Wallet className="w-6 h-6 text-primary mb-1" />
+            <span className="text-xs font-medium text-center">526+ Wallets</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-success" />
-            24/7 Support
+          <div className="flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50 col-span-2 md:col-span-1">
+            <span className="w-2 h-2 rounded-full bg-success mb-2" />
+            <span className="text-xs font-medium text-center">No KYC</span>
           </div>
         </div>
       </div>
