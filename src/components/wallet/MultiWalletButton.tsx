@@ -195,10 +195,17 @@ export function MultiWalletButton() {
 
   const handleWalletConnectEvm = useCallback(async () => {
     setConnectingWallet('walletconnect');
+
+    // Close our Radix Dialog first so it can remove its scroll-lock.
+    // Otherwise the WalletConnect modal list can become unscrollable on mobile.
+    setIsDialogOpen(false);
+
     try {
+      // Give the Dialog a moment to unmount and release scroll lock before opening WalletConnect.
+      await new Promise((r) => setTimeout(r, 75));
+
       const connected = await connectEvm(undefined, true);
       if (connected) {
-        setIsDialogOpen(false);
         toast({
           title: 'Wallet Connected',
           description: 'Connected via WalletConnect.',
