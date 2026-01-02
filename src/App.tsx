@@ -9,6 +9,7 @@ import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CookieConsent } from "@/components/CookieConsent";
 import { TrackingProvider } from "@/components/TrackingProvider";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import Index from "./pages/Index";
 import FAQ from "./pages/FAQ";
 import Terms from "./pages/Terms";
@@ -32,6 +33,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter>
+                <ScrollToTop />
                 <TrackingProvider>
                   <Routes>
                     <Route path="/" element={<Index />} />
