@@ -18,6 +18,7 @@ import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } fr
 import { connect as wagmiConnect, disconnect as wagmiDisconnect, getAccount, watchAccount, switchChain } from '@wagmi/core';
 import { walletConnect } from '@wagmi/connectors';
 import { wagmiConfig, WALLETCONNECT_PROJECT_ID } from '@/config/walletconnect';
+import { supabase } from '@/integrations/supabase/client';
 
 // Utilities
 import { 
@@ -263,13 +264,30 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     try {
       // Option 1: Use WalletConnect when explicitly requested
       if (useWalletConnectModal) {
-        if (!WALLETCONNECT_PROJECT_ID) {
+        // NOTE: In Lovable preview, Vite env vars may not hot-reload reliably.
+        // If the build-time value is empty, we fetch it from the backend (safe: projectId is public).
+        let projectId = WALLETCONNECT_PROJECT_ID || '';
+
+        if (!projectId) {
+          projectId = localStorage.getItem('walletconnectProjectId') || '';
+        }
+
+        if (!projectId) {
+          const { data, error } = await supabase.functions.invoke('walletconnect-config');
+          const fetched = (data as any)?.projectId as string | undefined;
+          if (!error && fetched) {
+            projectId = fetched;
+            localStorage.setItem('walletconnectProjectId', fetched);
+          }
+        }
+
+        if (!projectId) {
           throw new Error('WalletConnect is not configured. Please set up your project ID.');
         }
-        
+
         const result = await wagmiConnect(wagmiConfig, {
           connector: walletConnect({
-            projectId: WALLETCONNECT_PROJECT_ID,
+            projectId,
             showQrModal: true,
             metadata: {
               name: 'XLama Exchange',
@@ -279,7 +297,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
             },
           }),
         });
-        
+
         if (result.accounts?.[0]) {
           setEvmAddress(result.accounts[0]);
           setEvmChainId(result.chainId);
