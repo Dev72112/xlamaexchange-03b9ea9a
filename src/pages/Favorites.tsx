@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { changeNowService } from "@/services/changenow";
 import { cn } from "@/lib/utils";
+import { FavoriteCardsSkeleton } from "@/components/ContentSkeletons";
 
 const Favorites = () => {
   const { favorites, removeFavorite } = useFavoritePairs();
@@ -81,6 +82,8 @@ const Favorites = () => {
               Explore Pairs
             </Button>
           </Card>
+        ) : isLoading ? (
+          <FavoriteCardsSkeleton count={favorites.length || 3} />
         ) : (
           <div className="grid gap-3">
             {favorites.map((pair) => {

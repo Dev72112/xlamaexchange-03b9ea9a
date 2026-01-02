@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
@@ -8,10 +9,19 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
+
 
 const History = () => {
   const { transactions, removeTransaction, clearHistory } = useTransactionHistory();
   const navigate = useNavigate();
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Brief loading state for perceived performance
+  useEffect(() => {
+    const timer = setTimeout(() => setIsInitialLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -77,7 +87,9 @@ const History = () => {
         </div>
 
         {/* Transaction List */}
-        {transactions.length === 0 ? (
+        {isInitialLoading ? (
+          <TransactionCardsSkeleton count={3} />
+        ) : transactions.length === 0 ? (
           <Card className="p-12 text-center border-dashed">
             <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-semibold mb-2">No transactions yet</h3>
