@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
-import { Chain, getChainByChainId, getChainByIndex, getPrimaryChain, SUPPORTED_CHAINS } from '@/data/chains';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react';
+import { Chain, getChainByChainId, getPrimaryChain } from '@/data/chains';
 
 // Solana
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { WalletAdapterNetwork, WalletName } from '@solana/wallet-adapter-base';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
-import { clusterApiUrl, Connection, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 
 // Sui
 import { SuiClientProvider, WalletProvider as SuiWalletProvider, useCurrentWallet, useCurrentAccount, useDisconnectWallet, useConnectWallet, useSuiClient, useWallets } from '@mysten/dapp-kit';
@@ -14,9 +14,27 @@ import { getFullnodeUrl } from '@mysten/sui/client';
 // TON
 import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } from '@tonconnect/ui-react';
 
+// WalletConnect / Wagmi
+import { connect as wagmiConnect, disconnect as wagmiDisconnect, getAccount, watchAccount, switchChain } from '@wagmi/core';
+import { injected, walletConnect } from '@wagmi/connectors';
+import { wagmiConfig, supportedChains } from '@/config/walletconnect';
+
+// Utilities
+import { 
+  isMobileBrowser, 
+  isInWalletBrowser, 
+  isEvmWalletAvailable, 
+  isSolanaWalletAvailable,
+  isTronWalletAvailable,
+  openWalletDeeplink 
+} from '@/lib/wallet-deeplinks';
+
 // Types
 export type ChainType = 'evm' | 'solana' | 'tron' | 'sui' | 'ton';
-export type WalletType = 'okx' | 'metamask' | 'phantom' | 'solflare' | 'tronlink' | 'sui-wallet' | 'tonkeeper' | null;
+export type WalletType = 'okx' | 'metamask' | 'walletconnect' | 'phantom' | 'solflare' | 'tronlink' | 'tokenpocket' | 'sui-wallet' | 'tonkeeper' | null;
+
+// Connection status for UI feedback
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 interface MultiWalletContextType {
   // Connection state per chain type
@@ -31,23 +49,30 @@ interface MultiWalletContextType {
   activeAddress: string | null;
   isConnected: boolean;
   
-  // EVM-specific (existing)
+  // EVM-specific
   evmChainId: number | null;
   evmChain: Chain | null;
   evmWalletType: WalletType;
   
   // Connection status
   isConnecting: boolean;
+  connectionStatus: ConnectionStatus;
   error: string | null;
   
+  // Wallet availability
+  isWalletAvailable: (walletId: string) => boolean;
+  
   // Methods
-  connectEvm: (preferredWallet?: WalletType) => Promise<void>;
-  connectSolana: () => Promise<void>;
-  connectTron: () => Promise<void>;
-  connectSui: () => Promise<void>;
-  connectTon: () => Promise<void>;
+  connectEvm: (preferredWallet?: WalletType, useWalletConnect?: boolean) => Promise<boolean>;
+  connectSolana: (preferredWallet?: 'phantom' | 'solflare') => Promise<boolean>;
+  connectTron: (preferredWallet?: 'tronlink' | 'tokenpocket') => Promise<boolean>;
+  connectSui: () => Promise<boolean>;
+  connectTon: () => Promise<boolean>;
   disconnect: () => void;
   switchEvmChain: (chainId: number) => Promise<void>;
+  
+  // Deep-link for mobile
+  openInWallet: (walletId: string) => void;
   
   // Chain-specific providers
   getEvmProvider: () => any;
@@ -94,6 +119,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const [evmAddress, setEvmAddress] = useState<string | null>(null);
   const [evmChainId, setEvmChainId] = useState<number | null>(null);
   const [evmWalletType, setEvmWalletType] = useState<WalletType>(null);
+  const [useWagmi, setUseWagmi] = useState(false);
   
   // Tron state (manual)
   const [tronAddress, setTronAddress] = useState<string | null>(null);
@@ -101,7 +127,11 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   // Common state
   const [activeChain, setActiveChain] = useState<Chain>(getPrimaryChain());
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
+  
+  // Track TON connection state separately
+  const tonConnectionStarted = useRef(false);
   
   // Solana wallet hooks
   const solanaWallet = useSolanaWallet();
@@ -149,6 +179,32 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
   const isConnected = !!activeAddress;
 
+  // Check wallet availability
+  const isWalletAvailable = useCallback((walletId: string): boolean => {
+    switch (walletId) {
+      case 'okx':
+      case 'metamask':
+        return isEvmWalletAvailable(walletId);
+      case 'phantom':
+      case 'solflare':
+        return isSolanaWalletAvailable(walletId);
+      case 'tronlink':
+      case 'tokenpocket':
+        return isTronWalletAvailable();
+      case 'sui-wallet':
+        return suiWallets.length > 0;
+      case 'tonkeeper':
+        return true; // TON uses QR/deeplink, always "available"
+      default:
+        return false;
+    }
+  }, [suiWallets.length]);
+
+  // Open wallet deep-link
+  const openInWallet = useCallback((walletId: string) => {
+    openWalletDeeplink(walletId);
+  }, []);
+
   // Check if connected to a specific chain
   const isConnectedToChain = useCallback((chain: Chain): boolean => {
     if (chain.isEvm) {
@@ -166,7 +222,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const getEvmProvider = useCallback(() => {
     if (evmWalletType === 'okx' && window.okxwallet) return window.okxwallet;
     if (evmWalletType === 'metamask' && window.ethereum) return window.ethereum;
-    return null;
+    return window.ethereum || null;
   }, [evmWalletType]);
 
   // Solana connection
@@ -185,10 +241,12 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     if (accounts.length === 0) {
       setEvmAddress(null);
       setEvmWalletType(null);
+      setConnectionStatus('disconnected');
       localStorage.removeItem('evmWalletConnected');
       localStorage.removeItem('evmWalletType');
     } else {
       setEvmAddress(accounts[0]);
+      setConnectionStatus('connected');
     }
   }, []);
 
@@ -196,38 +254,92 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     setEvmChainId(parseInt(chainIdHex, 16));
   }, []);
 
-  // Connect EVM
-  const connectEvm = useCallback(async (preferredWallet?: WalletType) => {
+  // Connect EVM with improved detection
+  const connectEvm = useCallback(async (preferredWallet?: WalletType, useWalletConnectModal?: boolean): Promise<boolean> => {
     setIsConnecting(true);
+    setConnectionStatus('connecting');
     setError(null);
 
     try {
-      let provider: any = null;
-      let selectedWalletType: WalletType = null;
-
-      if (preferredWallet === 'okx' || (!preferredWallet && window.okxwallet)) {
-        if (window.okxwallet) {
-          provider = window.okxwallet;
-          selectedWalletType = 'okx';
-        } else if (!preferredWallet && window.ethereum) {
-          provider = window.ethereum;
-          selectedWalletType = 'metamask';
-        } else {
-          throw new Error('OKX Wallet is not installed');
-        }
-      } else if (preferredWallet === 'metamask' || window.ethereum) {
-        if (window.ethereum) {
-          provider = window.ethereum;
-          selectedWalletType = 'metamask';
-        } else {
-          throw new Error('MetaMask is not installed');
+      // Option 1: Use WalletConnect for mobile or when explicitly requested
+      if (useWalletConnectModal || (isMobileBrowser() && !isInWalletBrowser())) {
+        try {
+          const result = await wagmiConnect(wagmiConfig, {
+            connector: walletConnect({
+              projectId: 'a4c5fe67e6c6c1a7c4c30b6e3b4e5f6g',
+              showQrModal: true,
+            }),
+          });
+          
+          if (result.accounts?.[0]) {
+            setEvmAddress(result.accounts[0]);
+            setEvmChainId(result.chainId);
+            setEvmWalletType('walletconnect');
+            setUseWagmi(true);
+            setConnectionStatus('connected');
+            localStorage.setItem('evmWalletConnected', 'true');
+            localStorage.setItem('evmWalletType', 'walletconnect');
+            return true;
+          }
+        } catch (wcError: any) {
+          // If WalletConnect fails, try injected
+          console.log('WalletConnect failed, trying injected:', wcError);
         }
       }
 
-      if (!provider) throw new Error('No EVM wallet detected');
+      // Option 2: Use injected provider
+      let provider: any = null;
+      let selectedWalletType: WalletType = null;
+
+      if (preferredWallet === 'okx') {
+        if (window.okxwallet) {
+          provider = window.okxwallet;
+          selectedWalletType = 'okx';
+        } else if (isMobileBrowser()) {
+          // Open OKX deep-link on mobile
+          openWalletDeeplink('okx');
+          setIsConnecting(false);
+          setConnectionStatus('disconnected');
+          return false;
+        } else {
+          throw new Error('OKX Wallet is not installed. Please install from okx.com/web3');
+        }
+      } else if (preferredWallet === 'metamask') {
+        if (window.ethereum && (window.ethereum as any).isMetaMask) {
+          provider = window.ethereum;
+          selectedWalletType = 'metamask';
+        } else if (isMobileBrowser()) {
+          // Open MetaMask deep-link on mobile
+          openWalletDeeplink('metamask');
+          setIsConnecting(false);
+          setConnectionStatus('disconnected');
+          return false;
+        } else {
+          throw new Error('MetaMask is not installed. Please install from metamask.io');
+        }
+      } else {
+        // Try OKX first, then MetaMask, then any ethereum provider
+        if (window.okxwallet) {
+          provider = window.okxwallet;
+          selectedWalletType = 'okx';
+        } else if (window.ethereum) {
+          provider = window.ethereum;
+          selectedWalletType = (window.ethereum as any).isMetaMask ? 'metamask' : 'metamask';
+        }
+      }
+
+      if (!provider) {
+        if (isMobileBrowser()) {
+          // On mobile without provider, suggest WalletConnect
+          throw new Error('No wallet detected. Use WalletConnect or open this site in your wallet app.');
+        }
+        throw new Error('No EVM wallet detected. Please install OKX Wallet or MetaMask.');
+      }
 
       const accounts = await provider.request({ method: 'eth_requestAccounts' });
-      if (accounts.length === 0) throw new Error('No accounts found');
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock your wallet.');
+      }
 
       const chainIdHex = await provider.request({ method: 'eth_chainId' });
       const currentChainId = parseInt(chainIdHex, 16);
@@ -235,112 +347,193 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       setEvmAddress(accounts[0]);
       setEvmChainId(currentChainId);
       setEvmWalletType(selectedWalletType);
+      setUseWagmi(false);
+      setConnectionStatus('connected');
 
       provider.on('accountsChanged', handleEvmAccountsChanged);
       provider.on('chainChanged', handleEvmChainChanged);
 
       localStorage.setItem('evmWalletConnected', 'true');
       localStorage.setItem('evmWalletType', selectedWalletType || '');
+      
+      return true;
     } catch (err: any) {
       setError(err.message);
+      setConnectionStatus('error');
       throw err;
     } finally {
       setIsConnecting(false);
     }
   }, [handleEvmAccountsChanged, handleEvmChainChanged]);
 
-  // Connect Solana
-  const connectSolana = useCallback(async () => {
+  // Connect Solana with specific wallet selection
+  const connectSolana = useCallback(async (preferredWallet?: 'phantom' | 'solflare'): Promise<boolean> => {
     setIsConnecting(true);
+    setConnectionStatus('connecting');
     setError(null);
+    
     try {
-      if (!solanaWallet.wallet) {
-        // Select first available wallet
-        if (solanaWallet.wallets.length > 0) {
-          await solanaWallet.select(solanaWallet.wallets[0].adapter.name);
+      // Find the preferred wallet adapter
+      let targetWallet = solanaWallet.wallets.find(w => {
+        const name = w.adapter.name.toLowerCase();
+        if (preferredWallet === 'phantom') return name.includes('phantom');
+        if (preferredWallet === 'solflare') return name.includes('solflare');
+        return false;
+      });
+
+      // If preferred wallet not found
+      if (preferredWallet && !targetWallet) {
+        // Check if wallet is available as injected
+        if (!isSolanaWalletAvailable(preferredWallet)) {
+          if (isMobileBrowser()) {
+            // Open deep-link on mobile
+            openWalletDeeplink(preferredWallet);
+            setIsConnecting(false);
+            setConnectionStatus('disconnected');
+            return false;
+          } else {
+            const walletName = preferredWallet === 'phantom' ? 'Phantom' : 'Solflare';
+            throw new Error(`${walletName} is not installed. Please install from ${preferredWallet}.app`);
+          }
         }
       }
+
+      // Use target wallet or first available
+      if (targetWallet) {
+        await solanaWallet.select(targetWallet.adapter.name as WalletName);
+      } else if (solanaWallet.wallets.length > 0) {
+        await solanaWallet.select(solanaWallet.wallets[0].adapter.name as WalletName);
+      } else {
+        throw new Error('No Solana wallet detected. Please install Phantom or Solflare.');
+      }
+      
       await solanaWallet.connect();
+      setConnectionStatus('connected');
+      return true;
     } catch (err: any) {
       setError(err.message);
+      setConnectionStatus('error');
       throw err;
     } finally {
       setIsConnecting(false);
     }
   }, [solanaWallet]);
 
-  // Connect Tron
-  const connectTron = useCallback(async () => {
+  // Connect Tron with improved detection
+  const connectTron = useCallback(async (preferredWallet?: 'tronlink' | 'tokenpocket'): Promise<boolean> => {
     setIsConnecting(true);
+    setConnectionStatus('connecting');
     setError(null);
+    
     try {
-      if (!window.tronLink && !window.tronWeb) {
-        throw new Error('TronLink is not installed');
+      if (!isTronWalletAvailable()) {
+        if (isMobileBrowser()) {
+          // Open deep-link on mobile
+          openWalletDeeplink(preferredWallet || 'tronlink');
+          setIsConnecting(false);
+          setConnectionStatus('disconnected');
+          return false;
+        }
+        throw new Error('No Tron wallet detected. Please install TronLink.');
       }
 
       if (window.tronLink) {
         const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
         if (res.code === 200) {
           setTronAddress(window.tronLink.tronWeb.defaultAddress.base58);
+          setConnectionStatus('connected');
           localStorage.setItem('tronWalletConnected', 'true');
+          return true;
         } else {
           throw new Error('TronLink connection rejected');
         }
       } else if (window.tronWeb?.defaultAddress?.base58) {
         setTronAddress(window.tronWeb.defaultAddress.base58);
+        setConnectionStatus('connected');
         localStorage.setItem('tronWalletConnected', 'true');
+        return true;
       }
+      
+      throw new Error('Failed to connect to Tron wallet');
     } catch (err: any) {
       setError(err.message);
+      setConnectionStatus('error');
       throw err;
     } finally {
       setIsConnecting(false);
     }
   }, []);
 
-  // Connect Sui
-  const connectSui = useCallback(async () => {
+  // Connect Sui with improved detection
+  const connectSui = useCallback(async (): Promise<boolean> => {
     setIsConnecting(true);
+    setConnectionStatus('connecting');
     setError(null);
+    
     try {
       if (suiWallets.length > 0) {
         await suiConnect.mutateAsync({ wallet: suiWallets[0] });
+        setConnectionStatus('connected');
+        return true;
       } else {
-        throw new Error('No Sui wallet detected');
+        if (isMobileBrowser()) {
+          throw new Error('No Sui wallet detected. Please open this site in the Sui Wallet app browser.');
+        }
+        throw new Error('No Sui wallet detected. Please install the Sui Wallet extension.');
       }
     } catch (err: any) {
       setError(err.message);
+      setConnectionStatus('error');
       throw err;
     } finally {
       setIsConnecting(false);
     }
   }, [suiConnect, suiWallets]);
 
-  // Connect TON
-  const connectTon = useCallback(async () => {
-    setIsConnecting(true);
-    setError(null);
-    try {
-      await tonConnectUI.openModal();
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setIsConnecting(false);
-    }
+  // Connect TON - now just returns, actual connection handled by TonWalletPicker
+  const connectTon = useCallback(async (): Promise<boolean> => {
+    // Don't set connecting here - let TonWalletPicker handle it
+    // This just signals that TON connection flow should start
+    tonConnectionStarted.current = true;
+    return false; // Return false because connection isn't complete yet
+  }, []);
+
+  // Watch for TON connection success
+  useEffect(() => {
+    if (!tonConnectUI) return;
+
+    const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
+      if (wallet && tonConnectionStarted.current) {
+        tonConnectionStarted.current = false;
+        setConnectionStatus('connected');
+      } else if (!wallet) {
+        setConnectionStatus('disconnected');
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [tonConnectUI]);
 
   // Disconnect all
   const disconnect = useCallback(() => {
-    // EVM
+    // EVM - legacy provider
     const evmProvider = getEvmProvider();
-    if (evmProvider) {
+    if (evmProvider && !useWagmi) {
       evmProvider.removeListener('accountsChanged', handleEvmAccountsChanged);
       evmProvider.removeListener('chainChanged', handleEvmChainChanged);
     }
+    
+    // EVM - wagmi
+    if (useWagmi) {
+      wagmiDisconnect(wagmiConfig);
+    }
+    
     setEvmAddress(null);
     setEvmChainId(null);
     setEvmWalletType(null);
+    setUseWagmi(false);
     localStorage.removeItem('evmWalletConnected');
     localStorage.removeItem('evmWalletType');
 
@@ -364,10 +557,17 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     }
 
     setError(null);
-  }, [getEvmProvider, handleEvmAccountsChanged, handleEvmChainChanged, solanaWallet, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet]);
+    setConnectionStatus('disconnected');
+  }, [getEvmProvider, useWagmi, handleEvmAccountsChanged, handleEvmChainChanged, solanaWallet, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet]);
 
   // Switch EVM chain
   const switchEvmChain = useCallback(async (targetChainId: number) => {
+    if (useWagmi) {
+      // Use wagmi for chain switching
+      await switchChain(wagmiConfig, { chainId: targetChainId as any });
+      return;
+    }
+
     const provider = getEvmProvider();
     if (!provider) throw new Error('No wallet connected');
 
@@ -398,7 +598,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
         throw switchError;
       }
     }
-  }, [getEvmProvider]);
+  }, [getEvmProvider, useWagmi]);
 
   // Auto-reconnect EVM
   useEffect(() => {
@@ -407,20 +607,54 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
     if (wasConnected && savedWalletType) {
       const timeout = setTimeout(() => {
-        connectEvm(savedWalletType).catch(() => {
-          localStorage.removeItem('evmWalletConnected');
-          localStorage.removeItem('evmWalletType');
-        });
+        if (savedWalletType === 'walletconnect') {
+          // Re-check wagmi account for WalletConnect
+          const account = getAccount(wagmiConfig);
+          if (account.address) {
+            setEvmAddress(account.address);
+            setEvmChainId(account.chainId ?? null);
+            setEvmWalletType('walletconnect');
+            setUseWagmi(true);
+            setConnectionStatus('connected');
+          }
+        } else {
+          connectEvm(savedWalletType).catch(() => {
+            localStorage.removeItem('evmWalletConnected');
+            localStorage.removeItem('evmWalletType');
+          });
+        }
       }, 100);
       return () => clearTimeout(timeout);
     }
   }, []);
+
+  // Watch wagmi account changes
+  useEffect(() => {
+    if (!useWagmi) return;
+    
+    const unwatch = watchAccount(wagmiConfig, {
+      onChange: (account) => {
+        if (account.address) {
+          setEvmAddress(account.address);
+          setEvmChainId(account.chainId ?? null);
+        } else {
+          setEvmAddress(null);
+          setEvmChainId(null);
+          setEvmWalletType(null);
+          setUseWagmi(false);
+        }
+      },
+    });
+
+    return () => unwatch();
+  }, [useWagmi]);
 
   // Auto-reconnect Tron
   useEffect(() => {
     const wasConnected = localStorage.getItem('tronWalletConnected') === 'true';
     if (wasConnected && window.tronWeb?.defaultAddress?.base58) {
       setTronAddress(window.tronWeb.defaultAddress.base58);
+      setConnectionStatus('connected');
     }
   }, []);
 
@@ -437,7 +671,9 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     evmChain,
     evmWalletType,
     isConnecting,
+    connectionStatus,
     error,
+    isWalletAvailable,
     connectEvm,
     connectSolana,
     connectTron,
@@ -445,6 +681,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     connectTon,
     disconnect,
     switchEvmChain,
+    openInWallet,
     getEvmProvider,
     getSolanaConnection,
     getSolanaWallet,
@@ -478,7 +715,22 @@ export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
       <SolanaWalletProvider wallets={solanaWallets} autoConnect>
         <SuiClientProvider networks={suiNetworks} defaultNetwork="mainnet">
           <SuiWalletProvider autoConnect>
-            <TonConnectUIProvider manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}>
+            <TonConnectUIProvider 
+              manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}
+              walletsListConfiguration={{
+                includeWallets: [
+                  {
+                    appName: 'tonkeeper',
+                    name: 'Tonkeeper',
+                    imageUrl: 'https://tonkeeper.com/assets/tonconnect-icon.png',
+                    aboutUrl: 'https://tonkeeper.com',
+                    universalLink: 'https://app.tonkeeper.com/ton-connect',
+                    bridgeUrl: 'https://bridge.tonapi.io/bridge',
+                    platforms: ['ios', 'android', 'chrome', 'firefox', 'safari'],
+                  },
+                ],
+              }}
+            >
               <MultiWalletProviderInner>
                 {children}
               </MultiWalletProviderInner>
@@ -497,6 +749,3 @@ export function useMultiWallet() {
   }
   return context;
 }
-
-// Re-export for backwards compatibility  
-export { useMultiWallet as useWallet };

@@ -1,0 +1,165 @@
+// Deep-link utilities for mobile wallet connections
+
+export interface DeeplinkConfig {
+  id: string;
+  name: string;
+  deeplink: (dappUrl: string) => string;
+  universalLink?: (dappUrl: string) => string;
+}
+
+// Detect if running in a mobile browser (not inside a wallet's in-app browser)
+export function isMobileBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+}
+
+// Detect if running inside a wallet's in-app browser
+export function isInWalletBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  // Check for various wallet browser indicators
+  return !!(
+    window.okxwallet ||
+    (window.ethereum && (window.ethereum as any).isOKXWallet) ||
+    (window.ethereum && (window.ethereum as any).isMetaMask) ||
+    window.tronWeb ||
+    window.tronLink ||
+    (window as any).phantom?.solana ||
+    (window as any).solflare
+  );
+}
+
+// Check if a specific EVM wallet is available
+export function isEvmWalletAvailable(walletId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  switch (walletId) {
+    case 'okx':
+      return !!(window.okxwallet || (window.ethereum && (window.ethereum as any).isOKXWallet));
+    case 'metamask':
+      return !!(window.ethereum && (window.ethereum as any).isMetaMask);
+    default:
+      return !!window.ethereum;
+  }
+}
+
+// Check if Solana wallet is available
+export function isSolanaWalletAvailable(walletId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  switch (walletId) {
+    case 'phantom':
+      return !!(window as any).phantom?.solana;
+    case 'solflare':
+      return !!(window as any).solflare;
+    default:
+      return !!((window as any).phantom?.solana || (window as any).solflare);
+  }
+}
+
+// Check if Tron wallet is available
+export function isTronWalletAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!(window.tronLink || window.tronWeb);
+}
+
+// Get the current page URL for deep-links
+export function getCurrentDappUrl(): string {
+  if (typeof window === 'undefined') return '';
+  return window.location.href;
+}
+
+// Wallet deep-link configurations
+export const walletDeeplinks: Record<string, DeeplinkConfig> = {
+  // EVM Wallets
+  okx: {
+    id: 'okx',
+    name: 'OKX Wallet',
+    deeplink: (dappUrl: string) => 
+      `okx://wallet/dapp/url?dappUrl=${encodeURIComponent(dappUrl)}`,
+    universalLink: (dappUrl: string) => 
+      `https://www.okx.com/download?deeplink=${encodeURIComponent(`okx://wallet/dapp/url?dappUrl=${encodeURIComponent(dappUrl)}`)}`,
+  },
+  metamask: {
+    id: 'metamask',
+    name: 'MetaMask',
+    deeplink: (dappUrl: string) => {
+      // MetaMask uses a different format - strip the protocol
+      const urlWithoutProtocol = dappUrl.replace(/^https?:\/\//, '');
+      return `https://metamask.app.link/dapp/${urlWithoutProtocol}`;
+    },
+    universalLink: (dappUrl: string) => {
+      const urlWithoutProtocol = dappUrl.replace(/^https?:\/\//, '');
+      return `https://metamask.app.link/dapp/${urlWithoutProtocol}`;
+    },
+  },
+  
+  // Solana Wallets
+  phantom: {
+    id: 'phantom',
+    name: 'Phantom',
+    deeplink: (dappUrl: string) => 
+      `phantom://browse/${encodeURIComponent(dappUrl)}`,
+    universalLink: (dappUrl: string) => 
+      `https://phantom.app/ul/browse/${encodeURIComponent(dappUrl)}`,
+  },
+  solflare: {
+    id: 'solflare',
+    name: 'Solflare',
+    deeplink: (dappUrl: string) => 
+      `solflare://browse?url=${encodeURIComponent(dappUrl)}`,
+    universalLink: (dappUrl: string) => 
+      `https://solflare.com/ul/browse?url=${encodeURIComponent(dappUrl)}`,
+  },
+  
+  // Tron Wallets
+  tronlink: {
+    id: 'tronlink',
+    name: 'TronLink',
+    deeplink: (dappUrl: string) => 
+      `tronlink://dapp?url=${encodeURIComponent(dappUrl)}`,
+  },
+  tokenpocket: {
+    id: 'tokenpocket',
+    name: 'TokenPocket',
+    deeplink: (dappUrl: string) => 
+      `tpoutside://open?params=${encodeURIComponent(JSON.stringify({ url: dappUrl }))}`,
+    universalLink: (dappUrl: string) => 
+      `https://tokenpocket.pro/mobile?url=${encodeURIComponent(dappUrl)}`,
+  },
+};
+
+// Open wallet via deep-link
+export function openWalletDeeplink(walletId: string): boolean {
+  const config = walletDeeplinks[walletId];
+  if (!config) return false;
+  
+  const dappUrl = getCurrentDappUrl();
+  
+  // Try universal link first on iOS (more reliable), then deep-link
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const link = isIOS && config.universalLink 
+    ? config.universalLink(dappUrl) 
+    : config.deeplink(dappUrl);
+  
+  // Attempt to open the wallet
+  window.location.href = link;
+  return true;
+}
+
+// Get install URL for a wallet
+export function getWalletInstallUrl(walletId: string): string {
+  const installUrls: Record<string, string> = {
+    okx: 'https://www.okx.com/web3',
+    metamask: 'https://metamask.io/download/',
+    phantom: 'https://phantom.app/download',
+    solflare: 'https://solflare.com/download',
+    tronlink: 'https://www.tronlink.org/dlDetails/',
+    tokenpocket: 'https://www.tokenpocket.pro/en/download/app',
+    'sui-wallet': 'https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil',
+    tonkeeper: 'https://tonkeeper.com/',
+  };
+  
+  return installUrls[walletId] || '#';
+}
