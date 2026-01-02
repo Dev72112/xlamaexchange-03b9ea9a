@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "./SocialIcons";
+import { showCookieConsent } from "./CookieConsent";
 
 export function Footer() {
   return (
@@ -68,6 +69,14 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/terms" className="hover:text-foreground transition-colors">Terms of Use</Link></li>
               <li><Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link></li>
+              <li>
+                <button 
+                  onClick={showCookieConsent}
+                  className="hover:text-foreground transition-colors"
+                >
+                  Manage Cookies
+                </button>
+              </li>
             </ul>
           </nav>
         </div>

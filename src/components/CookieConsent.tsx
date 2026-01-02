@@ -5,16 +5,34 @@ import { Cookie, X } from "lucide-react";
 
 const COOKIE_CONSENT_KEY = "xlama-cookie-consent";
 
+// Export function to allow showing the consent banner again
+export function showCookieConsent() {
+  localStorage.removeItem(COOKIE_CONSENT_KEY);
+  window.dispatchEvent(new Event("show-cookie-consent"));
+}
+
 export function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    const checkConsent = () => {
+      const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
+      if (!consent) {
+        setIsVisible(true);
+      }
+    };
+
+    // Initial check with delay
     const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
     if (!consent) {
-      // Small delay for better UX
       const timer = setTimeout(() => setIsVisible(true), 1000);
       return () => clearTimeout(timer);
     }
+
+    // Listen for manual show event
+    const handleShowEvent = () => checkConsent();
+    window.addEventListener("show-cookie-consent", handleShowEvent);
+    return () => window.removeEventListener("show-cookie-consent", handleShowEvent);
   }, []);
 
   const handleAccept = () => {
