@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,15 +11,18 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CookieConsent } from "@/components/CookieConsent";
 import { TrackingProvider } from "@/components/TrackingProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import Index from "./pages/Index";
-import FAQ from "./pages/FAQ";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import About from "./pages/About";
-import Favorites from "./pages/Favorites";
-import History from "./pages/History";
-import CookiesPolicy from "./pages/CookiesPolicy";
-import NotFound from "./pages/NotFound";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
+
+// Lazy load pages for better performance
+const Index = lazy(() => import("./pages/Index"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const About = lazy(() => import("./pages/About"));
+const Favorites = lazy(() => import("./pages/Favorites"));
+const History = lazy(() => import("./pages/History"));
+const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Import Sui dapp-kit styles
 import '@mysten/dapp-kit/dist/index.css';
@@ -35,17 +39,19 @@ const App = () => (
               <BrowserRouter>
                 <ScrollToTop />
                 <TrackingProvider>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/favorites" element={<Favorites />} />
-                    <Route path="/history" element={<History />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/faq" element={<FAQ />} />
-                    <Route path="/terms" element={<Terms />} />
-                    <Route path="/privacy" element={<Privacy />} />
-                    <Route path="/cookies" element={<CookiesPolicy />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+                  <Suspense fallback={<PageLoadingSkeleton />}>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/favorites" element={<Favorites />} />
+                      <Route path="/history" element={<History />} />
+                      <Route path="/about" element={<About />} />
+                      <Route path="/faq" element={<FAQ />} />
+                      <Route path="/terms" element={<Terms />} />
+                      <Route path="/privacy" element={<Privacy />} />
+                      <Route path="/cookies" element={<CookiesPolicy />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
                   <CookieConsent />
                 </TrackingProvider>
               </BrowserRouter>
