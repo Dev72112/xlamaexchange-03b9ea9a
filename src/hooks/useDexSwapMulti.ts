@@ -123,7 +123,7 @@ export function useDexSwapMulti() {
 
   // EVM Swap (existing logic)
   const executeEvmSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
-    const provider = getEvmProvider();
+    const provider = await getEvmProvider();
     if (!provider) throw new Error('No EVM provider available');
 
     const isNativeToken = fromToken.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();

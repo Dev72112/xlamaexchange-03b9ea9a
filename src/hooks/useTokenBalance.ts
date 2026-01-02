@@ -29,7 +29,7 @@ export function useTokenBalance(token: OkxToken | null, chainIndex?: string) {
     setBalance(prev => ({ ...prev, loading: true }));
 
     try {
-      const provider = getEvmProvider();
+      const provider = await getEvmProvider();
       if (!provider) {
         setBalance({ balance: '0', formatted: '0', loading: false });
         return;
@@ -122,7 +122,7 @@ export function useTokenBalances(tokens: OkxToken[]) {
     setLoading(true);
 
     try {
-      const provider = getEvmProvider();
+      const provider = await getEvmProvider();
       if (!provider) return;
 
       const newBalances = new Map<string, string>();

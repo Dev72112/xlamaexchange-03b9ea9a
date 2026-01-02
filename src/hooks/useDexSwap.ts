@@ -63,7 +63,7 @@ export function useDexSwap() {
     setStep('idle');
 
     try {
-      const provider = getEvmProvider();
+      const provider = await getEvmProvider();
       if (!provider) throw new Error('No provider available');
 
       // Convert amount to smallest unit without scientific notation
