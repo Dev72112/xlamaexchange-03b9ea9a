@@ -91,15 +91,38 @@ export const appKitMetadata = {
   icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : '/favicon.ico'],
 };
 
-// Project ID from environment or localStorage - use a fallback for development
+// Project ID from environment or localStorage
 const getProjectId = (): string => {
   const fromEnv = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
   const fromStorage = typeof window !== 'undefined' ? localStorage.getItem('walletconnectProjectId') || '' : '';
-  // Use a development/test project ID if none is configured (public demo ID)
-  return fromEnv || fromStorage || 'demo-project-id';
+  return fromEnv || fromStorage || '';
 };
 
-export const projectId = getProjectId();
+export let projectId = getProjectId();
+
+// Fetch project ID from edge function and reinitialize if needed
+export const initializeProjectId = async (): Promise<string> => {
+  if (projectId) return projectId;
+  
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl) return projectId;
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/walletconnect-config`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.projectId) {
+        projectId = data.projectId;
+        localStorage.setItem('walletconnectProjectId', data.projectId);
+        console.log('[AppKit] WalletConnect Project ID loaded from edge function');
+      }
+    }
+  } catch (error) {
+    console.warn('[AppKit] Failed to fetch WalletConnect config:', error);
+  }
+  
+  return projectId;
+};
 
 // Create Wagmi adapter for EVM chains
 export const wagmiAdapter = new WagmiAdapter({
