@@ -21,6 +21,8 @@ import { usePriceAlerts, PriceAlert } from "@/hooks/usePriceAlerts";
 import { Badge } from "@/components/ui/badge";
 import { useChangeNowCurrencies } from "@/hooks/useChangeNowCurrencies";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { trackPriceAlertCreated } from "@/lib/tracking";
 
 const popularPairs = [
   { from: "btc", to: "eth", fromName: "Bitcoin", toName: "Ethereum" },
@@ -41,6 +43,7 @@ export function PriceAlerts() {
   const [targetRate, setTargetRate] = useState("");
   const [condition, setCondition] = useState<"above" | "below">("above");
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const { toast } = useToast();
   
   // Custom pair creation
   const [isCustomPair, setIsCustomPair] = useState(false);
@@ -98,6 +101,15 @@ export function PriceAlerts() {
       condition,
     });
 
+    // Track the event
+    trackPriceAlertCreated(fromTicker, toTicker, condition);
+
+    // Show toast
+    toast({
+      title: "Alert Created",
+      description: `You'll be notified when ${fromName}/${toName} goes ${condition} ${targetRate}`,
+    });
+
     setDialogOpen(false);
     setSelectedPair("");
     setTargetRate("");
@@ -105,6 +117,14 @@ export function PriceAlerts() {
     setIsCustomPair(false);
     setCustomFrom("");
     setCustomTo("");
+  };
+
+  const handleRemoveAlert = (alertId: string) => {
+    removeAlert(alertId);
+    toast({
+      title: "Alert Removed",
+      description: "Price alert has been deleted.",
+    });
   };
 
   const formatTimeAgo = (timestamp: number) => {
@@ -384,7 +404,7 @@ export function PriceAlerts() {
                         <AlertCard 
                           key={alert.id} 
                           alert={alert} 
-                          onRemove={removeAlert}
+                          onRemove={handleRemoveAlert}
                           formatTimeAgo={formatTimeAgo}
                         />
                       ))}
@@ -404,7 +424,7 @@ export function PriceAlerts() {
                         <AlertCard 
                           key={alert.id} 
                           alert={alert} 
-                          onRemove={removeAlert}
+                          onRemove={handleRemoveAlert}
                           formatTimeAgo={formatTimeAgo}
                           triggered
                         />

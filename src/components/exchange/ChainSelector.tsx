@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Chain, SUPPORTED_CHAINS, getEvmChains, getNonEvmChains } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChainSelectorProps {
   selectedChain: Chain;
@@ -21,6 +22,7 @@ interface ChainSelectorProps {
 export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = false, excludeChainIndex }: ChainSelectorProps) {
   const { evmChainId: chainId, switchEvmChain: switchChain, isConnected } = useMultiWallet();
   const [open, setOpen] = React.useState(false);
+  const { toast } = useToast();
   
   const evmChains = getEvmChains().filter(c => c.chainIndex !== excludeChainIndex);
   const nonEvmChains = getNonEvmChains().filter(c => c.chainIndex !== excludeChainIndex);
@@ -36,8 +38,17 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
     if (isConnected && chain.isEvm && chain.chainId && chainId !== chain.chainId) {
       try {
         await switchChain(chain.chainId);
+        toast({
+          title: "Network Switched",
+          description: `Now using ${chain.name}`,
+        });
       } catch (error) {
         console.error('Failed to switch chain:', error);
+        toast({
+          title: "Switch Failed",
+          description: "Could not switch network. Please try manually.",
+          variant: "destructive",
+        });
       }
     }
   };
