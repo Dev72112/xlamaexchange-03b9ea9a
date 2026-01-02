@@ -101,7 +101,7 @@ const History = () => {
             </Button>
           </Card>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-3 content-fade-in">
             {transactions.map((tx) => (
               <Card 
                 key={tx.id}
