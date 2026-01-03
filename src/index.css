@@ -161,7 +161,7 @@
 
 /* Content fade-in animation */
 .content-fade-in {
-  animation: contentFadeIn 0.4s ease-out forwards;
+  animation: contentFadeIn 0.4s ease-out both;
 }
 
 @keyframes contentFadeIn {

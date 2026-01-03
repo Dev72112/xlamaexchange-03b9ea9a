@@ -103,55 +103,78 @@ export let projectId = getProjectId();
 // Fetch project ID from edge function and reinitialize if needed
 export const initializeProjectId = async (): Promise<string> => {
   if (projectId) return projectId;
-  
+
   try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    if (!supabaseUrl) return projectId;
-    
-    const response = await fetch(`${supabaseUrl}/functions/v1/walletconnect-config`);
+    const backendUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    // This endpoint is protected by JWT verification, so we must include anon JWT headers.
+    if (!backendUrl || !anonKey) return projectId;
+
+    const response = await fetch(`${backendUrl}/functions/v1/walletconnect-config`, {
+      headers: {
+        apikey: anonKey,
+        authorization: `Bearer ${anonKey}`,
+      },
+    });
+
     if (response.ok) {
       const data = await response.json();
       if (data.projectId) {
         projectId = data.projectId;
         localStorage.setItem('walletconnectProjectId', data.projectId);
-        console.log('[AppKit] WalletConnect Project ID loaded from edge function');
+        console.log('[AppKit] WalletConnect Project ID loaded from backend');
+      } else {
+        console.warn('[AppKit] WalletConnect Project ID missing in backend response');
       }
+    } else {
+      console.warn('[AppKit] WalletConnect config request failed:', response.status);
     }
   } catch (error) {
     console.warn('[AppKit] Failed to fetch WalletConnect config:', error);
   }
-  
+
   return projectId;
 };
 
-// Create Wagmi adapter for EVM chains
-export const wagmiAdapter = new WagmiAdapter({
-  networks: evmNetworks,
-  projectId,
-});
+// AppKit instances are initialized AFTER we have a valid projectId.
+// (This avoids "Project ID not configured" on fresh devices where localStorage is empty.)
+export let wagmiConfig: any;
+export let appKit: ReturnType<typeof createAppKit> | null = null;
 
-// Create Solana adapter
-export const solanaAdapter = new SolanaAdapter({
-  wallets: [], // AppKit auto-detects Phantom, Solflare, etc.
-});
+export const initializeAppKit = async (): Promise<void> => {
+  await initializeProjectId();
 
-// Create AppKit instance immediately
-export const appKit = createAppKit({
-  adapters: [wagmiAdapter, solanaAdapter],
-  networks: allNetworks,
-  projectId,
-  metadata: appKitMetadata,
-  features: {
-    analytics: false,
-    socials: false,
-    email: false,
-  },
-  themeMode: 'dark',
-  themeVariables: {
-    '--w3m-accent': 'hsl(142, 71%, 45%)', // Match app primary color
-    '--w3m-border-radius-master': '0.5rem',
-  },
-});
+  if (appKit && wagmiConfig) return;
 
-// Export the wagmi config from adapter
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
+  const wagmiAdapter = new WagmiAdapter({
+    networks: evmNetworks,
+    projectId,
+  });
+
+  const solanaAdapter = new SolanaAdapter({
+    wallets: [], // AppKit auto-detects Phantom, Solflare, etc.
+  });
+
+  // Export the wagmi config from adapter
+  wagmiConfig = wagmiAdapter.wagmiConfig;
+
+  // Create AppKit instance
+  appKit = createAppKit({
+    adapters: [wagmiAdapter, solanaAdapter],
+    networks: allNetworks,
+    projectId,
+    metadata: appKitMetadata,
+    features: {
+      analytics: false,
+      socials: false,
+      email: false,
+    },
+    themeMode: 'dark',
+    themeVariables: {
+      '--w3m-accent': 'hsl(142, 71%, 45%)', // Match app primary color
+      '--w3m-border-radius-master': '0.5rem',
+    },
+  });
+};
+

@@ -12,6 +12,7 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { TrackingProvider } from "@/components/TrackingProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
+import { RouteLoadingProvider } from "@/contexts/RouteLoadingContext";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -37,23 +38,25 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter>
-                <ScrollToTop />
-                <TrackingProvider>
-                  <Suspense fallback={<PageLoadingSkeleton />}>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/favorites" element={<Favorites />} />
-                      <Route path="/history" element={<History />} />
-                      <Route path="/about" element={<About />} />
-                      <Route path="/faq" element={<FAQ />} />
-                      <Route path="/terms" element={<Terms />} />
-                      <Route path="/privacy" element={<Privacy />} />
-                      <Route path="/cookies" element={<CookiesPolicy />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                  <CookieConsent />
-                </TrackingProvider>
+                <RouteLoadingProvider>
+                  <ScrollToTop />
+                  <TrackingProvider>
+                    <Suspense fallback={<PageLoadingSkeleton />}>
+                      <Routes>
+                        <Route path="/" element={<Index />} />
+                        <Route path="/favorites" element={<Favorites />} />
+                        <Route path="/history" element={<History />} />
+                        <Route path="/about" element={<About />} />
+                        <Route path="/faq" element={<FAQ />} />
+                        <Route path="/terms" element={<Terms />} />
+                        <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/cookies" element={<CookiesPolicy />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </Suspense>
+                    <CookieConsent />
+                  </TrackingProvider>
+                </RouteLoadingProvider>
               </BrowserRouter>
             </TooltipProvider>
           </DexTransactionProvider>
