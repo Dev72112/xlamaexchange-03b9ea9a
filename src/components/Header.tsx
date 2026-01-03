@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
-import { Star, Menu, X, Search, Clock, ArrowRightLeft, Info } from "lucide-react";
+import { Star, Menu, X, Search, Clock, ArrowRightLeft, Info, PieChart } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -8,17 +8,20 @@ import { GlobalSearch } from "./GlobalSearch";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "./SocialIcons";
 import { Progress } from "@/components/ui/progress";
 import { useRouteLoading } from "@/contexts/RouteLoadingContext";
+import { useMultiWallet } from "@/contexts/MultiWalletContext";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
   const { isRouteLoading, progress } = useRouteLoading();
+  const { isConnected } = useMultiWallet();
 
   const isActive = (path: string) => location.pathname === path;
 
   const navLinks = [
     { path: "/", label: "Exchange", icon: ArrowRightLeft },
+    ...(isConnected ? [{ path: "/portfolio", label: "Portfolio", icon: PieChart }] : []),
     { path: "/favorites", label: "Favorites", icon: Star },
     { path: "/history", label: "History", icon: Clock },
     { path: "/about", label: "About", icon: Info },
