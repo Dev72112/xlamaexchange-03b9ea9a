@@ -1,4 +1,6 @@
+import { memo } from "react";
 import { Shield, Zap, Globe, Lock, Clock, Coins } from "lucide-react";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 const features = [
   {
@@ -33,34 +35,38 @@ const features = [
   },
 ];
 
-export function Features() {
+export const Features = memo(function Features() {
   return (
-    <section className="py-20">
-      <div className="container">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+    <section className="py-16 sm:py-20" aria-labelledby="features-heading">
+      <div className="container px-4 sm:px-6">
+        <div className="text-center mb-10 sm:mb-12">
+          <h2 id="features-heading" className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">
             Why Choose xlama
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
             The simplest way to exchange cryptocurrency without compromising on security or speed.
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
-            <div
-              key={index}
-              className="group p-6 rounded-xl bg-card border border-border hover:border-foreground/20 transition-all duration-300"
+            <article
+              key={feature.title}
+              className={`group p-5 sm:p-6 rounded-xl bg-card border border-border hover:border-primary/20 hover-lift transition-all duration-300 ${STAGGER_ITEM_CLASS}`}
+              style={getStaggerStyle(index, 60)}
             >
-              <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-accent transition-colors">
-                <feature.icon className="w-6 h-6 text-foreground" />
+              <div 
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-accent transition-colors"
+                aria-hidden="true"
+              >
+                <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
-            </div>
+              <h3 className="text-base sm:text-lg font-semibold mb-2">{feature.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+            </article>
           ))}
         </div>
       </div>
     </section>
   );
-}
+});
