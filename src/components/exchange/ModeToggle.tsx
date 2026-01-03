@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useRef, useEffect, useState } from 'react';
 import { Zap, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -10,21 +10,47 @@ interface ModeToggleProps {
   onModeChange: (mode: ExchangeMode) => void;
 }
 
-export function ModeToggle({ mode, onModeChange }: ModeToggleProps) {
+export const ModeToggle = memo(function ModeToggle({ mode, onModeChange }: ModeToggleProps) {
+  const instantRef = useRef<HTMLButtonElement>(null);
+  const dexRef = useRef<HTMLButtonElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+
+  // Update sliding indicator position
+  useEffect(() => {
+    const activeRef = mode === 'instant' ? instantRef : dexRef;
+    if (activeRef.current) {
+      const { offsetLeft, offsetWidth } = activeRef.current;
+      setIndicatorStyle({ left: offsetLeft, width: offsetWidth });
+    }
+  }, [mode]);
+
   return (
-    <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+    <div className="relative flex items-center gap-1 p-1 bg-muted rounded-lg">
+      {/* Sliding background indicator */}
+      <div 
+        className="absolute h-[calc(100%-8px)] bg-background rounded-md shadow-sm transition-all duration-200 ease-out"
+        style={{ 
+          left: indicatorStyle.left,
+          width: indicatorStyle.width,
+        }}
+      />
+      
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            ref={instantRef}
             onClick={() => onModeChange('instant')}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+              "relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200",
               mode === 'instant' 
-                ? "bg-background text-foreground shadow-sm" 
+                ? "text-foreground" 
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Zap className="w-4 h-4" />
+            <Zap className={cn(
+              "w-4 h-4 transition-transform duration-200",
+              mode === 'instant' && "scale-110"
+            )} />
             <span>Instant</span>
           </button>
         </TooltipTrigger>
@@ -42,15 +68,19 @@ export function ModeToggle({ mode, onModeChange }: ModeToggleProps) {
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            ref={dexRef}
             onClick={() => onModeChange('dex')}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+              "relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200",
               mode === 'dex' 
-                ? "bg-background text-foreground shadow-sm" 
+                ? "text-foreground" 
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Repeat className="w-4 h-4" />
+            <Repeat className={cn(
+              "w-4 h-4 transition-transform duration-200",
+              mode === 'dex' && "scale-110"
+            )} />
             <span>DEX</span>
           </button>
         </TooltipTrigger>
@@ -66,4 +96,4 @@ export function ModeToggle({ mode, onModeChange }: ModeToggleProps) {
       </Tooltip>
     </div>
   );
-}
+});

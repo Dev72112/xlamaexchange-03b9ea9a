@@ -108,6 +108,16 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    transition: background-color 0.3s ease;
+  }
+
+  /* Theme transition styles */
+  .theme-transitioning,
+  .theme-transitioning * {
+    transition: background-color 0.3s ease, 
+                border-color 0.3s ease,
+                color 0.2s ease,
+                box-shadow 0.3s ease !important;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -273,4 +283,89 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
+/* Page transitions */
+.page-transition {
+  will-change: opacity, transform;
+}
+
+.page-enter {
+  animation: pageEnter 0.25s ease-out forwards;
+}
+
+.page-exit {
+  animation: pageExit 0.15s ease-in forwards;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageExit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Mode transition for exchange widget */
+.mode-content {
+  will-change: opacity, transform;
+}
+
+.mode-enter {
+  animation: modeEnter 0.2s ease-out forwards;
+}
+
+.mode-exit {
+  animation: modeExit 0.15s ease-in forwards;
+}
+
+@keyframes modeEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modeExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* Theme toggle animation */
+.theme-toggle-animate {
+  animation: themeTogglePop 0.5s ease-out;
+}
+
+@keyframes themeTogglePop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
