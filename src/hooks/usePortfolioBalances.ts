@@ -31,19 +31,45 @@ const CHAIN_INDICES = {
   ton: '607',
 };
 
-// Get custom tokens from localStorage for a chain
-function getCustomTokensForChain(chainIndex: string, walletAddress: string): OkxToken[] {
+// Get custom tokens from localStorage for a chain - check both with and without wallet address
+function getCustomTokensForChain(chainIndex: string, walletAddress?: string): OkxToken[] {
+  const tokens: OkxToken[] = [];
+  const seenAddresses = new Set<string>();
+  
   try {
-    const key = `dex-custom-tokens-${chainIndex}-${walletAddress.toLowerCase()}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      const data = JSON.parse(stored);
-      return data.tokens || [];
+    // Try with wallet address first (wallet-specific tokens)
+    if (walletAddress) {
+      const keyWithWallet = `dex-custom-tokens-${chainIndex}-${walletAddress.toLowerCase()}`;
+      const storedWithWallet = localStorage.getItem(keyWithWallet);
+      if (storedWithWallet) {
+        const data = JSON.parse(storedWithWallet);
+        (data.tokens || []).forEach((t: OkxToken) => {
+          const addr = t.tokenContractAddress.toLowerCase();
+          if (!seenAddresses.has(addr)) {
+            seenAddresses.add(addr);
+            tokens.push(t);
+          }
+        });
+      }
+    }
+    
+    // Also check without wallet address (general tokens)
+    const keyGeneral = `dex-custom-tokens-${chainIndex}`;
+    const storedGeneral = localStorage.getItem(keyGeneral);
+    if (storedGeneral) {
+      const data = JSON.parse(storedGeneral);
+      (data.tokens || []).forEach((t: OkxToken) => {
+        const addr = t.tokenContractAddress.toLowerCase();
+        if (!seenAddresses.has(addr)) {
+          seenAddresses.add(addr);
+          tokens.push(t);
+        }
+      });
     }
   } catch {
     // ignore
   }
-  return [];
+  return tokens;
 }
 
 // Format balance from raw to readable
@@ -73,11 +99,9 @@ export function usePortfolioBalances() {
   const { 
     activeAddress,
     isConnected,
-    getEvmProvider,
     getSolanaConnection,
     getSuiClient,
     getTronWeb,
-    activeChainType,
     evmAddress,
     solanaAddress,
     suiAddress,
@@ -88,6 +112,7 @@ export function usePortfolioBalances() {
   const [tokens, setTokens] = useState<PortfolioToken[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
+  const [selectedChain, setSelectedChain] = useState<string>('all');
 
   const fetchPortfolio = useCallback(async () => {
     if (!isConnected) {
@@ -102,12 +127,14 @@ export function usePortfolioBalances() {
     try {
       const fetchPromises: Promise<void>[] = [];
 
-      // Fetch EVM balances if connected
+      // Fetch EVM balances for each chain using RPC - this is more reliable
       if (evmAddress) {
         const evmChains = SUPPORTED_CHAINS.filter(c => c.isEvm);
-        fetchPromises.push(
-          fetchEvmChainBalances(evmChains, evmAddress, getEvmProvider, portfolioTokens)
-        );
+        for (const chain of evmChains) {
+          fetchPromises.push(
+            fetchEvmChainBalancesViaRpc(chain, evmAddress, portfolioTokens)
+          );
+        }
       }
 
       // Fetch Solana balances if connected
@@ -162,7 +189,7 @@ export function usePortfolioBalances() {
     } finally {
       setLoading(false);
     }
-  }, [isConnected, evmAddress, solanaAddress, suiAddress, tronAddress, tonAddress, getEvmProvider, getSolanaConnection, getSuiClient, getTronWeb]);
+  }, [isConnected, evmAddress, solanaAddress, suiAddress, tronAddress, tonAddress, getSolanaConnection, getSuiClient, getTronWeb]);
 
   useEffect(() => {
     fetchPortfolio();
@@ -175,62 +202,97 @@ export function usePortfolioBalances() {
     return () => clearInterval(interval);
   }, [fetchPortfolio, isConnected]);
 
+  // Filter tokens by selected chain
+  const filteredTokens = selectedChain === 'all' 
+    ? tokens 
+    : tokens.filter(t => t.chainIndex === selectedChain);
+
+  // Get unique chains that have tokens
+  const chainsWithBalances = [...new Set(tokens.map(t => t.chainIndex))];
+
   return {
-    tokens,
+    tokens: filteredTokens,
+    allTokens: tokens,
     loading,
     totalValue,
     refetch: fetchPortfolio,
+    selectedChain,
+    setSelectedChain,
+    chainsWithBalances,
   };
 }
 
-// EVM chain balance fetching
-async function fetchEvmChainBalances(
-  chains: Chain[],
+// Fetch EVM balances via direct RPC (not wallet provider) - more reliable
+async function fetchEvmChainBalancesViaRpc(
+  chain: Chain,
   address: string,
-  getEvmProvider: () => Promise<any>,
   portfolioTokens: PortfolioToken[]
 ): Promise<void> {
-  const provider = await getEvmProvider();
-  if (!provider) return;
-
-  await Promise.all(chains.map(async (chain) => {
-    try {
-      // Get native token balance
-      const nativeBalance = await fetchEvmNativeBalance(provider, address);
-      if (nativeBalance && nativeBalance !== '0') {
-        const decimals = chain.nativeCurrency.decimals;
-        const balanceFormatted = formatBalance(nativeBalance, decimals);
-        if (parseFloat(balanceFormatted) > 0) {
-          const price = await getTokenPrice(chain.chainIndex, NATIVE_TOKEN_ADDRESS);
-          const usdValue = parseFloat(balanceFormatted) * price;
-          
-          if (usdValue >= 0.01) {
-            portfolioTokens.push({
-              tokenContractAddress: NATIVE_TOKEN_ADDRESS,
-              tokenSymbol: chain.nativeCurrency.symbol,
-              tokenName: chain.nativeCurrency.name,
-              decimals: decimals.toString(),
-              tokenLogoUrl: chain.icon,
-              chainIndex: chain.chainIndex,
-              chainName: chain.name,
-              chainIcon: chain.icon,
-              balance: nativeBalance,
-              balanceFormatted,
-              usdValue,
-              price,
-              priceChange24h: 0,
-            });
-          }
+  try {
+    // Get native token balance via RPC
+    const nativeBalance = await fetchEvmNativeBalanceViaRpc(chain.rpcUrl, address);
+    if (nativeBalance && nativeBalance !== '0') {
+      const decimals = chain.nativeCurrency.decimals;
+      const balanceFormatted = formatBalance(nativeBalance, decimals);
+      if (parseFloat(balanceFormatted) > 0) {
+        const price = await getTokenPrice(chain.chainIndex, NATIVE_TOKEN_ADDRESS);
+        const usdValue = parseFloat(balanceFormatted) * price;
+        
+        if (usdValue >= 0.01) {
+          portfolioTokens.push({
+            tokenContractAddress: NATIVE_TOKEN_ADDRESS,
+            tokenSymbol: chain.nativeCurrency.symbol,
+            tokenName: chain.nativeCurrency.name,
+            decimals: decimals.toString(),
+            tokenLogoUrl: chain.icon,
+            chainIndex: chain.chainIndex,
+            chainName: chain.name,
+            chainIcon: chain.icon,
+            balance: nativeBalance,
+            balanceFormatted,
+            usdValue,
+            price,
+            priceChange24h: 0,
+          });
         }
       }
-
-      // Get custom tokens for this chain
-      const customTokens = getCustomTokensForChain(chain.chainIndex, address);
-      await fetchCustomTokenBalances(chain, address, customTokens, provider, portfolioTokens, 'evm');
-    } catch (err) {
-      console.error(`Failed to fetch EVM balances for ${chain.name}:`, err);
     }
-  }));
+
+    // Get custom tokens for this chain
+    const customTokens = getCustomTokensForChain(chain.chainIndex, address);
+    for (const token of customTokens) {
+      try {
+        const balance = await fetchErc20BalanceViaRpc(chain.rpcUrl, address, token.tokenContractAddress);
+        if (balance && balance !== '0') {
+          const decimals = parseInt(token.decimals);
+          const balanceFormatted = formatBalance(balance, decimals);
+          if (parseFloat(balanceFormatted) > 0) {
+            const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
+            const usdValue = parseFloat(balanceFormatted) * price;
+            
+            if (usdValue >= 0.01 || parseFloat(balanceFormatted) > 0) {
+              portfolioTokens.push({
+                ...token,
+                chainIndex: chain.chainIndex,
+                chainName: chain.name,
+                chainIcon: chain.icon,
+                balance,
+                balanceFormatted,
+                usdValue,
+                price,
+                priceChange24h: 0,
+                isCustom: true,
+              });
+            }
+          }
+        }
+      } catch {
+        // Skip failed token fetches
+      }
+    }
+  } catch (err) {
+    console.error(`Failed to fetch EVM balances for ${chain.name}:`, err);
+  }
 }
 
 // Solana balance fetching
@@ -518,71 +580,53 @@ async function fetchTonBalances(
   }
 }
 
-// Helper: Fetch EVM native balance
-async function fetchEvmNativeBalance(provider: any, address: string): Promise<string> {
+// Helper: Fetch EVM native balance via RPC
+async function fetchEvmNativeBalanceViaRpc(rpcUrl: string, address: string): Promise<string> {
   try {
-    const balance = await provider.request({
-      method: 'eth_getBalance',
-      params: [address, 'latest'],
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_getBalance',
+        params: [address, 'latest'],
+      }),
     });
-    return BigInt(balance || '0x0').toString();
+    const data = await response.json();
+    if (data.result) {
+      return BigInt(data.result).toString();
+    }
+    return '0';
   } catch {
     return '0';
   }
 }
 
-// Helper: Fetch ERC20 token balance
-async function fetchErc20Balance(provider: any, address: string, tokenAddress: string): Promise<string> {
+// Helper: Fetch ERC20 token balance via RPC
+async function fetchErc20BalanceViaRpc(rpcUrl: string, address: string, tokenAddress: string): Promise<string> {
   try {
     const balanceData = BALANCE_OF_ABI + address.toLowerCase().replace('0x', '').padStart(64, '0');
-    const balance = await provider.request({
-      method: 'eth_call',
-      params: [{ to: tokenAddress, data: balanceData }, 'latest'],
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_call',
+        params: [{ to: tokenAddress, data: balanceData }, 'latest'],
+      }),
     });
-    return BigInt(balance || '0x0').toString();
+    const data = await response.json();
+    if (data.result && data.result !== '0x') {
+      return BigInt(data.result).toString();
+    }
+    return '0';
   } catch {
     return '0';
   }
 }
 
-// Helper: Fetch custom token balances for EVM
-async function fetchCustomTokenBalances(
-  chain: Chain,
-  address: string,
-  customTokens: OkxToken[],
-  provider: any,
-  portfolioTokens: PortfolioToken[],
-  chainType: string
-): Promise<void> {
-  for (const token of customTokens) {
-    try {
-      const balance = await fetchErc20Balance(provider, address, token.tokenContractAddress);
-      if (balance && balance !== '0') {
-        const decimals = parseInt(token.decimals);
-        const balanceFormatted = formatBalance(balance, decimals);
-        const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
-        const usdValue = parseFloat(balanceFormatted) * price;
-        
-        if (usdValue >= 0.01) {
-          portfolioTokens.push({
-            ...token,
-            chainIndex: chain.chainIndex,
-            chainName: chain.name,
-            chainIcon: chain.icon,
-            balance,
-            balanceFormatted,
-            usdValue,
-            price,
-            priceChange24h: 0,
-            isCustom: true,
-          });
-        }
-      }
-    } catch {
-      // Skip failed token fetches
-    }
-  }
-}
 
 // Get token price with caching
 async function getTokenPrice(chainIndex: string, tokenAddress: string): Promise<number> {
