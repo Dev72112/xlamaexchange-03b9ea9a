@@ -1,4 +1,6 @@
+import { memo } from "react";
 import { Search, Wallet, ArrowRightLeft, CheckCircle2 } from "lucide-react";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 const steps = [
   {
@@ -23,36 +25,46 @@ const steps = [
   },
 ];
 
-export function HowItWorks() {
+export const HowItWorks = memo(function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-20 bg-secondary/50">
-      <div className="container">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+    <section id="how-it-works" className="py-16 sm:py-20 bg-secondary/50" aria-labelledby="how-it-works-heading">
+      <div className="container px-4 sm:px-6">
+        <div className="text-center mb-10 sm:mb-12">
+          <h2 id="how-it-works-heading" className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">
             How It Works
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
             Exchange cryptocurrency in just a few simple steps. No account required.
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 sm:gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, index) => (
-            <div key={index} className="relative group">
-              <div className="bg-card rounded-xl p-6 border border-border hover:border-foreground/20 transition-all duration-300 h-full">
-                <div className="w-14 h-14 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <step.icon className="w-7 h-7 text-foreground" />
+            <article 
+              key={step.title} 
+              className={`relative group ${STAGGER_ITEM_CLASS}`}
+              style={getStaggerStyle(index, 100)}
+            >
+              <div className="bg-card rounded-xl p-5 sm:p-6 border border-border hover:border-primary/20 hover-lift transition-all duration-300 h-full">
+                <div 
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:scale-105 transition-transform"
+                  aria-hidden="true"
+                >
+                  <step.icon className="w-6 h-6 sm:w-7 sm:h-7 text-foreground" />
                 </div>
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-foreground text-background font-bold flex items-center justify-center text-sm">
+                <div 
+                  className="absolute -top-2.5 -right-2.5 sm:-top-3 sm:-right-3 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-foreground text-background font-bold flex items-center justify-center text-xs sm:text-sm"
+                  aria-label={`Step ${index + 1}`}
+                >
                   {index + 1}
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                <p className="text-sm text-muted-foreground">{step.description}</p>
+                <h3 className="text-base sm:text-lg font-semibold mb-2">{step.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </div>
     </section>
   );
-}
+});
