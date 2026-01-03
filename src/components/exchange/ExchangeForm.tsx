@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { changeNowService, Transaction, TransactionStatus } from "@/services/changenow";
 import QRCode from "react-qr-code";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useFeedback } from "@/hooks/useFeedback";
 
 interface ExchangeFormProps {
   fromCurrency: Currency;
@@ -37,6 +38,7 @@ export function ExchangeForm({
 }: ExchangeFormProps) {
   const { toast } = useToast();
   const { addTransaction, updateTransaction } = useTransactionHistory();
+  const { triggerFeedback } = useFeedback();
   const [step, setStep] = useState<Step>("address");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [refundAddress, setRefundAddress] = useState("");
@@ -149,6 +151,8 @@ export function ExchangeForm({
       
       // Update transaction in history
       if (status.status === 'finished') {
+        // Trigger success feedback for completed swap
+        triggerFeedback('success', 'heavy');
         updateTransaction(transaction.id, { status: 'completed' });
       } else if (status.status === 'failed' || status.status === 'refunded') {
         updateTransaction(transaction.id, { status: 'failed' });

@@ -1,22 +1,57 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useFeedback } from '@/hooks/useFeedback';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void> | void;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
+  showSkeleton?: boolean;
 }
 
 const PULL_THRESHOLD = 80;
 const RESISTANCE = 2.5;
 
+// Skeleton overlay for refresh state
+const RefreshSkeleton = memo(function RefreshSkeleton() {
+  return (
+    <div className="absolute inset-0 z-40 bg-card/90 backdrop-blur-sm rounded-2xl p-4 animate-fade-in">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-24 skeleton-shimmer" />
+          <Skeleton className="h-8 w-8 rounded-full skeleton-shimmer" />
+        </div>
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between gap-4">
+            <Skeleton className="h-12 w-32 rounded-xl skeleton-shimmer" />
+            <Skeleton className="h-10 w-24 skeleton-shimmer" />
+          </div>
+          <div className="flex justify-center py-2">
+            <Skeleton className="h-10 w-10 rounded-full skeleton-shimmer" />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Skeleton className="h-12 w-32 rounded-xl skeleton-shimmer" />
+            <Skeleton className="h-10 w-24 skeleton-shimmer" />
+          </div>
+        </div>
+        <div className="pt-2">
+          <Skeleton className="h-4 w-48 mx-auto skeleton-shimmer" />
+        </div>
+        <Skeleton className="h-12 w-full rounded-xl skeleton-shimmer" />
+      </div>
+    </div>
+  );
+});
+
 export const PullToRefresh = memo(function PullToRefresh({ 
   onRefresh, 
   children, 
   className,
-  disabled = false 
+  disabled = false,
+  showSkeleton = true
 }: PullToRefreshProps) {
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -26,6 +61,8 @@ export const PullToRefresh = memo(function PullToRefresh({
   const startYRef = useRef(0);
   const currentYRef = useRef(0);
   const isPullingRef = useRef(false);
+  
+  const { triggerFeedback } = useFeedback();
 
   const canPull = useCallback(() => {
     if (disabled || isRefreshing) return false;
@@ -67,6 +104,9 @@ export const PullToRefresh = memo(function PullToRefresh({
     setIsPulling(false);
     
     if (pullDistance >= PULL_THRESHOLD) {
+      // Trigger haptic feedback and sound
+      triggerFeedback('refresh', 'medium');
+      
       setIsRefreshing(true);
       setPullDistance(PULL_THRESHOLD / 2);
       
@@ -79,7 +119,7 @@ export const PullToRefresh = memo(function PullToRefresh({
     } else {
       setPullDistance(0);
     }
-  }, [pullDistance, onRefresh]);
+  }, [pullDistance, onRefresh, triggerFeedback]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -127,11 +167,15 @@ export const PullToRefresh = memo(function PullToRefresh({
         </div>
       </div>
       
+      {/* Skeleton overlay during refresh */}
+      {isRefreshing && showSkeleton && <RefreshSkeleton />}
+      
       {/* Content with pull transform */}
       <div 
         style={{ 
           transform: `translateY(${pullDistance}px)`,
-          transition: isPulling ? 'none' : 'transform 0.3s ease-out'
+          transition: isPulling ? 'none' : 'transform 0.3s ease-out',
+          opacity: isRefreshing && showSkeleton ? 0.3 : 1,
         }}
       >
         {children}
