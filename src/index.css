@@ -175,6 +175,20 @@
   }
 }
 
+/* Fade-in animation for dynamic content */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Staggered list item animation */
 .list-item-stagger {
   animation: listItemFadeIn 0.35s ease-out forwards;

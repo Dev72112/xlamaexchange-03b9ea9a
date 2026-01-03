@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Check, ChevronDown, Star, Globe, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +11,7 @@ import { Chain, SUPPORTED_CHAINS, getEvmChains, getNonEvmChains } from '@/data/c
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { prefetchChain } from '@/lib/tokenPrefetch';
 
 interface ChainSelectorProps {
   selectedChain: Chain;
@@ -60,10 +61,16 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
     target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name.slice(0, 2))}&background=6366f1&color=fff&size=64`;
   };
 
+  // Prefetch tokens when hovering over a chain
+  const handleChainHover = useCallback((chain: Chain) => {
+    prefetchChain(chain.chainIndex);
+  }, []);
+
   const renderChainItem = (chain: Chain) => (
     <button
       key={chain.chainIndex}
       onClick={() => handleChainSelect(chain)}
+      onMouseEnter={() => handleChainHover(chain)}
       className={cn(
         "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-left transition-colors",
         "hover:bg-accent/50",

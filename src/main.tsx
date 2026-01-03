@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { wagmiConfig, initializeAppKit } from "./config/appkit";
+import { startTokenPrefetch } from "./lib/tokenPrefetch";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -16,5 +17,8 @@ initializeAppKit().then(() => {
       </QueryClientProvider>
     </WagmiProvider>
   );
+  
+  // Start prefetching token lists for common chains (non-blocking)
+  startTokenPrefetch();
 });
 

@@ -862,14 +862,18 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               <div className="flex-1 min-w-0">
                 <div className="text-right text-2xl sm:text-3xl font-medium font-mono truncate">
                   {currentLoading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground ml-auto" />
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="h-8 w-28 skeleton-shimmer rounded-md" />
+                    </div>
                   ) : pairUnavailable ? (
                     <span className="text-warning text-lg flex items-center justify-end gap-2">
                       <AlertTriangle className="w-4 h-4 shrink-0" />
                       <span>Unavailable</span>
                     </span>
                   ) : currentOutputAmount ? (
-                    parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })
+                    <span className="animate-fade-in">
+                      {parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                    </span>
                   ) : (
                     <span className="text-muted-foreground">0</span>
                   )}
