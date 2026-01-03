@@ -1,7 +1,8 @@
-import React, { memo, useRef, useEffect, useState } from 'react';
+import React, { memo, useRef, useEffect, useState, useCallback } from 'react';
 import { Zap, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFeedback } from '@/hooks/useFeedback';
 
 export type ExchangeMode = 'instant' | 'dex';
 
@@ -14,6 +15,7 @@ export const ModeToggle = memo(function ModeToggle({ mode, onModeChange }: ModeT
   const instantRef = useRef<HTMLButtonElement>(null);
   const dexRef = useRef<HTMLButtonElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const { triggerFeedback } = useFeedback();
 
   // Update sliding indicator position
   useEffect(() => {
@@ -23,6 +25,13 @@ export const ModeToggle = memo(function ModeToggle({ mode, onModeChange }: ModeT
       setIndicatorStyle({ left: offsetLeft, width: offsetWidth });
     }
   }, [mode]);
+
+  const handleModeChange = useCallback((newMode: ExchangeMode) => {
+    if (newMode !== mode) {
+      triggerFeedback('switch', 'light');
+      onModeChange(newMode);
+    }
+  }, [mode, onModeChange, triggerFeedback]);
 
   return (
     <div className="relative flex items-center gap-1 p-1 bg-muted rounded-lg">
@@ -39,7 +48,7 @@ export const ModeToggle = memo(function ModeToggle({ mode, onModeChange }: ModeT
         <TooltipTrigger asChild>
           <button
             ref={instantRef}
-            onClick={() => onModeChange('instant')}
+            onClick={() => handleModeChange('instant')}
             className={cn(
               "relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200",
               mode === 'instant' 
@@ -69,7 +78,7 @@ export const ModeToggle = memo(function ModeToggle({ mode, onModeChange }: ModeT
         <TooltipTrigger asChild>
           <button
             ref={dexRef}
-            onClick={() => onModeChange('dex')}
+            onClick={() => handleModeChange('dex')}
             className={cn(
               "relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200",
               mode === 'dex' 

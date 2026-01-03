@@ -32,6 +32,7 @@ import { DexSwapProgress } from "./DexSwapProgress";
 import { SwapReviewModal } from "./SwapReviewModal";
 import { HighPriceImpactModal } from "./HighPriceImpactModal";
 import { useTokenPrices } from "@/hooks/useTokenPrice";
+import { useFeedback } from "@/hooks/useFeedback";
 import {
   Dialog,
   DialogContent,
@@ -75,6 +76,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
   const { isConnected, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain } = useMultiWallet();
+  const { triggerFeedback } = useFeedback();
   
   // Exchange mode state
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
@@ -514,6 +516,9 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       amount: fromAmount,
       slippage,
       onSuccess: (hash) => {
+        // Trigger success feedback
+        triggerFeedback('success', 'heavy');
+        
         // Update transaction with hash and confirmed status
         updateTransaction(pendingTx.hash || hash, {
           hash,

@@ -1,11 +1,18 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "./SocialIcons";
 import { showCookieConsent } from "./CookieConsent";
+import { FeedbackSettings } from "./FeedbackSettings";
+import { prefetchRoute } from "@/lib/routePrefetch";
 
 export const Footer = memo(function Footer() {
   const currentYear = new Date().getFullYear();
+
+  // Prefetch route on hover
+  const handleLinkHover = useCallback((path: string) => {
+    prefetchRoute(path);
+  }, []);
 
   return (
     <footer className="border-t border-border bg-background" role="contentinfo">
@@ -49,8 +56,8 @@ export const Footer = memo(function Footer() {
           <nav aria-label="Exchange links">
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">Exchange</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/" className="text-foreground/80 hover:text-foreground transition-colors">Instant Swap</Link></li>
-              <li><Link to="/" className="text-foreground/80 hover:text-foreground transition-colors">DEX Aggregator</Link></li>
+              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} className="text-foreground/80 hover:text-foreground transition-colors">Instant Swap</Link></li>
+              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} className="text-foreground/80 hover:text-foreground transition-colors">DEX Aggregator</Link></li>
               <li><a href="#how-it-works" className="text-foreground/80 hover:text-foreground transition-colors">How It Works</a></li>
             </ul>
           </nav>
@@ -59,8 +66,8 @@ export const Footer = memo(function Footer() {
           <nav aria-label="Support links">
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">Support</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/faq" className="text-foreground/80 hover:text-foreground transition-colors">FAQ</Link></li>
-              <li><Link to="/about" className="text-foreground/80 hover:text-foreground transition-colors">About Us</Link></li>
+              <li><Link to="/faq" onMouseEnter={() => handleLinkHover('/faq')} className="text-foreground/80 hover:text-foreground transition-colors">FAQ</Link></li>
+              <li><Link to="/about" onMouseEnter={() => handleLinkHover('/about')} className="text-foreground/80 hover:text-foreground transition-colors">About Us</Link></li>
               <li>
                 <a href="mailto:support.xlama@defixlama.com" className="text-foreground/80 hover:text-foreground transition-colors inline-flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5" aria-hidden="true" />
@@ -74,9 +81,9 @@ export const Footer = memo(function Footer() {
           <nav aria-label="Legal links">
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">Legal</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/terms" className="text-foreground/80 hover:text-foreground transition-colors">Terms of Use</Link></li>
-              <li><Link to="/privacy" className="text-foreground/80 hover:text-foreground transition-colors">Privacy Policy</Link></li>
-              <li><Link to="/cookies" className="text-foreground/80 hover:text-foreground transition-colors">Cookie Policy</Link></li>
+              <li><Link to="/terms" onMouseEnter={() => handleLinkHover('/terms')} className="text-foreground/80 hover:text-foreground transition-colors">Terms of Use</Link></li>
+              <li><Link to="/privacy" onMouseEnter={() => handleLinkHover('/privacy')} className="text-foreground/80 hover:text-foreground transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/cookies" onMouseEnter={() => handleLinkHover('/cookies')} className="text-foreground/80 hover:text-foreground transition-colors">Cookie Policy</Link></li>
               <li>
                 <button 
                   onClick={showCookieConsent}
@@ -94,6 +101,7 @@ export const Footer = memo(function Footer() {
             © {currentYear} xlama. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <FeedbackSettings />
             <span>Powered by ChangeNow & OKX DEX</span>
           </div>
         </div>

@@ -2,12 +2,13 @@ import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
 import { Star, Menu, X, Search, Clock, ArrowRightLeft, Info } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./GlobalSearch";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "./SocialIcons";
 import { Progress } from "@/components/ui/progress";
 import { useRouteLoading } from "@/contexts/RouteLoadingContext";
+import { prefetchRoute } from "@/lib/routePrefetch";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -23,6 +24,11 @@ export function Header() {
     { path: "/history", label: "History", icon: Clock },
     { path: "/about", label: "About", icon: Info },
   ];
+
+  // Prefetch route on hover
+  const handleLinkHover = useCallback((path: string) => {
+    prefetchRoute(path);
+  }, []);
 
   return (
     <>
@@ -42,6 +48,8 @@ export function Header() {
               <Link
                 key={link.path}
                 to={link.path}
+                onMouseEnter={() => handleLinkHover(link.path)}
+                onFocus={() => handleLinkHover(link.path)}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   isActive(link.path)
@@ -148,6 +156,7 @@ export function Header() {
                   key={link.path}
                   to={link.path}
                   onClick={() => setMobileMenuOpen(false)}
+                  onMouseEnter={() => handleLinkHover(link.path)}
                   className={cn(
                     "flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
                     isActive(link.path)
