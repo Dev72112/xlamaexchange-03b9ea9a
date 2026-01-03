@@ -5,7 +5,8 @@ import { usePortfolioBalances, PortfolioToken } from "@/hooks/usePortfolioBalanc
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet, RefreshCw, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Wallet, RefreshCw, Layers } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { Link } from "react-router-dom";
 import { SUPPORTED_CHAINS } from "@/data/chains";
@@ -35,8 +36,6 @@ function formatBalance(value: string): string {
 }
 
 function TokenRow({ token, index }: { token: PortfolioToken; index: number }) {
-  const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === token.chainIndex);
-  
   return (
     <div
       className={`${STAGGER_ITEM_CLASS} flex items-center justify-between py-4 border-b border-border last:border-0`}
@@ -157,7 +156,16 @@ function ConnectWalletState() {
 
 export default function Portfolio() {
   const { isConnected, activeAddress } = useMultiWallet();
-  const { tokens, loading, totalValue, refetch } = usePortfolioBalances();
+  const { 
+    tokens, 
+    allTokens,
+    loading, 
+    totalValue, 
+    refetch,
+    selectedChain,
+    setSelectedChain,
+    chainsWithBalances,
+  } = usePortfolioBalances();
 
   return (
     <Layout>
@@ -181,7 +189,7 @@ export default function Portfolio() {
                     {formatUsd(totalValue)}
                   </h1>
                   <p className="text-muted-foreground">
-                    Portfolio Value · {tokens.length} asset{tokens.length !== 1 ? 's' : ''}
+                    Portfolio Value · {allTokens.length} asset{allTokens.length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <Button
@@ -196,21 +204,53 @@ export default function Portfolio() {
               </div>
 
               {/* Token List */}
-              {tokens.length === 0 ? (
+              {allTokens.length === 0 ? (
                 <EmptyState />
               ) : (
                 <Card>
-                  <CardHeader className="pb-0">
-                    <CardTitle className="text-base font-medium">Assets</CardTitle>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base font-medium flex items-center gap-2">
+                        <Layers className="w-4 h-4" />
+                        Assets
+                      </CardTitle>
+                      <Select value={selectedChain} onValueChange={setSelectedChain}>
+                        <SelectTrigger className="w-[160px] h-9">
+                          <SelectValue placeholder="All Chains" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            <span className="flex items-center gap-2">All Chains</span>
+                          </SelectItem>
+                          {chainsWithBalances.map(chainIndex => {
+                            const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
+                            return chain ? (
+                              <SelectItem key={chainIndex} value={chainIndex}>
+                                <span className="flex items-center gap-2">
+                                  <img src={chain.icon} alt={chain.name} className="w-4 h-4 rounded-full" />
+                                  {chain.name}
+                                </span>
+                              </SelectItem>
+                            ) : null;
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </CardHeader>
                   <CardContent className="pt-2">
-                    {tokens.map((token, i) => (
-                      <TokenRow 
-                        key={`${token.chainIndex}-${token.tokenContractAddress}`} 
-                        token={token} 
-                        index={i} 
-                      />
-                    ))}
+                    {tokens.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No tokens on this chain</p>
+                      </div>
+                    ) : (
+                      tokens.map((token, i) => (
+                        <TokenRow 
+                          key={`${token.chainIndex}-${token.tokenContractAddress}`} 
+                          token={token} 
+                          index={i} 
+                        />
+                      ))
+                    )}
                   </CardContent>
                 </Card>
               )}
