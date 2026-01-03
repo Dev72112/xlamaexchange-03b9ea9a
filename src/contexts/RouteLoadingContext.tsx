@@ -1,25 +1,33 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 type RouteLoadingContextValue = {
   isRouteLoading: boolean;
   progress: number;
   finish: () => void;
+  isSlowTransition: boolean;
 };
 
 const RouteLoadingContext = createContext<RouteLoadingContextValue | null>(null);
 
+const SLOW_TRANSITION_THRESHOLD_MS = 1000;
+
 export function RouteLoadingProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { toast } = useToast();
   const isFirstRender = useRef(true);
 
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isSlowTransition, setIsSlowTransition] = useState(false);
 
   const progressTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
+  const slowTimerRef = useRef<number | null>(null);
+  const toastShownRef = useRef(false);
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     if (progressTimerRef.current) {
       window.clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
@@ -28,12 +36,18 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
       window.clearTimeout(finishTimerRef.current);
       finishTimerRef.current = null;
     }
-  };
+    if (slowTimerRef.current) {
+      window.clearTimeout(slowTimerRef.current);
+      slowTimerRef.current = null;
+    }
+  }, []);
 
-  const start = () => {
+  const start = useCallback(() => {
     clearTimers();
     setIsRouteLoading(true);
+    setIsSlowTransition(false);
     setProgress(12);
+    toastShownRef.current = false;
 
     progressTimerRef.current = window.setInterval(() => {
       setProgress((p) => {
@@ -42,19 +56,40 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
         return Math.min(90, p + bump);
       });
     }, 180);
-  };
 
-  const finish = () => {
+    // Show slow transition toast after threshold
+    slowTimerRef.current = window.setTimeout(() => {
+      setIsSlowTransition(true);
+      if (!toastShownRef.current) {
+        toastShownRef.current = true;
+        toast({
+          title: "Loading is taking longer than usual",
+          description: "This might be due to a slow connection. You can try refreshing.",
+          action: (
+            <button
+              onClick={() => window.location.reload()}
+              className="shrink-0 rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Retry
+            </button>
+          ),
+        });
+      }
+    }, SLOW_TRANSITION_THRESHOLD_MS);
+  }, [clearTimers, toast]);
+
+  const finish = useCallback(() => {
     if (!isRouteLoading) return;
 
     clearTimers();
     setProgress(100);
+    setIsSlowTransition(false);
 
     finishTimerRef.current = window.setTimeout(() => {
       setIsRouteLoading(false);
       setProgress(0);
     }, 220);
-  };
+  }, [isRouteLoading, clearTimers]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -65,11 +100,11 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
 
-  useEffect(() => () => clearTimers(), []);
+  useEffect(() => () => clearTimers(), [clearTimers]);
 
   const value = useMemo(
-    () => ({ isRouteLoading, progress, finish }),
-    [isRouteLoading, progress]
+    () => ({ isRouteLoading, progress, finish, isSlowTransition }),
+    [isRouteLoading, progress, finish, isSlowTransition]
   );
 
   return <RouteLoadingContext.Provider value={value}>{children}</RouteLoadingContext.Provider>;

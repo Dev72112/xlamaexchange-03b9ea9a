@@ -1,5 +1,6 @@
 import { ArrowRight, ExternalLink, Shield, Zap, Globe, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 export function HeroSection() {
   const features = [
@@ -108,10 +109,11 @@ export function HeroSection() {
 
           {/* Features Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {features.map((feature) => (
+            {features.map((feature, index) => (
               <div 
                 key={feature.label}
-                className="p-4 sm:p-6 rounded-xl bg-card/50 backdrop-blur-sm border border-border hover:border-primary/30 transition-colors"
+                className={`p-4 sm:p-6 rounded-xl bg-card/50 backdrop-blur-sm border border-border hover:border-primary/30 transition-colors ${STAGGER_ITEM_CLASS}`}
+                style={getStaggerStyle(index, 80)}
               >
                 <div className="flex items-center justify-center gap-2 text-primary mb-2">
                   <feature.icon className="h-5 w-5" />

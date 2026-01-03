@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { changeNowService } from "@/services/changenow";
 import { cn } from "@/lib/utils";
 import { FavoriteCardsSkeleton } from "@/components/ContentSkeletons";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 const Favorites = () => {
   const { favorites, removeFavorite } = useFavoritePairs();
@@ -93,8 +94,8 @@ const Favorites = () => {
               return (
                 <Card
                   key={rateKey}
-                  className="p-4 sm:p-5 hover:border-primary/30 transition-all cursor-pointer group content-fade-in"
-                  style={{ animationDelay: `${i * 60}ms` }}
+                  className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all cursor-pointer group", STAGGER_ITEM_CLASS)}
+                  style={getStaggerStyle(i, 60)}
                   onClick={() => handleExchange(pair.from, pair.to)}
                 >
                   <div className="flex items-center gap-4">

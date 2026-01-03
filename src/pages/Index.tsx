@@ -1,19 +1,27 @@
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, Suspense, lazy } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
 import { DexHowItWorks } from "@/components/DexHowItWorks";
 import { Features } from "@/components/Features";
-import { TrendingPairs } from "@/components/TrendingPairs";
 import { HeroSection } from "@/components/HeroSection";
 import { FavoritePairsSection } from "@/components/FavoritePairsSection";
-import { TransactionTracker } from "@/components/TransactionTracker";
-import { DexTransactionHistory } from "@/components/DexTransactionHistory";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
 import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
+import { 
+  HeroSkeleton, 
+  TrendingPairsSkeleton, 
+  TransactionTrackerSkeleton 
+} from "@/components/IndexSectionSkeletons";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+
+// Lazy load heavier sections
+const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
+const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
+const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 
 type ExchangeMode = 'instant' | 'dex';
 
@@ -128,7 +136,7 @@ const Index = () => {
             <h3 className="text-xl sm:text-2xl font-semibold mb-6">{sectionTitle}</h3>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {features.map((feature, index) => (
-                <FeatureCard key={index} {...feature} />
+                <FeatureCard key={index} index={index} {...feature} />
               ))}
             </div>
           </div>
@@ -139,12 +147,18 @@ const Index = () => {
       {currentMode === 'instant' ? (
         <>
           <FavoritePairsSection />
-          <TrendingPairs onSelectPair={handleSelectPair} />
-          <TransactionTracker />
+          <Suspense fallback={<TrendingPairsSkeleton />}>
+            <TrendingPairs onSelectPair={handleSelectPair} />
+          </Suspense>
+          <Suspense fallback={<TransactionTrackerSkeleton />}>
+            <TransactionTracker />
+          </Suspense>
         </>
       ) : (
         <>
-          <DexTransactionHistory />
+          <Suspense fallback={<TransactionTrackerSkeleton />}>
+            <DexTransactionHistory />
+          </Suspense>
         </>
       )}
       
@@ -159,9 +173,12 @@ const Index = () => {
   );
 };
 
-function FeatureCard({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+function FeatureCard({ icon: Icon, title, description, index }: { icon: any; title: string; description: string; index: number }) {
   return (
-    <article className="p-5 rounded-xl bg-card border border-border hover:border-primary/20 transition-colors">
+    <article 
+      className={`p-5 rounded-xl bg-card border border-border hover:border-primary/20 transition-colors ${STAGGER_ITEM_CLASS}`}
+      style={getStaggerStyle(index, 80)}
+    >
       <Icon className="w-5 h-5 text-muted-foreground mb-3" aria-hidden="true" />
       <h3 className="font-medium mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
