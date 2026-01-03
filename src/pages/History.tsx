@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 
 const History = () => {
@@ -105,8 +106,8 @@ const History = () => {
             {transactions.map((tx, i) => (
               <Card
                 key={tx.id}
-                className="p-4 sm:p-5 hover:border-primary/30 transition-all group content-fade-in"
-                style={{ animationDelay: `${i * 60}ms` }}
+                className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
+                style={getStaggerStyle(i, 60)}
               >
                 <div className="flex items-center gap-4">
                   {/* Pair Icons */}

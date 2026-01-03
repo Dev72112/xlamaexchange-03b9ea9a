@@ -8,6 +8,7 @@ import { changeNowService } from "@/services/changenow";
 import { defiLlamaService } from "@/services/defillama";
 import { useFavoritePairs, FavoritePair } from "@/hooks/useFavoritePairs";
 import { cn } from "@/lib/utils";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 interface TrendingPairsProps {
   onSelectPair?: (from: string, to: string) => void;
@@ -141,11 +142,15 @@ export function TrendingPairs({ onSelectPair }: TrendingPairsProps = {}) {
                   </div>
                 ))
               ) : (
-                rates.map(({ pair, rate, change24h }) => (
+                rates.map(({ pair, rate, change24h }, index) => (
                   <button
                     key={`${pair.from}-${pair.to}`}
                     onClick={() => onSelectPair?.(pair.from, pair.to)}
-                    className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 overflow-hidden text-left w-full cursor-pointer"
+                    className={cn(
+                      "group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 overflow-hidden text-left w-full cursor-pointer",
+                      STAGGER_ITEM_CLASS
+                    )}
+                    style={getStaggerStyle(index)}
                   >
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                       <div className="relative flex -space-x-2 shrink-0">

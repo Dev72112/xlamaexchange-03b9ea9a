@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
+import { cache, cacheKeys } from '@/lib/cache';
 
 export function useDexTokens(chain: Chain | null) {
   const [rawTokens, setRawTokens] = useState<OkxToken[]>([]);
@@ -13,16 +14,36 @@ export function useDexTokens(chain: Chain | null) {
       return;
     }
 
-    setIsLoading(true);
+    const cacheKey = cacheKeys.dexTokens(chain.chainIndex);
+
+    // Try to get cached data first (stale-while-revalidate)
+    const { data: cachedData, isStale } = cache.get<OkxToken[]>(cacheKey);
+    
+    if (cachedData && !isStale) {
+      // Fresh cached data - use it directly
+      setRawTokens(cachedData);
+      return;
+    }
+
+    if (cachedData) {
+      // Stale cached data - show it immediately while fetching fresh
+      setRawTokens(cachedData);
+    }
+
+    setIsLoading(!cachedData);
     setError(null);
 
     try {
-      const data = await okxDexService.getTokens(chain.chainIndex);
+      const { data } = await cache.swr(
+        cacheKey,
+        () => okxDexService.getTokens(chain.chainIndex),
+        { staleTime: 60000, maxAge: 5 * 60000 } // 1 min stale, 5 min max
+      );
       setRawTokens(data || []);
     } catch (err) {
       console.error('Failed to fetch DEX tokens:', err);
       setError(err instanceof Error ? err.message : 'Failed to load tokens');
-      setRawTokens([]);
+      if (!cachedData) setRawTokens([]);
     } finally {
       setIsLoading(false);
     }

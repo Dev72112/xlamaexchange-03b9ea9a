@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { okxDexService, OkxToken } from '@/services/okxdex';
+import { cache, cacheKeys } from '@/lib/cache';
 
 interface TokenPriceResult {
   price: number | null;
@@ -15,10 +16,6 @@ interface UseTokenPricesResult {
   toUsdValue: string | null;
 }
 
-// Cache prices to avoid repeated calls
-const priceCache = new Map<string, { price: number; timestamp: number }>();
-const CACHE_DURATION = 60000; // 1 minute
-
 export function useTokenPrices(
   chainIndex: string | null,
   fromToken: OkxToken | null,
@@ -31,24 +28,22 @@ export function useTokenPrices(
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchPrice = useCallback(async (tokenAddress: string, chain: string): Promise<number | null> => {
-    const cacheKey = `${chain}:${tokenAddress.toLowerCase()}`;
-    const cached = priceCache.get(cacheKey);
+    const cacheKey = cacheKeys.tokenPrice(chain, tokenAddress);
     
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.price;
-    }
-
     try {
-      const result = await okxDexService.getTokenPrice(chain, tokenAddress);
-      if (result?.price) {
-        const price = parseFloat(result.price);
-        priceCache.set(cacheKey, { price, timestamp: Date.now() });
-        return price;
-      }
+      const { data, fromCache } = await cache.swr(
+        cacheKey,
+        async () => {
+          const result = await okxDexService.getTokenPrice(chain, tokenAddress);
+          return result?.price ? parseFloat(result.price) : null;
+        },
+        { staleTime: 30000, maxAge: 2 * 60000 } // 30s stale, 2 min max
+      );
+      return data;
     } catch (err) {
       console.error('Failed to fetch token price:', err);
+      return null;
     }
-    return null;
   }, []);
 
   useEffect(() => {
