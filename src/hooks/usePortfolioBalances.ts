@@ -127,10 +127,23 @@ export function usePortfolioBalances() {
     try {
       const fetchPromises: Promise<void>[] = [];
 
-      // Fetch EVM balances for each chain using RPC - this is more reliable
+      // Fetch EVM balances - prioritize key chains first
       if (evmAddress) {
+        // Priority chains to check first (most likely to have balances)
+        const priorityChainIds = ['1', '56', '137', '42161', '8453', '10'];
         const evmChains = SUPPORTED_CHAINS.filter(c => c.isEvm);
-        for (const chain of evmChains) {
+        
+        // Sort priority chains first
+        const sortedChains = evmChains.sort((a, b) => {
+          const aIdx = priorityChainIds.indexOf(a.chainIndex);
+          const bIdx = priorityChainIds.indexOf(b.chainIndex);
+          if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
+          if (aIdx >= 0) return -1;
+          if (bIdx >= 0) return 1;
+          return 0;
+        });
+
+        for (const chain of sortedChains) {
           fetchPromises.push(
             fetchEvmChainBalancesViaRpc(chain, evmAddress, portfolioTokens)
           );
@@ -177,15 +190,21 @@ export function usePortfolioBalances() {
         }
       }
 
-      await Promise.all(fetchPromises);
+      // Use allSettled so one chain failure doesn't break others
+      await Promise.allSettled(fetchPromises);
 
-      // Sort by USD value descending
-      portfolioTokens.sort((a, b) => b.usdValue - a.usdValue);
+      console.log('[Portfolio] Fetched tokens:', portfolioTokens.length);
+
+      // Sort by USD value descending, then by balance if no price
+      portfolioTokens.sort((a, b) => {
+        if (b.usdValue !== a.usdValue) return b.usdValue - a.usdValue;
+        return parseFloat(b.balanceFormatted) - parseFloat(a.balanceFormatted);
+      });
       
       setTokens(portfolioTokens);
       setTotalValue(portfolioTokens.reduce((sum, t) => sum + t.usdValue, 0));
     } catch (err) {
-      console.error('Portfolio fetch error:', err);
+      console.error('[Portfolio] Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -231,14 +250,19 @@ async function fetchEvmChainBalancesViaRpc(
   try {
     // Get native token balance via RPC
     const nativeBalance = await fetchEvmNativeBalanceViaRpc(chain.rpcUrl, address);
+    
     if (nativeBalance && nativeBalance !== '0') {
       const decimals = chain.nativeCurrency.decimals;
       const balanceFormatted = formatBalance(nativeBalance, decimals);
-      if (parseFloat(balanceFormatted) > 0) {
+      const numBalance = parseFloat(balanceFormatted);
+      
+      if (numBalance > 0) {
         const price = await getTokenPrice(chain.chainIndex, NATIVE_TOKEN_ADDRESS);
-        const usdValue = parseFloat(balanceFormatted) * price;
+        const usdValue = numBalance * price;
         
-        if (usdValue >= 0.01) {
+        // Show all native tokens with balance, even if price is 0
+        if (numBalance > 0.00001) {
+          console.log(`[Portfolio] Found ${chain.nativeCurrency.symbol} on ${chain.name}: ${balanceFormatted}`);
           portfolioTokens.push({
             tokenContractAddress: NATIVE_TOKEN_ADDRESS,
             tokenSymbol: chain.nativeCurrency.symbol,
@@ -266,24 +290,25 @@ async function fetchEvmChainBalancesViaRpc(
         if (balance && balance !== '0') {
           const decimals = parseInt(token.decimals);
           const balanceFormatted = formatBalance(balance, decimals);
-          if (parseFloat(balanceFormatted) > 0) {
+          const numBalance = parseFloat(balanceFormatted);
+          
+          if (numBalance > 0) {
             const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
-            const usdValue = parseFloat(balanceFormatted) * price;
+            const usdValue = numBalance * price;
             
-            if (usdValue >= 0.01 || parseFloat(balanceFormatted) > 0) {
-              portfolioTokens.push({
-                ...token,
-                chainIndex: chain.chainIndex,
-                chainName: chain.name,
-                chainIcon: chain.icon,
-                balance,
-                balanceFormatted,
-                usdValue,
-                price,
-                priceChange24h: 0,
-                isCustom: true,
-              });
-            }
+            // Show all custom tokens with any balance
+            portfolioTokens.push({
+              ...token,
+              chainIndex: chain.chainIndex,
+              chainName: chain.name,
+              chainIcon: chain.icon,
+              balance,
+              balanceFormatted,
+              usdValue,
+              price,
+              priceChange24h: 0,
+              isCustom: true,
+            });
           }
         }
       } catch {
@@ -291,7 +316,7 @@ async function fetchEvmChainBalancesViaRpc(
       }
     }
   } catch (err) {
-    console.error(`Failed to fetch EVM balances for ${chain.name}:`, err);
+    console.error(`[Portfolio] Failed to fetch ${chain.name} balances:`, err);
   }
 }
 
@@ -318,23 +343,22 @@ async function fetchSolanaBalances(
       const price = await getTokenPrice(chain.chainIndex, SOLANA_NATIVE_ADDRESS);
       const usdValue = parseFloat(balanceFormatted) * price;
       
-      if (usdValue >= 0.01) {
-        portfolioTokens.push({
-          tokenContractAddress: SOLANA_NATIVE_ADDRESS,
-          tokenSymbol: 'SOL',
-          tokenName: 'Solana',
-          decimals: '9',
-          tokenLogoUrl: chain.icon,
-          chainIndex: chain.chainIndex,
-          chainName: chain.name,
-          chainIcon: chain.icon,
-          balance: nativeBalance,
-          balanceFormatted,
-          usdValue,
-          price,
-          priceChange24h: 0,
-        });
-      }
+      console.log(`[Portfolio] Found SOL: ${balanceFormatted}`);
+      portfolioTokens.push({
+        tokenContractAddress: SOLANA_NATIVE_ADDRESS,
+        tokenSymbol: 'SOL',
+        tokenName: 'Solana',
+        decimals: '9',
+        tokenLogoUrl: chain.icon,
+        chainIndex: chain.chainIndex,
+        chainName: chain.name,
+        chainIcon: chain.icon,
+        balance: nativeBalance,
+        balanceFormatted,
+        usdValue,
+        price,
+        priceChange24h: 0,
+      });
     }
 
     // Get custom SPL tokens
@@ -360,20 +384,18 @@ async function fetchSolanaBalances(
             const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
             const usdValue = parseFloat(balanceFormatted) * price;
             
-            if (usdValue >= 0.01) {
-              portfolioTokens.push({
-                ...token,
-                chainIndex: chain.chainIndex,
-                chainName: chain.name,
-                chainIcon: chain.icon,
-                balance: totalBalance.toString(),
-                balanceFormatted,
-                usdValue,
-                price,
-                priceChange24h: 0,
-                isCustom: true,
-              });
-            }
+            portfolioTokens.push({
+              ...token,
+              chainIndex: chain.chainIndex,
+              chainName: chain.name,
+              chainIcon: chain.icon,
+              balance: totalBalance.toString(),
+              balanceFormatted,
+              usdValue,
+              price,
+              priceChange24h: 0,
+              isCustom: true,
+            });
           }
         }
       } catch {
@@ -381,7 +403,7 @@ async function fetchSolanaBalances(
       }
     }
   } catch (err) {
-    console.error('Failed to fetch Solana balances:', err);
+    console.error('[Portfolio] Failed to fetch Solana balances:', err);
   }
 }
 
@@ -406,23 +428,22 @@ async function fetchSuiBalances(
         const price = await getTokenPrice(chain.chainIndex, SUI_NATIVE_ADDRESS);
         const usdValue = parseFloat(balanceFormatted) * price;
         
-        if (usdValue >= 0.01) {
-          portfolioTokens.push({
-            tokenContractAddress: SUI_NATIVE_ADDRESS,
-            tokenSymbol: 'SUI',
-            tokenName: 'Sui',
-            decimals: '9',
-            tokenLogoUrl: chain.icon,
-            chainIndex: chain.chainIndex,
-            chainName: chain.name,
-            chainIcon: chain.icon,
-            balance: nativeBalance,
-            balanceFormatted,
-            usdValue,
-            price,
-            priceChange24h: 0,
-          });
-        }
+        console.log(`[Portfolio] Found SUI: ${balanceFormatted}`);
+        portfolioTokens.push({
+          tokenContractAddress: SUI_NATIVE_ADDRESS,
+          tokenSymbol: 'SUI',
+          tokenName: 'Sui',
+          decimals: '9',
+          tokenLogoUrl: chain.icon,
+          chainIndex: chain.chainIndex,
+          chainName: chain.name,
+          chainIcon: chain.icon,
+          balance: nativeBalance,
+          balanceFormatted,
+          usdValue,
+          price,
+          priceChange24h: 0,
+        });
       }
     }
 
@@ -439,20 +460,18 @@ async function fetchSuiBalances(
             const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
             const usdValue = parseFloat(balanceFormatted) * price;
             
-            if (usdValue >= 0.01) {
-              portfolioTokens.push({
-                ...token,
-                chainIndex: chain.chainIndex,
-                chainName: chain.name,
-                chainIcon: chain.icon,
-                balance: total.toString(),
-                balanceFormatted,
-                usdValue,
-                price,
-                priceChange24h: 0,
-                isCustom: true,
-              });
-            }
+            portfolioTokens.push({
+              ...token,
+              chainIndex: chain.chainIndex,
+              chainName: chain.name,
+              chainIcon: chain.icon,
+              balance: total.toString(),
+              balanceFormatted,
+              usdValue,
+              price,
+              priceChange24h: 0,
+              isCustom: true,
+            });
           }
         }
       } catch {
@@ -460,7 +479,7 @@ async function fetchSuiBalances(
       }
     }
   } catch (err) {
-    console.error('Failed to fetch Sui balances:', err);
+    console.error('[Portfolio] Failed to fetch Sui balances:', err);
   }
 }
 
@@ -483,23 +502,22 @@ async function fetchTronBalances(
       const price = await getTokenPrice(chain.chainIndex, TRON_NATIVE_ADDRESS);
       const usdValue = parseFloat(balanceFormatted) * price;
       
-      if (usdValue >= 0.01) {
-        portfolioTokens.push({
-          tokenContractAddress: TRON_NATIVE_ADDRESS,
-          tokenSymbol: 'TRX',
-          tokenName: 'Tron',
-          decimals: '6',
-          tokenLogoUrl: chain.icon,
-          chainIndex: chain.chainIndex,
-          chainName: chain.name,
-          chainIcon: chain.icon,
-          balance: nativeBalance,
-          balanceFormatted,
-          usdValue,
-          price,
-          priceChange24h: 0,
-        });
-      }
+      console.log(`[Portfolio] Found TRX: ${balanceFormatted}`);
+      portfolioTokens.push({
+        tokenContractAddress: TRON_NATIVE_ADDRESS,
+        tokenSymbol: 'TRX',
+        tokenName: 'Tron',
+        decimals: '6',
+        tokenLogoUrl: chain.icon,
+        chainIndex: chain.chainIndex,
+        chainName: chain.name,
+        chainIcon: chain.icon,
+        balance: nativeBalance,
+        balanceFormatted,
+        usdValue,
+        price,
+        priceChange24h: 0,
+      });
     }
 
     // Get custom TRC20 tokens
@@ -514,27 +532,25 @@ async function fetchTronBalances(
           const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
           const usdValue = parseFloat(balanceFormatted) * price;
           
-          if (usdValue >= 0.01) {
-            portfolioTokens.push({
-              ...token,
-              chainIndex: chain.chainIndex,
-              chainName: chain.name,
-              chainIcon: chain.icon,
-              balance: tokenBalance.toString(),
-              balanceFormatted,
-              usdValue,
-              price,
-              priceChange24h: 0,
-              isCustom: true,
-            });
-          }
+          portfolioTokens.push({
+            ...token,
+            chainIndex: chain.chainIndex,
+            chainName: chain.name,
+            chainIcon: chain.icon,
+            balance: tokenBalance.toString(),
+            balanceFormatted,
+            usdValue,
+            price,
+            priceChange24h: 0,
+            isCustom: true,
+          });
         }
       } catch {
         // Skip failed token fetches
       }
     }
   } catch (err) {
-    console.error('Failed to fetch Tron balances:', err);
+    console.error('[Portfolio] Failed to fetch Tron balances:', err);
   }
 }
 
@@ -556,33 +572,35 @@ async function fetchTonBalances(
         const price = await getTokenPrice(chain.chainIndex, TON_NATIVE_ADDRESS);
         const usdValue = parseFloat(balanceFormatted) * price;
         
-        if (usdValue >= 0.01) {
-          portfolioTokens.push({
-            tokenContractAddress: TON_NATIVE_ADDRESS,
-            tokenSymbol: 'TON',
-            tokenName: 'Toncoin',
-            decimals: '9',
-            tokenLogoUrl: chain.icon,
-            chainIndex: chain.chainIndex,
-            chainName: chain.name,
-            chainIcon: chain.icon,
-            balance: nativeBalance,
-            balanceFormatted,
-            usdValue,
-            price,
-            priceChange24h: 0,
-          });
-        }
+        console.log(`[Portfolio] Found TON: ${balanceFormatted}`);
+        portfolioTokens.push({
+          tokenContractAddress: TON_NATIVE_ADDRESS,
+          tokenSymbol: 'TON',
+          tokenName: 'Toncoin',
+          decimals: '9',
+          tokenLogoUrl: chain.icon,
+          chainIndex: chain.chainIndex,
+          chainName: chain.name,
+          chainIcon: chain.icon,
+          balance: nativeBalance,
+          balanceFormatted,
+          usdValue,
+          price,
+          priceChange24h: 0,
+        });
       }
     }
   } catch (err) {
-    console.error('Failed to fetch TON balances:', err);
+    console.error('[Portfolio] Failed to fetch TON balances:', err);
   }
 }
 
-// Helper: Fetch EVM native balance via RPC
+// Helper: Fetch EVM native balance via RPC with timeout
 async function fetchEvmNativeBalanceViaRpc(rpcUrl: string, address: string): Promise<string> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    
     const response = await fetch(rpcUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -592,7 +610,10 @@ async function fetchEvmNativeBalanceViaRpc(rpcUrl: string, address: string): Pro
         method: 'eth_getBalance',
         params: [address, 'latest'],
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+    
     const data = await response.json();
     if (data.result) {
       return BigInt(data.result).toString();
@@ -603,9 +624,12 @@ async function fetchEvmNativeBalanceViaRpc(rpcUrl: string, address: string): Pro
   }
 }
 
-// Helper: Fetch ERC20 token balance via RPC
+// Helper: Fetch ERC20 token balance via RPC with timeout
 async function fetchErc20BalanceViaRpc(rpcUrl: string, address: string, tokenAddress: string): Promise<string> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
     const balanceData = BALANCE_OF_ABI + address.toLowerCase().replace('0x', '').padStart(64, '0');
     const response = await fetch(rpcUrl, {
       method: 'POST',
@@ -616,7 +640,10 @@ async function fetchErc20BalanceViaRpc(rpcUrl: string, address: string, tokenAdd
         method: 'eth_call',
         params: [{ to: tokenAddress, data: balanceData }, 'latest'],
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+    
     const data = await response.json();
     if (data.result && data.result !== '0x') {
       return BigInt(data.result).toString();
