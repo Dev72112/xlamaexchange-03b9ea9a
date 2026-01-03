@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
@@ -10,6 +11,7 @@ import { Wallet, RefreshCw, Layers } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { Link } from "react-router-dom";
 import { SUPPORTED_CHAINS } from "@/data/chains";
+import { TokenDetailsModal } from "@/components/portfolio/TokenDetailsModal";
 
 function formatUsd(value: number): string {
   if (value >= 1000000) {
@@ -23,6 +25,7 @@ function formatUsd(value: number): string {
 
 function formatBalance(value: string): string {
   const num = parseFloat(value);
+  if (isNaN(num)) return '—';
   if (num >= 1000000) {
     return `${(num / 1000000).toFixed(2)}M`;
   }
@@ -35,11 +38,21 @@ function formatBalance(value: string): string {
   return num.toFixed(4).replace(/\.?0+$/, '');
 }
 
-function TokenRow({ token, index }: { token: PortfolioToken; index: number }) {
+interface TokenRowProps {
+  token: PortfolioToken;
+  index: number;
+  onClick: () => void;
+}
+
+function TokenRow({ token, index, onClick }: TokenRowProps) {
   return (
     <div
-      className={`${STAGGER_ITEM_CLASS} flex items-center justify-between py-4 border-b border-border last:border-0`}
+      className={`${STAGGER_ITEM_CLASS} flex items-center justify-between py-4 border-b border-border last:border-0 cursor-pointer hover:bg-secondary/30 transition-colors px-2 -mx-2 rounded-lg`}
       style={getStaggerStyle(index)}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
       <div className="flex items-center gap-3">
         <div className="relative">
@@ -156,6 +169,9 @@ function ConnectWalletState() {
 
 export default function Portfolio() {
   const { evmAddress, solanaAddress, suiAddress, tronAddress, tonAddress } = useMultiWallet();
+  const [selectedToken, setSelectedToken] = useState<PortfolioToken | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  
   const { 
     tokens, 
     allTokens,
@@ -171,6 +187,11 @@ export default function Portfolio() {
 
   // Get a display address from any connected wallet
   const displayAddress = evmAddress || solanaAddress || suiAddress || tronAddress || tonAddress;
+
+  const handleTokenClick = (token: PortfolioToken) => {
+    setSelectedToken(token);
+    setDetailsOpen(true);
+  };
 
   return (
     <Layout>
@@ -263,7 +284,8 @@ export default function Portfolio() {
                         <TokenRow 
                           key={`${token.chainIndex}-${token.tokenContractAddress}`} 
                           token={token} 
-                          index={i} 
+                          index={i}
+                          onClick={() => handleTokenClick(token)}
                         />
                       ))
                     )}
@@ -281,6 +303,13 @@ export default function Portfolio() {
           )}
         </div>
       </div>
+
+      {/* Token Details Modal */}
+      <TokenDetailsModal
+        token={selectedToken}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
     </Layout>
   );
 }

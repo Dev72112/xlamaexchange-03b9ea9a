@@ -24,6 +24,37 @@ const NATIVE_ADDRESSES: Record<string, string> = {
   '607': 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c', // TON
 };
 
+// Chains supported by OKX Wallet API (based on official docs)
+// Some DEX-supported chains like ZetaChain, Sonic, Unichain are NOT wallet API supported
+const WALLET_API_SUPPORTED_CHAINS: string[] = [
+  '1',      // Ethereum
+  '10',     // OP Mainnet
+  '56',     // BNB Smart Chain
+  '66',     // OKT Chain
+  '196',    // X Layer
+  '137',    // Polygon
+  '42161',  // Arbitrum One
+  '43114',  // Avalanche
+  '324',    // zkSync Era
+  '1101',   // Polygon zkEVM
+  '8453',   // Base
+  '59144',  // Linea
+  '250',    // Fantom
+  '5000',   // Mantle
+  '1030',   // Conflux eSpace
+  '1088',   // Metis
+  '4200',   // Merlin Chain
+  '81457',  // Blast
+  '169',    // Manta Pacific
+  '534352', // Scroll
+  '25',     // Cronos
+  // Non-EVM
+  '195',    // Tron
+  '501',    // Solana
+  '784',    // Sui
+  // Note: TON (607) wallet API is "Coming Soon" per OKX docs
+];
+
 // Get custom tokens from localStorage for a chain
 function getCustomTokensForChain(chainIndex: string, walletAddress?: string): OkxToken[] {
   const tokens: OkxToken[] = [];
@@ -111,9 +142,12 @@ export function usePortfolioBalances() {
     try {
       const fetchPromises: Promise<void>[] = [];
 
-      // Fetch EVM balances via backend API
+      // Fetch EVM balances via backend API - only use wallet API supported chains
       if (evmAddress) {
-        const evmChainIndexes = SUPPORTED_CHAINS.filter(c => c.isEvm).map(c => c.chainIndex);
+        const evmChainIndexes = SUPPORTED_CHAINS
+          .filter(c => c.isEvm && WALLET_API_SUPPORTED_CHAINS.includes(c.chainIndex))
+          .map(c => c.chainIndex);
+        console.log('[Portfolio] Fetching EVM balances for chains:', evmChainIndexes);
         fetchPromises.push(
           fetchWalletBalancesViaBackend(evmAddress, evmChainIndexes, portfolioTokens)
         );
@@ -140,11 +174,11 @@ export function usePortfolioBalances() {
         );
       }
 
-      // Fetch TON balances
+      // Fetch TON balances - Note: OKX Wallet API for TON is "Coming Soon"
+      // For now, skip TON balance fetching via OKX and rely on custom tokens only
       if (tonAddress) {
-        fetchPromises.push(
-          fetchWalletBalancesViaBackend(tonAddress, ['607'], portfolioTokens)
-        );
+        // Only fetch custom tokens for TON since wallet API not yet supported
+        await fetchCustomTokensOnly(tonAddress, ['607'], portfolioTokens);
       }
 
       // Use allSettled so one chain failure doesn't break others
