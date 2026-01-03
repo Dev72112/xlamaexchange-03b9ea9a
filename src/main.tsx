@@ -6,7 +6,17 @@ import { startTokenPrefetch } from "./lib/tokenPrefetch";
 import App from "./App.tsx";
 import "./index.css";
 
-const queryClient = new QueryClient();
+// Optimized QueryClient with garbage collection and stale time
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30 seconds
+      gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
+      refetchOnWindowFocus: false,
+      retry: 2,
+    },
+  },
+});
 
 // Initialize AppKit (loads WalletConnect project ID) before rendering
 initializeAppKit().then(() => {

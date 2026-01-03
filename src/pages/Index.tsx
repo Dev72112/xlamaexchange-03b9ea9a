@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState, Suspense, lazy, memo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
@@ -9,6 +10,7 @@ import { HeroSection } from "@/components/HeroSection";
 import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
 import { 
@@ -16,6 +18,7 @@ import {
   TransactionTrackerSkeleton 
 } from "@/components/IndexSectionSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Lazy load heavier sections for better initial load
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
@@ -85,8 +88,10 @@ const structuredData = {
 
 const Index = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const widgetRef = useRef<HTMLDivElement>(null);
   const [currentMode, setCurrentMode] = useState<ExchangeMode>('instant');
+  const isMobile = useIsMobile();
 
   const handleSelectPair = useCallback((from: string, to: string) => {
     navigate(`/?from=${from}&to=${to}`, { replace: true });
@@ -96,6 +101,15 @@ const Index = () => {
   const handleModeChange = useCallback((mode: ExchangeMode) => {
     setCurrentMode(mode);
   }, []);
+
+  // Pull-to-refresh handler - invalidates exchange-related queries
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['dex-quote'] });
+    await queryClient.invalidateQueries({ queryKey: ['dex-tokens'] });
+    await queryClient.invalidateQueries({ queryKey: ['token-balance'] });
+    // Add a small delay for visual feedback
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }, [queryClient]);
 
   const features = currentMode === 'instant' ? instantFeatures : dexFeatures;
   const sectionTitle = currentMode === 'instant' 
@@ -149,9 +163,15 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Exchange Widget */}
+          {/* Exchange Widget with Pull to Refresh on mobile */}
           <div id="exchange-widget" ref={widgetRef} className="max-w-xl mx-auto mb-16">
-            <ExchangeWidget onModeChange={handleModeChange} />
+            {isMobile ? (
+              <PullToRefresh onRefresh={handleRefresh}>
+                <ExchangeWidget onModeChange={handleModeChange} />
+              </PullToRefresh>
+            ) : (
+              <ExchangeWidget onModeChange={handleModeChange} />
+            )}
           </div>
 
           {/* Feature Cards */}
