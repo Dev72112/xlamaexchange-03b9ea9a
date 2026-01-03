@@ -129,7 +129,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     </div>
   );
 
-  // Keyboard shortcut
+  // Keyboard shortcut and global event listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -138,8 +138,17 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       }
     };
     
+    const handleOpenSearch = () => {
+      onOpenChange(true);
+    };
+    
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-global-search', handleOpenSearch);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('open-global-search', handleOpenSearch);
+    };
   }, [open, onOpenChange]);
 
   return (
