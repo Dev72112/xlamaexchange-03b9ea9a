@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { SUPPORTED_CHAINS, Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
-import { OkxToken, okxDexService } from '@/services/okxdex';
+import { OkxToken, okxDexService, WalletTokenBalance } from '@/services/okxdex';
 import { cache } from '@/lib/cache';
-import { Connection, PublicKey } from '@solana/web3.js';
 
 export interface PortfolioToken extends OkxToken {
   chainIndex: string;
@@ -17,27 +16,21 @@ export interface PortfolioToken extends OkxToken {
   isCustom?: boolean;
 }
 
-const BALANCE_OF_ABI = '0x70a08231';
-const SOLANA_NATIVE_ADDRESS = 'So11111111111111111111111111111111111111112';
-const SUI_NATIVE_ADDRESS = '0x2::sui::SUI';
-const TRON_NATIVE_ADDRESS = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb';
-const TON_NATIVE_ADDRESS = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c';
-
-// Chain index mapping
-const CHAIN_INDICES = {
-  solana: '501',
-  sui: '784',
-  tron: '195',
-  ton: '607',
+// Native token addresses per chain
+const NATIVE_ADDRESSES: Record<string, string> = {
+  '501': 'So11111111111111111111111111111111111111112', // Solana
+  '195': 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', // Tron WTRX
+  '784': '0x2::sui::SUI', // Sui
+  '607': 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c', // TON
 };
 
-// Get custom tokens from localStorage for a chain - check both with and without wallet address
+// Get custom tokens from localStorage for a chain
 function getCustomTokensForChain(chainIndex: string, walletAddress?: string): OkxToken[] {
   const tokens: OkxToken[] = [];
   const seenAddresses = new Set<string>();
   
   try {
-    // Try with wallet address first (wallet-specific tokens)
+    // Try with wallet address first
     if (walletAddress) {
       const keyWithWallet = `dex-custom-tokens-${chainIndex}-${walletAddress.toLowerCase()}`;
       const storedWithWallet = localStorage.getItem(keyWithWallet);
@@ -53,7 +46,7 @@ function getCustomTokensForChain(chainIndex: string, walletAddress?: string): Ok
       }
     }
     
-    // Also check without wallet address (general tokens)
+    // Also check without wallet address
     const keyGeneral = `dex-custom-tokens-${chainIndex}`;
     const storedGeneral = localStorage.getItem(keyGeneral);
     if (storedGeneral) {
@@ -72,36 +65,21 @@ function getCustomTokensForChain(chainIndex: string, walletAddress?: string): Ok
   return tokens;
 }
 
-// Format balance from raw to readable
-function formatBalance(rawBalance: string, decimals: number): string {
-  if (!rawBalance || rawBalance === '0') return '0';
-  
-  try {
-    const balanceWei = BigInt(rawBalance);
-    const divisor = BigInt(10 ** decimals);
-    
-    const wholePart = balanceWei / divisor;
-    const fractionalPart = balanceWei % divisor;
-    const fractionalStr = fractionalPart.toString().padStart(decimals, '0').slice(0, 6);
-    
-    let formatted = wholePart.toString();
-    if (fractionalPart > 0n) {
-      formatted += '.' + fractionalStr.replace(/0+$/, '');
-    }
-
-    return formatted;
-  } catch {
-    return '0';
-  }
+// Get chain info by chainIndex
+function getChainInfo(chainIndex: string): { name: string; icon: string; nativeSymbol: string; nativeDecimals: number } | null {
+  const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
+  if (!chain) return null;
+  return {
+    name: chain.name,
+    icon: chain.icon,
+    nativeSymbol: chain.nativeCurrency.symbol,
+    nativeDecimals: chain.nativeCurrency.decimals,
+  };
 }
 
 export function usePortfolioBalances() {
   const { 
-    activeAddress,
     isConnected,
-    getSolanaConnection,
-    getSuiClient,
-    getTronWeb,
     evmAddress,
     solanaAddress,
     suiAddress,
@@ -113,85 +91,71 @@ export function usePortfolioBalances() {
   const [loading, setLoading] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
   const [selectedChain, setSelectedChain] = useState<string>('all');
+  const [error, setError] = useState<string | null>(null);
+
+  // Check if any wallet is connected
+  const isAnyConnected = !!(evmAddress || solanaAddress || suiAddress || tronAddress || tonAddress);
 
   const fetchPortfolio = useCallback(async () => {
-    if (!isConnected) {
+    if (!isAnyConnected) {
       setTokens([]);
       setTotalValue(0);
+      setError(null);
       return;
     }
 
     setLoading(true);
+    setError(null);
     const portfolioTokens: PortfolioToken[] = [];
 
     try {
       const fetchPromises: Promise<void>[] = [];
 
-      // Fetch EVM balances - prioritize key chains first
+      // Fetch EVM balances via backend API
       if (evmAddress) {
-        // Priority chains to check first (most likely to have balances)
-        const priorityChainIds = ['1', '56', '137', '42161', '8453', '10'];
-        const evmChains = SUPPORTED_CHAINS.filter(c => c.isEvm);
-        
-        // Sort priority chains first
-        const sortedChains = evmChains.sort((a, b) => {
-          const aIdx = priorityChainIds.indexOf(a.chainIndex);
-          const bIdx = priorityChainIds.indexOf(b.chainIndex);
-          if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
-          if (aIdx >= 0) return -1;
-          if (bIdx >= 0) return 1;
-          return 0;
-        });
-
-        for (const chain of sortedChains) {
-          fetchPromises.push(
-            fetchEvmChainBalancesViaRpc(chain, evmAddress, portfolioTokens)
-          );
-        }
+        const evmChainIndexes = SUPPORTED_CHAINS.filter(c => c.isEvm).map(c => c.chainIndex);
+        fetchPromises.push(
+          fetchWalletBalancesViaBackend(evmAddress, evmChainIndexes, portfolioTokens)
+        );
       }
 
-      // Fetch Solana balances if connected
+      // Fetch Solana balances
       if (solanaAddress) {
-        const solanaChain = SUPPORTED_CHAINS.find(c => c.chainIndex === CHAIN_INDICES.solana);
-        if (solanaChain) {
-          fetchPromises.push(
-            fetchSolanaBalances(solanaChain, solanaAddress, getSolanaConnection, portfolioTokens)
-          );
-        }
+        fetchPromises.push(
+          fetchWalletBalancesViaBackend(solanaAddress, ['501'], portfolioTokens)
+        );
       }
 
-      // Fetch Sui balances if connected
+      // Fetch Sui balances
       if (suiAddress) {
-        const suiChain = SUPPORTED_CHAINS.find(c => c.chainIndex === CHAIN_INDICES.sui);
-        if (suiChain) {
-          fetchPromises.push(
-            fetchSuiBalances(suiChain, suiAddress, getSuiClient, portfolioTokens)
-          );
-        }
+        fetchPromises.push(
+          fetchWalletBalancesViaBackend(suiAddress, ['784'], portfolioTokens)
+        );
       }
 
-      // Fetch Tron balances if connected
+      // Fetch Tron balances
       if (tronAddress) {
-        const tronChain = SUPPORTED_CHAINS.find(c => c.chainIndex === CHAIN_INDICES.tron);
-        if (tronChain) {
-          fetchPromises.push(
-            fetchTronBalances(tronChain, tronAddress, getTronWeb, portfolioTokens)
-          );
-        }
+        fetchPromises.push(
+          fetchWalletBalancesViaBackend(tronAddress, ['195'], portfolioTokens)
+        );
       }
 
-      // Fetch TON balances if connected (native only for now)
+      // Fetch TON balances
       if (tonAddress) {
-        const tonChain = SUPPORTED_CHAINS.find(c => c.chainIndex === CHAIN_INDICES.ton);
-        if (tonChain) {
-          fetchPromises.push(
-            fetchTonBalances(tonChain, tonAddress, portfolioTokens)
-          );
-        }
+        fetchPromises.push(
+          fetchWalletBalancesViaBackend(tonAddress, ['607'], portfolioTokens)
+        );
       }
 
       // Use allSettled so one chain failure doesn't break others
-      await Promise.allSettled(fetchPromises);
+      const results = await Promise.allSettled(fetchPromises);
+      
+      // Check for failures and log them
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          console.error(`[Portfolio] Fetch promise ${idx} failed:`, result.reason);
+        }
+      });
 
       console.log('[Portfolio] Fetched tokens:', portfolioTokens.length);
 
@@ -205,10 +169,11 @@ export function usePortfolioBalances() {
       setTotalValue(portfolioTokens.reduce((sum, t) => sum + t.usdValue, 0));
     } catch (err) {
       console.error('[Portfolio] Fetch error:', err);
+      setError('Failed to load portfolio. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [isConnected, evmAddress, solanaAddress, suiAddress, tronAddress, tonAddress, getSolanaConnection, getSuiClient, getTronWeb]);
+  }, [isAnyConnected, evmAddress, solanaAddress, suiAddress, tronAddress, tonAddress]);
 
   useEffect(() => {
     fetchPortfolio();
@@ -216,10 +181,10 @@ export function usePortfolioBalances() {
 
   // Auto-refresh every 60 seconds
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isAnyConnected) return;
     const interval = setInterval(fetchPortfolio, 60000);
     return () => clearInterval(interval);
-  }, [fetchPortfolio, isConnected]);
+  }, [fetchPortfolio, isAnyConnected]);
 
   // Filter tokens by selected chain
   const filteredTokens = selectedChain === 'all' 
@@ -238,422 +203,137 @@ export function usePortfolioBalances() {
     selectedChain,
     setSelectedChain,
     chainsWithBalances,
+    error,
+    isAnyConnected,
   };
 }
 
-// Fetch EVM balances via direct RPC (not wallet provider) - more reliable
-async function fetchEvmChainBalancesViaRpc(
-  chain: Chain,
+// Fetch wallet balances via backend OKX API - bypasses CORS issues
+async function fetchWalletBalancesViaBackend(
   address: string,
+  chainIndexes: string[],
   portfolioTokens: PortfolioToken[]
 ): Promise<void> {
   try {
-    // Get native token balance via RPC
-    const nativeBalance = await fetchEvmNativeBalanceViaRpc(chain.rpcUrl, address);
+    console.log(`[Portfolio] Fetching balances for ${address} on chains:`, chainIndexes.join(','));
     
-    if (nativeBalance && nativeBalance !== '0') {
-      const decimals = chain.nativeCurrency.decimals;
-      const balanceFormatted = formatBalance(nativeBalance, decimals);
-      const numBalance = parseFloat(balanceFormatted);
-      
-      if (numBalance > 0) {
-        const price = await getTokenPrice(chain.chainIndex, NATIVE_TOKEN_ADDRESS);
-        const usdValue = numBalance * price;
-        
-        // Show all native tokens with balance, even if price is 0
-        if (numBalance > 0.00001) {
-          console.log(`[Portfolio] Found ${chain.nativeCurrency.symbol} on ${chain.name}: ${balanceFormatted}`);
-          portfolioTokens.push({
-            tokenContractAddress: NATIVE_TOKEN_ADDRESS,
-            tokenSymbol: chain.nativeCurrency.symbol,
-            tokenName: chain.nativeCurrency.name,
-            decimals: decimals.toString(),
-            tokenLogoUrl: chain.icon,
-            chainIndex: chain.chainIndex,
-            chainName: chain.name,
-            chainIcon: chain.icon,
-            balance: nativeBalance,
-            balanceFormatted,
-            usdValue,
-            price,
-            priceChange24h: 0,
-          });
-        }
-      }
-    }
-
-    // Get custom tokens for this chain
-    const customTokens = getCustomTokensForChain(chain.chainIndex, address);
-    for (const token of customTokens) {
-      try {
-        const balance = await fetchErc20BalanceViaRpc(chain.rpcUrl, address, token.tokenContractAddress);
-        if (balance && balance !== '0') {
-          const decimals = parseInt(token.decimals);
-          const balanceFormatted = formatBalance(balance, decimals);
-          const numBalance = parseFloat(balanceFormatted);
-          
-          if (numBalance > 0) {
-            const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
-            const usdValue = numBalance * price;
-            
-            // Show all custom tokens with any balance
-            portfolioTokens.push({
-              ...token,
-              chainIndex: chain.chainIndex,
-              chainName: chain.name,
-              chainIcon: chain.icon,
-              balance,
-              balanceFormatted,
-              usdValue,
-              price,
-              priceChange24h: 0,
-              isCustom: true,
-            });
-          }
-        }
-      } catch {
-        // Skip failed token fetches
-      }
-    }
-  } catch (err) {
-    console.error(`[Portfolio] Failed to fetch ${chain.name} balances:`, err);
-  }
-}
-
-// Solana balance fetching
-async function fetchSolanaBalances(
-  chain: Chain,
-  address: string,
-  getSolanaConnection: () => any,
-  portfolioTokens: PortfolioToken[]
-): Promise<void> {
-  try {
-    let connection = getSolanaConnection();
-    if (!connection) {
-      connection = new Connection('https://api.mainnet-beta.solana.com');
-    }
-
-    const pubkey = new PublicKey(address);
+    const balances = await okxDexService.getWalletBalances(address, chainIndexes);
     
-    // Get native SOL balance
-    const lamports = await connection.getBalance(pubkey);
-    if (lamports > 0) {
-      const nativeBalance = lamports.toString();
-      const balanceFormatted = formatBalance(nativeBalance, 9);
-      const price = await getTokenPrice(chain.chainIndex, SOLANA_NATIVE_ADDRESS);
-      const usdValue = parseFloat(balanceFormatted) * price;
-      
-      console.log(`[Portfolio] Found SOL: ${balanceFormatted}`);
+    if (!balances || balances.length === 0) {
+      console.log(`[Portfolio] No balances returned for ${address}`);
+      // Fall back to custom tokens only
+      await fetchCustomTokensOnly(address, chainIndexes, portfolioTokens);
+      return;
+    }
+
+    console.log(`[Portfolio] Got ${balances.length} token balances`);
+
+    // Process each balance
+    for (const balance of balances) {
+      const chainInfo = getChainInfo(balance.chainIndex);
+      if (!chainInfo) continue;
+
+      const balanceNum = parseFloat(balance.balance);
+      if (balanceNum <= 0) continue;
+
+      const price = parseFloat(balance.tokenPrice) || 0;
+      const usdValue = balanceNum * price;
+
+      // Determine if this is a native token
+      const isNative = !balance.tokenAddress || 
+        balance.tokenAddress === '' || 
+        balance.tokenType === '1' ||
+        balance.tokenAddress === NATIVE_TOKEN_ADDRESS ||
+        balance.tokenAddress === NATIVE_ADDRESSES[balance.chainIndex];
+
       portfolioTokens.push({
-        tokenContractAddress: SOLANA_NATIVE_ADDRESS,
-        tokenSymbol: 'SOL',
-        tokenName: 'Solana',
-        decimals: '9',
-        tokenLogoUrl: chain.icon,
-        chainIndex: chain.chainIndex,
-        chainName: chain.name,
-        chainIcon: chain.icon,
-        balance: nativeBalance,
-        balanceFormatted,
+        tokenContractAddress: isNative ? (NATIVE_ADDRESSES[balance.chainIndex] || NATIVE_TOKEN_ADDRESS) : balance.tokenAddress,
+        tokenSymbol: balance.symbol,
+        tokenName: balance.symbol, // OKX wallet API doesn't return full name
+        decimals: '18', // Default, actual precision handled by balance string
+        tokenLogoUrl: chainInfo.icon, // Use chain icon as fallback
+        chainIndex: balance.chainIndex,
+        chainName: chainInfo.name,
+        chainIcon: chainInfo.icon,
+        balance: balance.balance,
+        balanceFormatted: formatDisplayBalance(balance.balance),
         usdValue,
         price,
         priceChange24h: 0,
+        isCustom: false,
       });
     }
 
-    // Get custom SPL tokens
-    const customTokens = getCustomTokensForChain(chain.chainIndex, address);
-    for (const token of customTokens) {
-      try {
-        const { TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-        const tokenMint = new PublicKey(token.tokenContractAddress);
-        const tokenAccounts = await connection.getTokenAccountsByOwner(pubkey, { mint: tokenMint });
-        
-        if (tokenAccounts.value.length > 0) {
-          let totalBalance = BigInt(0);
-          for (const account of tokenAccounts.value) {
-            const data = account.account.data;
-            const balanceBytes = data.slice(64, 72);
-            const balance = new DataView(balanceBytes.buffer, balanceBytes.byteOffset).getBigUint64(0, true);
-            totalBalance += balance;
-          }
-          
-          if (totalBalance > 0n) {
-            const decimals = parseInt(token.decimals);
-            const balanceFormatted = formatBalance(totalBalance.toString(), decimals);
-            const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
-            const usdValue = parseFloat(balanceFormatted) * price;
-            
-            portfolioTokens.push({
-              ...token,
-              chainIndex: chain.chainIndex,
-              chainName: chain.name,
-              chainIcon: chain.icon,
-              balance: totalBalance.toString(),
-              balanceFormatted,
-              usdValue,
-              price,
-              priceChange24h: 0,
-              isCustom: true,
-            });
-          }
-        }
-      } catch {
-        // Skip failed token fetches
-      }
-    }
+    // Also fetch custom tokens that might not be in OKX's default list
+    await fetchCustomTokensOnly(address, chainIndexes, portfolioTokens);
+
   } catch (err) {
-    console.error('[Portfolio] Failed to fetch Solana balances:', err);
+    console.error(`[Portfolio] Backend balance fetch failed for ${address}:`, err);
+    // Fall back to custom tokens only
+    await fetchCustomTokensOnly(address, chainIndexes, portfolioTokens);
   }
 }
 
-// Sui balance fetching
-async function fetchSuiBalances(
-  chain: Chain,
+// Fetch only custom tokens (for cases where backend API doesn't include them)
+async function fetchCustomTokensOnly(
   address: string,
-  getSuiClient: () => any,
+  chainIndexes: string[],
   portfolioTokens: PortfolioToken[]
 ): Promise<void> {
-  try {
-    const client = getSuiClient();
-    if (!client) return;
+  for (const chainIndex of chainIndexes) {
+    const customTokens = getCustomTokensForChain(chainIndex, address);
+    const chainInfo = getChainInfo(chainIndex);
+    
+    if (!chainInfo || customTokens.length === 0) continue;
 
-    // Get native SUI balance
-    const coins = await client.getCoins({ owner: address, coinType: SUI_NATIVE_ADDRESS });
-    if (coins.data && coins.data.length > 0) {
-      const total = coins.data.reduce((sum: bigint, c: any) => sum + BigInt(c.balance), BigInt(0));
-      if (total > 0n) {
-        const nativeBalance = total.toString();
-        const balanceFormatted = formatBalance(nativeBalance, 9);
-        const price = await getTokenPrice(chain.chainIndex, SUI_NATIVE_ADDRESS);
-        const usdValue = parseFloat(balanceFormatted) * price;
-        
-        console.log(`[Portfolio] Found SUI: ${balanceFormatted}`);
-        portfolioTokens.push({
-          tokenContractAddress: SUI_NATIVE_ADDRESS,
-          tokenSymbol: 'SUI',
-          tokenName: 'Sui',
-          decimals: '9',
-          tokenLogoUrl: chain.icon,
-          chainIndex: chain.chainIndex,
-          chainName: chain.name,
-          chainIcon: chain.icon,
-          balance: nativeBalance,
-          balanceFormatted,
-          usdValue,
-          price,
-          priceChange24h: 0,
-        });
-      }
-    }
-
-    // Get custom tokens
-    const customTokens = getCustomTokensForChain(chain.chainIndex, address);
     for (const token of customTokens) {
-      try {
-        const tokenCoins = await client.getCoins({ owner: address, coinType: token.tokenContractAddress });
-        if (tokenCoins.data && tokenCoins.data.length > 0) {
-          const total = tokenCoins.data.reduce((sum: bigint, c: any) => sum + BigInt(c.balance), BigInt(0));
-          if (total > 0n) {
-            const decimals = parseInt(token.decimals);
-            const balanceFormatted = formatBalance(total.toString(), decimals);
-            const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
-            const usdValue = parseFloat(balanceFormatted) * price;
-            
-            portfolioTokens.push({
-              ...token,
-              chainIndex: chain.chainIndex,
-              chainName: chain.name,
-              chainIcon: chain.icon,
-              balance: total.toString(),
-              balanceFormatted,
-              usdValue,
-              price,
-              priceChange24h: 0,
-              isCustom: true,
-            });
-          }
-        }
-      } catch {
-        // Skip failed token fetches
-      }
-    }
-  } catch (err) {
-    console.error('[Portfolio] Failed to fetch Sui balances:', err);
-  }
-}
+      // Check if already in portfolio
+      const exists = portfolioTokens.some(
+        p => p.chainIndex === chainIndex && 
+             p.tokenContractAddress.toLowerCase() === token.tokenContractAddress.toLowerCase()
+      );
+      if (exists) continue;
 
-// Tron balance fetching
-async function fetchTronBalances(
-  chain: Chain,
-  address: string,
-  getTronWeb: () => any,
-  portfolioTokens: PortfolioToken[]
-): Promise<void> {
-  try {
-    const tronWeb = getTronWeb();
-    if (!tronWeb) return;
-
-    // Get native TRX balance
-    const balance = await tronWeb.trx.getBalance(address);
-    if (balance > 0) {
-      const nativeBalance = balance.toString();
-      const balanceFormatted = formatBalance(nativeBalance, 6);
-      const price = await getTokenPrice(chain.chainIndex, TRON_NATIVE_ADDRESS);
-      const usdValue = parseFloat(balanceFormatted) * price;
+      // Get price for custom token
+      const price = await getTokenPrice(chainIndex, token.tokenContractAddress);
       
-      console.log(`[Portfolio] Found TRX: ${balanceFormatted}`);
+      // Add with 0 balance (we can't fetch balance without RPC)
+      // User will see it in list even if balance is unknown
       portfolioTokens.push({
-        tokenContractAddress: TRON_NATIVE_ADDRESS,
-        tokenSymbol: 'TRX',
-        tokenName: 'Tron',
-        decimals: '6',
-        tokenLogoUrl: chain.icon,
-        chainIndex: chain.chainIndex,
-        chainName: chain.name,
-        chainIcon: chain.icon,
-        balance: nativeBalance,
-        balanceFormatted,
-        usdValue,
+        ...token,
+        chainIndex,
+        chainName: chainInfo.name,
+        chainIcon: chainInfo.icon,
+        balance: '0',
+        balanceFormatted: '—', // Indicate balance unknown
+        usdValue: 0,
         price,
         priceChange24h: 0,
+        isCustom: true,
       });
     }
-
-    // Get custom TRC20 tokens
-    const customTokens = getCustomTokensForChain(chain.chainIndex, address);
-    for (const token of customTokens) {
-      try {
-        const contract = await tronWeb.contract().at(token.tokenContractAddress);
-        const tokenBalance = await contract.balanceOf(address).call();
-        if (tokenBalance && tokenBalance.toString() !== '0') {
-          const decimals = parseInt(token.decimals);
-          const balanceFormatted = formatBalance(tokenBalance.toString(), decimals);
-          const price = await getTokenPrice(chain.chainIndex, token.tokenContractAddress);
-          const usdValue = parseFloat(balanceFormatted) * price;
-          
-          portfolioTokens.push({
-            ...token,
-            chainIndex: chain.chainIndex,
-            chainName: chain.name,
-            chainIcon: chain.icon,
-            balance: tokenBalance.toString(),
-            balanceFormatted,
-            usdValue,
-            price,
-            priceChange24h: 0,
-            isCustom: true,
-          });
-        }
-      } catch {
-        // Skip failed token fetches
-      }
-    }
-  } catch (err) {
-    console.error('[Portfolio] Failed to fetch Tron balances:', err);
   }
 }
 
-// TON balance fetching (native only for now)
-async function fetchTonBalances(
-  chain: Chain,
-  address: string,
-  portfolioTokens: PortfolioToken[]
-): Promise<void> {
-  try {
-    // Use TON Center API to get balance
-    const response = await fetch(`https://toncenter.com/api/v2/getAddressBalance?address=${address}`);
-    const data = await response.json();
-    
-    if (data.ok && data.result) {
-      const nativeBalance = data.result;
-      if (nativeBalance && nativeBalance !== '0') {
-        const balanceFormatted = formatBalance(nativeBalance, 9);
-        const price = await getTokenPrice(chain.chainIndex, TON_NATIVE_ADDRESS);
-        const usdValue = parseFloat(balanceFormatted) * price;
-        
-        console.log(`[Portfolio] Found TON: ${balanceFormatted}`);
-        portfolioTokens.push({
-          tokenContractAddress: TON_NATIVE_ADDRESS,
-          tokenSymbol: 'TON',
-          tokenName: 'Toncoin',
-          decimals: '9',
-          tokenLogoUrl: chain.icon,
-          chainIndex: chain.chainIndex,
-          chainName: chain.name,
-          chainIcon: chain.icon,
-          balance: nativeBalance,
-          balanceFormatted,
-          usdValue,
-          price,
-          priceChange24h: 0,
-        });
-      }
-    }
-  } catch (err) {
-    console.error('[Portfolio] Failed to fetch TON balances:', err);
+// Format balance for display
+function formatDisplayBalance(balance: string): string {
+  const num = parseFloat(balance);
+  if (isNaN(num) || num === 0) return '0';
+  
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(2) + 'M';
   }
-}
-
-// Helper: Fetch EVM native balance via RPC with timeout
-async function fetchEvmNativeBalanceViaRpc(rpcUrl: string, address: string): Promise<string> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-    
-    const response = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_getBalance',
-        params: [address, 'latest'],
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    
-    const data = await response.json();
-    if (data.result) {
-      return BigInt(data.result).toString();
-    }
-    return '0';
-  } catch {
-    return '0';
+  if (num >= 1000) {
+    return (num / 1000).toFixed(2) + 'K';
   }
-}
-
-// Helper: Fetch ERC20 token balance via RPC with timeout
-async function fetchErc20BalanceViaRpc(rpcUrl: string, address: string, tokenAddress: string): Promise<string> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const balanceData = BALANCE_OF_ABI + address.toLowerCase().replace('0x', '').padStart(64, '0');
-    const response = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_call',
-        params: [{ to: tokenAddress, data: balanceData }, 'latest'],
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    
-    const data = await response.json();
-    if (data.result && data.result !== '0x') {
-      return BigInt(data.result).toString();
-    }
-    return '0';
-  } catch {
-    return '0';
+  if (num >= 1) {
+    return num.toFixed(4);
   }
+  if (num >= 0.0001) {
+    return num.toFixed(6);
+  }
+  return num.toExponential(2);
 }
-
 
 // Get token price with caching
 async function getTokenPrice(chainIndex: string, tokenAddress: string): Promise<number> {

@@ -15,13 +15,16 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
   const { isRouteLoading, progress } = useRouteLoading();
-  const { isConnected } = useMultiWallet();
+  const { evmAddress, solanaAddress, suiAddress, tronAddress, tonAddress } = useMultiWallet();
+  
+  // Show Portfolio if ANY wallet is connected (not just the active chain)
+  const isAnyWalletConnected = !!(evmAddress || solanaAddress || suiAddress || tronAddress || tonAddress);
 
   const isActive = (path: string) => location.pathname === path;
 
   const navLinks = [
     { path: "/", label: "Exchange", icon: ArrowRightLeft },
-    ...(isConnected ? [{ path: "/portfolio", label: "Portfolio", icon: PieChart }] : []),
+    ...(isAnyWalletConnected ? [{ path: "/portfolio", label: "Portfolio", icon: PieChart }] : []),
     { path: "/favorites", label: "Favorites", icon: Star },
     { path: "/history", label: "History", icon: Clock },
     { path: "/about", label: "About", icon: Info },

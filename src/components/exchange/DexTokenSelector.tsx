@@ -11,8 +11,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { OkxToken, okxDexService } from "@/services/okxdex";
 import { Chain } from "@/data/chains";
 import { useRecentTokens } from "@/hooks/useRecentTokens";
+import { useCustomTokens } from "@/hooks/useCustomTokens";
+import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { CustomTokenConfirmDialog } from "./CustomTokenConfirmDialog";
-
 interface DexTokenSelectorProps {
   value: OkxToken | null;
   onChange: (token: OkxToken) => void;
@@ -70,8 +71,14 @@ export function DexTokenSelector({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingCustomToken, setPendingCustomToken] = useState<OkxToken | null>(null);
   
+  // Get wallet address for custom token storage
+  const { activeAddress } = useMultiWallet();
+  
   // Recent tokens hook
   const { recentTokens, addRecentToken, clearRecentTokens } = useRecentTokens(chain?.chainIndex || '');
+  
+  // Custom tokens hook - persists confirmed custom tokens for portfolio
+  const { addCustomToken } = useCustomTokens(chain?.chainIndex || '', activeAddress || undefined);
 
   // Reset custom token state when popup closes or chain changes
   useEffect(() => {
@@ -199,7 +206,13 @@ export function DexTokenSelector({
     if (pendingCustomToken) {
       // Mark as confirmed custom token
       const confirmedToken = { ...pendingCustomToken, isCustom: true } as OkxToken;
+      
+      // Add to recent tokens for quick access
       addRecentToken(confirmedToken);
+      
+      // IMPORTANT: Also persist to custom tokens storage for portfolio discovery
+      addCustomToken(confirmedToken);
+      
       onChange(confirmedToken);
     }
     setShowConfirmDialog(false);
@@ -207,7 +220,7 @@ export function DexTokenSelector({
     setOpen(false);
     setSearchQuery("");
     setCustomToken(null);
-  }, [pendingCustomToken, onChange, addRecentToken]);
+  }, [pendingCustomToken, onChange, addRecentToken, addCustomToken]);
 
   const handleCancelCustomToken = useCallback(() => {
     setShowConfirmDialog(false);

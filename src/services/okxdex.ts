@@ -61,6 +61,16 @@ export interface OkxChain {
   dexTokenApproveAddress: string;
 }
 
+export interface WalletTokenBalance {
+  chainIndex: string;
+  tokenAddress: string;
+  symbol: string;
+  balance: string;
+  tokenPrice: string;
+  tokenType: string;
+  isRiskToken?: boolean;
+}
+
 class OkxDexService {
   private async callApi<T>(action: string, params: Record<string, any> = {}): Promise<T> {
     return withRetry(async () => {
@@ -148,6 +158,17 @@ class OkxDexService {
       return result;
     } catch {
       return null;
+    }
+  }
+
+  async getWalletBalances(address: string, chainIndexes: string[]): Promise<WalletTokenBalance[]> {
+    try {
+      const chains = chainIndexes.join(',');
+      const result = await this.callApi<WalletTokenBalance[]>('wallet-balances', { address, chains });
+      return Array.isArray(result) ? result : [];
+    } catch (err) {
+      console.error('Failed to fetch wallet balances:', err);
+      return [];
     }
   }
 
