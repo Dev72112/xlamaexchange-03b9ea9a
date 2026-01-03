@@ -29,6 +29,7 @@ const VALID_ACTIONS = [
   'cross-chain-quote',
   'cross-chain-swap',
   'token-price',
+  'wallet-balances',
 ] as const;
 
 type ValidAction = typeof VALID_ACTIONS[number];
@@ -47,6 +48,7 @@ const RATE_LIMITS: Record<ValidAction, number> = {
   'cross-chain-quote': 30,
   'cross-chain-swap': 20,
   'token-price': 60,
+  'wallet-balances': 30,
 };
 
 function checkRateLimit(action: ValidAction, clientIp: string): boolean {
@@ -526,6 +528,41 @@ serve(async (req) => {
         };
         
         response = await fetch(`${marketUrl}/token-price${queryStr}`, { method: 'GET', headers });
+        break;
+      }
+
+      case 'wallet-balances': {
+        const { address, chains } = params;
+        if (!address || !chains) {
+          return new Response(
+            JSON.stringify({ error: 'address and chains are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log(`Fetching wallet balances for ${address} on chains: ${chains}`);
+        
+        // Use OKX Wallet API for token balances
+        const walletUrl = 'https://www.okx.com/api/v5/wallet/asset';
+        const queryStr = buildQueryString({ 
+          address, 
+          chains,
+          filter: '0' // 0 = exclude risk tokens, 1 = include all
+        });
+        const requestPath = `/api/v5/wallet/asset/all-token-balances-by-address${queryStr}`;
+        const timestamp = new Date().toISOString();
+        const signature = await generateSignature(timestamp, 'GET', requestPath);
+        
+        const headers = {
+          'OK-ACCESS-KEY': OKX_API_KEY,
+          'OK-ACCESS-SIGN': signature,
+          'OK-ACCESS-TIMESTAMP': timestamp,
+          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
+          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
+          'Content-Type': 'application/json',
+        };
+        
+        response = await fetch(`${walletUrl}/all-token-balances-by-address${queryStr}`, { method: 'GET', headers });
         break;
       }
       

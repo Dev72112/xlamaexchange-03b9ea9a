@@ -155,7 +155,7 @@ function ConnectWalletState() {
 }
 
 export default function Portfolio() {
-  const { isConnected, activeAddress } = useMultiWallet();
+  const { evmAddress, solanaAddress, suiAddress, tronAddress, tonAddress } = useMultiWallet();
   const { 
     tokens, 
     allTokens,
@@ -165,7 +165,12 @@ export default function Portfolio() {
     selectedChain,
     setSelectedChain,
     chainsWithBalances,
+    error,
+    isAnyConnected,
   } = usePortfolioBalances();
+
+  // Get a display address from any connected wallet
+  const displayAddress = evmAddress || solanaAddress || suiAddress || tronAddress || tonAddress;
 
   return (
     <Layout>
@@ -176,10 +181,21 @@ export default function Portfolio() {
       
       <div className="container py-8 max-w-3xl mx-auto">
         <div className="content-fade-in">
-          {!isConnected ? (
+          {!isAnyConnected ? (
             <ConnectWalletState />
           ) : loading && tokens.length === 0 ? (
             <PortfolioSkeleton />
+          ) : error ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <RefreshCw className="w-8 h-8 text-destructive" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Failed to Load Portfolio</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">{error}</p>
+                <Button onClick={refetch}>Try Again</Button>
+              </CardContent>
+            </Card>
           ) : (
             <>
               {/* Header */}
@@ -256,9 +272,11 @@ export default function Portfolio() {
               )}
 
               {/* Wallet info */}
-              <div className="mt-6 text-center text-sm text-muted-foreground">
-                Connected: {activeAddress?.slice(0, 6)}...{activeAddress?.slice(-4)}
-              </div>
+              {displayAddress && (
+                <div className="mt-6 text-center text-sm text-muted-foreground">
+                  Connected: {displayAddress.slice(0, 6)}...{displayAddress.slice(-4)}
+                </div>
+              )}
             </>
           )}
         </div>
