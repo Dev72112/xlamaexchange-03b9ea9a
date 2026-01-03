@@ -101,11 +101,12 @@ const History = () => {
             </Button>
           </Card>
         ) : (
-          <div className="grid gap-3 content-fade-in">
-            {transactions.map((tx) => (
-              <Card 
+          <div className="grid gap-3">
+            {transactions.map((tx, i) => (
+              <Card
                 key={tx.id}
-                className="p-4 sm:p-5 hover:border-primary/30 transition-all group"
+                className="p-4 sm:p-5 hover:border-primary/30 transition-all group content-fade-in"
+                style={{ animationDelay: `${i * 60}ms` }}
               >
                 <div className="flex items-center gap-4">
                   {/* Pair Icons */}
@@ -136,17 +137,17 @@ const History = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-medium">
-                        {tx.fromAmount} <span className="uppercase text-muted-foreground">{tx.fromTicker}</span>
+                        {tx.fromAmount}{" "}
+                        <span className="uppercase text-muted-foreground">{tx.fromTicker}</span>
                       </span>
                       <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
                       <span className="font-medium">
-                        {parseFloat(tx.toAmount).toFixed(6)} <span className="uppercase text-muted-foreground">{tx.toTicker}</span>
+                        {parseFloat(tx.toAmount).toFixed(6)}{" "}
+                        <span className="uppercase text-muted-foreground">{tx.toTicker}</span>
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="font-mono text-xs truncate max-w-[100px]">
-                        {tx.id}
-                      </span>
+                      <span className="font-mono text-xs truncate max-w-[100px]">{tx.id}</span>
                       <span>•</span>
                       <span>{formatDistanceToNow(tx.createdAt, { addSuffix: true })}</span>
                     </div>

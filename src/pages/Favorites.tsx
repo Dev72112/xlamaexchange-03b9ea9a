@@ -85,15 +85,16 @@ const Favorites = () => {
         ) : isLoading ? (
           <FavoriteCardsSkeleton count={favorites.length || 3} />
         ) : (
-          <div className="grid gap-3 content-fade-in">
-            {favorites.map((pair) => {
+          <div className="grid gap-3">
+            {favorites.map((pair, i) => {
               const rateKey = `${pair.from}-${pair.to}`;
               const rate = rates?.[rateKey];
-              
+
               return (
-                <Card 
+                <Card
                   key={rateKey}
-                  className="p-4 sm:p-5 hover:border-primary/30 transition-all cursor-pointer group"
+                  className="p-4 sm:p-5 hover:border-primary/30 transition-all cursor-pointer group content-fade-in"
+                  style={{ animationDelay: `${i * 60}ms` }}
                   onClick={() => handleExchange(pair.from, pair.to)}
                 >
                   <div className="flex items-center gap-4">
@@ -165,7 +166,7 @@ const Favorites = () => {
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
-                      <Button 
+                      <Button
                         size="sm"
                         className="hidden sm:flex"
                         onClick={(e) => {

@@ -6,11 +6,14 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./GlobalSearch";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "./SocialIcons";
+import { Progress } from "@/components/ui/progress";
+import { useRouteLoading } from "@/contexts/RouteLoadingContext";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+  const { isRouteLoading, progress } = useRouteLoading();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -36,13 +39,13 @@ export function Header() {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1" role="navigation" aria-label="Main navigation">
             {navLinks.map((link) => (
-              <Link 
+              <Link
                 key={link.path}
-                to={link.path} 
+                to={link.path}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive(link.path) 
-                    ? "bg-secondary text-foreground" 
+                  isActive(link.path)
+                    ? "bg-secondary text-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                 )}
                 aria-current={isActive(link.path) ? "page" : undefined}
@@ -76,7 +79,7 @@ export function Header() {
                 <TelegramIcon className="w-4 h-4" />
               </a>
             </div>
-            
+
             {/* Search Button */}
             <Button
               variant="outline"
@@ -91,7 +94,7 @@ export function Header() {
                 <span className="text-xs">⌘</span>K
               </kbd>
             </Button>
-            
+
             {/* Mobile search */}
             <Button
               variant="ghost"
@@ -102,9 +105,9 @@ export function Header() {
             >
               <Search className="w-5 h-5" aria-hidden="true" />
             </Button>
-            
+
             <ThemeToggle />
-            
+
             {/* Mobile menu button */}
             <Button
               variant="ghost"
@@ -115,14 +118,25 @@ export function Header() {
               aria-controls="mobile-menu"
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+              {mobileMenuOpen ? (
+                <X className="w-5 h-5" aria-hidden="true" />
+              ) : (
+                <Menu className="w-5 h-5" aria-hidden="true" />
+              )}
             </Button>
           </div>
         </div>
 
+        {/* Header progress indicator (page transitions) */}
+        {isRouteLoading && (
+          <div className="w-full" aria-hidden="true">
+            <Progress value={progress} className="h-1 rounded-none" />
+          </div>
+        )}
+
         {/* Mobile Nav */}
         {mobileMenuOpen && (
-          <nav 
+          <nav
             id="mobile-menu"
             className="md:hidden border-t border-border bg-background p-4"
             role="navigation"
@@ -130,14 +144,14 @@ export function Header() {
           >
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
-                <Link 
+                <Link
                   key={link.path}
-                  to={link.path} 
+                  to={link.path}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
                     "flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                    isActive(link.path) 
-                      ? "bg-secondary text-foreground" 
+                    isActive(link.path)
+                      ? "bg-secondary text-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                   )}
                   aria-current={isActive(link.path) ? "page" : undefined}
@@ -150,7 +164,7 @@ export function Header() {
           </nav>
         )}
       </header>
-      
+
       {/* Global Search Dialog */}
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </>
