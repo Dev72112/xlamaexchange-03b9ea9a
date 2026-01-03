@@ -22,7 +22,6 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const About = lazy(() => import("./pages/About"));
 const Favorites = lazy(() => import("./pages/Favorites"));
 const History = lazy(() => import("./pages/History"));
-const Portfolio = lazy(() => import("./pages/Portfolio"));
 const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -45,7 +44,6 @@ const App = () => (
                     <Suspense fallback={<PageLoadingSkeleton />}>
                       <Routes>
                         <Route path="/" element={<Index />} />
-                        <Route path="/portfolio" element={<Portfolio />} />
                         <Route path="/favorites" element={<Favorites />} />
                         <Route path="/history" element={<History />} />
                         <Route path="/about" element={<About />} />
