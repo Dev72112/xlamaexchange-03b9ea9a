@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.record-commission]
 verify_jwt = false
+
+[functions.register-referral]
+verify_jwt = false
