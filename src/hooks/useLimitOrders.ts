@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { okxDexService } from '@/services/okxdex';
 import { useToast } from './use-toast';
+import { useFeedback } from './useFeedback';
 
 export interface LimitOrder {
   id: string;
@@ -25,6 +26,7 @@ export interface LimitOrder {
 export function useLimitOrders() {
   const { activeAddress, isConnected } = useMultiWallet();
   const { toast } = useToast();
+  const { playAlert, settings } = useFeedback();
   const [orders, setOrders] = useState<LimitOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
@@ -211,12 +213,10 @@ export function useLimitOrders() {
           notifiedOrdersRef.current.add(order.id);
           await markTriggered(order.id);
           
-          // Play notification sound
-          try {
-            const audio = new Audio('/notification.mp3');
-            audio.volume = 0.5;
-            audio.play().catch(() => {});
-          } catch {}
+          // Play notification sound using user's selected alert sound
+          if (settings.soundEnabled) {
+            playAlert();
+          }
           
           // Browser push notification
           if ('Notification' in window && Notification.permission === 'granted') {
