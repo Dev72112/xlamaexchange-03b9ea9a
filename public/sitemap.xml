@@ -2,49 +2,55 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://xlama.exchange/</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://xlama.exchange/about</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://xlama.exchange/faq</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://xlama.exchange/compare</loc>
+    <lastmod>2026-01-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://xlama.exchange/favorites</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://xlama.exchange/history</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://xlama.exchange/terms</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://xlama.exchange/privacy</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://xlama.exchange/cookies</loc>
-    <lastmod>2026-01-02</lastmod>
+    <lastmod>2026-01-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

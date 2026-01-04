@@ -2,6 +2,7 @@ import { memo } from "react";
 import { ArrowRight, ExternalLink, Shield, Zap, Globe, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+import xlamaMascot from "@/assets/xlama-mascot.png";
 
 const features = [
   {
@@ -57,13 +58,20 @@ export const HeroSection = memo(function HeroSection() {
 
       <div className="container px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-6">
-            <span className="relative flex h-2 w-2" aria-hidden="true">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-            </span>
-            <span>Live DEX Aggregation Across 25+ Chains</span>
+          {/* Mascot + Badge */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <img 
+              src={xlamaMascot} 
+              alt="xLama mascot" 
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-primary/20"
+            />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary">
+              <span className="relative flex h-2 w-2" aria-hidden="true">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+              <span>Live DEX Aggregation Across 25+ Chains</span>
+            </div>
           </div>
 
           {/* Headline */}

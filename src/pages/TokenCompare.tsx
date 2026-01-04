@@ -18,6 +18,7 @@ import {
 import { okxDexService, TokenSearchResult, TokenPriceInfo } from '@/services/okxdex';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 import { cn } from '@/lib/utils';
+import xlamaMascot from '@/assets/xlama-mascot.png';
 import {
   LineChart,
   Line,
@@ -127,8 +128,8 @@ export default function TokenCompare() {
   return (
     <>
       <Helmet>
-        <title>Token Comparison | Xlama</title>
-        <meta name="description" content="Compare cryptocurrency tokens side by side - prices, volume, market cap, and performance" />
+        <title>Token Comparison | xlama</title>
+        <meta name="description" content="Compare cryptocurrency tokens side by side - prices, volume, market cap, and performance across 25+ chains" />
       </Helmet>
       
       <Layout>
@@ -240,7 +241,7 @@ export default function TokenCompare() {
           {tokens.length === 0 ? (
             <Card className="py-16">
               <CardContent className="text-center">
-                <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <img src={xlamaMascot} alt="xLama mascot" className="w-16 h-16 mx-auto mb-4 opacity-60 rounded-full" />
                 <h3 className="text-lg font-medium mb-2">No tokens to compare</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Add tokens to start comparing their performance

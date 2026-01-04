@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useLimitOrders, LimitOrder } from '@/hooks/useLimitOrders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { cn } from '@/lib/utils';
+import xlamaMascot from '@/assets/xlama-mascot.png';
 
 interface ActiveLimitOrdersProps {
   className?: string;
@@ -186,9 +187,10 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                 ))}
                 
                 {orders.length === 0 && (
-                  <p className="text-center text-sm text-muted-foreground py-4">
-                    No limit orders yet
-                  </p>
+                  <div className="text-center py-4">
+                    <img src={xlamaMascot} alt="xLama mascot" className="w-12 h-12 mx-auto mb-2 opacity-60 rounded-full" />
+                    <p className="text-sm text-muted-foreground">No limit orders yet</p>
+                  </div>
                 )}
               </div>
             </ScrollArea>

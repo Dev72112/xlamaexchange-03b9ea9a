@@ -23,6 +23,7 @@ import { useChangeNowCurrencies } from "@/hooks/useChangeNowCurrencies";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { trackPriceAlertCreated } from "@/lib/tracking";
+import xlamaMascot from "@/assets/xlama-mascot.png";
 
 const popularPairs = [
   { from: "btc", to: "eth", fromName: "Bitcoin", toName: "Ethereum" },
@@ -383,8 +384,8 @@ export function PriceAlerts() {
           <CardContent>
             {alerts.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <Bell className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p className="mb-4">No price alerts yet</p>
+                <img src={xlamaMascot} alt="xLama mascot" className="w-16 h-16 mx-auto mb-4 opacity-60 rounded-full" />
+                <p className="mb-4 font-medium">No price alerts yet</p>
                 <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create your first alert
