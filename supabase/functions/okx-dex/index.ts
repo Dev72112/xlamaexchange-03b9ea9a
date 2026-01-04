@@ -11,12 +11,12 @@ const OKX_API_PASSPHRASE = Deno.env.get('OKX_API_PASSPHRASE') || '';
 const OKX_PROJECT_ID = Deno.env.get('OKX_PROJECT_ID') || '';
 const OKX_REFERRER_WALLET_ADDRESS = Deno.env.get('OKX_REFERRER_WALLET_ADDRESS') || '';
 
-// API Base URLs - using v6 for Market/Balance/Token APIs, v5 for DEX Aggregator
-const OKX_DEX_AGGREGATOR_URL = 'https://www.okx.com/api/v5/dex/aggregator';
+// API Base URLs - all using v6
+const OKX_DEX_AGGREGATOR_URL = 'https://web3.okx.com/api/v6/dex/aggregator';
 const OKX_MARKET_API_URL = 'https://web3.okx.com/api/v6/dex/market';
 const OKX_BALANCE_API_URL = 'https://web3.okx.com/api/v6/dex/balance';
 const OKX_TX_HISTORY_API_URL = 'https://web3.okx.com/api/v6/dex/post-transaction';
-const OKX_CROSS_CHAIN_URL = 'https://www.okx.com/api/v5/dex/cross-chain';
+const OKX_CROSS_CHAIN_URL = 'https://web3.okx.com/api/v6/dex/cross-chain';
 
 // Commission fee percentage for partner revenue
 const COMMISSION_FEE_PERCENT = '1.5';
@@ -147,18 +147,18 @@ async function getOkxHeaders(requestPath: string, method: string = 'GET'): Promi
   };
 }
 
-// Make authenticated request to OKX DEX Aggregator API (v5)
+// Make authenticated request to OKX DEX Aggregator API (v6)
 async function okxDexRequest(
   endpoint: string,
   params: Record<string, string | number | undefined> = {},
   method: string = 'GET'
 ): Promise<Response> {
   const queryString = buildQueryString(params);
-  const requestPath = `/api/v5/dex/aggregator${endpoint}${queryString}`;
+  const requestPath = `/api/v6/dex/aggregator${endpoint}${queryString}`;
   const headers = await getOkxHeaders(requestPath, method);
   
   const url = `${OKX_DEX_AGGREGATOR_URL}${endpoint}${queryString}`;
-  console.log(`OKX DEX API request: ${method} ${endpoint}`, params);
+  console.log(`OKX DEX API v6 request: ${method} ${endpoint}`, params);
   
   return fetch(url, { method, headers });
 }
@@ -472,7 +472,7 @@ serve(async (req) => {
           slippage: slippage || '0.5',
           userWalletAddress,
         });
-        const requestPath = `/api/v5/dex/cross-chain/quote${queryString}`;
+        const requestPath = `/api/v6/dex/cross-chain/quote${queryString}`;
         const headers = await getOkxHeaders(requestPath);
         
         response = await fetch(`${OKX_CROSS_CHAIN_URL}/quote${queryString}`, { method: 'GET', headers });
@@ -499,7 +499,7 @@ serve(async (req) => {
           userWalletAddress,
           receiveAddress: receiveAddress || userWalletAddress,
         });
-        const requestPath = `/api/v5/dex/cross-chain/swap${queryString}`;
+        const requestPath = `/api/v6/dex/cross-chain/swap${queryString}`;
         const headers = await getOkxHeaders(requestPath);
         
         response = await fetch(`${OKX_CROSS_CHAIN_URL}/swap${queryString}`, { method: 'GET', headers });
