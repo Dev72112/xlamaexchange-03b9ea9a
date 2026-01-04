@@ -533,10 +533,27 @@ serve(async (req) => {
           );
         }
         
-        // v6 Market API - Token Trading Information (includes price, volume, marketCap, etc.)
-        response = await okxMarketRequest('/price-info', {
-          chainIndex,
-          tokenContractAddress,
+        // v6 Market API - Token Trading Information requires POST with JSON body
+        const requestPath = `/api/v6/dex/market/price-info`;
+        const bodyData = JSON.stringify([{ chainIndex, tokenContractAddress }]);
+        const timestamp = new Date().toISOString();
+        const signature = await generateSignature(timestamp, 'POST', requestPath, bodyData);
+        
+        const postHeaders = {
+          'OK-ACCESS-KEY': OKX_API_KEY,
+          'OK-ACCESS-SIGN': signature,
+          'OK-ACCESS-TIMESTAMP': timestamp,
+          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
+          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
+          'Content-Type': 'application/json',
+        };
+        
+        console.log(`Fetching token price info for ${tokenContractAddress} on chain ${chainIndex} (POST)`);
+        
+        response = await fetch(`${OKX_MARKET_API_URL}/price-info`, {
+          method: 'POST',
+          headers: postHeaders,
+          body: bodyData,
         });
         break;
       }

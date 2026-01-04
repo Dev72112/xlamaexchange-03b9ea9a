@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Star, TrendingUp, TrendingDown, RefreshCw, ArrowRightLeft, Trash2, Plus, ExternalLink } from 'lucide-react';
+import { Star, TrendingUp, TrendingDown, RefreshCw, ArrowRightLeft, Trash2, Bell } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTokenWatchlist, WatchlistTokenWithPrice } from '@/hooks/useTokenWatchlist';
+import { useDexPriceAlerts } from '@/hooks/useDexPriceAlerts';
+import { PriceAlertModal } from '@/components/PriceAlertModal';
 import { getChainByIndex } from '@/data/chains';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +20,9 @@ interface TokenWatchlistProps {
 export function TokenWatchlist({ className, compact = false }: TokenWatchlistProps) {
   const navigate = useNavigate();
   const { tokens, isLoadingPrices, refreshPrices, removeToken } = useTokenWatchlist();
+  const { activeAlerts, getAlertsForToken } = useDexPriceAlerts();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [alertModalToken, setAlertModalToken] = useState<WatchlistTokenWithPrice | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -83,6 +87,12 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
             Watchlist
             {tokens.length > 0 && (
               <Badge variant="secondary" className="text-xs">{tokens.length}</Badge>
+            )}
+            {activeAlerts.length > 0 && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Bell className="w-3 h-3" />
+                {activeAlerts.length}
+              </Badge>
             )}
           </CardTitle>
           <Button
@@ -160,6 +170,18 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          onClick={() => setAlertModalToken(token)}
+                          title="Set price alert"
+                        >
+                          <Bell className={cn(
+                            "h-4 w-4",
+                            getAlertsForToken(token.chainIndex, token.tokenContractAddress).length > 0 && "text-primary"
+                          )} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={() => handleQuickSwap(token)}
                           title="Quick swap"
                         >
@@ -183,6 +205,21 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
           </ScrollArea>
         )}
       </CardContent>
+
+      {/* Price Alert Modal */}
+      {alertModalToken && (
+        <PriceAlertModal
+          open={!!alertModalToken}
+          onOpenChange={(open) => !open && setAlertModalToken(null)}
+          token={{
+            chainIndex: alertModalToken.chainIndex,
+            tokenContractAddress: alertModalToken.tokenContractAddress,
+            tokenSymbol: alertModalToken.tokenSymbol,
+            tokenLogoUrl: alertModalToken.tokenLogoUrl,
+            currentPrice: alertModalToken.price ? parseFloat(alertModalToken.price) : undefined,
+          }}
+        />
+      )}
     </Card>
   );
 }

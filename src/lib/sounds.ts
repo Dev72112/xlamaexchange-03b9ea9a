@@ -16,3 +16,16 @@ export const SOUNDS = {
 } as const;
 
 export type SoundType = keyof typeof SOUNDS;
+
+// Play success sound for notifications
+export function playSuccessSound(): void {
+  try {
+    const audio = new Audio(SOUNDS.success);
+    audio.volume = 0.3;
+    audio.play().catch(() => {
+      // Ignore errors (e.g., autoplay blocked)
+    });
+  } catch {
+    // Ignore errors
+  }
+}
