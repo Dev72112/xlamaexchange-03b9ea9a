@@ -1,16 +1,15 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePortfolioPnL } from '@/hooks/usePortfolioPnL';
 import { cn } from '@/lib/utils';
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
-  Tooltip,
+  Tooltip as ChartTooltip,
   ResponsiveContainer,
   Area,
   AreaChart,
@@ -28,7 +27,7 @@ interface PortfolioPnLChartProps {
 }
 
 export function PortfolioPnLChart({ className }: PortfolioPnLChartProps) {
-  const { dailyData, isLoading, getPnLMetrics, getFilteredData } = usePortfolioPnL();
+  const { dailyData, isLoading, getPnLMetrics, getFilteredData, exportToCSV } = usePortfolioPnL();
   const [selectedTimeframe, setSelectedTimeframe] = useState(30);
 
   const filteredData = useMemo(() => 
@@ -99,18 +98,36 @@ export function PortfolioPnLChart({ className }: PortfolioPnLChartProps) {
             )}
             P&L
           </CardTitle>
-          <div className="flex gap-1">
-            {TIMEFRAMES.map(tf => (
-              <Button
-                key={tf.label}
-                variant={selectedTimeframe === tf.days ? "secondary" : "ghost"}
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={() => setSelectedTimeframe(tf.days)}
-              >
-                {tf.label}
-              </Button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              {TIMEFRAMES.map(tf => (
+                <Button
+                  key={tf.label}
+                  variant={selectedTimeframe === tf.days ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setSelectedTimeframe(tf.days)}
+                >
+                  {tf.label}
+                </Button>
+              ))}
+            </div>
+            
+            <TooltipProvider>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={exportToCSV}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Export to CSV</TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
           </div>
         </div>
         
@@ -153,7 +170,7 @@ export function PortfolioPnLChart({ className }: PortfolioPnLChartProps) {
                 hide 
                 domain={['dataMin', 'dataMax']}
               />
-              <Tooltip
+              <ChartTooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const data = payload[0].payload;

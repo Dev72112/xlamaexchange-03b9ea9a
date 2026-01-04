@@ -732,13 +732,51 @@ serve(async (req) => {
         );
     }
     
-    const data = await response.json();
+    // Check if response is OK
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type') || '';
+      
+      // Handle HTML error pages (502, 503, etc.)
+      if (contentType.includes('text/html') || !contentType.includes('application/json')) {
+        console.error(`OKX API returned non-JSON response (${response.status}):`, response.statusText);
+        return new Response(
+          JSON.stringify({ 
+            error: response.status >= 500 
+              ? 'OKX service temporarily unavailable. Please try again.'
+              : `OKX API error: ${response.status} ${response.statusText}`,
+            retryable: response.status >= 500,
+            status: response.status
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    // Safely parse JSON
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse OKX response:', responseText.slice(0, 200));
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid response from OKX API. Please try again.',
+          retryable: true
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // OKX API returns { code: "0", data: [...] } on success
     if (data.code !== '0' && data.code !== 0) {
       console.error('OKX API error:', data);
       return new Response(
-        JSON.stringify({ error: data.msg || 'OKX API error', code: data.code }),
+        JSON.stringify({ 
+          error: data.msg || 'OKX API error', 
+          code: data.code,
+          retryable: data.code === '50011' || data.code === 50011
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

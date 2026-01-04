@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLimitOrders, LimitOrder } from '@/hooks/useLimitOrders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ interface ActiveLimitOrdersProps {
 
 export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrdersProps) {
   const { isConnected } = useMultiWallet();
-  const { orders, activeOrders, cancelOrder, isLoading } = useLimitOrders();
+  const { orders, activeOrders, cancelOrder, isLoading, exportToCSV, notificationPermission, requestNotificationPermission } = useLimitOrders();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!isConnected || orders.length === 0) {
@@ -63,11 +64,61 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                     </Badge>
                   )}
                 </CardTitle>
-                {isOpen ? (
-                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                )}
+                <div className="flex items-center gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (notificationPermission === 'default') {
+                              requestNotificationPermission();
+                            }
+                          }}
+                        >
+                          {notificationPermission === 'granted' ? (
+                            <Bell className="w-3.5 h-3.5 text-success" />
+                          ) : (
+                            <BellOff className="w-3.5 h-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {notificationPermission === 'granted' 
+                          ? 'Push notifications enabled' 
+                          : 'Enable push notifications'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportToCSV();
+                          }}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Export to CSV</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  {isOpen ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </div>
               </div>
             </CardHeader>
           </button>

@@ -137,6 +137,22 @@ export function usePortfolioPnL() {
     return dailyData.filter(d => d.date >= cutoffStr);
   }, [dailyData]);
 
+  // Export P&L data to CSV
+  const exportToCSV = useCallback(() => {
+    if (dailyData.length === 0) return;
+    
+    const headers = ['Date', 'Portfolio Value (USD)'];
+    const rows = dailyData.map(d => [d.date, d.value.toFixed(2)]);
+    
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `portfolio-pnl-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, [dailyData]);
+
   return {
     snapshots,
     dailyData,
@@ -146,5 +162,6 @@ export function usePortfolioPnL() {
     getPnLMetrics,
     getFilteredData,
     refetch: fetchSnapshots,
+    exportToCSV,
   };
 }
