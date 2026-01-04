@@ -1,12 +1,16 @@
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, Activity, Target, Shield, Clock, ChevronDown, Loader2, BarChart2, Layers } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, Minus, Activity, Target, Shield, Clock, ChevronDown, Loader2, BarChart2, Layers, Search, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Progress } from '@/components/ui/progress';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePricePrediction, PricePrediction as PricePredictionType } from '@/hooks/usePricePrediction';
+import { useTokenWatchlist } from '@/hooks/useTokenWatchlist';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 import { cn } from '@/lib/utils';
 import { FibonacciLevels, VolumeProfileBin } from '@/lib/technicalIndicators';
@@ -18,22 +22,83 @@ interface PricePredictionProps {
   className?: string;
 }
 
+// Popular tokens for quick selection
+const POPULAR_TOKENS = [
+  { chainIndex: '1', address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', symbol: 'ETH', name: 'Ethereum' },
+  { chainIndex: '1', address: '0xdac17f958d2ee523a2206206994597c13d831ec7', symbol: 'USDT', name: 'Tether' },
+  { chainIndex: '1', address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', symbol: 'WBTC', name: 'Wrapped Bitcoin' },
+  { chainIndex: '56', address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', symbol: 'BNB', name: 'BNB Chain' },
+  { chainIndex: '501', address: 'So11111111111111111111111111111111111111112', symbol: 'SOL', name: 'Solana' },
+  { chainIndex: '137', address: '0x0000000000000000000000000000000000001010', symbol: 'MATIC', name: 'Polygon' },
+  { chainIndex: '42161', address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', symbol: 'ETH', name: 'Arbitrum ETH' },
+  { chainIndex: '8453', address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', symbol: 'ETH', name: 'Base ETH' },
+];
+
 export function PricePrediction({ 
-  chainIndex = '1', 
-  tokenAddress,
-  tokenSymbol = 'Token',
+  chainIndex: initialChainIndex, 
+  tokenAddress: initialTokenAddress,
+  tokenSymbol: initialTokenSymbol,
   className 
 }: PricePredictionProps) {
   const { predict, prediction, isLoading, error } = usePricePrediction();
+  const { tokens: watchlist } = useTokenWatchlist();
+  
+  const [selectedToken, setSelectedToken] = useState<{
+    chainIndex: string;
+    address: string;
+    symbol: string;
+  } | null>(initialChainIndex && initialTokenAddress ? {
+    chainIndex: initialChainIndex,
+    address: initialTokenAddress,
+    symbol: initialTokenSymbol || 'Token',
+  } : null);
+  
   const [timeframe, setTimeframe] = useState<'1H' | '4H' | '1D'>('1H');
   const [showSignals, setShowSignals] = useState(false);
   const [showFibonacci, setShowFibonacci] = useState(false);
   const [showVolumeProfile, setShowVolumeProfile] = useState(false);
+  const [tokenSelectorOpen, setTokenSelectorOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const handlePredict = async () => {
-    if (!tokenAddress) return;
-    await predict(chainIndex, tokenAddress, timeframe);
+  // Auto-predict when token or timeframe changes
+  useEffect(() => {
+    if (selectedToken) {
+      predict(selectedToken.chainIndex, selectedToken.address, timeframe);
+    }
+  }, [selectedToken, timeframe, predict]);
+
+  const handleSelectToken = (token: { chainIndex: string; address: string; symbol: string }) => {
+    setSelectedToken(token);
+    setTokenSelectorOpen(false);
+    setSearchQuery('');
   };
+
+  const handleClearToken = () => {
+    setSelectedToken(null);
+  };
+
+  const getChainName = (chainIndex: string) => {
+    const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
+    return chain?.name || `Chain ${chainIndex}`;
+  };
+
+  const getChainIcon = (chainIndex: string) => {
+    const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
+    return chain?.icon;
+  };
+
+  // Filter popular tokens by search
+  const filteredPopularTokens = POPULAR_TOKENS.filter(t => 
+    searchQuery === '' || 
+    t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Filter watchlist tokens by search
+  const filteredWatchlist = watchlist.filter(t =>
+    searchQuery === '' ||
+    t.tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getTrendIcon = (trend: PricePredictionType['trend']) => {
     switch (trend) {
@@ -98,30 +163,141 @@ export function PricePrediction({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!tokenAddress ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Select a token to view price prediction
-          </p>
-        ) : !prediction ? (
-          <div className="text-center py-4">
-            <Button onClick={handlePredict} disabled={isLoading} size="sm">
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Activity className="w-4 h-4 mr-2" />
-                  Generate Prediction
-                </>
-              )}
+        {/* Token Selector */}
+        <div className="flex gap-2">
+          <Popover open={tokenSelectorOpen} onOpenChange={setTokenSelectorOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="flex-1 justify-start h-10"
+              >
+                {selectedToken ? (
+                  <div className="flex items-center gap-2">
+                    <img 
+                      src={getChainIcon(selectedToken.chainIndex)} 
+                      alt="" 
+                      className="w-5 h-5 rounded-full"
+                    />
+                    <span className="font-medium">{selectedToken.symbol}</span>
+                    <span className="text-xs text-muted-foreground">
+                      on {getChainName(selectedToken.chainIndex)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Search className="w-4 h-4" />
+                    <span>Select a token...</span>
+                  </div>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="start">
+              <div className="p-2 border-b border-border">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tokens..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 h-9"
+                  />
+                </div>
+              </div>
+              <ScrollArea className="h-[300px]">
+                {/* Watchlist Section */}
+                {filteredWatchlist.length > 0 && (
+                  <div className="p-2">
+                    <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Your Watchlist</p>
+                    {filteredWatchlist.map((token) => (
+                      <button
+                        key={`${token.chainIndex}-${token.tokenContractAddress}`}
+                        onClick={() => handleSelectToken({
+                          chainIndex: token.chainIndex,
+                          address: token.tokenContractAddress,
+                          symbol: token.tokenSymbol,
+                        })}
+                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors"
+                      >
+                        <img 
+                          src={getChainIcon(token.chainIndex)} 
+                          alt="" 
+                          className="w-6 h-6 rounded-full"
+                        />
+                        <div className="flex-1 text-left">
+                          <p className="font-medium text-sm">{token.tokenSymbol}</p>
+                          <p className="text-xs text-muted-foreground">{getChainName(token.chainIndex)}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Popular Tokens Section */}
+                <div className="p-2">
+                  <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Popular Tokens</p>
+                  {filteredPopularTokens.map((token, i) => (
+                    <button
+                      key={`${token.chainIndex}-${token.address}-${i}`}
+                      onClick={() => handleSelectToken(token)}
+                      className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors"
+                    >
+                      <img 
+                        src={getChainIcon(token.chainIndex)} 
+                        alt="" 
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <div className="flex-1 text-left">
+                        <p className="font-medium text-sm">{token.symbol}</p>
+                        <p className="text-xs text-muted-foreground">{token.name}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+
+          {selectedToken && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleClearToken}
+              className="h-10 w-10"
+            >
+              <X className="w-4 h-4" />
             </Button>
-            {error && (
-              <p className="text-xs text-destructive mt-2">{error}</p>
-            )}
+          )}
+        </div>
+
+        {/* Loading/Error States */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span className="ml-2 text-sm text-muted-foreground">Analyzing...</span>
           </div>
-        ) : (
+        )}
+
+        {error && !isLoading && (
+          <div className="text-center py-4">
+            <p className="text-xs text-destructive">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => selectedToken && predict(selectedToken.chainIndex, selectedToken.address, timeframe)}
+              className="mt-2"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!selectedToken && !isLoading && (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Select a token above to view price prediction
+          </p>
+        )}
+
+        {prediction && selectedToken && !isLoading && (
           <>
             {/* Main Prediction */}
             <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
@@ -309,7 +485,7 @@ export function PricePrediction({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={handlePredict} 
+              onClick={() => predict(selectedToken.chainIndex, selectedToken.address, timeframe)} 
               disabled={isLoading}
               className="w-full"
             >
