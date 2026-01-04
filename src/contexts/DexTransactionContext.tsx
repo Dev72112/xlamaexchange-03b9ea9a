@@ -8,9 +8,11 @@ export interface DexTransaction {
   fromTokenSymbol: string;
   fromTokenAmount: string;
   fromTokenLogo?: string;
+  fromAmountUsd?: number;
   toTokenSymbol: string;
   toTokenAmount: string;
   toTokenLogo?: string;
+  toAmountUsd?: number;
   status: 'pending' | 'confirmed' | 'failed';
   timestamp: number;
   type: 'swap' | 'approve';
