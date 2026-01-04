@@ -412,6 +412,7 @@ export function useDCAOrders() {
     resumeOrder,
     cancelOrder,
     refetch: fetchOrders,
+    fetchOrders,
     exportToCSV,
   };
 }

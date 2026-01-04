@@ -1,11 +1,13 @@
-import { memo, useState } from 'react';
+import { memo, useState, useMemo } from 'react';
 import { useDCAOrders, DCAOrder } from '@/hooks/useDCAOrders';
+import { useDCATokenPrices } from '@/hooks/useDCATokenPrices';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -22,9 +24,10 @@ import {
   Calendar,
   ArrowRight,
   Loader2,
-  ChevronRight,
   Percent,
+  RefreshCw,
 } from 'lucide-react';
+import { DCAHistoryChart } from './DCAHistoryChart';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 
@@ -37,65 +40,6 @@ interface DCAStats {
   roiPercent: number;
 }
 
-// Calculate stats for a single DCA order
-const calculateOrderStats = (order: DCAOrder): DCAStats => {
-  const totalSpent = parseFloat(order.total_spent) || 0;
-  const totalReceived = parseFloat(order.total_received) || 0;
-  const avgPrice = order.average_price || 0;
-  
-  // For demo purposes, estimate current value based on average price + some variance
-  // In production, you'd fetch current price from an oracle
-  const estimatedCurrentPrice = avgPrice * (1 + (Math.random() * 0.2 - 0.1));
-  const currentValue = totalReceived * estimatedCurrentPrice;
-  
-  const roi = currentValue - totalSpent;
-  const roiPercent = totalSpent > 0 ? ((currentValue - totalSpent) / totalSpent) * 100 : 0;
-  
-  return {
-    totalInvested: totalSpent,
-    totalReceived,
-    averageBuyPrice: avgPrice,
-    currentValue,
-    roi,
-    roiPercent,
-  };
-};
-
-// Calculate aggregate stats across all orders
-const calculateAggregateStats = (orders: DCAOrder[]): DCAStats => {
-  let totalInvested = 0;
-  let totalReceived = 0;
-  let totalCurrentValue = 0;
-  let weightedPriceSum = 0;
-  
-  orders.forEach(order => {
-    const spent = parseFloat(order.total_spent) || 0;
-    const received = parseFloat(order.total_received) || 0;
-    const avgPrice = order.average_price || 0;
-    
-    totalInvested += spent;
-    totalReceived += received;
-    weightedPriceSum += avgPrice * received;
-    
-    // Estimate current value
-    const estimatedCurrentPrice = avgPrice * (1 + (Math.random() * 0.1 - 0.05));
-    totalCurrentValue += received * estimatedCurrentPrice;
-  });
-  
-  const averageBuyPrice = totalReceived > 0 ? weightedPriceSum / totalReceived : 0;
-  const roi = totalCurrentValue - totalInvested;
-  const roiPercent = totalInvested > 0 ? ((totalCurrentValue - totalInvested) / totalInvested) * 100 : 0;
-  
-  return {
-    totalInvested,
-    totalReceived,
-    averageBuyPrice,
-    currentValue: totalCurrentValue,
-    roi,
-    roiPercent,
-  };
-};
-
 const formatCurrency = (value: number): string => {
   if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
   if (value >= 1000) return `$${(value / 1000).toFixed(2)}K`;
@@ -107,16 +51,16 @@ const formatNumber = (value: number, decimals = 4): string => {
   if (value >= 1000) return `${(value / 1000).toFixed(2)}K`;
   return value.toFixed(decimals);
 };
-
 interface StatCardProps {
   label: string;
   value: string;
   subValue?: string;
   icon: React.ReactNode;
   trend?: 'up' | 'down' | 'neutral';
+  isLoading?: boolean;
 }
 
-const StatCard = memo(function StatCard({ label, value, subValue, icon, trend }: StatCardProps) {
+const StatCard = memo(function StatCard({ label, value, subValue, icon, trend, isLoading }: StatCardProps) {
   return (
     <div className="p-4 bg-secondary/30 rounded-lg">
       <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -124,13 +68,17 @@ const StatCard = memo(function StatCard({ label, value, subValue, icon, trend }:
         <span className="text-xs">{label}</span>
       </div>
       <div className="flex items-baseline gap-2">
-        <span className={`text-lg font-semibold ${
-          trend === 'up' ? 'text-green-500' : 
-          trend === 'down' ? 'text-red-500' : ''
-        }`}>
-          {value}
-        </span>
-        {subValue && (
+        {isLoading ? (
+          <Skeleton className="h-6 w-20" />
+        ) : (
+          <span className={`text-lg font-semibold ${
+            trend === 'up' ? 'text-green-500' : 
+            trend === 'down' ? 'text-red-500' : ''
+          }`}>
+            {value}
+          </span>
+        )}
+        {subValue && !isLoading && (
           <span className="text-xs text-muted-foreground">{subValue}</span>
         )}
       </div>
@@ -140,19 +88,27 @@ const StatCard = memo(function StatCard({ label, value, subValue, icon, trend }:
 
 interface OrderPerformanceCardProps {
   order: DCAOrder;
-  stats: DCAStats;
+  currentValue: number | null;
+  roi: number | null;
+  isLoadingPrice: boolean;
   index: number;
 }
 
 const OrderPerformanceCard = memo(function OrderPerformanceCard({ 
   order, 
-  stats,
+  currentValue,
+  roi,
+  isLoadingPrice,
   index,
 }: OrderPerformanceCardProps) {
   const progress = order.total_intervals 
     ? (order.completed_intervals / order.total_intervals) * 100 
     : null;
-  const isPositive = stats.roi >= 0;
+  
+  const totalSpent = parseFloat(order.total_spent) || 0;
+  const totalReceived = parseFloat(order.total_received) || 0;
+  const avgPrice = order.average_price || 0;
+  const isPositive = roi !== null ? roi >= 0 : true;
 
   return (
     <div 
@@ -166,34 +122,44 @@ const OrderPerformanceCard = memo(function OrderPerformanceCard({
           <ArrowRight className="w-4 h-4 text-muted-foreground" />
           <span className="font-medium">{order.to_token_symbol}</span>
         </div>
-        <Badge 
-          variant="outline" 
-          className={isPositive 
-            ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-            : 'bg-red-500/10 text-red-500 border-red-500/20'
-          }
-        >
-          {isPositive ? '+' : ''}{stats.roiPercent.toFixed(2)}%
-        </Badge>
+        {isLoadingPrice ? (
+          <Skeleton className="h-5 w-16" />
+        ) : (
+          <Badge 
+            variant="outline" 
+            className={isPositive 
+              ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+              : 'bg-red-500/10 text-red-500 border-red-500/20'
+            }
+          >
+            {roi !== null ? `${isPositive ? '+' : ''}${roi.toFixed(2)}%` : 'N/A'}
+          </Badge>
+        )}
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div>
           <p className="text-xs text-muted-foreground mb-1">Total Invested</p>
-          <p className="font-medium">{formatCurrency(stats.totalInvested)}</p>
+          <p className="font-medium">{formatCurrency(totalSpent)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground mb-1">Tokens Received</p>
-          <p className="font-medium">{formatNumber(stats.totalReceived)} {order.to_token_symbol}</p>
+          <p className="font-medium">{formatNumber(totalReceived)} {order.to_token_symbol}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground mb-1">Avg Buy Price</p>
-          <p className="font-medium">${stats.averageBuyPrice.toFixed(6)}</p>
+          <p className="font-medium">${avgPrice.toFixed(6)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground mb-1">Est. Value</p>
-          <p className="font-medium">{formatCurrency(stats.currentValue)}</p>
+          <p className="text-xs text-muted-foreground mb-1">Current Value</p>
+          {isLoadingPrice ? (
+            <Skeleton className="h-5 w-16" />
+          ) : (
+            <p className="font-medium">
+              {currentValue !== null ? formatCurrency(currentValue) : 'N/A'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -201,12 +167,19 @@ const OrderPerformanceCard = memo(function OrderPerformanceCard({
       <div className="mb-3">
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">P&L</span>
-          <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
-            {isPositive ? '+' : ''}{formatCurrency(stats.roi)}
-          </span>
+          {isLoadingPrice ? (
+            <Skeleton className="h-4 w-12" />
+          ) : (
+            <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
+              {currentValue !== null && totalSpent > 0 
+                ? `${isPositive ? '+' : ''}${formatCurrency(currentValue - totalSpent)}`
+                : 'N/A'
+              }
+            </span>
+          )}
         </div>
         <Progress 
-          value={Math.min(Math.abs(stats.roiPercent), 100)} 
+          value={roi !== null ? Math.min(Math.abs(roi), 100) : 0}
           className={`h-1.5 ${isPositive ? '[&>div]:bg-green-500' : '[&>div]:bg-red-500'}`}
         />
       </div>
@@ -226,17 +199,43 @@ const OrderPerformanceCard = memo(function OrderPerformanceCard({
 
 export const DCADashboard = memo(function DCADashboard() {
   const { isConnected } = useMultiWallet();
-  const { orders, activeOrders, completedOrders, isLoading } = useDCAOrders();
+  const { orders, activeOrders, completedOrders, isLoading, refetch } = useDCAOrders();
+  const { calculateOrderValue, calculateROI, isLoading: isPriceLoading, refetch: refetchPrices } = useDCATokenPrices(orders);
   const [isOpen, setIsOpen] = useState(false);
   
-  // Calculate stats
-  const allOrdersWithStats = orders.map(order => ({
-    order,
-    stats: calculateOrderStats(order),
-  }));
-  
-  const aggregateStats = calculateAggregateStats(orders);
-  const activeStats = calculateAggregateStats(activeOrders);
+  // Calculate current values for all orders using real-time prices
+  const orderValues = useMemo(() => {
+    const values = new Map<string, number>();
+    orders.forEach(order => {
+      const value = calculateOrderValue(order);
+      if (value !== null) values.set(order.id, value);
+    });
+    return values;
+  }, [orders, calculateOrderValue]);
+
+  // Calculate aggregate stats with real-time prices
+  const aggregateStats = useMemo(() => {
+    let totalInvested = 0;
+    let totalCurrentValue = 0;
+    
+    orders.forEach(order => {
+      totalInvested += parseFloat(order.total_spent) || 0;
+      const currentValue = orderValues.get(order.id);
+      if (currentValue !== null && currentValue !== undefined) {
+        totalCurrentValue += currentValue;
+      }
+    });
+    
+    const roi = totalCurrentValue - totalInvested;
+    const roiPercent = totalInvested > 0 ? (roi / totalInvested) * 100 : 0;
+    
+    return { totalInvested, totalCurrentValue, roi, roiPercent };
+  }, [orders, orderValues]);
+
+  const handleRefresh = () => {
+    refetch();
+    refetchPrices();
+  };
   
   if (!isConnected) return null;
 
@@ -249,12 +248,17 @@ export const DCADashboard = memo(function DCADashboard() {
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            DCA Performance Dashboard
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              DCA Performance Dashboard
+            </DialogTitle>
+            <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading || isPriceLoading}>
+              <RefreshCw className={`w-4 h-4 ${(isLoading || isPriceLoading) ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </DialogHeader>
         
         {isLoading ? (
@@ -286,8 +290,9 @@ export const DCADashboard = memo(function DCADashboard() {
                 />
                 <StatCard
                   label="Current Value"
-                  value={formatCurrency(aggregateStats.currentValue)}
+                  value={formatCurrency(aggregateStats.totalCurrentValue)}
                   icon={<Target className="w-3.5 h-3.5" />}
+                  isLoading={isPriceLoading}
                 />
                 <StatCard
                   label="Total P&L"
@@ -295,6 +300,7 @@ export const DCADashboard = memo(function DCADashboard() {
                   subValue={`${aggregateStats.roiPercent >= 0 ? '+' : ''}${aggregateStats.roiPercent.toFixed(2)}%`}
                   icon={aggregateStats.roi >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                   trend={aggregateStats.roi >= 0 ? 'up' : 'down'}
+                  isLoading={isPriceLoading}
                 />
                 <StatCard
                   label="Active Orders"
@@ -304,6 +310,9 @@ export const DCADashboard = memo(function DCADashboard() {
                 />
               </div>
             </div>
+
+            {/* DCA History Chart */}
+            <DCAHistoryChart orders={orders} currentValues={orderValues} />
 
             {/* Orders by Status */}
             <Tabs defaultValue="all" className="w-full">
@@ -315,11 +324,13 @@ export const DCADashboard = memo(function DCADashboard() {
               
               <TabsContent value="all" className="mt-4">
                 <div className="space-y-3">
-                  {allOrdersWithStats.map(({ order, stats }, index) => (
+                  {orders.map((order, index) => (
                     <OrderPerformanceCard
                       key={order.id}
                       order={order}
-                      stats={stats}
+                      currentValue={orderValues.get(order.id) ?? null}
+                      roi={calculateROI(order)}
+                      isLoadingPrice={isPriceLoading}
                       index={index}
                     />
                   ))}
@@ -331,16 +342,16 @@ export const DCADashboard = memo(function DCADashboard() {
                   <p className="text-center text-muted-foreground py-8">No active orders</p>
                 ) : (
                   <div className="space-y-3">
-                    {allOrdersWithStats
-                      .filter(({ order }) => order.status === 'active')
-                      .map(({ order, stats }, index) => (
-                        <OrderPerformanceCard
-                          key={order.id}
-                          order={order}
-                          stats={stats}
-                          index={index}
-                        />
-                      ))}
+                    {activeOrders.map((order, index) => (
+                      <OrderPerformanceCard
+                        key={order.id}
+                        order={order}
+                        currentValue={orderValues.get(order.id) ?? null}
+                        roi={calculateROI(order)}
+                        isLoadingPrice={isPriceLoading}
+                        index={index}
+                      />
+                    ))}
                   </div>
                 )}
               </TabsContent>
@@ -350,16 +361,16 @@ export const DCADashboard = memo(function DCADashboard() {
                   <p className="text-center text-muted-foreground py-8">No completed orders</p>
                 ) : (
                   <div className="space-y-3">
-                    {allOrdersWithStats
-                      .filter(({ order }) => order.status === 'completed' || order.status === 'cancelled')
-                      .map(({ order, stats }, index) => (
-                        <OrderPerformanceCard
-                          key={order.id}
-                          order={order}
-                          stats={stats}
-                          index={index}
-                        />
-                      ))}
+                    {completedOrders.map((order, index) => (
+                      <OrderPerformanceCard
+                        key={order.id}
+                        order={order}
+                        currentValue={orderValues.get(order.id) ?? null}
+                        roi={calculateROI(order)}
+                        isLoadingPrice={isPriceLoading}
+                        index={index}
+                      />
+                    ))}
                   </div>
                 )}
               </TabsContent>
@@ -374,11 +385,15 @@ export const DCADashboard = memo(function DCADashboard() {
                     Average ROI across all orders
                   </span>
                 </div>
-                <span className={`font-medium ${
-                  aggregateStats.roiPercent >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}>
-                  {aggregateStats.roiPercent >= 0 ? '+' : ''}{aggregateStats.roiPercent.toFixed(2)}%
-                </span>
+                {isPriceLoading ? (
+                  <Skeleton className="h-5 w-16" />
+                ) : (
+                  <span className={`font-medium ${
+                    aggregateStats.roiPercent >= 0 ? 'text-green-500' : 'text-red-500'
+                  }`}>
+                    {aggregateStats.roiPercent >= 0 ? '+' : ''}{aggregateStats.roiPercent.toFixed(2)}%
+                  </span>
+                )}
               </div>
             </div>
           </div>

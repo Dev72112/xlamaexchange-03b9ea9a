@@ -36,6 +36,7 @@ import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LimitOrderForm } from "@/components/LimitOrderForm";
+import { DCAOrderForm } from "@/components/DCAOrderForm";
 import { ActiveLimitOrders } from "@/components/ActiveLimitOrders";
 import {
   Dialog,
@@ -1072,6 +1073,15 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   toToken={toDexToken}
                   chain={selectedChain}
                   currentPrice={dexExchangeRate || undefined}
+                />
+              )}
+              
+              {/* DCA Order Button - DEX mode only */}
+              {exchangeMode === 'dex' && (
+                <DCAOrderForm
+                  fromToken={fromDexToken ? { address: fromDexToken.tokenContractAddress, symbol: fromDexToken.tokenSymbol } : undefined}
+                  toToken={toDexToken ? { address: toDexToken.tokenContractAddress, symbol: toDexToken.tokenSymbol } : undefined}
+                  chainIndex={selectedChain.chainIndex}
                 />
               )}
             </div>
