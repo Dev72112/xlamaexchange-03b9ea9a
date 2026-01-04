@@ -197,6 +197,57 @@ export type Database = {
         }
         Relationships: []
       }
+      rebalance_schedules: {
+        Row: {
+          chains: string
+          created_at: string | null
+          frequency: string
+          id: string
+          last_execution: string | null
+          name: string
+          next_execution: string
+          slippage: string | null
+          status: string | null
+          target_allocations: Json
+          threshold_percent: number | null
+          total_rebalances: number | null
+          updated_at: string | null
+          user_address: string
+        }
+        Insert: {
+          chains: string
+          created_at?: string | null
+          frequency: string
+          id?: string
+          last_execution?: string | null
+          name?: string
+          next_execution: string
+          slippage?: string | null
+          status?: string | null
+          target_allocations?: Json
+          threshold_percent?: number | null
+          total_rebalances?: number | null
+          updated_at?: string | null
+          user_address: string
+        }
+        Update: {
+          chains?: string
+          created_at?: string | null
+          frequency?: string
+          id?: string
+          last_execution?: string | null
+          name?: string
+          next_execution?: string
+          slippage?: string | null
+          status?: string | null
+          target_allocations?: Json
+          threshold_percent?: number | null
+          total_rebalances?: number | null
+          updated_at?: string | null
+          user_address?: string
+        }
+        Relationships: []
+      }
       referral_earnings: {
         Row: {
           amount_usd: number

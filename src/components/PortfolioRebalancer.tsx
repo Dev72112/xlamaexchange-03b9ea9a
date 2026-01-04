@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Scale, RefreshCw, ArrowRight, Percent, Zap, RotateCcw, ChevronDown, Loader2 } from 'lucide-react';
+import { Scale, RefreshCw, ArrowRight, Percent, Zap, RotateCcw, ChevronDown, Loader2, Download, Clock, Play, Pause, X, ExternalLink, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { usePortfolioRebalance, TokenAllocation, RebalanceTrade } from '@/hooks/usePortfolioRebalance';
+import { useRebalanceSchedule, RebalanceSchedule } from '@/hooks/useRebalanceSchedule';
+import { useTradePreFill } from '@/contexts/TradePreFillContext';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { exportTradesToCSV, exportTradesToJSON, generateShareableLink } from '@/lib/tradeExport';
 
 interface PortfolioRebalancerProps {
   className?: string;
@@ -30,14 +38,34 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
     resetTargets,
   } = usePortfolioRebalance();
 
+  const {
+    schedules,
+    fetchSchedules,
+    createSchedule,
+    pauseSchedule,
+    resumeSchedule,
+    cancelSchedule,
+    isLoading: schedulesLoading,
+  } = useRebalanceSchedule();
+
+  const { setPreFill } = useTradePreFill();
+
   const [showTrades, setShowTrades] = useState(false);
+  const [showSchedules, setShowSchedules] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  
+  // Schedule form state
+  const [scheduleName, setScheduleName] = useState('My Rebalance');
+  const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly');
+  const [scheduleThreshold, setScheduleThreshold] = useState(5);
 
   useEffect(() => {
     if (isConnected) {
       fetchCurrentPortfolio();
+      fetchSchedules();
     }
-  }, [isConnected, fetchCurrentPortfolio]);
+  }, [isConnected, fetchCurrentPortfolio, fetchSchedules]);
 
   const handleCalculate = () => {
     setIsCalculating(true);
@@ -46,6 +74,60 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
     if (result) {
       setShowTrades(true);
       toast.success('Rebalance plan calculated');
+    }
+  };
+
+  const handleCreateSchedule = async () => {
+    if (Object.keys(targetAllocations).length === 0) {
+      toast.error('Set target allocations first');
+      return;
+    }
+
+    const chains = [...new Set(balances.map(b => b.chainIndex))].join(',');
+    
+    await createSchedule({
+      name: scheduleName,
+      targetAllocations,
+      frequency: scheduleFrequency,
+      thresholdPercent: scheduleThreshold,
+      chains,
+    });
+
+    setScheduleDialogOpen(false);
+  };
+
+  const handleExecuteTrade = (trade: RebalanceTrade) => {
+    setPreFill({
+      fromTokenAddress: trade.fromToken.address,
+      fromTokenSymbol: trade.fromToken.symbol,
+      toTokenAddress: trade.toToken.address,
+      toTokenSymbol: trade.toToken.symbol,
+      chainIndex: trade.fromToken.chainIndex,
+      fromRebalance: true,
+    });
+    toast.success('Trade loaded in swap widget');
+  };
+
+  const handleExport = (format: 'csv' | 'json' | 'link') => {
+    if (!rebalanceResult?.trades.length) {
+      toast.error('No trades to export');
+      return;
+    }
+
+    switch (format) {
+      case 'csv':
+        exportTradesToCSV(rebalanceResult.trades);
+        toast.success('CSV downloaded');
+        break;
+      case 'json':
+        exportTradesToJSON(rebalanceResult.trades);
+        toast.success('JSON downloaded');
+        break;
+      case 'link':
+        const link = generateShareableLink(rebalanceResult.trades);
+        navigator.clipboard.writeText(link);
+        toast.success('Shareable link copied to clipboard');
+        break;
     }
   };
 
@@ -58,6 +140,18 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
   const getChainIcon = (chainIndex: string) => {
     const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
     return chain?.icon;
+  };
+
+  const formatNextExecution = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) return `${diffDays}d`;
+    if (diffHours > 0) return `${diffHours}h`;
+    return 'Soon';
   };
 
   const totalTargetPercentage = Object.values(targetAllocations).reduce((sum, p) => sum + p, 0);
@@ -82,15 +176,22 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
             <Scale className="w-4 h-4 text-primary" />
             Portfolio Rebalancer
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={fetchCurrentPortfolio}
-            disabled={isLoading}
-            className="h-8 w-8"
-          >
-            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-          </Button>
+          <div className="flex items-center gap-1">
+            {schedules.length > 0 && (
+              <Badge variant="secondary" className="text-[10px]">
+                {schedules.filter(s => s.status === 'active').length} active
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={fetchCurrentPortfolio}
+              disabled={isLoading}
+              className="h-8 w-8"
+            >
+              <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -139,7 +240,7 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
             <p className="text-sm text-muted-foreground">No assets found in portfolio</p>
           </div>
         ) : (
-          <ScrollArea className="h-[280px] pr-2">
+          <ScrollArea className="h-[220px] pr-2">
             <div className="space-y-3">
               {balances.slice(0, 10).map((balance) => {
                 const tokenKey = `${balance.chainIndex}-${balance.tokenContractAddress}`;
@@ -201,19 +302,78 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
           </div>
         )}
 
-        {/* Calculate Button */}
-        <Button 
-          onClick={handleCalculate}
-          disabled={!isValidAllocation || balances.length === 0 || isCalculating}
-          className="w-full"
-        >
-          {isCalculating ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Zap className="w-4 h-4 mr-2" />
-          )}
-          Calculate Rebalance
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleCalculate}
+            disabled={!isValidAllocation || balances.length === 0 || isCalculating}
+            className="flex-1"
+          >
+            {isCalculating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4 mr-2" />
+            )}
+            Calculate
+          </Button>
+          
+          <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline"
+                disabled={Object.keys(targetAllocations).length === 0}
+              >
+                <Clock className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Schedule Auto-Rebalance
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Schedule Name</Label>
+                  <Input
+                    value={scheduleName}
+                    onChange={(e) => setScheduleName(e.target.value)}
+                    placeholder="My Rebalance"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Frequency</Label>
+                  <Select value={scheduleFrequency} onValueChange={(v: any) => setScheduleFrequency(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="biweekly">Every 2 Weeks</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rebalance Threshold: {scheduleThreshold}%</Label>
+                  <p className="text-xs text-muted-foreground">Only rebalance if allocation drifts more than this percentage</p>
+                  <Slider
+                    value={[scheduleThreshold]}
+                    onValueChange={([v]) => setScheduleThreshold(v)}
+                    min={1}
+                    max={20}
+                    step={1}
+                  />
+                </div>
+                <Button onClick={handleCreateSchedule} className="w-full">
+                  Create Schedule
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {/* Rebalance Trades */}
         {rebalanceResult && rebalanceResult.trades.length > 0 && (
@@ -235,12 +395,38 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
             <CollapsibleContent className="pt-2">
               <div className="space-y-2">
                 {rebalanceResult.trades.map((trade, i) => (
-                  <TradeCard key={i} trade={trade} getChainIcon={getChainIcon} formatUsd={formatUsd} />
+                  <TradeCard 
+                    key={i} 
+                    trade={trade} 
+                    getChainIcon={getChainIcon} 
+                    formatUsd={formatUsd}
+                    onExecute={() => handleExecuteTrade(trade)}
+                  />
                 ))}
               </div>
-              <p className="text-[10px] text-muted-foreground text-center mt-3">
-                Execute trades manually in the exchange widget
-              </p>
+              
+              {/* Export Dropdown */}
+              <div className="flex justify-center mt-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-xs">
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                      Export Trades
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleExport('csv')}>
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('json')}>
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('link')}>
+                      Copy Shareable Link
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </CollapsibleContent>
           </Collapsible>
         )}
@@ -250,6 +436,40 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
             Portfolio is already balanced ✓
           </p>
         )}
+
+        {/* Active Schedules */}
+        {schedules.length > 0 && (
+          <Collapsible open={showSchedules} onOpenChange={setShowSchedules}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full justify-between h-8">
+                <span className="text-xs flex items-center gap-2">
+                  Scheduled Rebalances
+                  <Badge variant="secondary" className="text-[10px]">
+                    {schedules.length}
+                  </Badge>
+                </span>
+                <ChevronDown className={cn(
+                  "w-4 h-4 transition-transform",
+                  showSchedules && "rotate-180"
+                )} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <div className="space-y-2">
+                {schedules.map((schedule) => (
+                  <ScheduleCard 
+                    key={schedule.id}
+                    schedule={schedule}
+                    onPause={() => pauseSchedule(schedule.id)}
+                    onResume={() => resumeSchedule(schedule.id)}
+                    onCancel={() => cancelSchedule(schedule.id)}
+                    formatNextExecution={formatNextExecution}
+                  />
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </CardContent>
     </Card>
   );
@@ -258,11 +478,13 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
 function TradeCard({ 
   trade, 
   getChainIcon, 
-  formatUsd 
+  formatUsd,
+  onExecute,
 }: { 
   trade: RebalanceTrade;
   getChainIcon: (chainIndex: string) => string | undefined;
   formatUsd: (value: number) => string;
+  onExecute: () => void;
 }) {
   return (
     <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30 border border-border/50">
@@ -277,9 +499,65 @@ function TradeCard({
           <span className="text-xs font-medium">{trade.toToken.symbol}</span>
         </div>
       </div>
-      <Badge variant="outline" className="text-[10px]">
-        {formatUsd(trade.amountUsd)}
-      </Badge>
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="text-[10px]">
+          {formatUsd(trade.amountUsd)}
+        </Badge>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6"
+          onClick={onExecute}
+        >
+          <ExternalLink className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleCard({
+  schedule,
+  onPause,
+  onResume,
+  onCancel,
+  formatNextExecution,
+}: {
+  schedule: RebalanceSchedule;
+  onPause: () => void;
+  onResume: () => void;
+  onCancel: () => void;
+  formatNextExecution: (date: string) => string;
+}) {
+  const isActive = schedule.status === 'active';
+  
+  return (
+    <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30 border border-border/50">
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium">{schedule.name}</span>
+          <Badge variant={isActive ? 'default' : 'secondary'} className="text-[10px]">
+            {schedule.frequency}
+          </Badge>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {isActive ? `Next: ${formatNextExecution(schedule.next_execution)}` : 'Paused'}
+        </span>
+      </div>
+      <div className="flex items-center gap-1">
+        {isActive ? (
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onPause}>
+            <Pause className="w-3 h-3" />
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onResume}>
+            <Play className="w-3 h-3" />
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={onCancel}>
+          <X className="w-3 h-3" />
+        </Button>
+      </div>
     </div>
   );
 }

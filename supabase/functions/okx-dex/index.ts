@@ -285,12 +285,17 @@ serve(async (req) => {
           );
         }
         
+        // Validate and ensure slippage is never empty
+        const validSlippage = (slippage && !isNaN(parseFloat(slippage)) && parseFloat(slippage) > 0) 
+          ? slippage 
+          : '0.5';
+        
         const quoteParams: Record<string, string | number | undefined> = {
           chainIndex,
           fromTokenAddress,
           toTokenAddress,
           amount,
-          slippage: slippage || '0.5',
+          slippage: validSlippage,
         };
         
         if (OKX_REFERRER_WALLET_ADDRESS) {
@@ -312,12 +317,17 @@ serve(async (req) => {
           );
         }
         
+        // Validate and ensure slippage is never empty
+        const validSlippage = (slippage && !isNaN(parseFloat(slippage)) && parseFloat(slippage) > 0) 
+          ? slippage 
+          : '0.5';
+        
         const swapParams: Record<string, string | number | undefined> = {
           chainIndex,
           fromTokenAddress,
           toTokenAddress,
           amount,
-          slippage: slippage || '0.5',
+          slippage: validSlippage,
           userWalletAddress,
         };
         
@@ -479,6 +489,11 @@ serve(async (req) => {
           );
         }
         
+        // Validate and ensure slippage is never empty
+        const validSlippage = (slippage && !isNaN(parseFloat(slippage)) && parseFloat(slippage) > 0) 
+          ? slippage 
+          : '0.5';
+        
         // Build params - userWalletAddress is optional for quotes
         const quoteParams: Record<string, string | number | undefined> = {
           fromChainIndex,
@@ -486,7 +501,7 @@ serve(async (req) => {
           fromTokenAddress,
           toTokenAddress,
           amount,
-          slippage: slippage || '0.5',
+          slippage: validSlippage,
         };
         
         // Only include userWalletAddress if provided
@@ -514,13 +529,18 @@ serve(async (req) => {
           );
         }
         
+        // Validate and ensure slippage is never empty
+        const validSlippage = (slippage && !isNaN(parseFloat(slippage)) && parseFloat(slippage) > 0) 
+          ? slippage 
+          : '0.5';
+        
         const queryString = buildQueryString({
           fromChainIndex,
           toChainIndex,
           fromTokenAddress,
           toTokenAddress,
           amount,
-          slippage: slippage || '0.5',
+          slippage: validSlippage,
           userWalletAddress,
           receiveAddress: receiveAddress || userWalletAddress,
         });

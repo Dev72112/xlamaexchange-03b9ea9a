@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { MultiWalletProvider } from "@/contexts/MultiWalletContext";
 import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import { ExchangeModeProvider } from "@/contexts/ExchangeModeContext";
+import { TradePreFillProvider } from "@/contexts/TradePreFillContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CookieConsent } from "@/components/CookieConsent";
 import { TrackingProvider } from "@/components/TrackingProvider";
@@ -37,36 +38,38 @@ const App = () => (
         <MultiWalletProvider>
           <DexTransactionProvider>
             <ExchangeModeProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <RouteLoadingProvider>
-                    <ScrollToTop />
-                    <TrackingProvider>
-                      <Suspense fallback={<PageLoadingSkeleton />}>
-                        <PageTransition>
-                          <Routes>
-                            <Route path="/" element={<Index />} />
-                            <Route path="/favorites" element={<Favorites />} />
-                            <Route path="/history" element={<History />} />
-                            <Route path="/analytics" element={<Analytics />} />
-                            <Route path="/about" element={<About />} />
-                            <Route path="/faq" element={<FAQ />} />
-                            <Route path="/terms" element={<Terms />} />
-                            <Route path="/privacy" element={<Privacy />} />
-                            <Route path="/cookies" element={<CookiesPolicy />} />
-                            <Route path="/compare" element={<TokenCompare />} />
-                            <Route path="*" element={<NotFound />} />
-                          </Routes>
-                        </PageTransition>
-                      </Suspense>
-                      <KeyboardShortcuts />
-                      <CookieConsent />
-                    </TrackingProvider>
-                  </RouteLoadingProvider>
-                </BrowserRouter>
-              </TooltipProvider>
+              <TradePreFillProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <RouteLoadingProvider>
+                      <ScrollToTop />
+                      <TrackingProvider>
+                        <Suspense fallback={<PageLoadingSkeleton />}>
+                          <PageTransition>
+                            <Routes>
+                              <Route path="/" element={<Index />} />
+                              <Route path="/favorites" element={<Favorites />} />
+                              <Route path="/history" element={<History />} />
+                              <Route path="/analytics" element={<Analytics />} />
+                              <Route path="/about" element={<About />} />
+                              <Route path="/faq" element={<FAQ />} />
+                              <Route path="/terms" element={<Terms />} />
+                              <Route path="/privacy" element={<Privacy />} />
+                              <Route path="/cookies" element={<CookiesPolicy />} />
+                              <Route path="/compare" element={<TokenCompare />} />
+                              <Route path="*" element={<NotFound />} />
+                            </Routes>
+                          </PageTransition>
+                        </Suspense>
+                        <KeyboardShortcuts />
+                        <CookieConsent />
+                      </TrackingProvider>
+                    </RouteLoadingProvider>
+                  </BrowserRouter>
+                </TooltipProvider>
+              </TradePreFillProvider>
             </ExchangeModeProvider>
           </DexTransactionProvider>
         </MultiWalletProvider>
