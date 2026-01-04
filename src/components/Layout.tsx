@@ -9,9 +9,9 @@ interface LayoutProps {
 
 export const Layout = memo(function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    <div className="min-h-screen flex flex-col overflow-x-hidden max-w-[100vw]">
       <Header />
-      <main className="flex-1 overflow-x-hidden">
+      <main className="flex-1 overflow-x-hidden min-w-0">
         <RouteLoadComplete />
         {children}
       </main>

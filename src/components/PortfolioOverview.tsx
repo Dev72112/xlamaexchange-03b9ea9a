@@ -127,10 +127,10 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   if (!isConnected) return null;
 
   return (
-    <section className={cn("py-6", className)}>
-      <div className="container px-4 sm:px-6">
+    <section className={cn("py-4 sm:py-6", className)}>
+      <div className="container px-4 sm:px-6 overflow-hidden">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <Card className="bg-card border-border overflow-hidden">
+          <Card className="bg-card border-border overflow-hidden w-full">
             <CollapsibleTrigger asChild>
               <button className="w-full text-left">
                 <CardContent className="p-4 sm:p-5">

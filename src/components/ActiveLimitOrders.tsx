@@ -133,7 +133,7 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                   <div 
                     key={order.id}
                     className={cn(
-                      "p-3 rounded-lg border transition-colors",
+                      "p-2.5 sm:p-3 rounded-lg border transition-colors",
                       order.status === 'triggered' 
                         ? "bg-success/5 border-success/20" 
                         : "bg-secondary/30 border-border"
@@ -141,19 +141,19 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-sm">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                          <span className="font-medium text-xs sm:text-sm truncate">
                             {order.from_token_symbol} → {order.to_token_symbol}
                           </span>
                           {getStatusBadge(order.status)}
                         </div>
-                        <div className="text-xs text-muted-foreground space-y-0.5">
-                          <p>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground space-y-0.5">
+                          <p className="truncate">
                             {order.condition === 'above' ? '↑' : '↓'} ${order.target_price.toFixed(6)}
                           </p>
-                          <p>Amount: {order.amount} {order.from_token_symbol}</p>
+                          <p className="truncate">Amount: {order.amount} {order.from_token_symbol}</p>
                           {order.expires_at && (
-                            <p>Expires: {formatDate(order.expires_at)}</p>
+                            <p className="truncate">Expires: {formatDate(order.expires_at)}</p>
                           )}
                         </div>
                       </div>

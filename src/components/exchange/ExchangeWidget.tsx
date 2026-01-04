@@ -687,9 +687,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <CardContent className="p-0">
           {/* Mode Toggle and Wallet Button Header */}
-          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-            <ModeToggle mode={exchangeMode} onModeChange={(mode) => { setExchangeMode(mode); onModeChange?.(mode); }} />
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3 overflow-hidden">
+            <div className="shrink-0">
+              <ModeToggle mode={exchangeMode} onModeChange={(mode) => { setExchangeMode(mode); onModeChange?.(mode); }} />
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap min-w-0">
               {exchangeMode === 'dex' && (
                 <>
                   <SlippageSettings slippage={slippage} onSlippageChange={setSlippage} />
@@ -769,37 +771,39 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </div>
 
           {/* From Section */}
-          <div className="p-4 sm:p-5 pt-2 border-b border-border">
-            <div className="flex items-center justify-between gap-3">
-              {exchangeMode === 'instant' ? (
-                <CurrencySelector
-                  value={fromCurrency}
-                  onChange={setFromCurrency}
-                  excludeTicker={toCurrency.ticker}
-                  currencies={currencies}
-                  isLoading={currenciesLoading}
-                />
-              ) : (
-                <DexTokenSelector
-                  value={fromDexToken}
-                  onChange={setFromDexToken}
-                  tokens={dexTokens}
-                  nativeToken={nativeToken}
-                  chain={selectedChain}
-                  excludeAddress={toDexToken?.tokenContractAddress}
-                  isLoading={tokensLoading}
-                />
-              )}
-              <div className="flex-1 min-w-0">
+          <div className="p-4 sm:p-5 pt-2 border-b border-border overflow-hidden">
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              <div className="shrink-0 min-w-0 max-w-[45%]">
+                {exchangeMode === 'instant' ? (
+                  <CurrencySelector
+                    value={fromCurrency}
+                    onChange={setFromCurrency}
+                    excludeTicker={toCurrency.ticker}
+                    currencies={currencies}
+                    isLoading={currenciesLoading}
+                  />
+                ) : (
+                  <DexTokenSelector
+                    value={fromDexToken}
+                    onChange={setFromDexToken}
+                    tokens={dexTokens}
+                    nativeToken={nativeToken}
+                    chain={selectedChain}
+                    excludeAddress={toDexToken?.tokenContractAddress}
+                    isLoading={tokensLoading}
+                  />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <Input
                   type="number"
                   value={fromAmount}
                   onChange={(e) => setFromAmount(e.target.value)}
                   placeholder="0"
-                  className="border-0 bg-transparent text-right text-2xl sm:text-3xl font-medium focus-visible:ring-0 p-0 h-auto"
+                  className="border-0 bg-transparent text-right text-xl sm:text-2xl md:text-3xl font-medium focus-visible:ring-0 p-0 h-auto w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 {exchangeMode === 'dex' && fromUsdValue && (
-                  <div className="text-right text-xs text-muted-foreground mt-0.5">
+                  <div className="text-right text-xs text-muted-foreground mt-0.5 truncate">
                     {fromUsdValue}
                   </div>
                 )}
@@ -848,40 +852,42 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </div>
 
           {/* To Section */}
-          <div className={`p-4 sm:p-5 ${pairUnavailable ? 'bg-warning/5' : ''}`}>
-            <div className="flex items-center justify-between gap-3">
-              {exchangeMode === 'instant' ? (
-                <CurrencySelector
-                  value={toCurrency}
-                  onChange={setToCurrency}
-                  excludeTicker={fromCurrency.ticker}
-                  currencies={currencies}
-                  isLoading={currenciesLoading}
-                />
-              ) : (
-                <DexTokenSelector
-                  value={toDexToken}
-                  onChange={setToDexToken}
-                  tokens={dexTokens}
-                  nativeToken={nativeToken}
-                  chain={selectedChain}
-                  excludeAddress={fromDexToken?.tokenContractAddress}
-                  isLoading={tokensLoading}
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="text-right text-2xl sm:text-3xl font-medium font-mono truncate">
+          <div className={`p-4 sm:p-5 overflow-hidden ${pairUnavailable ? 'bg-warning/5' : ''}`}>
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              <div className="shrink-0 min-w-0 max-w-[45%]">
+                {exchangeMode === 'instant' ? (
+                  <CurrencySelector
+                    value={toCurrency}
+                    onChange={setToCurrency}
+                    excludeTicker={fromCurrency.ticker}
+                    currencies={currencies}
+                    isLoading={currenciesLoading}
+                  />
+                ) : (
+                  <DexTokenSelector
+                    value={toDexToken}
+                    onChange={setToDexToken}
+                    tokens={dexTokens}
+                    nativeToken={nativeToken}
+                    chain={selectedChain}
+                    excludeAddress={fromDexToken?.tokenContractAddress}
+                    isLoading={tokensLoading}
+                  />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="text-right text-xl sm:text-2xl md:text-3xl font-medium font-mono truncate">
                   {currentLoading ? (
                     <div className="flex items-center justify-end gap-2">
-                      <div className="h-8 w-28 skeleton-shimmer rounded-md" />
+                      <div className="h-8 w-24 sm:w-28 skeleton-shimmer rounded-md" />
                     </div>
                   ) : pairUnavailable ? (
-                    <span className="text-warning text-lg flex items-center justify-end gap-2">
+                    <span className="text-warning text-base sm:text-lg flex items-center justify-end gap-2">
                       <AlertTriangle className="w-4 h-4 shrink-0" />
                       <span>Unavailable</span>
                     </span>
                   ) : currentOutputAmount ? (
-                    <span className="animate-fade-in">
+                    <span className="animate-fade-in truncate block">
                       {parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
                     </span>
                   ) : (
@@ -889,7 +895,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   )}
                 </div>
                 {exchangeMode === 'dex' && toUsdValue && !currentLoading && currentOutputAmount && (
-                  <div className="text-right text-xs text-muted-foreground mt-0.5">
+                  <div className="text-right text-xs text-muted-foreground mt-0.5 truncate">
                     {toUsdValue}
                   </div>
                 )}

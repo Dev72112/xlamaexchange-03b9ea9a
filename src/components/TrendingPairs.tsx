@@ -143,9 +143,9 @@ export function TrendingPairs({ onSelectPair }: TrendingPairsProps = {}) {
   };
 
   return (
-    <section className="py-12 sm:py-16">
+    <section className="py-8 sm:py-12 lg:py-16">
       <div className="container px-4 sm:px-6 overflow-hidden">
-        <Card className="bg-gradient-to-br from-card to-card/80 border-border overflow-hidden">
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border overflow-hidden w-full">
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
               <div className="min-w-0">
@@ -165,8 +165,8 @@ export function TrendingPairs({ onSelectPair }: TrendingPairsProps = {}) {
               </Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <CardContent className="overflow-hidden">
+            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <div

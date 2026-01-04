@@ -184,15 +184,15 @@ export function DCAHistoryChart({ orders, currentValues }: DCAHistoryChartProps)
 
   if (chartData.length === 0) {
     return (
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            DCA History
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+            <span className="truncate">DCA History</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+        <CardContent className="p-4 sm:p-6 pt-0">
+          <div className="h-[180px] sm:h-[200px] flex items-center justify-center text-muted-foreground text-sm">
             No DCA execution history yet
           </div>
         </CardContent>
@@ -201,34 +201,34 @@ export function DCAHistoryChart({ orders, currentValues }: DCAHistoryChartProps)
   }
 
   return (
-    <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            DCA History
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+            <span className="truncate">DCA History</span>
           </CardTitle>
           {stats && (
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm flex-wrap">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground">{stats.days} days</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground">${stats.totalInvested.toFixed(2)}</span>
               </div>
-              <Badge variant={stats.roi >= 0 ? 'default' : 'destructive'}>
+              <Badge variant={stats.roi >= 0 ? 'default' : 'destructive'} className="text-xs">
                 {stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(2)}%
               </Badge>
             </div>
           )}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-[300px]">
+      <CardContent className="p-4 sm:p-6 pt-0">
+        <div className="h-[240px] sm:h-[280px] lg:h-[300px] -mx-4 sm:mx-0">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="investedGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />

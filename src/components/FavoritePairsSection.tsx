@@ -14,9 +14,9 @@ export const FavoritePairsSection = memo(function FavoritePairsSection() {
   }
 
   return (
-    <section className="py-10 sm:py-12 border-t border-border" aria-labelledby="favorites-section-heading">
-      <div className="container px-4 sm:px-6">
-        <div className="flex items-center justify-between mb-5 sm:mb-6">
+    <section className="py-8 sm:py-10 lg:py-12 border-t border-border" aria-labelledby="favorites-section-heading">
+      <div className="container px-4 sm:px-6 overflow-hidden">
+        <div className="flex items-center justify-between mb-4 sm:mb-5 lg:mb-6 gap-3">
           <div className="flex items-center gap-2">
             <Star className="w-4 h-4 sm:w-5 sm:h-5 text-warning fill-warning" aria-hidden="true" />
             <h2 id="favorites-section-heading" className="text-lg sm:text-xl lg:text-2xl font-semibold">Your Favorites</h2>
@@ -29,7 +29,7 @@ export const FavoritePairsSection = memo(function FavoritePairsSection() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5 lg:gap-3 w-full">
           {favorites.slice(0, 5).map((pair, index) => (
             <Card 
               key={`${pair.from}-${pair.to}`}

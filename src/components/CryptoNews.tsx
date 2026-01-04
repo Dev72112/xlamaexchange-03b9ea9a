@@ -51,11 +51,11 @@ const NewsCard = memo(function NewsCard({ news, relativeTime, index }: NewsCardP
       href={news.url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`flex gap-4 p-4 border border-border rounded-lg hover:bg-accent/50 hover:border-primary/20 transition-all group ${STAGGER_ITEM_CLASS}`}
+      className={`flex gap-3 sm:gap-4 p-3 sm:p-4 border border-border rounded-lg hover:bg-accent/50 hover:border-primary/20 transition-all group overflow-hidden ${STAGGER_ITEM_CLASS}`}
       style={getStaggerStyle(index, 50)}
     >
       {news.imageUrl && (
-        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-secondary">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden shrink-0 bg-secondary">
           <img
             src={news.imageUrl}
             alt=""
@@ -67,7 +67,7 @@ const NewsCard = memo(function NewsCard({ news, relativeTime, index }: NewsCardP
           />
         </div>
       )}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-hidden">
         <h4 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
           {news.title}
         </h4>
@@ -98,22 +98,22 @@ export const CryptoNews = memo(function CryptoNews() {
   };
 
   return (
-    <section className="py-8 sm:py-12" aria-labelledby="news-heading">
-      <div className="container px-4 sm:px-6">
+    <section className="py-6 sm:py-8 lg:py-12" aria-labelledby="news-heading">
+      <div className="container px-4 sm:px-6 overflow-hidden">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <Card className="border-border">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                    <Newspaper className="w-5 h-5 text-foreground" />
+          <Card className="border-border overflow-hidden w-full">
+            <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                    <Newspaper className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" />
                   </div>
-                  <div>
-                    <CardTitle id="news-heading" className="text-lg flex items-center gap-2">
-                      Crypto News
-                      <TrendingUp className="w-4 h-4 text-primary" />
+                  <div className="min-w-0">
+                    <CardTitle id="news-heading" className="text-base sm:text-lg flex items-center gap-2">
+                      <span className="truncate">Crypto News</span>
+                      <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground">Latest market updates</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Latest market updates</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -140,9 +140,9 @@ export const CryptoNews = memo(function CryptoNews() {
             </CardHeader>
             
             <CollapsibleContent>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 p-4 sm:p-6 overflow-hidden">
                 {isLoading ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                     {[...Array(4)].map((_, i) => (
                       <NewsItemSkeleton key={i} />
                     ))}
@@ -156,7 +156,7 @@ export const CryptoNews = memo(function CryptoNews() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                     {news.slice(0, 6).map((item, index) => (
                       <NewsCard
                         key={item.id}
