@@ -95,7 +95,7 @@ export function useReferral(walletAddress: string | null) {
     }
   }, [walletAddress, referralCode, referralLink]);
 
-  // Check URL for referral code and register if new user
+  // Check URL for referral code and register if new user via secure edge function
   useEffect(() => {
     const registerReferral = async () => {
       if (!walletAddress) return;
@@ -106,42 +106,23 @@ export function useReferral(walletAddress: string | null) {
       if (!refCode || refCode === referralCode) return;
 
       try {
-        // Check if user is already referred
-        const { data: existing } = await supabase
-          .from('referrals')
-          .select('id')
-          .eq('referee_address', walletAddress)
-          .maybeSingle();
-
-        if (existing) return; // Already referred
-
-        // Find referrer by code pattern
-        // The referrer address can be derived from the code if we store it
-        // For now, we'll need to search for the code
-        const { data: referrerData } = await supabase
-          .from('referrals')
-          .select('referrer_address')
-          .eq('referral_code', refCode)
-          .maybeSingle();
-
-        let referrerAddress = referrerData?.referrer_address;
-
-        // If no existing referral with this code, try to find from pattern
-        if (!referrerAddress) {
-          // Create a new referral with the referrer being determined by the code
-          // We need to store the referral code mapping
-          console.log('Referral code detected:', refCode);
-        }
-
-        // For now, skip if we can't find the referrer
-        if (!referrerAddress) return;
-
-        // Create referral
-        await supabase.from('referrals').insert({
-          referrer_address: referrerAddress,
-          referee_address: walletAddress,
-          referral_code: refCode,
+        // Call secure edge function to register referral
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/register-referral`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            referralCode: refCode,
+            refereeAddress: walletAddress,
+          }),
         });
+
+        const result = await response.json();
+        
+        if (!result.success && result.error) {
+          console.log('Referral registration:', result.error);
+        }
 
         // Clear ref from URL
         const newUrl = new URL(window.location.href);
