@@ -167,6 +167,99 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          wallet_address: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      referral_earnings: {
+        Row: {
+          amount_usd: number
+          chain_index: string
+          commission_rate: number
+          commission_usd: number
+          created_at: string
+          id: string
+          referee_address: string
+          referrer_address: string
+          token_symbol: string
+          trade_hash: string
+        }
+        Insert: {
+          amount_usd: number
+          chain_index: string
+          commission_rate?: number
+          commission_usd: number
+          created_at?: string
+          id?: string
+          referee_address: string
+          referrer_address: string
+          token_symbol: string
+          trade_hash: string
+        }
+        Update: {
+          amount_usd?: number
+          chain_index?: string
+          commission_rate?: number
+          commission_usd?: number
+          created_at?: string
+          id?: string
+          referee_address?: string
+          referrer_address?: string
+          token_symbol?: string
+          trade_hash?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referee_address: string
+          referral_code: string
+          referrer_address: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referee_address: string
+          referral_code: string
+          referrer_address: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referee_address?: string
+          referral_code?: string
+          referrer_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

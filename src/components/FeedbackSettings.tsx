@@ -3,8 +3,10 @@ import { Volume2, VolumeX, Vibrate, Bell, Play } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
 import { useFeedback } from '@/hooks/useFeedback';
 import { NOTIFICATION_SOUNDS, NotificationSoundId } from '@/lib/sounds';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import {
   Popover,
   PopoverContent,
@@ -162,6 +164,11 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
               className="w-full"
             />
           </div>
+
+          <Separator />
+
+          {/* Push Notifications */}
+          <NotificationSettings />
           
           <p className="text-xs text-muted-foreground">
             Sound and vibration for swaps, price alerts, and limit orders.

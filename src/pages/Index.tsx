@@ -12,6 +12,8 @@ import { Partners } from "@/components/Partners";
 import { PortfolioOverview } from "@/components/PortfolioOverview";
 import { TokenWatchlist } from "@/components/TokenWatchlist";
 import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
+import { GasEstimator } from "@/components/GasEstimator";
+import { ReferralDashboard } from "@/components/ReferralDashboard";
 import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
 import { 
@@ -195,6 +197,13 @@ const Index = () => {
             </div>
           </section>
 
+          {/* Gas Estimator */}
+          <section className="py-4">
+            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
+              <GasEstimator />
+            </div>
+          </section>
+
           {/* Cross-Chain Swap Section */}
           <section className="py-8">
             <div className="container px-4 sm:px-6 max-w-xl mx-auto">
@@ -217,6 +226,13 @@ const Index = () => {
               <Suspense fallback={<div className="h-16 skeleton-shimmer rounded-lg" />}>
                 <ActiveDCAOrders />
               </Suspense>
+            </div>
+          </section>
+
+          {/* Referral Dashboard */}
+          <section className="py-4">
+            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
+              <ReferralDashboard />
             </div>
           </section>
 
