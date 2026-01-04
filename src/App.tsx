@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,9 +28,6 @@ const History = lazy(() => import("./pages/History"));
 const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
 const TokenCompare = lazy(() => import("./pages/TokenCompare"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-
-// Import Sui dapp-kit styles
-import '@mysten/dapp-kit/dist/index.css';
 
 const App = () => (
   <HelmetProvider>
