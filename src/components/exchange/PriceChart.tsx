@@ -46,7 +46,6 @@ export function PriceChart({ fromCurrency, toCurrency, currentRate }: PriceChart
         });
 
         if (apiError || !data?.prices || data.prices.length === 0) {
-          console.log('Price history unavailable:', apiError?.message || 'No data');
           setChartData([]);
           setError('Historical data unavailable');
         } else {

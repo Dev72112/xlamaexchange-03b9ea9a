@@ -91,12 +91,6 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
           newTx.hash = updates.hash;
         }
         
-        console.log('Updating transaction:', { 
-          oldStatus: tx.status, 
-          newStatus: newTx.status, 
-          hash: newTx.hash?.slice(0, 10) 
-        });
-        
         return newTx;
       }
       return tx;

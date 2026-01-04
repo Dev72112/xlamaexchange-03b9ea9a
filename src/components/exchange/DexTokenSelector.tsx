@@ -161,9 +161,7 @@ export function DexTokenSelector({
       setIsLoadingCustom(true);
       setCustomTokenError(null);
       try {
-        console.log('Searching for token by address:', query, 'on chain:', chain.chainIndex);
         const tokenInfo = await okxDexService.getTokenInfo(chain.chainIndex, query);
-        console.log('Token info result:', tokenInfo);
         
         if (tokenInfo && tokenInfo.tokenSymbol) {
           setCustomToken({

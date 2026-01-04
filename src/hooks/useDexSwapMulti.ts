@@ -281,9 +281,8 @@ export function useDexSwapMulti() {
       } else {
         throw new Error('Solana wallet does not support transaction signing');
       }
-    } catch (versionedError) {
+    } catch {
       // Fallback to legacy transaction
-      console.log('Trying legacy transaction format...');
       const legacyTx = Transaction.from(txBuffer);
       
       if (solanaProvider?.signAndSendTransaction) {

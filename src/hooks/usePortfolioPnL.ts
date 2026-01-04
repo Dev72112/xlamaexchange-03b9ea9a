@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { createWalletClient } from '@/lib/supabaseWithWallet';
 
 interface PortfolioSnapshot {
   id: string;
@@ -28,6 +28,9 @@ export function usePortfolioPnL() {
   const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Create wallet-authenticated Supabase client
+  const supabase = useMemo(() => createWalletClient(activeAddress), [activeAddress]);
 
   // Fetch historical snapshots
   const fetchSnapshots = useCallback(async () => {
@@ -46,13 +49,12 @@ export function usePortfolioPnL() {
       if (fetchError) throw fetchError;
       
       setSnapshots(data || []);
-    } catch (err) {
-      console.error('Failed to fetch portfolio snapshots:', err);
+    } catch {
       setError('Failed to load history');
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress]);
+  }, [activeAddress, supabase]);
 
   // Save a new snapshot
   const saveSnapshot = useCallback(async (totalValue: number, chainIndex: string = 'all') => {
@@ -77,10 +79,10 @@ export function usePortfolioPnL() {
       
       // Refresh snapshots
       fetchSnapshots();
-    } catch (err) {
-      console.error('Failed to save portfolio snapshot:', err);
+    } catch {
+      // Silently handle save errors
     }
-  }, [activeAddress, fetchSnapshots]);
+  }, [activeAddress, supabase, fetchSnapshots]);
 
   useEffect(() => {
     if (isConnected && activeAddress) {

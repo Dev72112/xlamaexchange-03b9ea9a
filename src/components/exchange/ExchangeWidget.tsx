@@ -212,7 +212,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   // Reset DEX tokens when chain changes - must run first
   useEffect(() => {
     if (selectedChain.chainIndex !== lastChainIndex) {
-      console.log('Chain changed from', lastChainIndex, 'to', selectedChain.chainIndex, '- resetting tokens');
       setFromDexToken(null);
       setToDexToken(null);
       setLastChainIndex(selectedChain.chainIndex);
