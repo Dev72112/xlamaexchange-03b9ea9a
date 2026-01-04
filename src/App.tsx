@@ -25,6 +25,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const About = lazy(() => import("./pages/About"));
 const Favorites = lazy(() => import("./pages/Favorites"));
 const History = lazy(() => import("./pages/History"));
+const Analytics = lazy(() => import("./pages/Analytics"));
 const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
 const TokenCompare = lazy(() => import("./pages/TokenCompare"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -49,6 +50,7 @@ const App = () => (
                             <Route path="/" element={<Index />} />
                             <Route path="/favorites" element={<Favorites />} />
                             <Route path="/history" element={<History />} />
+                            <Route path="/analytics" element={<Analytics />} />
                             <Route path="/about" element={<About />} />
                             <Route path="/faq" element={<FAQ />} />
                             <Route path="/terms" element={<Terms />} />

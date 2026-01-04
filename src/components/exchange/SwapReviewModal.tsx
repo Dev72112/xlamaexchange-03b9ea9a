@@ -1,6 +1,7 @@
-import { AlertTriangle, ArrowDown, CheckCircle2, Info, Shield, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, CheckCircle2, Info, Shield, Loader2, Fuel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { OkxToken, OkxQuote } from "@/services/okxdex";
 import { Chain } from "@/data/chains";
 import { cn } from "@/lib/utils";
@@ -166,11 +167,21 @@ export function SwapReviewModal({
           </div>
         </div>
 
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Estimated Gas</span>
-          <span className="font-mono text-xs">
-            {gasEstimateNative ? `~${gasEstimateNative} ${chain.nativeCurrency.symbol}` : 'Calculating...'}
-          </span>
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Fuel className="w-3 h-3" />
+            <span>Estimated Gas</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs">
+              {gasEstimateNative ? `~${gasEstimateNative} ${chain.nativeCurrency.symbol}` : 'Calculating...'}
+            </span>
+            {gasEstimateNative && (
+              <Badge variant="outline" className="text-[10px] px-1.5">
+                Standard
+              </Badge>
+            )}
+          </div>
         </div>
 
         {quote.routerResult?.routes && quote.routerResult.routes.length > 0 && (
