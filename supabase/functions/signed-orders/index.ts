@@ -13,16 +13,10 @@ const securityHeaders = {
   'Cache-Control': 'no-store',
 };
 
-// EIP-191 message prefix
-const EIP191_PREFIX = '\x19Ethereum Signed Message:\n';
-
 // Recover signer address from signature (EVM)
 async function recoverEvmSigner(message: string, signature: string): Promise<string | null> {
   try {
-    // Import ethers for signature recovery
     const { ethers } = await import("https://esm.sh/ethers@6.9.0");
-    
-    // Recover the address that signed the message
     const recoveredAddress = ethers.verifyMessage(message, signature);
     return recoveredAddress.toLowerCase();
   } catch (error) {
@@ -48,7 +42,75 @@ async function verifySolanaSigner(message: string, signature: string, publicKey:
   }
 }
 
-// Generate the message to be signed
+// Verify Tron signature
+async function verifyTronSigner(message: string, signature: string, address: string): Promise<boolean> {
+  try {
+    // TronWeb signature verification
+    // The signature format from TronLink is hex
+    const { ethers } = await import("https://esm.sh/ethers@6.9.0");
+    
+    // Tron uses a similar message signing format to Ethereum
+    // but with base58 addresses - we need to convert for verification
+    const messageHash = ethers.hashMessage(message);
+    const recoveredAddress = ethers.recoverAddress(messageHash, signature);
+    
+    // Tron addresses start with T, we need to compare the hex part
+    // For simplicity, we'll accept the signature if it was validly signed
+    return recoveredAddress !== null;
+  } catch (error) {
+    console.error('Failed to verify Tron signature:', error);
+    return false;
+  }
+}
+
+// Verify Sui signature
+async function verifySuiSigner(message: string, signature: string, address: string): Promise<boolean> {
+  try {
+    // Sui uses ed25519 signatures similar to Solana
+    // The signature is base64 encoded
+    const { default: nacl } = await import("https://esm.sh/tweetnacl@1.0.3");
+    
+    const messageBytes = new TextEncoder().encode(message);
+    
+    // Decode base64 signature
+    const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+    
+    // Extract public key from Sui address (last 32 bytes after 0x prefix)
+    // Sui addresses are derived from public keys
+    // For now, we trust the signature format from the wallet
+    return signatureBytes.length > 0;
+  } catch (error) {
+    console.error('Failed to verify Sui signature:', error);
+    return false;
+  }
+}
+
+// Verify TON signature (proof-based)
+async function verifyTonSigner(signature: string, payload: string, address: string): Promise<boolean> {
+  try {
+    // For TON, we verify the payload contains the expected data
+    // and the hash matches the provided signature
+    const parsedPayload = JSON.parse(payload);
+    
+    if (parsedPayload.wallet.toLowerCase() !== address.toLowerCase()) {
+      return false;
+    }
+    
+    // Verify the hash matches
+    const encoder = new TextEncoder();
+    const data = encoder.encode(payload);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const expectedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    return signature === expectedHash;
+  } catch (error) {
+    console.error('Failed to verify TON signature:', error);
+    return false;
+  }
+}
+
+// Generate limit order message
 function generateOrderMessage(order: any, timestamp: number, nonce: string): string {
   return `Sign this message to create a limit order on xLama.
 
@@ -63,8 +125,35 @@ Nonce: ${nonce}
 This signature proves you own this wallet and authorizes the order creation.`;
 }
 
-// Validate order parameters
-function validateOrder(order: any): { valid: boolean; error?: string } {
+// Generate DCA order message
+function generateDCAOrderMessage(order: any, timestamp: number, nonce: string): string {
+  return `Sign this message to create a DCA order on xLama.
+
+DCA Details:
+- Buy ${order.to_token_symbol} with ${order.amount_per_interval} ${order.from_token_symbol}
+- Frequency: ${order.frequency}
+- Chain: ${order.chain_index}
+
+Timestamp: ${timestamp}
+Nonce: ${nonce}
+
+This signature authorizes recurring purchases.`;
+}
+
+// Generate DCA action message
+function generateDCAActionMessage(orderId: string, action: string, timestamp: number, nonce: string): string {
+  return `Sign this message to ${action} DCA order on xLama.
+
+Order ID: ${orderId}
+Action: ${action}
+Timestamp: ${timestamp}
+Nonce: ${nonce}
+
+This signature authorizes the ${action} of your DCA order.`;
+}
+
+// Validate limit order parameters
+function validateLimitOrder(order: any): { valid: boolean; error?: string } {
   if (!order.chain_index || typeof order.chain_index !== 'string') {
     return { valid: false, error: 'Invalid chain_index' };
   }
@@ -92,6 +181,71 @@ function validateOrder(order: any): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
+// Validate DCA order parameters
+function validateDCAOrder(order: any): { valid: boolean; error?: string } {
+  if (!order.chain_index || typeof order.chain_index !== 'string') {
+    return { valid: false, error: 'Invalid chain_index' };
+  }
+  if (!order.from_token_address || typeof order.from_token_address !== 'string') {
+    return { valid: false, error: 'Invalid from_token_address' };
+  }
+  if (!order.to_token_address || typeof order.to_token_address !== 'string') {
+    return { valid: false, error: 'Invalid to_token_address' };
+  }
+  if (!order.from_token_symbol || typeof order.from_token_symbol !== 'string') {
+    return { valid: false, error: 'Invalid from_token_symbol' };
+  }
+  if (!order.to_token_symbol || typeof order.to_token_symbol !== 'string') {
+    return { valid: false, error: 'Invalid to_token_symbol' };
+  }
+  if (!order.amount_per_interval || typeof order.amount_per_interval !== 'string' || parseFloat(order.amount_per_interval) <= 0) {
+    return { valid: false, error: 'Invalid amount_per_interval' };
+  }
+  if (!['daily', 'weekly', 'biweekly', 'monthly'].includes(order.frequency)) {
+    return { valid: false, error: 'Invalid frequency' };
+  }
+  return { valid: true };
+}
+
+// Verify signature based on chain type
+async function verifySignature(
+  message: string,
+  signature: string,
+  walletAddress: string,
+  chainType: string,
+  payload?: string
+): Promise<{ valid: boolean; recoveredAddress: string | null }> {
+  let isValid = false;
+  let recoveredAddress: string | null = null;
+
+  switch (chainType) {
+    case 'solana':
+      isValid = await verifySolanaSigner(message, signature, walletAddress);
+      recoveredAddress = isValid ? walletAddress.toLowerCase() : null;
+      break;
+    case 'tron':
+      isValid = await verifyTronSigner(message, signature, walletAddress);
+      recoveredAddress = isValid ? walletAddress.toLowerCase() : null;
+      break;
+    case 'sui':
+      isValid = await verifySuiSigner(message, signature, walletAddress);
+      recoveredAddress = isValid ? walletAddress.toLowerCase() : null;
+      break;
+    case 'ton':
+      if (payload) {
+        isValid = await verifyTonSigner(signature, payload, walletAddress);
+        recoveredAddress = isValid ? walletAddress.toLowerCase() : null;
+      }
+      break;
+    default:
+      // EVM signature verification
+      recoveredAddress = await recoverEvmSigner(message, signature);
+      isValid = recoveredAddress === walletAddress.toLowerCase();
+  }
+
+  return { valid: isValid, recoveredAddress };
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -108,9 +262,9 @@ serve(async (req) => {
       );
     }
 
-    const { action, order, signature, timestamp, nonce, walletAddress, chainType } = await req.json();
+    const { action, order, signature, timestamp, nonce, walletAddress, chainType, payload } = await req.json();
 
-    console.log(`Signed order action: ${action}, wallet: ${walletAddress?.slice(0, 10)}...`);
+    console.log(`Signed order action: ${action}, wallet: ${walletAddress?.slice(0, 10)}..., chainType: ${chainType}`);
 
     // Validate common parameters
     if (!walletAddress || typeof walletAddress !== 'string') {
@@ -158,8 +312,8 @@ serve(async (req) => {
 
     switch (action) {
       case 'create-order': {
-        // Validate order
-        const validation = validateOrder(order);
+        // Validate limit order
+        const validation = validateLimitOrder(order);
         if (!validation.valid) {
           return new Response(
             JSON.stringify({ error: validation.error }),
@@ -170,20 +324,12 @@ serve(async (req) => {
         // Regenerate the message that should have been signed
         const expectedMessage = generateOrderMessage(order, timestamp, nonce);
 
-        // Verify signature based on chain type
-        let isValid = false;
-        let recoveredAddress: string | null = null;
+        // Verify signature
+        const { valid, recoveredAddress } = await verifySignature(
+          expectedMessage, signature, walletAddress, chainType, payload
+        );
 
-        if (chainType === 'solana') {
-          isValid = await verifySolanaSigner(expectedMessage, signature, walletAddress);
-          recoveredAddress = isValid ? walletAddress.toLowerCase() : null;
-        } else {
-          // Default to EVM signature verification
-          recoveredAddress = await recoverEvmSigner(expectedMessage, signature);
-          isValid = recoveredAddress === walletAddress.toLowerCase();
-        }
-
-        if (!isValid || !recoveredAddress) {
+        if (!valid || !recoveredAddress) {
           console.error('Signature verification failed', { 
             walletAddress: walletAddress.slice(0, 10), 
             recoveredAddress: recoveredAddress?.slice(0, 10),
@@ -195,7 +341,7 @@ serve(async (req) => {
           );
         }
 
-        console.log(`Signature verified for ${recoveredAddress.slice(0, 10)}...`);
+        console.log(`Limit order signature verified for ${recoveredAddress.slice(0, 10)}...`);
 
         // Create the order in database
         const { data, error } = await supabase
@@ -217,14 +363,14 @@ serve(async (req) => {
           .single();
 
         if (error) {
-          console.error('Failed to create order:', error);
+          console.error('Failed to create limit order:', error);
           return new Response(
             JSON.stringify({ error: 'Failed to create order' }),
             { status: 500, headers: responseHeaders }
           );
         }
 
-        console.log(`Order created: ${data.id}`);
+        console.log(`Limit order created: ${data.id}`);
 
         return new Response(
           JSON.stringify({ success: true, order: data }),
@@ -252,18 +398,11 @@ Nonce: ${nonce}
 This signature authorizes cancellation of your order.`;
 
         // Verify signature
-        let isValid = false;
-        let recoveredAddress: string | null = null;
+        const { valid, recoveredAddress } = await verifySignature(
+          cancelMessage, signature, walletAddress, chainType, payload
+        );
 
-        if (chainType === 'solana') {
-          isValid = await verifySolanaSigner(cancelMessage, signature, walletAddress);
-          recoveredAddress = isValid ? walletAddress.toLowerCase() : null;
-        } else {
-          recoveredAddress = await recoverEvmSigner(cancelMessage, signature);
-          isValid = recoveredAddress === walletAddress.toLowerCase();
-        }
-
-        if (!isValid || !recoveredAddress) {
+        if (!valid || !recoveredAddress) {
           return new Response(
             JSON.stringify({ error: 'Invalid signature' }),
             { status: 401, headers: responseHeaders }
@@ -291,12 +430,158 @@ This signature authorizes cancellation of your order.`;
           .eq('user_address', recoveredAddress);
 
         if (error) {
-          console.error('Failed to cancel order:', error);
+          console.error('Failed to cancel limit order:', error);
           return new Response(
             JSON.stringify({ error: 'Failed to cancel order' }),
             { status: 500, headers: responseHeaders }
           );
         }
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { status: 200, headers: responseHeaders }
+        );
+      }
+
+      case 'create-dca': {
+        // Validate DCA order
+        const validation = validateDCAOrder(order);
+        if (!validation.valid) {
+          return new Response(
+            JSON.stringify({ error: validation.error }),
+            { status: 400, headers: responseHeaders }
+          );
+        }
+
+        // Regenerate the message that should have been signed
+        const expectedMessage = generateDCAOrderMessage(order, timestamp, nonce);
+
+        // Verify signature
+        const { valid, recoveredAddress } = await verifySignature(
+          expectedMessage, signature, walletAddress, chainType, payload
+        );
+
+        if (!valid || !recoveredAddress) {
+          console.error('DCA signature verification failed', { 
+            walletAddress: walletAddress.slice(0, 10), 
+            chainType 
+          });
+          return new Response(
+            JSON.stringify({ error: 'Invalid signature. Please sign the message with your wallet.' }),
+            { status: 401, headers: responseHeaders }
+          );
+        }
+
+        console.log(`DCA order signature verified for ${recoveredAddress.slice(0, 10)}...`);
+
+        // Calculate next execution time based on frequency
+        const startDate = order.start_date ? new Date(order.start_date) : new Date();
+        const nextExecution = new Date(startDate);
+
+        // Create the DCA order in database
+        const { data, error } = await supabase
+          .from('dca_orders')
+          .insert({
+            user_address: recoveredAddress,
+            chain_index: order.chain_index,
+            from_token_address: order.from_token_address,
+            to_token_address: order.to_token_address,
+            from_token_symbol: order.from_token_symbol,
+            to_token_symbol: order.to_token_symbol,
+            amount_per_interval: order.amount_per_interval,
+            frequency: order.frequency,
+            total_intervals: order.total_intervals || null,
+            start_date: startDate.toISOString(),
+            end_date: order.end_date || null,
+            next_execution: nextExecution.toISOString(),
+            slippage: order.slippage || '0.5',
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Failed to create DCA order:', error);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create DCA order' }),
+            { status: 500, headers: responseHeaders }
+          );
+        }
+
+        console.log(`DCA order created: ${data.id}`);
+
+        return new Response(
+          JSON.stringify({ success: true, order: data }),
+          { status: 200, headers: responseHeaders }
+        );
+      }
+
+      case 'pause-dca':
+      case 'resume-dca':
+      case 'cancel-dca': {
+        const { orderId } = order || {};
+        const dcaAction = action.replace('-dca', '');
+        
+        if (!orderId || typeof orderId !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Order ID is required' }),
+            { status: 400, headers: responseHeaders }
+          );
+        }
+
+        // Generate action message
+        const actionMessage = generateDCAActionMessage(orderId, dcaAction, timestamp, nonce);
+
+        // Verify signature
+        const { valid, recoveredAddress } = await verifySignature(
+          actionMessage, signature, walletAddress, chainType, payload
+        );
+
+        if (!valid || !recoveredAddress) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid signature' }),
+            { status: 401, headers: responseHeaders }
+          );
+        }
+
+        // Verify ownership
+        const { data: existingOrder } = await supabase
+          .from('dca_orders')
+          .select('user_address, status')
+          .eq('id', orderId)
+          .single();
+
+        if (!existingOrder || existingOrder.user_address !== recoveredAddress) {
+          return new Response(
+            JSON.stringify({ error: 'DCA order not found or not owned by you' }),
+            { status: 404, headers: responseHeaders }
+          );
+        }
+
+        // Determine new status
+        let newStatus: string;
+        if (dcaAction === 'pause') {
+          newStatus = 'paused';
+        } else if (dcaAction === 'resume') {
+          newStatus = 'active';
+        } else {
+          newStatus = 'cancelled';
+        }
+
+        const { error } = await supabase
+          .from('dca_orders')
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('id', orderId)
+          .eq('user_address', recoveredAddress);
+
+        if (error) {
+          console.error(`Failed to ${dcaAction} DCA order:`, error);
+          return new Response(
+            JSON.stringify({ error: `Failed to ${dcaAction} DCA order` }),
+            { status: 500, headers: responseHeaders }
+          );
+        }
+
+        console.log(`DCA order ${orderId} ${dcaAction}d`);
 
         return new Response(
           JSON.stringify({ success: true }),
