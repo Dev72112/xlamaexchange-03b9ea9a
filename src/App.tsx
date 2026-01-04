@@ -26,6 +26,7 @@ const About = lazy(() => import("./pages/About"));
 const Favorites = lazy(() => import("./pages/Favorites"));
 const History = lazy(() => import("./pages/History"));
 const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
+const TokenCompare = lazy(() => import("./pages/TokenCompare"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Import Sui dapp-kit styles
@@ -56,6 +57,7 @@ const App = () => (
                             <Route path="/terms" element={<Terms />} />
                             <Route path="/privacy" element={<Privacy />} />
                             <Route path="/cookies" element={<CookiesPolicy />} />
+                            <Route path="/compare" element={<TokenCompare />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </PageTransition>

@@ -11,6 +11,8 @@ import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { okxDexService, WalletTokenBalance } from '@/services/okxdex';
 import { SUPPORTED_CHAINS, Chain } from '@/data/chains';
 import { cn } from '@/lib/utils';
+import { PortfolioPnLChart } from './PortfolioPnLChart';
+import { usePortfolioPnL } from '@/hooks/usePortfolioPnL';
 
 interface PortfolioOverviewProps {
   className?: string;
@@ -18,6 +20,7 @@ interface PortfolioOverviewProps {
 
 export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   const { isConnected, activeAddress } = useMultiWallet();
+  const { saveSnapshot } = usePortfolioPnL();
   const [totalValue, setTotalValue] = useState<string | null>(null);
   const [balances, setBalances] = useState<WalletTokenBalance[]>([]);
   const [allBalances, setAllBalances] = useState<WalletTokenBalance[]>([]);
@@ -54,15 +57,22 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
       setBalances(sortedBalances.slice(0, 5)); // Top 5
 
       // Use API total, or compute fallback from balances
+      let computedTotal = 0;
       if (valueResult?.totalValue && parseFloat(valueResult.totalValue) > 0) {
+        computedTotal = parseFloat(valueResult.totalValue);
         setTotalValue(valueResult.totalValue);
       } else {
         // Fallback: compute total from individual token balances
-        const computedTotal = balancesResult.reduce((sum, b) => {
+        computedTotal = balancesResult.reduce((sum, b) => {
           const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
           return sum + value;
         }, 0);
         setTotalValue(computedTotal > 0 ? computedTotal.toString() : null);
+      }
+      
+      // Save snapshot for P&L tracking
+      if (computedTotal > 0) {
+        saveSnapshot(computedTotal, 'all');
       }
       
       setLastFetched(new Date());
@@ -180,6 +190,7 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
                     ))}
                   </div>
                 ) : topChainBalances.length > 0 ? (
+                  <>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -347,6 +358,10 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
                       </div>
                     )}
                   </div>
+                  
+                  {/* P&L Chart */}
+                  <PortfolioPnLChart className="mt-4" />
+                </>
                 ) : (
                   <div className="text-center py-4 text-sm text-muted-foreground">
                     <p>No assets found</p>
