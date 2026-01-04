@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      dca_orders: {
+        Row: {
+          amount_per_interval: string
+          average_price: number | null
+          chain_index: string
+          completed_intervals: number | null
+          created_at: string | null
+          end_date: string | null
+          frequency: string
+          from_token_address: string
+          from_token_symbol: string
+          id: string
+          next_execution: string
+          slippage: string | null
+          start_date: string
+          status: string
+          to_token_address: string
+          to_token_symbol: string
+          total_intervals: number | null
+          total_received: string | null
+          total_spent: string | null
+          updated_at: string | null
+          user_address: string
+        }
+        Insert: {
+          amount_per_interval: string
+          average_price?: number | null
+          chain_index: string
+          completed_intervals?: number | null
+          created_at?: string | null
+          end_date?: string | null
+          frequency: string
+          from_token_address: string
+          from_token_symbol: string
+          id?: string
+          next_execution: string
+          slippage?: string | null
+          start_date: string
+          status?: string
+          to_token_address: string
+          to_token_symbol: string
+          total_intervals?: number | null
+          total_received?: string | null
+          total_spent?: string | null
+          updated_at?: string | null
+          user_address: string
+        }
+        Update: {
+          amount_per_interval?: string
+          average_price?: number | null
+          chain_index?: string
+          completed_intervals?: number | null
+          created_at?: string | null
+          end_date?: string | null
+          frequency?: string
+          from_token_address?: string
+          from_token_symbol?: string
+          id?: string
+          next_execution?: string
+          slippage?: string | null
+          start_date?: string
+          status?: string
+          to_token_address?: string
+          to_token_symbol?: string
+          total_intervals?: number | null
+          total_received?: string | null
+          total_spent?: string | null
+          updated_at?: string | null
+          user_address?: string
+        }
+        Relationships: []
+      }
       limit_orders: {
         Row: {
           amount: string
