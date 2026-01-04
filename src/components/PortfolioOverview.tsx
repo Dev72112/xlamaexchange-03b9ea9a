@@ -181,6 +181,11 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
               </button>
             </CollapsibleTrigger>
 
+            {/* P&L Chart - Always visible outside collapsible */}
+            <div className="px-4 sm:px-5 pb-4">
+              <PortfolioPnLChart />
+            </div>
+
             <CollapsibleContent>
               <div className="border-t border-border p-4 sm:p-5">
                 {isLoading ? (
@@ -358,9 +363,6 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
                       </div>
                     )}
                   </div>
-                  
-                  {/* P&L Chart */}
-                  <PortfolioPnLChart className="mt-4" />
                 </>
                 ) : (
                   <div className="text-center py-4 text-sm text-muted-foreground">

@@ -16,11 +16,11 @@ interface PendingRequest<T> {
 
 // TTL in milliseconds for different data types
 const CACHE_TTL = {
-  price: 15000,        // 15s for prices
-  quote: 10000,        // 10s for quotes
+  price: 30000,        // 30s for prices (increased from 15s)
+  quote: 20000,        // 20s for quotes (increased from 10s)
   tokens: 300000,      // 5min for token lists
   ranking: 60000,      // 1min for rankings
-  balance: 30000,      // 30s for balances
+  balance: 45000,      // 45s for balances (increased from 30s)
 } as const;
 
 class ApiCoordinator {
@@ -29,6 +29,12 @@ class ApiCoordinator {
   private lastRequestTime = new Map<string, number>();
   private requestCounts = new Map<string, number>();
   
+  // Global rate limiting
+  private globalRequestCount = 0;
+  private globalResetTime = Date.now();
+  private readonly GLOBAL_RATE_LIMIT = 40; // requests per minute window
+  private readonly GLOBAL_WINDOW_MS = 60000;
+  
   // Minimum delay between requests to same action (ms)
   private readonly MIN_REQUEST_INTERVAL = 500;
   
@@ -36,7 +42,46 @@ class ApiCoordinator {
   constructor() {
     setInterval(() => {
       this.requestCounts.clear();
+      this.globalRequestCount = 0;
+      this.globalResetTime = Date.now();
     }, 60000);
+  }
+  
+  /**
+   * Check if we're approaching global rate limit
+   */
+  isNearRateLimit(): boolean {
+    this.resetGlobalIfNeeded();
+    return this.globalRequestCount > this.GLOBAL_RATE_LIMIT * 0.8;
+  }
+  
+  /**
+   * Reset global counter if window has passed
+   */
+  private resetGlobalIfNeeded(): void {
+    const now = Date.now();
+    if (now - this.globalResetTime >= this.GLOBAL_WINDOW_MS) {
+      this.globalRequestCount = 0;
+      this.globalResetTime = now;
+    }
+  }
+  
+  /**
+   * Wait for a slot if approaching rate limit
+   */
+  async waitForSlot(): Promise<void> {
+    while (this.isNearRateLimit()) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      this.resetGlobalIfNeeded();
+    }
+  }
+  
+  /**
+   * Increment global request counter
+   */
+  private incrementGlobalCount(): void {
+    this.resetGlobalIfNeeded();
+    this.globalRequestCount++;
   }
 
   /**
@@ -82,6 +127,9 @@ class ApiCoordinator {
     if (pending && Date.now() - pending.timestamp < 30000) {
       return pending.promise as Promise<T>;
     }
+    
+    // Increment global counter for rate awareness
+    this.incrementGlobalCount();
     
     // Create new request
     const promise = fetcher()

@@ -35,6 +35,8 @@ import { AdvancedPriceChart } from "./AdvancedPriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { LimitOrderForm } from "@/components/LimitOrderForm";
+import { ActiveLimitOrders } from "@/components/ActiveLimitOrders";
 import {
   Dialog,
   DialogContent,
@@ -1048,20 +1050,46 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           )}
 
           {/* Convert Button */}
-          <div className="p-4 sm:p-5 pt-0">
-            <Button
-              size="lg"
-              className={cn(
-                "w-full h-12 font-medium rounded-xl",
-                hasInsufficientBalance && exchangeMode === 'dex'
-                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : "bg-foreground text-background hover:bg-foreground/90"
+          <div className="p-4 sm:p-5 pt-0 space-y-3">
+            <div className="flex gap-2">
+              <Button
+                size="lg"
+                className={cn(
+                  "flex-1 h-12 font-medium rounded-xl",
+                  hasInsufficientBalance && exchangeMode === 'dex'
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : "bg-foreground text-background hover:bg-foreground/90"
+                )}
+                onClick={handleExchange}
+                disabled={isSwapButtonDisabled}
+              >
+                {getSwapButtonContent()}
+              </Button>
+              
+              {/* Limit Order Button - DEX mode only */}
+              {exchangeMode === 'dex' && (
+                <LimitOrderForm
+                  fromToken={fromDexToken}
+                  toToken={toDexToken}
+                  chain={selectedChain}
+                  currentPrice={dexExchangeRate || undefined}
+                />
               )}
-              onClick={handleExchange}
-              disabled={isSwapButtonDisabled}
-            >
-              {getSwapButtonContent()}
-            </Button>
+            </div>
+            
+            {/* Active Limit Orders - DEX mode only */}
+            {exchangeMode === 'dex' && (
+              <ActiveLimitOrders 
+                onExecuteOrder={(order) => {
+                  // Pre-fill swap with limit order details
+                  setFromAmount(order.amount);
+                  toast({
+                    title: "Limit Order Ready",
+                    description: `Execute your ${order.from_token_symbol} → ${order.to_token_symbol} swap now.`,
+                  });
+                }}
+              />
+            )}
           </div>
 
           {/* Footer Info */}

@@ -190,7 +190,11 @@ export function useCrossChainQuote({
   ]);
 
   useEffect(() => {
-    const timer = setTimeout(fetchQuote, 600); // Slightly longer debounce
+    const timer = setTimeout(async () => {
+      // Wait for rate limit slot before making request
+      await apiCoordinator.waitForSlot();
+      fetchQuote();
+    }, 800); // Increased debounce for rate limiting
     return () => clearTimeout(timer);
   }, [fetchQuote]);
 

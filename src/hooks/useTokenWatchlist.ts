@@ -164,8 +164,8 @@ export function useTokenWatchlist() {
         );
       }
       
-      // Small delay between requests to avoid rate limiting
-      await new Promise(r => setTimeout(r, 200));
+      // Increased delay between requests to avoid rate limiting
+      await new Promise(r => setTimeout(r, 500));
     }
     
     // Cache prices
@@ -208,8 +208,8 @@ export function useTokenWatchlist() {
   useEffect(() => {
     fetchPrices();
     
-    // Auto-refresh every 45 seconds (increased from 30s)
-    intervalRef.current = setInterval(fetchPrices, 45000);
+    // Auto-refresh every 60 seconds (reduced frequency for rate limiting)
+    intervalRef.current = setInterval(fetchPrices, 60000);
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
