@@ -22,6 +22,43 @@ const queryClient = new QueryClient({
   },
 });
 
+// Show loading splash while initializing
+const showSplash = () => {
+  const root = document.getElementById("root");
+  if (root) {
+    root.innerHTML = `
+      <div style="
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: hsl(222 47% 6%);
+        color: hsl(210 40% 98%);
+        font-family: system-ui, -apple-system, sans-serif;
+        gap: 1.5rem;
+      ">
+        <div style="
+          width: 48px;
+          height: 48px;
+          border: 3px solid hsl(210 40% 20%);
+          border-top-color: hsl(217 91% 60%);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        "></div>
+        <p style="font-size: 0.875rem; opacity: 0.7;">Initializing...</p>
+      </div>
+      <style>
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+  }
+};
+
+showSplash();
+
 // Initialize AppKit (loads WalletConnect project ID) before rendering
 initializeAppKit().then(() => {
   // Only render when wagmiConfig is ready
