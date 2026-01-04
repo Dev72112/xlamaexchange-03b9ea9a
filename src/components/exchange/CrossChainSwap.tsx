@@ -354,7 +354,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-between text-sm text-destructive">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{quoteError}</span>
+                <span>{quoteError.includes('Retry') ? quoteError : 'Unable to fetch quote'}</span>
               </div>
               <Button
                 variant="ghost"
@@ -364,6 +364,14 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
               >
                 Retry
               </Button>
+            </div>
+          )}
+          
+          {/* Retrying state */}
+          {isRetrying && (
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              <span>Fetching best route...</span>
             </div>
           )}
 

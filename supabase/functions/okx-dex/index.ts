@@ -54,25 +54,25 @@ type ValidAction = typeof VALID_ACTIONS[number];
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60000;
 const RATE_LIMITS: Record<ValidAction, number> = {
-  'supported-chains': 30,
-  'tokens': 30,
-  'quote': 60,
-  'swap': 30,
-  'approve-transaction': 30,
-  'liquidity': 30,
-  'token-info': 30,
-  'cross-chain-quote': 30,
-  'cross-chain-swap': 20,
-  'token-price': 60,
-  'token-price-info': 60,
-  'token-ranking': 30,
-  'token-search': 60,
-  'candlesticks': 60,
-  'history-candles': 30,
-  'wallet-balances': 30,
-  'portfolio-value': 30,
-  'tx-history': 30,
-  'tx-detail': 30,
+  'supported-chains': 40,
+  'tokens': 40,
+  'quote': 80,
+  'swap': 40,
+  'approve-transaction': 40,
+  'liquidity': 40,
+  'token-info': 40,
+  'cross-chain-quote': 50,  // Increased from 30
+  'cross-chain-swap': 30,
+  'token-price': 80,        // Increased from 60
+  'token-price-info': 80,   // Increased from 60
+  'token-ranking': 40,
+  'token-search': 80,
+  'candlesticks': 80,
+  'history-candles': 40,
+  'wallet-balances': 40,
+  'portfolio-value': 40,
+  'tx-history': 40,
+  'tx-detail': 40,
 };
 
 function checkRateLimit(action: ValidAction, clientIp: string): boolean {
@@ -231,9 +231,22 @@ serve(async (req) => {
     
     // Check rate limit
     if (!checkRateLimit(action as ValidAction, clientIp)) {
+      const limit = RATE_LIMITS[action as ValidAction];
       return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: 'Rate limit exceeded. Please try again later.', 
+          retryAfter: 60,
+          retryable: true 
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': String(limit),
+            'Retry-After': '60'
+          } 
+        }
       );
     }
     

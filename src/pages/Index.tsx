@@ -24,6 +24,7 @@ import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
 const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
+const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
 
 type ExchangeMode = 'instant' | 'dex';
 
@@ -196,6 +197,15 @@ const Index = () => {
           <section className="py-8">
             <div className="container px-4 sm:px-6 max-w-xl mx-auto">
               <CrossChainSwap />
+            </div>
+          </section>
+
+          {/* Limit Orders Section (standalone for DEX mode) */}
+          <section className="py-4">
+            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
+              <Suspense fallback={<div className="h-16 skeleton-shimmer rounded-lg" />}>
+                <ActiveLimitOrders />
+              </Suspense>
             </div>
           </section>
 
