@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
 interface ReferralData {
   referralCode: string;
   referralLink: string;
@@ -18,7 +20,7 @@ interface ReferralData {
   }[];
 }
 
-const COMMISSION_RATE = 0.005; // 0.5% commission
+
 
 function generateReferralCode(address: string): string {
   // Create a short code from wallet address
@@ -159,7 +161,7 @@ export function useReferral(walletAddress: string | null) {
     fetchReferralData();
   }, [fetchReferralData]);
 
-  // Record a trade for commission (called after successful swap)
+  // Record a trade for commission via secure edge function (called after successful swap)
   const recordTradeCommission = useCallback(async (
     tradeHash: string,
     chainIndex: string,
@@ -169,28 +171,25 @@ export function useReferral(walletAddress: string | null) {
     if (!walletAddress) return;
 
     try {
-      // Check if this wallet was referred
-      const { data: referral } = await supabase
-        .from('referrals')
-        .select('referrer_address')
-        .eq('referee_address', walletAddress)
-        .maybeSingle();
-
-      if (!referral?.referrer_address) return;
-
-      // Record the earning
-      const commissionUsd = amountUsd * COMMISSION_RATE;
-      
-      await supabase.from('referral_earnings').insert({
-        referrer_address: referral.referrer_address,
-        referee_address: walletAddress,
-        trade_hash: tradeHash,
-        chain_index: chainIndex,
-        token_symbol: tokenSymbol,
-        amount_usd: amountUsd,
-        commission_rate: COMMISSION_RATE,
-        commission_usd: commissionUsd,
+      // Call edge function for server-side commission recording
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/record-commission`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tradeHash,
+          chainIndex,
+          tokenSymbol,
+          amountUsd,
+          walletAddress,
+        }),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Failed to record commission:', error);
+      }
     } catch (err) {
       console.error('Failed to record trade commission:', err);
     }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createWalletClient } from '@/lib/supabaseWithWallet';
 
 interface PushSubscription {
   endpoint: string;
@@ -26,6 +26,9 @@ export function usePushNotifications(walletAddress: string | null) {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
+
+  // Create wallet-aware Supabase client for RLS
+  const supabase = useMemo(() => createWalletClient(walletAddress), [walletAddress]);
 
   // Check browser support
   useEffect(() => {
