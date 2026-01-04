@@ -9,6 +9,7 @@ import { XIcon, TelegramIcon, SOCIAL_LINKS } from "./SocialIcons";
 import { Progress } from "@/components/ui/progress";
 import { useRouteLoading } from "@/contexts/RouteLoadingContext";
 import { prefetchRoute } from "@/lib/routePrefetch";
+import xlamaMascot from "@/assets/xlama-mascot.png";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,9 +36,13 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-xl border-b border-border">
         <div className="container flex h-14 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 font-display font-bold text-xl">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">X</span>
+          <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl group">
+            <div className="relative w-9 h-9 rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+              <img 
+                src={xlamaMascot} 
+                alt="xLama mascot" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <span className="text-foreground hidden sm:inline">xlama</span>
           </Link>
