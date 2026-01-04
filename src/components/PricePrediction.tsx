@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, Activity, Target, Shield, Clock, ChevronDown, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Activity, Target, Shield, Clock, ChevronDown, Loader2, BarChart2, Layers } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Progress } from '@/components/ui/progress';
 import { usePricePrediction, PricePrediction as PricePredictionType } from '@/hooks/usePricePrediction';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 import { cn } from '@/lib/utils';
+import { FibonacciLevels, VolumeProfileBin } from '@/lib/technicalIndicators';
 
 interface PricePredictionProps {
   chainIndex?: string;
@@ -25,6 +27,8 @@ export function PricePrediction({
   const { predict, prediction, isLoading, error } = usePricePrediction();
   const [timeframe, setTimeframe] = useState<'1H' | '4H' | '1D'>('1H');
   const [showSignals, setShowSignals] = useState(false);
+  const [showFibonacci, setShowFibonacci] = useState(false);
+  const [showVolumeProfile, setShowVolumeProfile] = useState(false);
 
   const handlePredict = async () => {
     if (!tokenAddress) return;
@@ -164,6 +168,111 @@ export function PricePrediction({
                 </p>
               </div>
             </div>
+
+            {/* Fibonacci Levels */}
+            {prediction.fibonacci && (
+              <Collapsible open={showFibonacci} onOpenChange={setShowFibonacci}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between h-8">
+                    <span className="text-xs flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5" />
+                      Fibonacci Retracement
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {prediction.fibonacci.trend}
+                      </Badge>
+                    </span>
+                    <ChevronDown className={cn(
+                      "w-4 h-4 transition-transform",
+                      showFibonacci && "rotate-180"
+                    )} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="space-y-1">
+                    {[
+                      { label: '0%', value: prediction.fibonacci.level0 },
+                      { label: '23.6%', value: prediction.fibonacci.level236 },
+                      { label: '38.2%', value: prediction.fibonacci.level382 },
+                      { label: '50%', value: prediction.fibonacci.level50 },
+                      { label: '61.8%', value: prediction.fibonacci.level618 },
+                      { label: '78.6%', value: prediction.fibonacci.level786 },
+                      { label: '100%', value: prediction.fibonacci.level100 },
+                    ].map((level) => {
+                      const distancePercent = ((prediction.currentPrice - level.value) / level.value) * 100;
+                      const isNear = Math.abs(distancePercent) < 2;
+                      return (
+                        <div 
+                          key={level.label}
+                          className={cn(
+                            "flex items-center justify-between py-1 px-2 rounded text-xs",
+                            isNear ? "bg-primary/10 border border-primary/20" : "bg-secondary/20"
+                          )}
+                        >
+                          <span className={cn(isNear && "font-medium text-primary")}>
+                            {level.label}
+                          </span>
+                          <span className="font-mono">${formatPrice(level.value)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Volume Profile */}
+            {prediction.volumeProfile && prediction.volumeProfile.length > 0 && (
+              <Collapsible open={showVolumeProfile} onOpenChange={setShowVolumeProfile}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between h-8">
+                    <span className="text-xs flex items-center gap-1.5">
+                      <BarChart2 className="w-3.5 h-3.5" />
+                      Volume Profile
+                    </span>
+                    <ChevronDown className={cn(
+                      "w-4 h-4 transition-transform",
+                      showVolumeProfile && "rotate-180"
+                    )} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="space-y-1">
+                    {prediction.volumeProfile.slice(0, 12).map((bin, i) => (
+                      <div 
+                        key={i}
+                        className={cn(
+                          "flex items-center gap-2 py-0.5 px-2 rounded text-xs",
+                          bin.isPointOfControl && "bg-primary/10 border border-primary/20",
+                          (bin.isValueAreaHigh || bin.isValueAreaLow) && !bin.isPointOfControl && "bg-secondary/40"
+                        )}
+                      >
+                        <span className="w-16 font-mono text-[10px] text-muted-foreground">
+                          ${formatPrice(bin.priceLevel)}
+                        </span>
+                        <div className="flex-1">
+                          <Progress 
+                            value={bin.percentage} 
+                            className={cn(
+                              "h-2",
+                              bin.isPointOfControl && "[&>div]:bg-primary"
+                            )}
+                          />
+                        </div>
+                        <span className="w-10 text-right text-[10px] text-muted-foreground">
+                          {bin.percentage.toFixed(1)}%
+                        </span>
+                        {bin.isPointOfControl && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1">POC</Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    POC = Point of Control (highest volume level)
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
             {/* Technical Signals */}
             <Collapsible open={showSignals} onOpenChange={setShowSignals}>

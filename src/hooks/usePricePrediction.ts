@@ -6,7 +6,12 @@ import {
   calculateRSI, 
   calculateMACD, 
   calculateBollingerBands,
-  OHLCData 
+  calculateFibonacciRetracement,
+  calculateVolumeProfile,
+  calculateATR,
+  OHLCData,
+  FibonacciLevels,
+  VolumeProfileBin,
 } from '@/lib/technicalIndicators';
 
 export interface PricePrediction {
@@ -23,6 +28,9 @@ export interface PricePrediction {
   supportLevel: number;
   resistanceLevel: number;
   timeframe: string;
+  fibonacci?: FibonacciLevels;
+  volumeProfile?: VolumeProfileBin[];
+  atr?: number;
 }
 
 export function usePricePrediction() {
@@ -46,7 +54,9 @@ export function usePricePrediction() {
     sma20: (number | null)[],
     sma50: (number | null)[],
     rsi: (number | null)[],
-    macd: ReturnType<typeof calculateMACD>
+    macd: ReturnType<typeof calculateMACD>,
+    fibonacci: FibonacciLevels | null,
+    volumeProfile: VolumeProfileBin[]
   ): PricePrediction['signals'] => {
     const signals: PricePrediction['signals'] = [];
     const lastIndex = ohlcData.length - 1;
@@ -80,7 +90,6 @@ export function usePricePrediction() {
     // MACD Signal
     const lastMacd = macd.macd[lastIndex];
     const lastSignal = macd.signal[lastIndex];
-    const lastHistogram = macd.histogram[lastIndex];
     if (lastMacd !== null && lastSignal !== null) {
       const macdSignal = lastMacd > lastSignal ? 'bullish' : 'bearish';
       signals.push({
@@ -110,6 +119,59 @@ export function usePricePrediction() {
       signal: momentum > 0 ? 'bullish' : momentum < 0 ? 'bearish' : 'neutral',
       value: `${momentum > 0 ? '+' : ''}${momentum.toFixed(6)}`,
     });
+
+    // Fibonacci Signal - check if price is near key levels
+    if (fibonacci) {
+      const fibLevels = [
+        { level: fibonacci.level236, name: '23.6%' },
+        { level: fibonacci.level382, name: '38.2%' },
+        { level: fibonacci.level50, name: '50%' },
+        { level: fibonacci.level618, name: '61.8%' },
+      ];
+      
+      const nearestFib = fibLevels.reduce((nearest, level) => {
+        const distance = Math.abs(currentPrice - level.level);
+        return distance < Math.abs(currentPrice - nearest.level) ? level : nearest;
+      });
+      
+      const distancePercent = ((currentPrice - nearestFib.level) / nearestFib.level) * 100;
+      const isNearLevel = Math.abs(distancePercent) < 2; // Within 2% of Fib level
+      
+      if (isNearLevel) {
+        const fibSignal = fibonacci.trend === 'uptrend' 
+          ? (currentPrice > nearestFib.level ? 'bullish' : 'bearish')
+          : (currentPrice < nearestFib.level ? 'bullish' : 'bearish');
+        signals.push({
+          name: `Fib ${nearestFib.name} (${fibonacci.trend})`,
+          signal: fibSignal,
+          value: `${distancePercent > 0 ? '+' : ''}${distancePercent.toFixed(2)}% from level`,
+        });
+      }
+    }
+
+    // Volume Profile Signal - check if price is at Point of Control
+    if (volumeProfile.length > 0) {
+      const poc = volumeProfile.find(v => v.isPointOfControl);
+      const vah = volumeProfile.find(v => v.isValueAreaHigh);
+      const val = volumeProfile.find(v => v.isValueAreaLow);
+      
+      if (poc) {
+        const distanceFromPOC = ((currentPrice - poc.priceLevel) / poc.priceLevel) * 100;
+        let vpSignal: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+        
+        if (val && currentPrice < val.priceLevel) {
+          vpSignal = 'bullish'; // Below value area - potential support
+        } else if (vah && currentPrice > vah.priceLevel) {
+          vpSignal = 'bearish'; // Above value area - potential resistance
+        }
+        
+        signals.push({
+          name: 'Volume Profile',
+          signal: vpSignal,
+          value: `POC: ${poc.priceLevel.toFixed(4)} (${distanceFromPOC > 0 ? '+' : ''}${distanceFromPOC.toFixed(1)}%)`,
+        });
+      }
+    }
 
     return signals;
   };
@@ -191,15 +253,35 @@ export function usePricePrediction() {
       const rsi = calculateRSI(ohlcData, 14);
       const macd = calculateMACD(ohlcData);
       const bollinger = calculateBollingerBands(ohlcData, 20, 2);
+      
+      // Calculate new indicators
+      const fibonacci = calculateFibonacciRetracement(ohlcData, 50);
+      const volumeProfile = calculateVolumeProfile(ohlcData, 20);
+      const atr = calculateATR(ohlcData, 14);
+      const lastATR = atr[atr.length - 1];
 
-      // Analyze signals
-      const signals = analyzeTrend(ohlcData, sma20, sma50, rsi, macd);
+      // Analyze signals with Fibonacci and Volume Profile
+      const signals = analyzeTrend(ohlcData, sma20, sma50, rsi, macd, fibonacci, volumeProfile);
       
       // Calculate prediction
       const { predictedChange, confidence } = calculatePrediction(ohlcData, signals);
       
-      // Find support/resistance
-      const { support, resistance } = findSupportResistance(ohlcData);
+      // Find support/resistance - enhanced with Fibonacci
+      let { support, resistance } = findSupportResistance(ohlcData);
+      
+      // Use Fibonacci levels for better support/resistance if available
+      if (fibonacci) {
+        const currentPrice = ohlcData[ohlcData.length - 1].close;
+        if (fibonacci.trend === 'uptrend') {
+          // In uptrend, use Fib levels below price as support
+          if (currentPrice > fibonacci.level382) support = Math.max(support, fibonacci.level382);
+          if (currentPrice < fibonacci.level618) resistance = Math.min(resistance, fibonacci.level618);
+        } else {
+          // In downtrend, use Fib levels above price as resistance
+          if (currentPrice < fibonacci.level382) resistance = Math.min(resistance, fibonacci.level382);
+          if (currentPrice > fibonacci.level618) support = Math.max(support, fibonacci.level618);
+        }
+      }
 
       // Determine overall trend
       const bullishSignals = signals.filter(s => s.signal === 'bullish').length;
@@ -221,6 +303,9 @@ export function usePricePrediction() {
         supportLevel: support,
         resistanceLevel: resistance,
         timeframe: timeframe === '1H' ? '1 Hour' : timeframe === '4H' ? '4 Hours' : '1 Day',
+        fibonacci: fibonacci || undefined,
+        volumeProfile: volumeProfile.length > 0 ? volumeProfile : undefined,
+        atr: lastATR || undefined,
       };
 
       setPrediction(result);

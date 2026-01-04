@@ -206,3 +206,213 @@ export function calculateVWAP(data: OHLCData[]): (number | null)[] {
   
   return result;
 }
+
+// Fibonacci Retracement Levels
+export interface FibonacciLevels {
+  level0: number;    // 0% (high/low depending on trend)
+  level236: number;  // 23.6%
+  level382: number;  // 38.2%
+  level50: number;   // 50%
+  level618: number;  // 61.8%
+  level786: number;  // 78.6%
+  level100: number;  // 100% (low/high depending on trend)
+  trend: 'uptrend' | 'downtrend';
+}
+
+export function calculateFibonacciRetracement(
+  data: OHLCData[],
+  period: number = 50
+): FibonacciLevels | null {
+  if (data.length < period) return null;
+  
+  const recentData = data.slice(-period);
+  
+  // Find swing high and low in the period
+  let swingHigh = recentData[0].high;
+  let swingLow = recentData[0].low;
+  let highIndex = 0;
+  let lowIndex = 0;
+  
+  for (let i = 1; i < recentData.length; i++) {
+    if (recentData[i].high > swingHigh) {
+      swingHigh = recentData[i].high;
+      highIndex = i;
+    }
+    if (recentData[i].low < swingLow) {
+      swingLow = recentData[i].low;
+      lowIndex = i;
+    }
+  }
+  
+  const range = swingHigh - swingLow;
+  if (range === 0) return null;
+  
+  // Determine trend: uptrend if low came before high
+  const trend: 'uptrend' | 'downtrend' = lowIndex < highIndex ? 'uptrend' : 'downtrend';
+  
+  // Calculate Fibonacci levels
+  if (trend === 'uptrend') {
+    // In uptrend, retracement levels are drawn from low to high
+    return {
+      level0: swingHigh,
+      level236: swingHigh - range * 0.236,
+      level382: swingHigh - range * 0.382,
+      level50: swingHigh - range * 0.5,
+      level618: swingHigh - range * 0.618,
+      level786: swingHigh - range * 0.786,
+      level100: swingLow,
+      trend,
+    };
+  } else {
+    // In downtrend, retracement levels are drawn from high to low
+    return {
+      level0: swingLow,
+      level236: swingLow + range * 0.236,
+      level382: swingLow + range * 0.382,
+      level50: swingLow + range * 0.5,
+      level618: swingLow + range * 0.618,
+      level786: swingLow + range * 0.786,
+      level100: swingHigh,
+      trend,
+    };
+  }
+}
+
+// Volume Profile
+export interface VolumeProfileBin {
+  priceLevel: number;
+  volume: number;
+  percentage: number;
+  isPointOfControl: boolean;  // Highest volume level
+  isValueAreaHigh: boolean;   // 70% volume high bound
+  isValueAreaLow: boolean;    // 70% volume low bound
+}
+
+export function calculateVolumeProfile(
+  data: OHLCData[],
+  bins: number = 24
+): VolumeProfileBin[] {
+  if (data.length === 0) return [];
+  
+  // Find price range
+  let minPrice = data[0].low;
+  let maxPrice = data[0].high;
+  
+  for (const candle of data) {
+    if (candle.low < minPrice) minPrice = candle.low;
+    if (candle.high > maxPrice) maxPrice = candle.high;
+  }
+  
+  const priceRange = maxPrice - minPrice;
+  if (priceRange === 0) return [];
+  
+  const binSize = priceRange / bins;
+  
+  // Initialize bins
+  const volumeBins: number[] = new Array(bins).fill(0);
+  const priceLevels: number[] = [];
+  
+  for (let i = 0; i < bins; i++) {
+    priceLevels.push(minPrice + binSize * (i + 0.5)); // Mid-point of each bin
+  }
+  
+  // Distribute volume to bins based on price range of each candle
+  for (const candle of data) {
+    const candleVolume = candle.volume;
+    const candleRange = candle.high - candle.low;
+    
+    // Distribute volume proportionally to bins the candle touches
+    for (let i = 0; i < bins; i++) {
+      const binLow = minPrice + binSize * i;
+      const binHigh = minPrice + binSize * (i + 1);
+      
+      // Calculate overlap between candle and bin
+      const overlapLow = Math.max(candle.low, binLow);
+      const overlapHigh = Math.min(candle.high, binHigh);
+      
+      if (overlapHigh > overlapLow) {
+        const overlap = overlapHigh - overlapLow;
+        const proportion = candleRange > 0 ? overlap / candleRange : 1 / bins;
+        volumeBins[i] += candleVolume * proportion;
+      }
+    }
+  }
+  
+  const totalVolume = volumeBins.reduce((a, b) => a + b, 0);
+  if (totalVolume === 0) return [];
+  
+  // Find Point of Control (highest volume bin)
+  let maxVolume = 0;
+  let pocIndex = 0;
+  for (let i = 0; i < bins; i++) {
+    if (volumeBins[i] > maxVolume) {
+      maxVolume = volumeBins[i];
+      pocIndex = i;
+    }
+  }
+  
+  // Calculate Value Area (70% of volume centered around POC)
+  const valueAreaTarget = totalVolume * 0.7;
+  let valueAreaVolume = volumeBins[pocIndex];
+  let vaLow = pocIndex;
+  let vaHigh = pocIndex;
+  
+  while (valueAreaVolume < valueAreaTarget && (vaLow > 0 || vaHigh < bins - 1)) {
+    const checkLow = vaLow > 0 ? volumeBins[vaLow - 1] : 0;
+    const checkHigh = vaHigh < bins - 1 ? volumeBins[vaHigh + 1] : 0;
+    
+    if (checkLow >= checkHigh && vaLow > 0) {
+      vaLow--;
+      valueAreaVolume += volumeBins[vaLow];
+    } else if (vaHigh < bins - 1) {
+      vaHigh++;
+      valueAreaVolume += volumeBins[vaHigh];
+    } else if (vaLow > 0) {
+      vaLow--;
+      valueAreaVolume += volumeBins[vaLow];
+    }
+  }
+  
+  // Build result
+  return priceLevels.map((priceLevel, i) => ({
+    priceLevel,
+    volume: volumeBins[i],
+    percentage: (volumeBins[i] / totalVolume) * 100,
+    isPointOfControl: i === pocIndex,
+    isValueAreaHigh: i === vaHigh,
+    isValueAreaLow: i === vaLow,
+  }));
+}
+
+// Average True Range (ATR) - useful for volatility
+export function calculateATR(data: OHLCData[], period: number = 14): (number | null)[] {
+  const result: (number | null)[] = [];
+  const trueRanges: number[] = [];
+  
+  for (let i = 0; i < data.length; i++) {
+    if (i === 0) {
+      trueRanges.push(data[i].high - data[i].low);
+      result.push(null);
+    } else {
+      const tr = Math.max(
+        data[i].high - data[i].low,
+        Math.abs(data[i].high - data[i - 1].close),
+        Math.abs(data[i].low - data[i - 1].close)
+      );
+      trueRanges.push(tr);
+      
+      if (i < period - 1) {
+        result.push(null);
+      } else if (i === period - 1) {
+        const sum = trueRanges.slice(0, period).reduce((a, b) => a + b, 0);
+        result.push(sum / period);
+      } else {
+        const prevATR = result[i - 1]!;
+        const atr = (prevATR * (period - 1) + tr) / period;
+        result.push(atr);
+      }
+    }
+  }
+  
+  return result;
+}
