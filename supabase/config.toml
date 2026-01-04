@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.okx-dex]
 verify_jwt = false
+
+[functions.walletconnect-config]
+verify_jwt = false
+
+[functions.price-history]
+verify_jwt = false

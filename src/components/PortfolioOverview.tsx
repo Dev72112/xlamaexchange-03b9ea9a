@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Wallet, RefreshCw, ChevronDown, ChevronUp, TrendingUp, Layers } from 'lucide-react';
+import { Wallet, RefreshCw, ChevronDown, ChevronUp, TrendingUp, Layers, Grid3X3, List } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { okxDexService, WalletTokenBalance } from '@/services/okxdex';
 import { SUPPORTED_CHAINS, Chain } from '@/data/chains';
@@ -17,9 +20,11 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   const { isConnected, activeAddress } = useMultiWallet();
   const [totalValue, setTotalValue] = useState<string | null>(null);
   const [balances, setBalances] = useState<WalletTokenBalance[]>([]);
+  const [allBalances, setAllBalances] = useState<WalletTokenBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [showAllHoldings, setShowAllHoldings] = useState(false);
 
   // Get chain indices for fetching
   const chainIndices = useMemo(() => 
@@ -38,16 +43,28 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
         okxDexService.getWalletBalances(activeAddress, chainIndices),
       ]);
 
-      if (valueResult?.totalValue) {
-        setTotalValue(valueResult.totalValue);
-      }
-      
+      // Store all balances for the "View All" modal
+      setAllBalances(balancesResult);
+
       // Sort by USD value
       const sortedBalances = balancesResult.sort((a, b) => 
         parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0') - 
         parseFloat(a.tokenPrice || '0') * parseFloat(a.balance || '0')
       );
       setBalances(sortedBalances.slice(0, 5)); // Top 5
+
+      // Use API total, or compute fallback from balances
+      if (valueResult?.totalValue && parseFloat(valueResult.totalValue) > 0) {
+        setTotalValue(valueResult.totalValue);
+      } else {
+        // Fallback: compute total from individual token balances
+        const computedTotal = balancesResult.reduce((sum, b) => {
+          const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
+          return sum + value;
+        }, 0);
+        setTotalValue(computedTotal > 0 ? computedTotal.toString() : null);
+      }
+      
       setLastFetched(new Date());
     } catch (err) {
       console.error('Failed to fetch portfolio:', err);
@@ -62,28 +79,32 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
     } else {
       setTotalValue(null);
       setBalances([]);
+      setAllBalances([]);
     }
   }, [isConnected, activeAddress]);
 
-  // Group balances by chain
+  // Group all balances by chain for the "By Chain" view
   const chainBalances = useMemo(() => {
-    const grouped: Record<string, { chain: Chain; total: number }> = {};
+    const grouped: Record<string, { chain: Chain; total: number; tokens: WalletTokenBalance[] }> = {};
     
-    balances.forEach(b => {
+    allBalances.forEach(b => {
       const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === b.chainIndex);
       if (!chain) return;
       
       const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
       if (!grouped[b.chainIndex]) {
-        grouped[b.chainIndex] = { chain, total: 0 };
+        grouped[b.chainIndex] = { chain, total: 0, tokens: [] };
       }
       grouped[b.chainIndex].total += value;
+      grouped[b.chainIndex].tokens.push(b);
     });
 
     return Object.values(grouped)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 4);
-  }, [balances]);
+      .sort((a, b) => b.total - a.total);
+  }, [allBalances]);
+
+  // Top 4 chains for the summary view
+  const topChainBalances = useMemo(() => chainBalances.slice(0, 4), [chainBalances]);
 
   const formatUsd = (value: string | number) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
@@ -113,9 +134,16 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
                         {isLoading ? (
                           <Skeleton className="h-7 w-28 mt-0.5" />
                         ) : (
-                          <p className="text-xl sm:text-2xl font-bold">
-                            {totalValue ? formatUsd(totalValue) : '$0.00'}
-                          </p>
+                          <>
+                            <p className="text-xl sm:text-2xl font-bold">
+                              {totalValue ? formatUsd(totalValue) : (
+                                allBalances.length > 0 ? '—' : '$0.00'
+                              )}
+                            </p>
+                            {totalValue === null && allBalances.length > 0 && (
+                              <p className="text-xs text-muted-foreground">Value unavailable</p>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -151,14 +179,105 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
                       <Skeleton key={i} className="h-16 rounded-lg" />
                     ))}
                   </div>
-                ) : chainBalances.length > 0 ? (
+                ) : topChainBalances.length > 0 ? (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Layers className="w-4 h-4" />
-                      <span>By Chain</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Layers className="w-4 h-4" />
+                        <span>By Chain</span>
+                      </div>
+                      {allBalances.length > 3 && (
+                        <Dialog open={showAllHoldings} onOpenChange={setShowAllHoldings}>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-xs h-7">
+                              View All ({allBalances.length})
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-lg max-h-[80vh]">
+                            <DialogHeader>
+                              <DialogTitle>All Holdings</DialogTitle>
+                            </DialogHeader>
+                            <Tabs defaultValue="all" className="mt-2">
+                              <TabsList className="w-full grid grid-cols-2">
+                                <TabsTrigger value="all" className="gap-1">
+                                  <List className="w-3.5 h-3.5" />
+                                  All Tokens
+                                </TabsTrigger>
+                                <TabsTrigger value="chain" className="gap-1">
+                                  <Grid3X3 className="w-3.5 h-3.5" />
+                                  By Chain
+                                </TabsTrigger>
+                              </TabsList>
+                              <ScrollArea className="h-[400px] mt-3">
+                                <TabsContent value="all" className="m-0">
+                                  <div className="space-y-1">
+                                    {allBalances.map((b, i) => {
+                                      const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === b.chainIndex);
+                                      const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
+                                      return (
+                                        <div key={`${b.chainIndex}-${b.tokenContractAddress}-${i}`} className="flex items-center justify-between py-2 px-2 rounded hover:bg-secondary/30">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium">{b.symbol}</span>
+                                            {chain && (
+                                              <img
+                                                src={chain.icon}
+                                                alt={chain.name}
+                                                className="w-3.5 h-3.5 rounded-full opacity-60"
+                                              />
+                                            )}
+                                          </div>
+                                          <div className="text-right">
+                                            <p className="text-sm font-medium">{value > 0 ? formatUsd(value) : 'N/A'}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {parseFloat(b.balance).toFixed(4)} {b.symbol}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </TabsContent>
+                                <TabsContent value="chain" className="m-0">
+                                  <div className="space-y-4">
+                                    {chainBalances.map(({ chain, total, tokens }) => (
+                                      <div key={chain.chainIndex} className="border-b border-border/50 pb-3 last:border-0">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <img
+                                            src={chain.icon}
+                                            alt={chain.name}
+                                            className="w-5 h-5 rounded-full"
+                                          />
+                                          <span className="font-medium">{chain.name}</span>
+                                          <span className="text-sm text-muted-foreground ml-auto">{formatUsd(total)}</span>
+                                        </div>
+                                        <div className="pl-7 space-y-1">
+                                          {tokens.map((b, i) => {
+                                            const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
+                                            return (
+                                              <div key={`${b.tokenContractAddress}-${i}`} className="flex items-center justify-between text-sm py-1">
+                                                <span>{b.symbol}</span>
+                                                <div className="text-right">
+                                                  <span className="font-medium">{value > 0 ? formatUsd(value) : 'N/A'}</span>
+                                                  <span className="text-xs text-muted-foreground ml-2">
+                                                    {parseFloat(b.balance).toFixed(4)}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TabsContent>
+                              </ScrollArea>
+                            </Tabs>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {chainBalances.map(({ chain, total }) => {
+                      {topChainBalances.map(({ chain, total }) => {
                         const totalNum = parseFloat(totalValue || '1');
                         const percentage = totalNum > 0 ? (total / totalNum) * 100 : 0;
                         

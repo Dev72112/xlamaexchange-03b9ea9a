@@ -194,10 +194,11 @@ export function AdvancedPriceChart({ chain, token, className }: AdvancedPriceCha
   }, [chartData, livePrice]);
 
   const formatPrice = (price: number) => {
+    if (price >= 10000) return `$${(price / 1000).toFixed(1)}K`;
     if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
     if (price >= 1) return `$${price.toFixed(2)}`;
-    if (price >= 0.0001) return `$${price.toFixed(4)}`;
-    return `$${price.toFixed(6)}`;
+    if (price >= 0.0001) return `$${price.toFixed(6)}`;
+    return `$${price.toFixed(8)}`;
   };
 
   if (!chain || !token) {
@@ -331,15 +332,15 @@ export function AdvancedPriceChart({ chain, token, className }: AdvancedPriceCha
               <Maximize2 className="w-4 h-4" />
             </Button>
 
-            {/* Timeframes */}
-            <div className="flex gap-1 bg-secondary/50 rounded-lg p-1">
+            {/* Timeframes - scrollable on mobile */}
+            <div className="flex gap-1 bg-secondary/50 rounded-lg p-1 overflow-x-auto max-w-[200px] sm:max-w-none scrollbar-hide">
               {TIME_FRAMES.map((tf) => (
                 <Button
                   key={tf.value}
                   variant={timeFrame === tf.value ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setTimeFrame(tf.value)}
-                  className="h-7 text-xs px-2"
+                  className="h-7 text-xs px-2 flex-shrink-0"
                 >
                   {tf.label}
                 </Button>
@@ -457,13 +458,35 @@ export function AdvancedPriceChart({ chain, token, className }: AdvancedPriceCha
                   </>
                 )}
 
-                {/* Price - Candlestick as stacked bars or Line/Area */}
+                {/* Price rendering based on chart type */}
                 {indicators.chartType === 'candle' ? (
-                  <Bar dataKey="candleHigh" yAxisId="price" stackId="candle" barSize={6}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
+                  <>
+                    {/* Candlestick wicks - render as thin bars from low to high */}
+                    <Bar 
+                      dataKey="wickHigh" 
+                      yAxisId="price" 
+                      barSize={1}
+                      fill="hsl(var(--muted-foreground))"
+                      opacity={0.6}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`wick-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                    {/* Candlestick bodies - render as thicker bars */}
+                    <Bar 
+                      dataKey="candleHigh" 
+                      yAxisId="price" 
+                      barSize={8}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`body-${index}`} 
+                          fill={entry.isUp ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)'} 
+                        />
+                      ))}
+                    </Bar>
+                  </>
                 ) : indicators.chartType === 'area' ? (
                   <Area
                     type="monotone"

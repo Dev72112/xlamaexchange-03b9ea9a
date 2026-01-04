@@ -91,26 +91,42 @@ export const appKitMetadata = {
   icons: [typeof window !== 'undefined' ? `${window.location.origin}/favicon.ico` : '/favicon.ico'],
 };
 
-// Project ID from environment or localStorage
-const getProjectId = (): string => {
-  const fromEnv = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
-  const fromStorage = typeof window !== 'undefined' ? localStorage.getItem('walletconnectProjectId') || '' : '';
-  return fromEnv || fromStorage || '';
+// Storage version key to invalidate cached project IDs
+const STORAGE_VERSION_KEY = 'walletconnect_version';
+const CURRENT_VERSION = '2';
+
+// Project ID - initially empty, always fetched from backend
+export let projectId = '';
+
+// Validate project ID format (should be 32 hex chars)
+const isValidProjectId = (id: string): boolean => {
+  return id.length >= 20 && /^[a-f0-9]+$/.test(id);
 };
 
-export let projectId = getProjectId();
-
-// Fetch project ID from edge function and reinitialize if needed
+// Fetch project ID from edge function - ALWAYS fetch from backend
 export const initializeProjectId = async (): Promise<string> => {
-  if (projectId) return projectId;
-
   try {
     const backendUrl = import.meta.env.VITE_SUPABASE_URL;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-    // This endpoint is protected by JWT verification, so we must include anon JWT headers.
-    if (!backendUrl || !anonKey) return projectId;
+    if (!backendUrl || !anonKey) {
+      console.warn('[AppKit] Backend URL or anon key not available');
+      return projectId;
+    }
 
+    // Check if cached version is outdated
+    const cachedVersion = localStorage.getItem(STORAGE_VERSION_KEY) || '';
+    const cachedProjectId = localStorage.getItem('walletconnectProjectId') || '';
+    
+    // Use cache only if version matches AND project ID is valid
+    if (cachedVersion === CURRENT_VERSION && isValidProjectId(cachedProjectId)) {
+      projectId = cachedProjectId;
+      console.log('[AppKit] Using cached WalletConnect Project ID');
+      return projectId;
+    }
+
+    // Always fetch from backend
+    console.log('[AppKit] Fetching WalletConnect Project ID from backend...');
     const response = await fetch(`${backendUrl}/functions/v1/walletconnect-config`, {
       headers: {
         apikey: anonKey,
@@ -120,18 +136,24 @@ export const initializeProjectId = async (): Promise<string> => {
 
     if (response.ok) {
       const data = await response.json();
-      if (data.projectId) {
+      console.log('[AppKit] Backend response:', { configured: data.configured, hasProjectId: !!data.projectId });
+      
+      if (data.projectId && isValidProjectId(data.projectId)) {
         projectId = data.projectId;
         localStorage.setItem('walletconnectProjectId', data.projectId);
-        console.log('[AppKit] WalletConnect Project ID loaded from backend');
+        localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
+        console.log('[AppKit] WalletConnect Project ID loaded and cached from backend');
       } else {
-        console.warn('[AppKit] WalletConnect Project ID missing in backend response');
+        console.error('[AppKit] Invalid or missing Project ID from backend');
+        // Clear invalid cache
+        localStorage.removeItem('walletconnectProjectId');
+        localStorage.removeItem(STORAGE_VERSION_KEY);
       }
     } else {
-      console.warn('[AppKit] WalletConnect config request failed:', response.status);
+      console.error('[AppKit] WalletConnect config request failed:', response.status);
     }
   } catch (error) {
-    console.warn('[AppKit] Failed to fetch WalletConnect config:', error);
+    console.error('[AppKit] Failed to fetch WalletConnect config:', error);
   }
 
   return projectId;

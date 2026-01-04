@@ -252,17 +252,21 @@ class OkxDexService {
     toTokenAddress: string,
     amount: string,
     slippage: string = '0.5',
-    userWalletAddress: string
+    userWalletAddress?: string // Optional - allows quotes without wallet
   ): Promise<any> {
-    return this.callApi<any>('cross-chain-quote', {
+    const params: Record<string, string> = {
       fromChainIndex,
       toChainIndex,
       fromTokenAddress,
       toTokenAddress,
       amount,
       slippage,
-      userWalletAddress,
-    });
+    };
+    // Only include userWalletAddress if provided
+    if (userWalletAddress) {
+      params.userWalletAddress = userWalletAddress;
+    }
+    return this.callApi<any>('cross-chain-quote', params);
   }
 
   async getCrossChainSwap(
