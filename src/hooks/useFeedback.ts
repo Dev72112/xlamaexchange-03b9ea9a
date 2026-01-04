@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { SOUNDS, SoundType } from '@/lib/sounds';
+import { SOUNDS, SoundType, NotificationSoundId, playNotificationSound } from '@/lib/sounds';
 
 // Storage key for feedback settings
 const FEEDBACK_SETTINGS_KEY = 'xlama-feedback-settings';
@@ -7,11 +7,15 @@ const FEEDBACK_SETTINGS_KEY = 'xlama-feedback-settings';
 interface FeedbackSettings {
   soundEnabled: boolean;
   hapticEnabled: boolean;
+  notificationSound: NotificationSoundId;
+  notificationVolume: number;
 }
 
 const defaultSettings: FeedbackSettings = {
   soundEnabled: true,
   hapticEnabled: true,
+  notificationSound: 'chime',
+  notificationVolume: 0.5,
 };
 
 // Create audio elements lazily with embedded sounds
@@ -117,6 +121,17 @@ export function useFeedback() {
     });
   }, []);
 
+  // Play notification alert sound
+  const playAlert = useCallback(() => {
+    if (!settings.soundEnabled) return;
+    playNotificationSound(settings.notificationSound, settings.notificationVolume);
+  }, [settings.soundEnabled, settings.notificationSound, settings.notificationVolume]);
+
+  // Preview a notification sound
+  const previewSound = useCallback((soundId: NotificationSoundId) => {
+    playNotificationSound(soundId, settings.notificationVolume);
+  }, [settings.notificationVolume]);
+
   return {
     settings,
     playSound,
@@ -125,11 +140,14 @@ export function useFeedback() {
     toggleSound,
     toggleHaptic,
     updateSettings,
+    playAlert,
+    previewSound,
   };
 }
 
-// Re-export SoundType for use in other components
+// Re-export SoundType and NotificationSoundId for use in other components
 export type { SoundType };
+export type { NotificationSoundId };
 
 // Singleton for global feedback access
 let globalFeedbackInstance: ReturnType<typeof useFeedback> | null = null;
