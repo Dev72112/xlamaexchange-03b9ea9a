@@ -714,39 +714,43 @@ const Analytics = () => {
                     <p className="text-xs text-muted-foreground">Current value of trades</p>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/30">
-                    <p className="text-xs text-muted-foreground mb-1">HODL P&L</p>
+                    <p className="text-xs text-muted-foreground mb-1">Wallet HODL P&L</p>
                     <p className={cn(
                       "text-xl font-semibold font-mono",
                       tradeVsHodl.hodlPnl >= 0 ? "text-green-500" : "text-red-500"
                     )}>
                       {tradeVsHodl.hodlPnl >= 0 ? '+' : ''}{formatUsd(tradeVsHodl.hodlPnl)}
                     </p>
-                    <p className="text-xs text-muted-foreground">If you had held instead</p>
+                    <p className="text-xs text-muted-foreground">
+                      {tradeVsHodl.hodlCurrentValue > 0 
+                        ? `Holdings: ${formatUsd(tradeVsHodl.hodlCurrentValue)}` 
+                        : 'Your actual holdings P&L'}
+                    </p>
                   </div>
                   <div className={cn(
                     "p-4 rounded-lg",
                     tradeVsHodl.tradingWasBetter ? "bg-green-500/10" : "bg-red-500/10"
                   )}>
-                    <p className="text-xs text-muted-foreground mb-1">Trade vs HODL</p>
+                    <p className="text-xs text-muted-foreground mb-1">Trade vs HODL %</p>
                     <p className={cn(
                       "text-xl font-semibold font-mono",
                       tradeVsHodl.tradingWasBetter ? "text-green-500" : "text-red-500"
                     )}>
-                      {tradeVsHodl.tradeVsHodlDiff >= 0 ? '+' : ''}{formatUsd(tradeVsHodl.tradeVsHodlDiff)}
+                      {tradeVsHodl.tradeVsHodlDiff >= 0 ? '+' : ''}{tradeVsHodl.tradeVsHodlDiff.toFixed(1)}%
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {tradeVsHodl.tradingWasBetter ? 'Trading outperformed' : 'HODL would have been better'}
+                      {tradeVsHodl.tradingWasBetter ? 'Trading outperformed' : 'HODL outperformed'}
                     </p>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/30">
-                    <p className="text-xs text-muted-foreground mb-1">Win Rate</p>
+                    <p className="text-xs text-muted-foreground mb-1">Trade Win Rate</p>
                     <p className="text-xl font-semibold font-mono">
                       {tradeVsHodl.tradesAnalyzed > 0 
                         ? ((tradeVsHodl.winningTrades / tradeVsHodl.tradesAnalyzed) * 100).toFixed(0) 
                         : 0}%
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {tradeVsHodl.winningTrades}W / {tradeVsHodl.losingTrades}L
+                      {tradeVsHodl.winningTrades} profitable / {tradeVsHodl.losingTrades} unprofitable
                     </p>
                   </div>
                 </div>
@@ -815,7 +819,7 @@ const Analytics = () => {
 
                 {/* Best & Worst Trade */}
                 <div className="grid md:grid-cols-2 gap-4">
-                  {tradeVsHodl.bestTrade && tradeVsHodl.bestTrade.tradeVsHodl > 0 && (
+                  {tradeVsHodl.bestTrade && tradeVsHodl.bestTrade.tradePnl > 0 && (
                     <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
                       <div className="flex items-center gap-2 mb-2">
                         <Trophy className="w-4 h-4 text-green-500" />
@@ -825,19 +829,19 @@ const Analytics = () => {
                         {tradeVsHodl.bestTrade.fromSymbol} → {tradeVsHodl.bestTrade.toSymbol}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Outperformed HODL by{' '}
+                        Profit:{' '}
                         <span className="text-green-500 font-medium">
-                          {formatUsd(tradeVsHodl.bestTrade.tradeVsHodl)}
+                          {formatUsd(tradeVsHodl.bestTrade.tradePnl)}
                         </span>
-                        {' '}({tradeVsHodl.bestTrade.tradeVsHodlPercent > 0 ? '+' : ''}
-                        {tradeVsHodl.bestTrade.tradeVsHodlPercent.toFixed(1)}%)
+                        {' '}({tradeVsHodl.bestTrade.tradePnlPercent > 0 ? '+' : ''}
+                        {tradeVsHodl.bestTrade.tradePnlPercent.toFixed(1)}%)
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {new Date(tradeVsHodl.bestTrade.date).toLocaleDateString()}
                       </p>
                     </div>
                   )}
-                  {tradeVsHodl.worstTrade && tradeVsHodl.worstTrade.tradeVsHodl < 0 && (
+                  {tradeVsHodl.worstTrade && tradeVsHodl.worstTrade.tradePnl < 0 && (
                     <div className="p-4 rounded-lg bg-red-500/5 border border-red-500/20">
                       <div className="flex items-center gap-2 mb-2">
                         <Frown className="w-4 h-4 text-red-500" />
@@ -847,11 +851,11 @@ const Analytics = () => {
                         {tradeVsHodl.worstTrade.fromSymbol} → {tradeVsHodl.worstTrade.toSymbol}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Underperformed HODL by{' '}
+                        Loss:{' '}
                         <span className="text-red-500 font-medium">
-                          {formatUsd(Math.abs(tradeVsHodl.worstTrade.tradeVsHodl))}
+                          {formatUsd(Math.abs(tradeVsHodl.worstTrade.tradePnl))}
                         </span>
-                        {' '}({tradeVsHodl.worstTrade.tradeVsHodlPercent.toFixed(1)}%)
+                        {' '}({tradeVsHodl.worstTrade.tradePnlPercent.toFixed(1)}%)
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {new Date(tradeVsHodl.worstTrade.date).toLocaleDateString()}
@@ -873,7 +877,7 @@ const Analytics = () => {
                           <div className="flex items-center gap-3 min-w-0">
                             <div className={cn(
                               "w-2 h-2 rounded-full flex-shrink-0",
-                              trade.tradeVsHodl >= 0 ? "bg-green-500" : "bg-red-500"
+                              trade.tradePnl >= 0 ? "bg-green-500" : "bg-red-500"
                             )} />
                             <div className="min-w-0">
                               <p className="font-medium text-sm truncate">
@@ -887,12 +891,12 @@ const Analytics = () => {
                           <div className="text-right flex-shrink-0">
                             <p className={cn(
                               "text-sm font-medium font-mono",
-                              trade.tradeVsHodl >= 0 ? "text-green-500" : "text-red-500"
+                              trade.tradePnl >= 0 ? "text-green-500" : "text-red-500"
                             )}>
-                              {trade.tradeVsHodl >= 0 ? '+' : ''}{formatUsd(trade.tradeVsHodl)}
+                              {trade.tradePnl >= 0 ? '+' : ''}{formatUsd(trade.tradePnl)}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              vs HODL
+                              {trade.tradePnlPercent >= 0 ? '+' : ''}{trade.tradePnlPercent.toFixed(1)}%
                             </p>
                           </div>
                         </div>

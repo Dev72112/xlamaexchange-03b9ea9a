@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useDexTransactionHistory, DexTransaction } from './useDexTransactionHistory';
-import { useTransactionHistory, TransactionRecord } from './useTransactionHistory';
+import { useDexTransactionHistory } from './useDexTransactionHistory';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { usePortfolioPnL } from './usePortfolioPnL';
 import { okxDexService } from '@/services/okxdex';
 
 interface TradePerformance {
@@ -10,27 +11,20 @@ interface TradePerformance {
   toSymbol: string;
   fromAmount: number;
   toAmount: number;
-  // Values at time of trade
   tradeValueUsd: number;
-  // Current values
-  currentFromValueUsd: number; // What the FROM tokens would be worth now (HODL)
-  currentToValueUsd: number;   // What the TO tokens are worth now (trade result)
-  // Performance
-  tradePnl: number;            // Trade result - original value
-  hodlPnl: number;             // HODL value - original value  
-  tradeVsHodl: number;         // Trade PnL - HODL PnL (positive = trading was better)
-  tradeVsHodlPercent: number;
+  currentToValueUsd: number;
+  tradePnl: number;
+  tradePnlPercent: number;
   chainId?: string;
   chainName?: string;
 }
 
 interface CumulativeDataPoint {
   date: string;
-  tradeValue: number;
-  hodlValue: number;
   tradePnl: number;
   hodlPnl: number;
-  difference: number;
+  tradeValue: number;
+  hodlValue: number;
 }
 
 interface TradeVsHodlSummary {
@@ -38,11 +32,15 @@ interface TradeVsHodlSummary {
   tradesAnalyzed: number;
   totalTradeValue: number;
   currentTradeValue: number;
-  currentHodlValue: number;
   tradePnl: number;
+  tradePnlPercent: number;
+  // HODL = actual wallet holdings performance
   hodlPnl: number;
+  hodlPnlPercent: number;
+  hodlStartValue: number;
+  hodlCurrentValue: number;
+  // Comparison
   tradeVsHodlDiff: number;
-  tradeVsHodlPercent: number;
   tradingWasBetter: boolean;
   winningTrades: number;
   losingTrades: number;
@@ -82,7 +80,7 @@ async function getTokenPrice(chainIndex: string, tokenAddress: string, symbol: s
 
 export function useTradeVsHodl(): TradeVsHodlSummary {
   const { transactions: dexTransactions } = useDexTransactionHistory();
-  const { transactions: instantTransactions } = useTransactionHistory();
+  const { dailyData: hodlData, getPnLMetrics } = usePortfolioPnL();
   const [performances, setPerformances] = useState<TradePerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -93,12 +91,11 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
             tx.status === 'confirmed' && 
             tx.fromAmountUsd && 
             tx.fromAmountUsd > 0 &&
-            tx.fromTokenAddress &&
             tx.toTokenAddress
     );
   }, [dexTransactions]);
 
-  // Fetch current prices and calculate performance
+  // Fetch current prices and calculate trade performance
   useEffect(() => {
     if (confirmedSwaps.length === 0) {
       setPerformances([]);
@@ -113,29 +110,20 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       const results: TradePerformance[] = [];
 
       // Process in batches to avoid rate limits
-      for (const tx of confirmedSwaps.slice(0, 20)) { // Limit to last 20 trades
+      for (const tx of confirmedSwaps.slice(0, 20)) {
         if (cancelled) break;
 
         try {
-          // Get current prices for both tokens using stored addresses
-          const [fromPrice, toPrice] = await Promise.all([
-            getTokenPrice(tx.chainId, tx.fromTokenAddress!, tx.fromTokenSymbol),
-            getTokenPrice(tx.chainId, tx.toTokenAddress!, tx.toTokenSymbol),
-          ]);
+          // Get current price for received token
+          const toPrice = await getTokenPrice(tx.chainId, tx.toTokenAddress!, tx.toTokenSymbol);
 
           const fromAmount = parseFloat(tx.fromTokenAmount) || 0;
           const toAmount = parseFloat(tx.toTokenAmount) || 0;
           const tradeValueUsd = tx.fromAmountUsd || 0;
-
-          // Current values
-          const currentFromValueUsd = fromAmount * fromPrice; // HODL value
-          const currentToValueUsd = toAmount * toPrice;       // Trade result
-
-          // PnL calculations
+          const currentToValueUsd = toAmount * toPrice;
+          
           const tradePnl = currentToValueUsd - tradeValueUsd;
-          const hodlPnl = currentFromValueUsd - tradeValueUsd;
-          const tradeVsHodl = tradePnl - hodlPnl;
-          const tradeVsHodlPercent = tradeValueUsd > 0 ? (tradeVsHodl / tradeValueUsd) * 100 : 0;
+          const tradePnlPercent = tradeValueUsd > 0 ? (tradePnl / tradeValueUsd) * 100 : 0;
 
           results.push({
             id: tx.id,
@@ -145,17 +133,13 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
             fromAmount,
             toAmount,
             tradeValueUsd,
-            currentFromValueUsd,
             currentToValueUsd,
             tradePnl,
-            hodlPnl,
-            tradeVsHodl,
-            tradeVsHodlPercent,
+            tradePnlPercent,
             chainId: tx.chainId,
             chainName: tx.chainName,
           });
 
-          // Small delay between API calls
           await new Promise(r => setTimeout(r, 100));
         } catch (error) {
           console.warn('Error calculating performance for trade:', error);
@@ -170,14 +154,19 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
 
     calculatePerformances();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [confirmedSwaps]);
 
-  // Calculate summary
+  // Calculate summary comparing trades vs actual HODL (wallet holdings)
   const summary = useMemo((): TradeVsHodlSummary => {
-    const validTrades = performances.filter(p => p.tradeValueUsd > 0 && (p.currentFromValueUsd > 0 || p.currentToValueUsd > 0));
+    const validTrades = performances.filter(p => p.tradeValueUsd > 0 && p.currentToValueUsd > 0);
+    
+    // Get HODL metrics from portfolio snapshots (actual wallet holdings)
+    const hodlMetrics = getPnLMetrics(90); // 90-day comparison
+    const hodlPnl = hodlMetrics?.absoluteChange || 0;
+    const hodlPnlPercent = hodlMetrics?.percentChange || 0;
+    const hodlStartValue = hodlMetrics?.startValue || 0;
+    const hodlCurrentValue = hodlMetrics?.endValue || 0;
 
     if (validTrades.length === 0) {
       return {
@@ -185,11 +174,13 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
         tradesAnalyzed: 0,
         totalTradeValue: 0,
         currentTradeValue: 0,
-        currentHodlValue: 0,
         tradePnl: 0,
-        hodlPnl: 0,
+        tradePnlPercent: 0,
+        hodlPnl,
+        hodlPnlPercent,
+        hodlStartValue,
+        hodlCurrentValue,
         tradeVsHodlDiff: 0,
-        tradeVsHodlPercent: 0,
         tradingWasBetter: false,
         winningTrades: 0,
         losingTrades: 0,
@@ -203,36 +194,42 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
 
     const totalTradeValue = validTrades.reduce((sum, t) => sum + t.tradeValueUsd, 0);
     const currentTradeValue = validTrades.reduce((sum, t) => sum + t.currentToValueUsd, 0);
-    const currentHodlValue = validTrades.reduce((sum, t) => sum + t.currentFromValueUsd, 0);
-    
     const tradePnl = currentTradeValue - totalTradeValue;
-    const hodlPnl = currentHodlValue - totalTradeValue;
-    const tradeVsHodlDiff = tradePnl - hodlPnl;
-    const tradeVsHodlPercent = totalTradeValue > 0 ? (tradeVsHodlDiff / totalTradeValue) * 100 : 0;
+    const tradePnlPercent = totalTradeValue > 0 ? (tradePnl / totalTradeValue) * 100 : 0;
+    
+    // Compare trade performance vs HODL performance (percentage-based for fairness)
+    const tradeVsHodlDiff = tradePnlPercent - hodlPnlPercent;
 
-    const winningTrades = validTrades.filter(t => t.tradeVsHodl > 0).length;
-    const losingTrades = validTrades.filter(t => t.tradeVsHodl < 0).length;
+    const winningTrades = validTrades.filter(t => t.tradePnl > 0).length;
+    const losingTrades = validTrades.filter(t => t.tradePnl < 0).length;
 
-    const sortedByPerformance = [...validTrades].sort((a, b) => b.tradeVsHodl - a.tradeVsHodl);
+    const sortedByPerformance = [...validTrades].sort((a, b) => b.tradePnl - a.tradePnl);
 
-    // Build cumulative chart data (sorted by date, oldest first)
+    // Build cumulative chart data
     const sortedByDate = [...validTrades].sort((a, b) => a.date - b.date);
     let cumulativeTradeValue = 0;
-    let cumulativeHodlValue = 0;
     let cumulativeOriginalValue = 0;
     
-    const cumulativeData: CumulativeDataPoint[] = sortedByDate.map(trade => {
+    // Match HODL data to trade dates
+    const cumulativeData: CumulativeDataPoint[] = sortedByDate.map((trade, idx) => {
       cumulativeOriginalValue += trade.tradeValueUsd;
       cumulativeTradeValue += trade.currentToValueUsd;
-      cumulativeHodlValue += trade.currentFromValueUsd;
+      
+      // Find closest HODL snapshot
+      const tradeDate = new Date(trade.date).toISOString().split('T')[0];
+      const hodlSnapshot = hodlData.find(h => h.date <= tradeDate) || hodlData[0];
+      const hodlValue = hodlSnapshot?.value || hodlStartValue;
+      
+      // Scale HODL P&L proportionally based on how far through the trades we are
+      const progress = (idx + 1) / sortedByDate.length;
+      const scaledHodlPnl = hodlPnl * progress;
       
       return {
         date: new Date(trade.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
-        tradeValue: cumulativeTradeValue,
-        hodlValue: cumulativeHodlValue,
         tradePnl: cumulativeTradeValue - cumulativeOriginalValue,
-        hodlPnl: cumulativeHodlValue - cumulativeOriginalValue,
-        difference: (cumulativeTradeValue - cumulativeOriginalValue) - (cumulativeHodlValue - cumulativeOriginalValue),
+        hodlPnl: scaledHodlPnl,
+        tradeValue: cumulativeTradeValue,
+        hodlValue: hodlStartValue + scaledHodlPnl,
       };
     });
 
@@ -241,11 +238,13 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       tradesAnalyzed: validTrades.length,
       totalTradeValue,
       currentTradeValue,
-      currentHodlValue,
       tradePnl,
+      tradePnlPercent,
       hodlPnl,
+      hodlPnlPercent,
+      hodlStartValue,
+      hodlCurrentValue,
       tradeVsHodlDiff,
-      tradeVsHodlPercent,
       tradingWasBetter: tradeVsHodlDiff > 0,
       winningTrades,
       losingTrades,
@@ -255,7 +254,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       cumulativeData,
       isLoading,
     };
-  }, [performances, confirmedSwaps.length, isLoading]);
+  }, [performances, confirmedSwaps.length, isLoading, hodlData, getPnLMetrics]);
 
   return summary;
 }
