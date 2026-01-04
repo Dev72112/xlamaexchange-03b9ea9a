@@ -80,17 +80,17 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
   }
 
   return (
-    <Card className={cn("bg-card/50 backdrop-blur-sm border-border", className)}>
+    <Card className={cn("bg-card/50 backdrop-blur-sm border-border overflow-hidden", className)}>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-bold flex items-center gap-2">
-            <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-            Watchlist
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2 min-w-0">
+            <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 fill-yellow-500 shrink-0" />
+            <span className="truncate">Watchlist</span>
             {tokens.length > 0 && (
-              <Badge variant="secondary" className="text-xs">{tokens.length}</Badge>
+              <Badge variant="secondary" className="text-xs shrink-0">{tokens.length}</Badge>
             )}
             {activeAlerts.length > 0 && (
-              <Badge variant="outline" className="text-xs gap-1">
+              <Badge variant="outline" className="text-xs gap-1 shrink-0">
                 <Bell className="w-3 h-3" />
                 {activeAlerts.length}
               </Badge>
@@ -122,14 +122,14 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
                 return (
                   <div
                     key={`${token.chainIndex}-${token.tokenContractAddress}`}
-                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group"
+                    className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group gap-2"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <div className="relative shrink-0">
                         <img
                           src={token.tokenLogoUrl}
                           alt={token.tokenSymbol}
-                          className="w-10 h-10 rounded-full"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`;
                           }}
@@ -138,35 +138,35 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
                           <img
                             src={chain.icon}
                             alt={chain.name}
-                            className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-background"
+                            className="absolute -bottom-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border border-background"
                           />
                         )}
                       </div>
-                      <div>
-                        <div className="font-semibold flex items-center gap-2">
-                          {token.tokenSymbol}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold flex items-center gap-1.5 sm:gap-2 flex-wrap text-sm sm:text-base">
+                          <span className="truncate">{token.tokenSymbol}</span>
                           {formatChange(token.change24H)}
                         </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-2">
-                          <span>{chain?.name || 'Unknown'}</span>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5 sm:gap-2 truncate">
+                          <span className="truncate">{chain?.name || 'Unknown'}</span>
                           {token.marketCap && (
                             <>
                               <span>•</span>
-                              <span>MCap: {formatMarketCap(token.marketCap)}</span>
+                              <span className="truncate">MCap: {formatMarketCap(token.marketCap)}</span>
                             </>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right mr-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                      <div className="text-right mr-1 sm:mr-2">
                         {token.isLoading ? (
-                          <Skeleton className="h-5 w-16" />
+                          <Skeleton className="h-5 w-14 sm:w-16" />
                         ) : (
-                          <span className="font-mono font-semibold">{formatPrice(token.price)}</span>
+                          <span className="font-mono font-semibold text-sm sm:text-base">{formatPrice(token.price)}</span>
                         )}
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-0.5 sm:gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"

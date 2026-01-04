@@ -121,7 +121,7 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
       </PopoverTrigger>
       <PopoverContent 
         align="start" 
-        className="w-64 p-0 z-50"
+        className="w-64 max-w-[calc(100vw-2rem)] p-0 z-50"
         sideOffset={8}
       >
         <div className="px-3 py-2 border-b border-border">

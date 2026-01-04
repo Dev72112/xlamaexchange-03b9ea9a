@@ -104,42 +104,42 @@ const DCAOrderCard = memo(function DCAOrderCard({
 
   return (
     <div 
-      className={`p-4 border border-border rounded-lg hover:border-primary/20 transition-colors ${STAGGER_ITEM_CLASS}`}
+      className={`p-3 sm:p-4 border border-border rounded-lg hover:border-primary/20 transition-colors ${STAGGER_ITEM_CLASS}`}
       style={getStaggerStyle(index, 50)}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-2 sm:gap-4">
         <div className="flex-1 min-w-0">
           {/* Token pair and amount */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-medium">{order.from_token_symbol}</span>
-            <ArrowRight className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">{order.to_token_symbol}</span>
-            <Badge variant="outline" className={getStatusColor(order.status)}>
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
+            <span className="font-medium text-sm sm:text-base truncate">{order.from_token_symbol}</span>
+            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
+            <span className="font-medium text-sm sm:text-base truncate">{order.to_token_symbol}</span>
+            <Badge variant="outline" className={`text-xs ${getStatusColor(order.status)}`}>
               {order.status}
             </Badge>
           </div>
           
           {/* Details */}
-          <div className="text-sm text-muted-foreground space-y-1">
-            <div className="flex items-center gap-2">
-              <CalendarClock className="w-3.5 h-3.5" />
-              <span>{order.amount_per_interval} {order.from_token_symbol} {getFrequencyLabel(order.frequency)}</span>
+          <div className="text-xs sm:text-sm text-muted-foreground space-y-0.5 sm:space-y-1">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <CalendarClock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="truncate">{order.amount_per_interval} {order.from_token_symbol} {getFrequencyLabel(order.frequency)}</span>
             </div>
             
             {order.status === 'active' && (
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Next: {getNextExecutionText(order.next_execution)}</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                <span className="truncate">Next: {getNextExecutionText(order.next_execution)}</span>
               </div>
             )}
             
             {order.total_intervals && (
-              <div className="mt-2">
-                <div className="flex justify-between text-xs mb-1">
+              <div className="mt-1.5 sm:mt-2">
+                <div className="flex justify-between text-[10px] sm:text-xs mb-0.5 sm:mb-1">
                   <span>Progress</span>
                   <span>{order.completed_intervals}/{order.total_intervals} purchases</span>
                 </div>
-                <Progress value={progress || 0} className="h-1.5" />
+                <Progress value={progress || 0} className="h-1 sm:h-1.5" />
               </div>
             )}
           </div>
@@ -207,43 +207,43 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-                <CalendarClock className="w-4 h-4 text-foreground" />
+      <Card className="border-border overflow-hidden">
+        <CardHeader className="pb-2 sm:pb-3 p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                <CalendarClock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-foreground" />
               </div>
-              <div>
-                <CardTitle className="text-base">DCA Orders</CardTitle>
+              <div className="min-w-0">
+                <CardTitle className="text-sm sm:text-base truncate">DCA Orders</CardTitle>
                 {visibleOrders.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                     {activeOrders.length} active, {pausedOrders.length} paused
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               {orders.length > 0 && (
                 <>
                   <DCADashboard />
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8"
+                    className="h-7 w-7 sm:h-8 sm:w-8"
                     onClick={exportToCSV}
                     title="Export to CSV"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </Button>
                 </>
               )}
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
                   {isOpen ? (
-                    <ChevronUp className="w-4 h-4" />
+                    <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   ) : (
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   )}
                 </Button>
               </CollapsibleTrigger>
@@ -252,25 +252,25 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
         </CardHeader>
         
         <CollapsibleContent>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 p-4 sm:p-6">
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <div className="flex items-center justify-center py-6 sm:py-8">
+                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-muted-foreground" />
               </div>
             ) : visibleOrders.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="text-center py-6 sm:py-8">
                 <img 
                   src={xlamaMascot} 
                   alt="xLama mascot" 
-                  className="w-16 h-16 mx-auto mb-3 opacity-60"
+                  className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-3 opacity-60"
                 />
-                <p className="text-sm text-muted-foreground mb-1">No DCA orders yet</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1">No DCA orders yet</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   Create a DCA order from the swap form to start dollar cost averaging
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {visibleOrders.map((order, index) => (
                   <DCAOrderCard
                     key={order.id}

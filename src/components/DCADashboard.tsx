@@ -62,16 +62,16 @@ interface StatCardProps {
 
 const StatCard = memo(function StatCard({ label, value, subValue, icon, trend, isLoading }: StatCardProps) {
   return (
-    <div className="p-4 bg-secondary/30 rounded-lg">
-      <div className="flex items-center gap-2 text-muted-foreground mb-2">
+    <div className="p-3 sm:p-4 bg-secondary/30 rounded-lg min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1.5 sm:mb-2">
         {icon}
-        <span className="text-xs">{label}</span>
+        <span className="text-[10px] sm:text-xs truncate">{label}</span>
       </div>
-      <div className="flex items-baseline gap-2">
+      <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap">
         {isLoading ? (
-          <Skeleton className="h-6 w-20" />
+          <Skeleton className="h-5 sm:h-6 w-16 sm:w-20" />
         ) : (
-          <span className={`text-lg font-semibold ${
+          <span className={`text-sm sm:text-lg font-semibold truncate ${
             trend === 'up' ? 'text-green-500' : 
             trend === 'down' ? 'text-red-500' : ''
           }`}>
@@ -79,7 +79,7 @@ const StatCard = memo(function StatCard({ label, value, subValue, icon, trend, i
           </span>
         )}
         {subValue && !isLoading && (
-          <span className="text-xs text-muted-foreground">{subValue}</span>
+          <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{subValue}</span>
         )}
       </div>
     </div>
@@ -112,25 +112,25 @@ const OrderPerformanceCard = memo(function OrderPerformanceCard({
 
   return (
     <div 
-      className={`p-4 border border-border rounded-lg hover:border-primary/20 transition-colors ${STAGGER_ITEM_CLASS}`}
+      className={`p-3 sm:p-4 border border-border rounded-lg hover:border-primary/20 transition-colors ${STAGGER_ITEM_CLASS}`}
       style={getStaggerStyle(index, 50)}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{order.from_token_symbol}</span>
-          <ArrowRight className="w-4 h-4 text-muted-foreground" />
-          <span className="font-medium">{order.to_token_symbol}</span>
+      <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <span className="font-medium text-sm sm:text-base truncate">{order.from_token_symbol}</span>
+          <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
+          <span className="font-medium text-sm sm:text-base truncate">{order.to_token_symbol}</span>
         </div>
         {isLoadingPrice ? (
-          <Skeleton className="h-5 w-16" />
+          <Skeleton className="h-5 w-14 sm:w-16 shrink-0" />
         ) : (
           <Badge 
             variant="outline" 
-            className={isPositive 
+            className={`shrink-0 text-xs ${isPositive 
               ? 'bg-green-500/10 text-green-500 border-green-500/20' 
               : 'bg-red-500/10 text-red-500 border-red-500/20'
-            }
+            }`}
           >
             {roi !== null ? `${isPositive ? '+' : ''}${roi.toFixed(2)}%` : 'N/A'}
           </Badge>
@@ -138,25 +138,25 @@ const OrderPerformanceCard = memo(function OrderPerformanceCard({
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Total Invested</p>
-          <p className="font-medium">{formatCurrency(totalSpent)}</p>
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Total Invested</p>
+          <p className="font-medium text-sm sm:text-base truncate">{formatCurrency(totalSpent)}</p>
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Tokens Received</p>
-          <p className="font-medium">{formatNumber(totalReceived)} {order.to_token_symbol}</p>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Tokens Received</p>
+          <p className="font-medium text-sm sm:text-base truncate">{formatNumber(totalReceived)} {order.to_token_symbol}</p>
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Avg Buy Price</p>
-          <p className="font-medium">${avgPrice.toFixed(6)}</p>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Avg Buy Price</p>
+          <p className="font-medium text-sm sm:text-base truncate">${avgPrice.toFixed(6)}</p>
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Current Value</p>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Current Value</p>
           {isLoadingPrice ? (
-            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-4 sm:h-5 w-14 sm:w-16" />
           ) : (
-            <p className="font-medium">
+            <p className="font-medium text-sm sm:text-base truncate">
               {currentValue !== null ? formatCurrency(currentValue) : 'N/A'}
             </p>
           )}
@@ -164,11 +164,11 @@ const OrderPerformanceCard = memo(function OrderPerformanceCard({
       </div>
 
       {/* ROI Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-xs mb-1">
+      <div className="mb-2 sm:mb-3">
+        <div className="flex justify-between text-[10px] sm:text-xs mb-1">
           <span className="text-muted-foreground">P&L</span>
           {isLoadingPrice ? (
-            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-3 sm:h-4 w-10 sm:w-12" />
           ) : (
             <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
               {currentValue !== null && totalSpent > 0 
@@ -180,14 +180,14 @@ const OrderPerformanceCard = memo(function OrderPerformanceCard({
         </div>
         <Progress 
           value={roi !== null ? Math.min(Math.abs(roi), 100) : 0}
-          className={`h-1.5 ${isPositive ? '[&>div]:bg-green-500' : '[&>div]:bg-red-500'}`}
+          className={`h-1 sm:h-1.5 ${isPositive ? '[&>div]:bg-green-500' : '[&>div]:bg-red-500'}`}
         />
       </div>
 
       {/* Progress */}
       {progress !== null && (
-        <div className="pt-3 border-t border-border">
-          <div className="flex justify-between text-xs text-muted-foreground">
+        <div className="pt-2 sm:pt-3 border-t border-border">
+          <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground">
             <span>Purchases: {order.completed_intervals}/{order.total_intervals}</span>
             <span>{progress.toFixed(0)}% complete</span>
           </div>
@@ -242,20 +242,21 @@ export const DCADashboard = memo(function DCADashboard() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <BarChart3 className="w-4 h-4" />
-          <span className="hidden sm:inline">DCA Dashboard</span>
+        <Button variant="outline" size="sm" className="gap-1.5 sm:gap-2 text-xs sm:text-sm">
+          <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="hidden xs:inline sm:inline">DCA Dashboard</span>
+          <span className="xs:hidden sm:hidden">DCA</span>
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto w-[calc(100vw-2rem)] sm:w-full">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              DCA Performance Dashboard
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+              <span className="truncate">DCA Performance Dashboard</span>
             </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading || isPriceLoading}>
+            <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading || isPriceLoading} className="h-8 w-8 p-0 shrink-0">
               <RefreshCw className={`w-4 h-4 ${(isLoading || isPriceLoading) ? 'animate-spin' : ''}`} />
             </Button>
           </div>
@@ -278,11 +279,11 @@ export const DCADashboard = memo(function DCADashboard() {
             </p>
           </div>
         ) : (
-          <div className="space-y-6 mt-4">
+          <div className="space-y-4 sm:space-y-6 mt-3 sm:mt-4">
             {/* Aggregate Stats */}
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">Overall Performance</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <h3 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">Overall Performance</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                 <StatCard
                   label="Total Invested"
                   value={formatCurrency(aggregateStats.totalInvested)}

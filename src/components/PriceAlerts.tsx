@@ -149,12 +149,12 @@ export function PriceAlerts() {
   );
 
   return (
-    <section className="py-12 sm:py-16">
+    <section className="py-8 sm:py-12 lg:py-16">
       <div className="container px-4 sm:px-6 overflow-hidden">
-        <Card className="bg-card border-border overflow-hidden">
-          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold flex items-center gap-2">
+        <Card className="bg-card border-border overflow-hidden w-full">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold flex items-center gap-2">
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-warning shrink-0" />
                 <span className="truncate">Price Alerts</span>
               </CardTitle>
@@ -162,7 +162,7 @@ export function PriceAlerts() {
                 Get notified when rates hit your target
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <div className="flex items-center gap-2 flex-wrap shrink-0 w-full sm:w-auto">
               {/* Notification Permission Button */}
               {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' && (
                 <Button 
