@@ -62,19 +62,7 @@ const showSplash = () => {
         <div class="splash-content">
           <!-- Llama mascot -->
           <div class="llama-container">
-            <svg class="llama-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <ellipse cx="32" cy="50" rx="16" ry="6" fill="rgba(0,255,0,0.1)"/>
-              <path d="M24 48V32C24 28 26 24 32 24C38 24 40 28 40 32V48" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-              <circle cx="32" cy="18" r="10" stroke="currentColor" stroke-width="2.5"/>
-              <ellipse cx="28" cy="16" rx="1.5" ry="2" fill="currentColor"/>
-              <ellipse cx="36" cy="16" rx="1.5" ry="2" fill="currentColor"/>
-              <path d="M30 20C30 20 31 21 32 21C33 21 34 20 34 20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <path d="M22 12L20 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M42 12L44 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M26 48L24 56" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-              <path d="M38 48L40 56" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-              <ellipse cx="32" cy="36" rx="6" ry="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/>
-            </svg>
+            <img src="/xlama-mascot.png" alt="xLama Mascot" class="llama-mascot" />
             <div class="llama-glow"></div>
           </div>
           
@@ -138,31 +126,37 @@ const showSplash = () => {
         
         .llama-container {
           position: relative;
-          width: 80px;
-          height: 80px;
+          width: 140px;
+          height: 140px;
           display: flex;
           align-items: center;
           justify-content: center;
         }
         
-        .llama-icon {
-          width: 64px;
-          height: 64px;
-          color: #00ff00;
-          animation: llamaBounce 2s ease-in-out infinite;
-          filter: drop-shadow(0 0 20px rgba(0, 255, 0, 0.3));
+        .llama-mascot {
+          width: 120px;
+          height: 120px;
+          object-fit: contain;
+          animation: llamaFloat 3s ease-in-out infinite;
+          filter: drop-shadow(0 8px 24px rgba(138, 43, 226, 0.4));
         }
         
-        @keyframes llamaBounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+        @keyframes llamaFloat {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-12px) scale(1.02); }
         }
         
         .llama-glow {
           position: absolute;
-          inset: -20px;
-          background: radial-gradient(circle, rgba(0, 255, 0, 0.2) 0%, transparent 70%);
-          animation: pulse 2s ease-in-out infinite;
+          inset: -30px;
+          background: radial-gradient(circle, rgba(138, 43, 226, 0.25) 0%, rgba(0, 255, 0, 0.1) 40%, transparent 70%);
+          animation: pulse 2.5s ease-in-out infinite;
+          z-index: -1;
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.15); }
         }
         
         @keyframes pulse {
