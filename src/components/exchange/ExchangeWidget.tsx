@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign, BarChart3, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,8 +31,10 @@ import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
 import { SwapReviewModal } from "./SwapReviewModal";
 import { HighPriceImpactModal } from "./HighPriceImpactModal";
+import { DexPriceChart } from "./DexPriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -108,6 +110,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [showSwapProgress, setShowSwapProgress] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showHighImpactModal, setShowHighImpactModal] = useState(false);
+  const [showChart, setShowChart] = useState(false);
   
   // DEX hooks - tokens for source chain
   const { tokens: dexTokens, nativeToken, isLoading: tokensLoading, refetch: refetchTokens } = useDexTokens(
@@ -959,6 +962,39 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 inputAmount={fromAmount}
                 outputAmount={dexOutputAmount}
               />
+            </div>
+          )}
+
+          {/* DEX Price Chart - Collapsible */}
+          {exchangeMode === 'dex' && toDexToken && (
+            <div className="px-4 sm:px-5 pb-4">
+              <Collapsible open={showChart} onOpenChange={setShowChart}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between text-muted-foreground hover:text-foreground h-8"
+                  >
+                    <span className="flex items-center gap-2 text-xs">
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      Price Chart
+                    </span>
+                    {showChart ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-3">
+                    <DexPriceChart
+                      chain={selectedChain}
+                      token={toDexToken}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           )}
 

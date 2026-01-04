@@ -110,6 +110,22 @@ export interface TrendingTokenData {
   txs: string;
 }
 
+// v6 Token Search Result
+export interface TokenSearchResult {
+  chainIndex: string;
+  tokenSymbol: string;
+  tokenName: string;
+  tokenContractAddress: string;
+  tokenLogoUrl: string;
+  decimal: string;
+  price: string;
+  change24H: string;
+  marketCap: string;
+  liquidity: string;
+  holders: string;
+  tagList?: { communityRecognized?: boolean };
+}
+
 // v6 Candlestick data
 export interface CandlestickData {
   ts: string;
@@ -300,6 +316,16 @@ class OkxDexService {
       return Array.isArray(result) ? result : [];
     } catch (err) {
       console.error('Failed to fetch token ranking:', err);
+      return [];
+    }
+  }
+
+  async searchTokens(chains: string, search: string): Promise<TokenSearchResult[]> {
+    try {
+      const result = await this.callApi<TokenSearchResult[]>('token-search', { chains, search });
+      return Array.isArray(result) ? result : [];
+    } catch (err) {
+      console.error('Failed to search tokens:', err);
       return [];
     }
   }

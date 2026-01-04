@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Check, ChevronDown, Loader2, Search, Clock, AlertCircle, AlertTriangle, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, Clock, AlertCircle, AlertTriangle, X, TrendingUp, TrendingDown, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { OkxToken, okxDexService } from "@/services/okxdex";
+import { OkxToken, okxDexService, TokenSearchResult } from "@/services/okxdex";
 import { Chain } from "@/data/chains";
 import { useRecentTokens } from "@/hooks/useRecentTokens";
 import { useCustomTokens } from "@/hooks/useCustomTokens";
@@ -70,6 +70,8 @@ export function DexTokenSelector({
   const [customTokenError, setCustomTokenError] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingCustomToken, setPendingCustomToken] = useState<OkxToken | null>(null);
+  const [searchResults, setSearchResults] = useState<TokenSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   
   // Get wallet address for custom token storage
   const { activeAddress } = useMultiWallet();
@@ -80,20 +82,56 @@ export function DexTokenSelector({
   // Custom tokens hook - persists confirmed custom tokens for portfolio
   const { addCustomToken } = useCustomTokens(chain?.chainIndex || '', activeAddress || undefined);
 
-  // Reset custom token state when popup closes or chain changes
+  // Reset state when popup closes or chain changes
   useEffect(() => {
     if (!open) {
       setCustomToken(null);
       setCustomTokenError(null);
       setIsLoadingCustom(false);
       setSearchQuery("");
+      setSearchResults([]);
+      setIsSearching(false);
     }
   }, [open]);
 
   useEffect(() => {
     setCustomToken(null);
     setCustomTokenError(null);
+    setSearchResults([]);
   }, [chain?.chainIndex]);
+
+  // Search tokens using v6 API when query is 3+ chars
+  useEffect(() => {
+    const query = searchQuery.trim();
+    
+    // If it's a contract address, use the existing custom token flow
+    if (isContractAddress(query, chain)) {
+      setSearchResults([]);
+      return;
+    }
+
+    // Clear search results if query is too short
+    if (query.length < 3 || !chain) {
+      setSearchResults([]);
+      return;
+    }
+
+    const searchTokens = async () => {
+      setIsSearching(true);
+      try {
+        const results = await okxDexService.searchTokens(chain.chainIndex, query);
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Token search failed:', err);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounce = setTimeout(searchTokens, 400);
+    return () => clearTimeout(debounce);
+  }, [searchQuery, chain]);
 
   // Fetch custom token by address
   useEffect(() => {
@@ -151,7 +189,7 @@ export function DexTokenSelector({
   }, [searchQuery, chain, tokens]);
 
   // Filter tokens - simple flat list without groupings
-  const { filteredTokens, searchResults, totalCount } = useMemo(() => {
+  const { filteredTokens, localSearchResults, totalCount } = useMemo(() => {
     // Add native token at the start
     const allTokens = nativeToken ? [nativeToken, ...tokens] : tokens;
     
@@ -162,8 +200,8 @@ export function DexTokenSelector({
 
     const total = filtered.length;
 
-    // Search filter - also search by contract address
-    const searchFiltered = searchQuery
+    // Local search filter - also search by contract address
+    const localFiltered = searchQuery && searchResults.length === 0
       ? filtered.filter(t =>
           t.tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
           t.tokenName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -173,10 +211,10 @@ export function DexTokenSelector({
 
     return {
       filteredTokens: filtered.slice(0, 100), // Limit to 100 for performance
-      searchResults: searchFiltered,
+      localSearchResults: localFiltered,
       totalCount: total,
     };
-  }, [tokens, nativeToken, excludeAddress, searchQuery]);
+  }, [tokens, nativeToken, excludeAddress, searchQuery, searchResults.length]);
 
   // Filter recent tokens to only show valid ones
   const validRecentTokens = useMemo(() => {
@@ -268,6 +306,94 @@ export function DexTokenSelector({
       )}
     </div>
   );
+
+  // Enhanced token item with price/market data from v6 search
+  const renderSearchResultItem = (result: TokenSearchResult, keyPrefix = '') => {
+    const change = parseFloat(result.change24H || '0');
+    const isPositive = change >= 0;
+    const hasMarketCap = result.marketCap && parseFloat(result.marketCap) > 0;
+    const isVerified = result.tagList?.communityRecognized;
+
+    const formatMarketCap = (mcap: string) => {
+      const num = parseFloat(mcap);
+      if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
+      if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
+      if (num >= 1e3) return `$${(num / 1e3).toFixed(0)}K`;
+      return `$${num.toFixed(0)}`;
+    };
+
+    const formatPrice = (price: string) => {
+      const num = parseFloat(price);
+      if (num >= 1000) return `$${num.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+      if (num >= 1) return `$${num.toFixed(2)}`;
+      if (num >= 0.0001) return `$${num.toFixed(4)}`;
+      return `$${num.toFixed(6)}`;
+    };
+
+    return (
+      <div
+        key={`${keyPrefix}${result.tokenContractAddress}`}
+        onClick={() => {
+          // Convert search result to OkxToken
+          const token: OkxToken = {
+            tokenContractAddress: result.tokenContractAddress,
+            tokenSymbol: result.tokenSymbol,
+            tokenName: result.tokenName,
+            decimals: result.decimal,
+            tokenLogoUrl: result.tokenLogoUrl,
+          };
+          handleSelect(token, false);
+        }}
+        className={cn(
+          "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
+          "hover:bg-accent/50",
+          value?.tokenContractAddress === result.tokenContractAddress && "bg-accent"
+        )}
+      >
+        <img
+          src={result.tokenLogoUrl || `https://ui-avatars.com/api/?name=${result.tokenSymbol}&background=random`}
+          alt={result.tokenName}
+          className="w-6 h-6 sm:w-7 sm:h-7 rounded-full shrink-0"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${result.tokenSymbol}&background=random`;
+          }}
+        />
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="font-semibold uppercase text-sm truncate flex items-center gap-1">
+            {result.tokenSymbol}
+            {isVerified && (
+              <BadgeCheck className="w-3.5 h-3.5 text-primary" />
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground truncate flex items-center gap-2">
+            <span className="truncate">{result.tokenName}</span>
+            {hasMarketCap && (
+              <span className="text-[10px] text-muted-foreground/70">
+                MCap: {formatMarketCap(result.marketCap)}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          {result.price && parseFloat(result.price) > 0 && (
+            <div className="text-xs font-medium">{formatPrice(result.price)}</div>
+          )}
+          {change !== 0 && (
+            <div className={cn(
+              "text-[10px] flex items-center justify-end gap-0.5",
+              isPositive ? "text-success" : "text-destructive"
+            )}>
+              {isPositive ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+              {Math.abs(change).toFixed(1)}%
+            </div>
+          )}
+        </div>
+        {value?.tokenContractAddress === result.tokenContractAddress && (
+          <Check className="h-4 w-4 text-primary shrink-0" />
+        )}
+      </div>
+    );
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -369,18 +495,34 @@ export function DexTokenSelector({
                   </div>
                 )}
 
-                {/* Regular search results */}
-                {searchResults.length > 0 ? (
+                {/* v6 API search results with metadata */}
+                {isSearching ? (
+                  <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Searching...</span>
+                  </div>
+                ) : searchResults.length > 0 ? (
                   <div className="space-y-1">
                     <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
                       Results ({searchResults.length})
                     </div>
-                    {searchResults.map((t, i) => renderTokenItem(t, false, `search-${i}-`))}
+                    {searchResults.map((t, i) => renderSearchResultItem(t, `api-search-${i}-`))}
                   </div>
-                ) : !isContractAddress(searchQuery.trim(), chain) ? (
+                ) : localSearchResults.length > 0 ? (
+                  <div className="space-y-1">
+                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
+                      Results ({localSearchResults.length})
+                    </div>
+                    {localSearchResults.map((t, i) => renderTokenItem(t, false, `search-${i}-`))}
+                  </div>
+                ) : !isContractAddress(searchQuery.trim(), chain) && searchQuery.length >= 3 ? (
                   <div className="py-8 text-center text-sm text-muted-foreground">
                     <p>No tokens found</p>
                     <p className="text-xs mt-1">Try pasting a contract address</p>
+                  </div>
+                ) : searchQuery.length < 3 && !isContractAddress(searchQuery.trim(), chain) ? (
+                  <div className="py-4 text-center text-xs text-muted-foreground">
+                    Type 3+ characters to search
                   </div>
                 ) : null}
               </div>

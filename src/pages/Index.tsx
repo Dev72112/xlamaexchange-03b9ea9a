@@ -9,6 +9,7 @@ import { HeroSection } from "@/components/HeroSection";
 import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
+import { PortfolioOverview } from "@/components/PortfolioOverview";
 import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
 import { 
@@ -132,6 +133,9 @@ const Index = () => {
 
       {/* Hero Section */}
       <HeroSection />
+
+      {/* Portfolio Overview - shown when wallet connected in DEX mode */}
+      {currentMode === 'dex' && <PortfolioOverview />}
 
       {/* Exchange Section */}
       <section className="py-12 sm:py-16 lg:py-20" aria-labelledby="exchange-heading">
