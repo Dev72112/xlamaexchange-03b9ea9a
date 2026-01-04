@@ -14,6 +14,8 @@ import { TokenWatchlist } from "@/components/TokenWatchlist";
 import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
 import { GasEstimator } from "@/components/GasEstimator";
 import { ReferralDashboard } from "@/components/ReferralDashboard";
+import { PortfolioRebalancer } from "@/components/PortfolioRebalancer";
+import { PricePrediction } from "@/components/PricePrediction";
 import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
 import { 
@@ -197,10 +199,24 @@ const Index = () => {
             </div>
           </section>
 
-          {/* Gas Estimator */}
+          {/* Gas Estimator & Price Prediction Side by Side */}
+          <section className="py-4">
+            <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
+              <div className="grid md:grid-cols-2 gap-4">
+                <GasEstimator />
+                <PricePrediction 
+                  chainIndex="1" 
+                  tokenAddress="0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                  tokenSymbol="ETH"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Portfolio Rebalancer */}
           <section className="py-4">
             <div className="container px-4 sm:px-6 max-w-xl mx-auto">
-              <GasEstimator />
+              <PortfolioRebalancer />
             </div>
           </section>
 
