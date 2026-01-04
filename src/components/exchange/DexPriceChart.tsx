@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { okxDexService, CandlestickData, OkxToken } from '@/services/okxdex';
 import { Chain } from '@/data/chains';
 import { cn } from '@/lib/utils';
+import { useWebSocketPrice } from '@/hooks/useWebSocketPrice';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -38,6 +39,13 @@ export function DexPriceChart({ chain, token, className }: DexPriceChartProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [timeFrame, setTimeFrame] = useState('1H');
   const [error, setError] = useState<string | null>(null);
+
+  // Real-time price updates
+  const { price: livePrice, isConnected: isLiveConnected } = useWebSocketPrice({
+    chainIndex: chain?.chainIndex || '',
+    tokenContractAddress: token?.tokenContractAddress || '',
+    enabled: !!chain && !!token,
+  });
 
   useEffect(() => {
     const fetchCandlesticks = async () => {
@@ -97,6 +105,18 @@ export function DexPriceChart({ chain, token, className }: DexPriceChartProps) {
   }, [candlesticks]);
 
   const { priceChange, priceChangePercent, currentPrice, isPositive } = useMemo(() => {
+    // Use live price if available
+    if (livePrice?.price) {
+      const liveNum = parseFloat(livePrice.price);
+      const change24H = parseFloat(livePrice.change24H || '0');
+      return {
+        priceChange: 0,
+        priceChangePercent: change24H,
+        currentPrice: liveNum,
+        isPositive: change24H >= 0,
+      };
+    }
+
     if (chartData.length < 2) {
       return { priceChange: 0, priceChangePercent: 0, currentPrice: 0, isPositive: true };
     }
@@ -110,7 +130,7 @@ export function DexPriceChart({ chain, token, className }: DexPriceChartProps) {
       currentPrice: last.close,
       isPositive: change >= 0,
     };
-  }, [chartData]);
+  }, [chartData, livePrice]);
 
   const formatPrice = (price: number) => {
     if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -137,7 +157,15 @@ export function DexPriceChart({ chain, token, className }: DexPriceChartProps) {
               }}
             />
             <div>
-              <CardTitle className="text-lg font-bold">{token.tokenSymbol}</CardTitle>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                {token.tokenSymbol}
+                {isLiveConnected && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 gap-1">
+                    <Wifi className="w-2.5 h-2.5 text-success" />
+                    Live
+                  </Badge>
+                )}
+              </CardTitle>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono">{formatPrice(currentPrice)}</span>
                 {chartData.length > 0 && (
@@ -197,12 +225,23 @@ export function DexPriceChart({ chain, token, className }: DexPriceChartProps) {
                   interval="preserveStartEnd"
                 />
                 <YAxis
+                  yAxisId="price"
                   domain={['auto', 'auto']}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) => formatPrice(value).replace('$', '')}
                   width={60}
+                  orientation="right"
+                />
+                <YAxis
+                  yAxisId="volume"
+                  domain={[0, 'auto']}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={false}
+                  width={0}
+                  orientation="left"
                 />
                 <Tooltip
                   contentStyle={{
@@ -220,9 +259,16 @@ export function DexPriceChart({ chain, token, className }: DexPriceChartProps) {
                 />
                 <ReferenceLine
                   y={chartData[0]?.open}
+                  yAxisId="price"
                   stroke="hsl(var(--muted-foreground))"
                   strokeDasharray="3 3"
                   strokeOpacity={0.5}
+                />
+                <Bar
+                  dataKey="volume"
+                  fill="hsl(var(--muted-foreground))"
+                  opacity={0.2}
+                  yAxisId="volume"
                 />
                 <Line
                   type="monotone"
@@ -231,12 +277,7 @@ export function DexPriceChart({ chain, token, className }: DexPriceChartProps) {
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4 }}
-                />
-                <Bar
-                  dataKey="volume"
-                  fill="hsl(var(--muted-foreground))"
-                  opacity={0.2}
-                  yAxisId="volume"
+                  yAxisId="price"
                 />
               </ComposedChart>
             </ResponsiveContainer>

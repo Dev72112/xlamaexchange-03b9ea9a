@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Check, ChevronDown, Loader2, Search, Clock, AlertCircle, AlertTriangle, X, TrendingUp, TrendingDown, BadgeCheck } from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, Clock, AlertCircle, AlertTriangle, X, TrendingUp, TrendingDown, BadgeCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -14,6 +14,7 @@ import { useRecentTokens } from "@/hooks/useRecentTokens";
 import { useCustomTokens } from "@/hooks/useCustomTokens";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { CustomTokenConfirmDialog } from "./CustomTokenConfirmDialog";
+import { useTokenWatchlist } from "@/hooks/useTokenWatchlist";
 interface DexTokenSelectorProps {
   value: OkxToken | null;
   onChange: (token: OkxToken) => void;
@@ -81,6 +82,9 @@ export function DexTokenSelector({
   
   // Custom tokens hook - persists confirmed custom tokens for portfolio
   const { addCustomToken } = useCustomTokens(chain?.chainIndex || '', activeAddress || undefined);
+  
+  // Watchlist hook
+  const { isInWatchlist, toggleToken } = useTokenWatchlist();
 
   // Reset state when popup closes or chain changes
   useEffect(() => {
@@ -265,47 +269,75 @@ export function DexTokenSelector({
     setPendingCustomToken(null);
   }, []);
 
-  const renderTokenItem = (token: OkxToken, isCustom = false, keyPrefix = '') => (
-    <div
-      key={`${keyPrefix}${token.tokenContractAddress}`}
-      onClick={() => handleSelect(token, isCustom)}
-      className={cn(
-        "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
-        "hover:bg-accent/50",
-        value?.tokenContractAddress === token.tokenContractAddress && "bg-accent",
-        isCustom && "border border-warning/30 bg-warning/5"
-      )}
-    >
-      <img
-        src={token.tokenLogoUrl || `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`}
-        alt={token.tokenName}
-        className="w-6 h-6 sm:w-7 sm:h-7 rounded-full shrink-0"
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`;
-        }}
-      />
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="font-semibold uppercase text-sm truncate flex items-center gap-1">
-          {token.tokenSymbol}
+  const renderTokenItem = (token: OkxToken, isCustom = false, keyPrefix = '') => {
+    const inWatchlist = chain ? isInWatchlist(chain.chainIndex, token.tokenContractAddress) : false;
+    
+    const handleWatchlistToggle = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (chain) {
+        toggleToken({
+          chainIndex: chain.chainIndex,
+          tokenContractAddress: token.tokenContractAddress,
+          tokenSymbol: token.tokenSymbol,
+          tokenName: token.tokenName,
+          tokenLogoUrl: token.tokenLogoUrl,
+          decimals: token.decimals,
+        });
+      }
+    };
+    
+    return (
+      <div
+        key={`${keyPrefix}${token.tokenContractAddress}`}
+        onClick={() => handleSelect(token, isCustom)}
+        className={cn(
+          "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors group",
+          "hover:bg-accent/50",
+          value?.tokenContractAddress === token.tokenContractAddress && "bg-accent",
+          isCustom && "border border-warning/30 bg-warning/5"
+        )}
+      >
+        <img
+          src={token.tokenLogoUrl || `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`}
+          alt={token.tokenName}
+          className="w-6 h-6 sm:w-7 sm:h-7 rounded-full shrink-0"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`;
+          }}
+        />
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="font-semibold uppercase text-sm truncate flex items-center gap-1">
+            {token.tokenSymbol}
+            {isCustom && (
+              <span className="text-[10px] px-1 py-0.5 bg-warning/20 text-warning rounded flex items-center gap-0.5">
+                <AlertTriangle className="w-2.5 h-2.5" />
+                Custom
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground truncate">{token.tokenName}</div>
           {isCustom && (
-            <span className="text-[10px] px-1 py-0.5 bg-warning/20 text-warning rounded flex items-center gap-0.5">
-              <AlertTriangle className="w-2.5 h-2.5" />
-              Custom
-            </span>
+            <div className="text-[10px] text-muted-foreground font-mono truncate">
+              {token.tokenContractAddress.slice(0, 10)}...{token.tokenContractAddress.slice(-8)}
+            </div>
           )}
         </div>
-        <div className="text-xs text-muted-foreground truncate">{token.tokenName}</div>
-        {isCustom && (
-          <div className="text-[10px] text-muted-foreground font-mono truncate">
-            {token.tokenContractAddress.slice(0, 10)}...{token.tokenContractAddress.slice(-8)}
-          </div>
+        <button
+          onClick={handleWatchlistToggle}
+          className={cn(
+            "p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100",
+            inWatchlist ? "text-yellow-500" : "text-muted-foreground hover:text-yellow-500"
+          )}
+          title={inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+        >
+          <Star className={cn("h-4 w-4", inWatchlist && "fill-yellow-500")} />
+        </button>
+        {value?.tokenContractAddress === token.tokenContractAddress && (
+          <Check className="h-4 w-4 text-primary shrink-0" />
         )}
       </div>
-      {value?.tokenContractAddress === token.tokenContractAddress && (
-        <Check className="h-4 w-4 text-primary shrink-0" />
-      )}
-    </div>
-  );
+    );
+  };
 
   // Enhanced token item with price/market data from v6 search
   const renderSearchResultItem = (result: TokenSearchResult, keyPrefix = '') => {

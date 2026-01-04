@@ -10,6 +10,8 @@ import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
 import { PortfolioOverview } from "@/components/PortfolioOverview";
+import { TokenWatchlist } from "@/components/TokenWatchlist";
+import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
 import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
 import { 
@@ -182,9 +184,25 @@ const Index = () => {
           </Suspense>
         </>
       ) : (
-        <Suspense fallback={<TransactionTrackerSkeleton />}>
-          <DexTransactionHistory />
-        </Suspense>
+        <>
+          {/* Token Watchlist for DEX mode */}
+          <section className="py-8">
+            <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
+              <TokenWatchlist />
+            </div>
+          </section>
+
+          {/* Cross-Chain Swap Section */}
+          <section className="py-8">
+            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
+              <CrossChainSwap />
+            </div>
+          </section>
+
+          <Suspense fallback={<TransactionTrackerSkeleton />}>
+            <DexTransactionHistory />
+          </Suspense>
+        </>
       )}
       
       <PriceAlerts />
