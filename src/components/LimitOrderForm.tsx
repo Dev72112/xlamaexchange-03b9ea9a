@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Target, Clock, AlertTriangle } from 'lucide-react';
+import { Target, Clock, AlertTriangle, Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,7 +46,7 @@ export function LimitOrderForm({
   className 
 }: LimitOrderFormProps) {
   const { isConnected } = useMultiWallet();
-  const { createOrder } = useLimitOrders();
+  const { createOrder, isSigning } = useLimitOrders();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
@@ -239,7 +239,15 @@ export function LimitOrderForm({
             </Select>
           </div>
 
-          {/* Info */}
+          {/* Signature Info */}
+          <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex gap-2 text-sm">
+            <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-primary">
+              You'll sign a message with your wallet to verify order creation.
+            </p>
+          </div>
+
+          {/* Warning */}
           <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex gap-2 text-sm">
             <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0 mt-0.5" />
             <p className="text-yellow-700 dark:text-yellow-500">
@@ -250,9 +258,24 @@ export function LimitOrderForm({
           <Button 
             className="w-full" 
             onClick={handleSubmit}
-            disabled={!amount || !targetPrice || isSubmitting}
+            disabled={!amount || !targetPrice || isSubmitting || isSigning}
           >
-            {isSubmitting ? 'Creating...' : 'Create Limit Order'}
+            {isSigning ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sign in Wallet...
+              </>
+            ) : isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Shield className="w-4 h-4 mr-2" />
+                Create Signed Order
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>
