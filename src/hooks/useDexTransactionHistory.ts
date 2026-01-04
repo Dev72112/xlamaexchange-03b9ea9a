@@ -6,10 +6,12 @@ export interface DexTransaction {
   chainId: string;
   chainName: string;
   fromTokenSymbol: string;
+  fromTokenAddress?: string;
   fromTokenAmount: string;
   fromTokenLogo?: string;
   fromAmountUsd?: number;
   toTokenSymbol: string;
+  toTokenAddress?: string;
   toTokenAmount: string;
   toTokenLogo?: string;
   toAmountUsd?: number;
