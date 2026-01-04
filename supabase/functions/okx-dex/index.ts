@@ -37,6 +37,7 @@ const VALID_ACTIONS = [
   'token-price',
   'token-price-info',
   'token-ranking',
+  'token-search',
   'candlesticks',
   'history-candles',
   // Balance API (v6)
@@ -65,6 +66,7 @@ const RATE_LIMITS: Record<ValidAction, number> = {
   'token-price': 60,
   'token-price-info': 60,
   'token-ranking': 30,
+  'token-search': 60,
   'candlesticks': 60,
   'history-candles': 30,
   'wallet-balances': 30,
@@ -553,6 +555,25 @@ serve(async (req) => {
           chains,
           sortBy, // 2=price change, 5=volume, 6=market cap
           timeFrame, // 1=5m, 2=1h, 3=4h, 4=24h
+        });
+        break;
+      }
+
+      case 'token-search': {
+        const { chains, search } = params;
+        if (!chains || !search) {
+          return new Response(
+            JSON.stringify({ error: 'chains and search are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log(`Searching tokens: "${search}" on chains: ${chains}`);
+        
+        // v6 Market Token API - Token Search
+        response = await okxMarketRequest('/token/search', {
+          chains,
+          search,
         });
         break;
       }
