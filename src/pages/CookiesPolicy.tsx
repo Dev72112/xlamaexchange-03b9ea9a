@@ -25,7 +25,7 @@ export default function CookiesPolicy() {
               This policy explains how xlama uses cookies and similar technologies to recognize you when you visit our platform.
             </p>
             <p className="text-sm text-muted-foreground">
-              Last updated: January 2, 2026
+              Last updated: January 4, 2026
             </p>
           </div>
 

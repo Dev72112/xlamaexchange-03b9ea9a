@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { cn } from "@/lib/utils";
+import xlamaMascot from "@/assets/xlama-mascot.png";
 
 export function DexTransactionHistory() {
   const { isConnected } = useMultiWallet();
@@ -68,8 +69,8 @@ export function DexTransactionHistory() {
           <CardContent className="space-y-3 overflow-x-hidden">
             {transactions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p className="mb-2">No transactions yet</p>
+                <img src={xlamaMascot} alt="xLama mascot" className="w-16 h-16 mx-auto mb-4 opacity-60 rounded-full" />
+                <p className="mb-2 font-medium">No transactions yet</p>
                 <p className="text-xs">Your swap history will appear here after you make swaps</p>
               </div>
             ) : (

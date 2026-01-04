@@ -11,6 +11,7 @@ import { PriceAlertModal } from '@/components/PriceAlertModal';
 import { getChainByIndex } from '@/data/chains';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import xlamaMascot from '@/assets/xlama-mascot.png';
 
 interface TokenWatchlistProps {
   className?: string;
@@ -109,8 +110,8 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
       <CardContent>
         {tokens.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No tokens in your watchlist</p>
+            <img src={xlamaMascot} alt="xLama mascot" className="w-16 h-16 mx-auto mb-3 opacity-60 rounded-full" />
+            <p className="text-sm font-medium">No tokens in your watchlist</p>
             <p className="text-xs mt-1">Click the star icon on any token to add it</p>
           </div>
         ) : (

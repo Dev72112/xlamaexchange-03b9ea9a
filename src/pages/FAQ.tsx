@@ -29,6 +29,26 @@ const faqs = [
     answer: "Instant Mode (ChangeNOW) is ideal for cross-chain swaps - send crypto and receive different crypto on another blockchain. DEX Mode (OKX DEX) is for same-chain swaps directly on the blockchain, aggregating rates from 400+ DEXs for the best prices.",
   },
   {
+    question: "What are Limit Orders?",
+    answer: "Limit Orders let you set a target price for your swap. When the market reaches your target, you'll receive a notification and can execute the swap. Create limit orders from the DEX swap form - set your tokens, amount, and target price. Orders are monitored 24/7 and you'll get browser notifications when triggered.",
+  },
+  {
+    question: "How do Cross-Chain Swaps work?",
+    answer: "Cross-chain swaps allow you to swap tokens between different blockchains (e.g., ETH on Ethereum to SOL on Solana). In DEX Mode, we use secure bridges to transfer your assets. You'll see the bridge fees and estimated arrival time before confirming. Track your swap progress through our real-time status tracker.",
+  },
+  {
+    question: "What is Portfolio P&L Tracking?",
+    answer: "The Portfolio Overview shows your total holdings value across all connected wallets and tracks your profit/loss over time (7D, 30D, 90D, All-time). We store daily snapshots of your portfolio to calculate performance metrics. Connect your wallet to start tracking.",
+  },
+  {
+    question: "How do Price Alerts work?",
+    answer: "Set price alerts for any trading pair or token. Choose 'Above' or 'Below' conditions and your target price. When the condition is met, you'll receive browser push notifications and optional sound alerts. Manage alerts from the Token Watchlist or Price Alerts section.",
+  },
+  {
+    question: "What is the Token Comparison tool?",
+    answer: "The Token Compare page (/compare) lets you select up to 5 tokens for side-by-side comparison. View current prices, 24h/7d changes, market cap, trading volume, liquidity, and holder counts. Great for research before making swap decisions.",
+  },
+  {
     question: "How do Solana swaps work?",
     answer: "Connect Phantom or Solflare wallet, select Solana network, and swap any SPL token. We aggregate rates from Jupiter, Raydium, Orca, and other Solana DEXs. Transactions confirm in ~400ms with minimal gas fees (usually under $0.01).",
   },
@@ -77,7 +97,7 @@ const FAQ = () => {
         <title>FAQ - xlama | Frequently Asked Questions</title>
         <meta
           name="description"
-          content="Find answers to common questions about xlama cryptocurrency exchange. Learn about Instant Mode, DEX Mode, wallet connection, supported chains, rates, fees, and security."
+          content="Find answers to common questions about xlama cryptocurrency exchange. Learn about Instant Mode, DEX Mode, limit orders, cross-chain swaps, portfolio tracking, and more."
         />
       </Helmet>
 

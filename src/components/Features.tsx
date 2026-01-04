@@ -1,37 +1,47 @@
 import { memo } from "react";
-import { Shield, Zap, Globe, Lock, Clock, Coins } from "lucide-react";
+import { Shield, Zap, Globe, Lock, Clock, Coins, Target, Bell } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 const features = [
   {
     icon: Shield,
     title: "Secure & Private",
-    description: "No registration required. Your personal data stays private.",
+    description: "Non-custodial swaps. No registration, no KYC. Your keys, your crypto.",
   },
   {
     icon: Zap,
-    title: "Fast Exchanges",
-    description: "Most exchanges complete in just 10-30 minutes.",
+    title: "Lightning Fast",
+    description: "DEX swaps confirm in seconds. Instant mode exchanges in 10-30 minutes.",
   },
   {
     icon: Globe,
-    title: "Hundreds of Coins",
-    description: "Exchange between hundreds of coins and tokens.",
+    title: "25+ Chains",
+    description: "Trade across Ethereum, Solana, Sui, TON, Tron, and 20+ more networks.",
+  },
+  {
+    icon: Target,
+    title: "Limit Orders",
+    description: "Set target prices and get notified when the market hits your level.",
+  },
+  {
+    icon: Bell,
+    title: "Price Alerts",
+    description: "Real-time notifications when tokens reach your target price.",
   },
   {
     icon: Lock,
-    title: "Fixed Rates",
-    description: "Lock in your rate to avoid market volatility.",
+    title: "Cross-Chain",
+    description: "Bridge assets between chains with secure, audited protocols.",
   },
   {
     icon: Clock,
-    title: "24/7 Availability",
-    description: "Exchange crypto anytime, anywhere in the world.",
+    title: "24/7 Trading",
+    description: "Exchange crypto anytime. Markets never sleep, neither do we.",
   },
   {
     icon: Coins,
-    title: "No Hidden Fees",
-    description: "Transparent pricing. What you see is what you get.",
+    title: "Best Rates",
+    description: "Aggregated from 400+ DEXs. Transparent fees, no hidden costs.",
   },
 ];
 
@@ -44,11 +54,11 @@ export const Features = memo(function Features() {
             Why Choose xlama
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            The simplest way to exchange cryptocurrency without compromising on security or speed.
+            The simplest way to exchange cryptocurrency without compromising on security, speed, or features.
           </p>
         </div>
 
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
           {features.map((feature, index) => (
             <article
               key={feature.title}

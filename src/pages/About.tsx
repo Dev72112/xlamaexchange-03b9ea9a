@@ -40,7 +40,7 @@ const About = () => {
         <title>About xLama - Community-Powered Crypto Exchange</title>
         <meta
           name="description"
-          content="Learn about xLama - the community-fueled crypto exchange built from the trenches. No VCs, no funding, just pure community energy and the best rates across 20+ chains."
+          content="Learn about xLama - the community-fueled crypto exchange built from the trenches. No VCs, no funding, just pure community energy and the best rates across 25+ chains."
         />
         <meta property="og:title" content="About xLama - Community-Powered Crypto Exchange" />
         <meta property="og:description" content="The community-fueled crypto exchange built from the trenches. No VCs, no funding, just pure community energy." />
@@ -137,7 +137,7 @@ const About = () => {
         <section className="max-w-3xl mx-auto mb-20">
           <blockquote className="text-center">
             <p className="text-lg sm:text-xl italic text-muted-foreground mb-4">
-              "Created by a squad of NB devs who believe the best things in crypto come from the trenches, 
+              "Created by a squad of passionate devs who believe the best things in crypto come from the trenches, 
               not the boardrooms. We're here to build, meme, and ride whatever wave the market throws at us. 
               No promises, just pure community energy."
             </p>

@@ -1,7 +1,7 @@
 {
   "name": "xlama - Crypto Exchange",
   "short_name": "xlama",
-  "description": "Fast and secure cryptocurrency exchange - swap coins instantly across 20+ chains",
+  "description": "Fast and secure cryptocurrency exchange - swap coins instantly across 25+ chains",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
