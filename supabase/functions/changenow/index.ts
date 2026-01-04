@@ -1,8 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders, securityHeaders } from "../_shared/security-headers.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Combined headers for responses
+const responseHeaders = {
+  ...corsHeaders,
+  ...securityHeaders,
+  'Content-Type': 'application/json',
 };
 
 const CHANGENOW_API_KEY = Deno.env.get('CHANGENOW_API_KEY');
