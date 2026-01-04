@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Flame, ArrowRight, Star, TrendingUp, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,55 +35,106 @@ export function TrendingPairs({ onSelectPair }: TrendingPairsProps = {}) {
   const [rates, setRates] = useState<TrendingRate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavoritePairs();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchRates = useCallback(async () => {
+    // Abort any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    if (!mountedRef.current) return;
+    
     setIsLoading(true);
 
-    // Get unique tickers for price change data
-    const uniqueTickers = [...new Set(trendingPairsData.flatMap(p => [p.from, p.to]))];
-    
-    // Fetch price changes from DeFiLlama
-    const priceChanges = await defiLlamaService.getPricesWithChange(uniqueTickers);
+    try {
+      // Get unique tickers for price change data
+      const uniqueTickers = [...new Set(trendingPairsData.flatMap(p => [p.from, p.to]))];
+      
+      // Fetch price changes from DeFiLlama (batched)
+      const priceChanges = await defiLlamaService.getPricesWithChange(uniqueTickers);
 
-    const getRatePerOne = async (from: string, to: string): Promise<number> => {
-      try {
-        const estimate = await changeNowService.getExchangeAmount(from, to, 1, false);
-        return estimate.estimatedAmount;
-      } catch (err: any) {
-        const msg = String(err?.message || "");
-        if (msg.includes("deposit_too_small") || msg.includes("Out of min amount")) {
-          const minData = await changeNowService.getMinAmount(from, to);
-          const amountToUse = minData.minAmount;
-          const estimate = await changeNowService.getExchangeAmount(from, to, amountToUse, false);
-          return estimate.estimatedAmount / amountToUse;
-        }
-        throw err;
-      }
-    };
+      if (!mountedRef.current) return;
 
-    const newRates = await Promise.all(
-      trendingPairsData.map(async (pair) => {
+      const getRatePerOne = async (from: string, to: string): Promise<number> => {
         try {
-          const rate = await getRatePerOne(pair.from, pair.to);
-          // Get 24h change for the "from" currency (what users are selling)
-          const fromPriceData = priceChanges[pair.from];
-          const change24h = fromPriceData?.change24h ?? null;
-          return { pair, rate, loading: false, change24h };
-        } catch (error) {
-          console.error(`Failed to fetch rate for ${pair.from}/${pair.to}:`, error);
-          return { pair, rate: null, loading: false, change24h: null };
+          const estimate = await changeNowService.getExchangeAmount(from, to, 1, false);
+          return estimate.estimatedAmount;
+        } catch (err: any) {
+          const msg = String(err?.message || "");
+          if (msg.includes("deposit_too_small") || msg.includes("Out of min amount")) {
+            const minData = await changeNowService.getMinAmount(from, to);
+            const amountToUse = minData.minAmount;
+            const estimate = await changeNowService.getExchangeAmount(from, to, amountToUse, false);
+            return estimate.estimatedAmount / amountToUse;
+          }
+          throw err;
         }
-      })
-    );
+      };
 
-    setRates(newRates);
-    setIsLoading(false);
+      const newRates = await Promise.all(
+        trendingPairsData.map(async (pair) => {
+          if (!mountedRef.current) return { pair, rate: null, loading: false, change24h: null };
+          
+          try {
+            const rate = await getRatePerOne(pair.from, pair.to);
+            const fromPriceData = priceChanges[pair.from];
+            const change24h = fromPriceData?.change24h ?? null;
+            return { pair, rate, loading: false, change24h };
+          } catch (error) {
+            console.error(`Failed to fetch rate for ${pair.from}/${pair.to}:`, error);
+            return { pair, rate: null, loading: false, change24h: null };
+          }
+        })
+      );
+
+      if (mountedRef.current) {
+        setRates(newRates);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      if (mountedRef.current) {
+        console.error('Failed to fetch trending pairs:', error);
+        setIsLoading(false);
+      }
+    }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchRates();
-    const interval = setInterval(fetchRates, 60000);
-    return () => clearInterval(interval);
+    
+    // Reduced frequency: 2 minutes instead of 1
+    intervalRef.current = setInterval(fetchRates, 120000);
+    
+    // Pause polling when tab is hidden
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      } else {
+        fetchRates();
+        intervalRef.current = setInterval(fetchRates, 120000);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      mountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchRates]);
 
   const getDisplayTicker = (pair: FavoritePair, type: 'from' | 'to') => {
