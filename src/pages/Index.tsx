@@ -204,11 +204,7 @@ const Index = () => {
             <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
               <div className="grid md:grid-cols-2 gap-4">
                 <GasEstimator />
-                <PricePrediction 
-                  chainIndex="1" 
-                  tokenAddress="0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-                  tokenSymbol="ETH"
-                />
+                <PricePrediction />
               </div>
             </div>
           </section>
