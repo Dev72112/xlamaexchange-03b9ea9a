@@ -154,10 +154,8 @@ export function useThemeCustomization() {
     localStorage.removeItem(STORAGE_KEY);
   }, [applyScheme]);
 
-  // Initialize on mount
-  useEffect(() => {
-    applyScheme(currentScheme);
-  }, []);
+  // Initialize scheme on mount - removed applyScheme call since ThemeProvider handles it
+  // This prevents double application of styles
 
   return {
     currentScheme,

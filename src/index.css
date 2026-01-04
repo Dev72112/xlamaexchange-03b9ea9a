@@ -16,6 +16,7 @@ body {
 * {
   min-width: 0;
 }
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -53,13 +54,17 @@ body {
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     
-    /* Chart colors */
+    /* Chart colors - semantic tokens for data visualization */
     --chart-1: 142 71% 45%;
     --chart-2: 217 91% 60%;
     --chart-3: 262 83% 58%;
     --chart-4: 38 92% 50%;
     --chart-5: 340 82% 52%;
     --chart-6: 180 70% 45%;
+    
+    /* Gradient tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(142 40% 95%), hsl(142 50% 90%));
   }
 
   .dark {
@@ -96,13 +101,17 @@ body {
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 3%;
     
-    /* Chart colors */
+    /* Chart colors - brighter in dark mode */
     --chart-1: 142 76% 50%;
     --chart-2: 217 91% 65%;
     --chart-3: 262 83% 65%;
     --chart-4: 38 92% 55%;
     --chart-5: 340 82% 58%;
     --chart-6: 180 70% 50%;
+    
+    /* Gradient tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 76% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(142 30% 12%), hsl(142 35% 18%));
   }
 }
 
@@ -186,6 +195,36 @@ body {
   /* Subtle press effect */
   .press-effect:active {
     transform: scale(0.98);
+  }
+  
+  /* Focus ring for better accessibility */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-200 hover:border-primary/20 hover:shadow-md;
+  }
+  
+  /* Smooth number transitions for counters */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* Text truncation with ellipsis */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 

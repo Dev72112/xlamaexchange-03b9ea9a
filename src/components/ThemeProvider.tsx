@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 type Theme = "dark" | "light" | "system";
 
@@ -20,6 +20,40 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+// Storage key for color scheme (must match useThemeCustomization)
+const COLOR_SCHEME_STORAGE_KEY = 'cryptoswap-color-scheme';
+
+// Apply saved color scheme to CSS variables
+function applyStoredColorScheme() {
+  try {
+    const saved = localStorage.getItem(COLOR_SCHEME_STORAGE_KEY);
+    if (saved) {
+      const scheme = JSON.parse(saved);
+      const root = document.documentElement;
+      
+      if (scheme.primary) {
+        root.style.setProperty('--primary', scheme.primary);
+        root.style.setProperty('--ring', scheme.primary);
+        root.style.setProperty('--success', scheme.primary);
+        
+        // Apply accent colors based on primary
+        const [h, s, l] = scheme.primary.split(' ').map((v: string) => parseFloat(v));
+        root.style.setProperty('--accent', `${h} 40% 95%`);
+        root.style.setProperty('--accent-foreground', `${h} ${s}% ${Math.max(l - 10, 30)}%`);
+      }
+      
+      // Apply chart colors if present
+      if (scheme.chartColors && Array.isArray(scheme.chartColors)) {
+        scheme.chartColors.forEach((color: string, i: number) => {
+          root.style.setProperty(`--chart-${i + 1}`, color);
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to apply stored color scheme:', e);
+  }
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = "system",
@@ -29,6 +63,11 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   );
+
+  // Apply color scheme on initial mount
+  useEffect(() => {
+    applyStoredColorScheme();
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -48,6 +87,9 @@ export function ThemeProvider({
     } else {
       root.classList.add(theme);
     }
+
+    // Re-apply color scheme after theme change
+    applyStoredColorScheme();
 
     // Remove transitioning class after animation completes
     const timer = setTimeout(() => {
