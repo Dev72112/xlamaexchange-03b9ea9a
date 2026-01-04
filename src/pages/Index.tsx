@@ -25,6 +25,8 @@ const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => 
 const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
+const ActiveDCAOrders = lazy(() => import("@/components/ActiveDCAOrders").then(m => ({ default: m.ActiveDCAOrders })));
+const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
 
 type ExchangeMode = 'instant' | 'dex';
 
@@ -200,11 +202,20 @@ const Index = () => {
             </div>
           </section>
 
-          {/* Limit Orders Section (standalone for DEX mode) */}
+          {/* Limit Orders Section */}
           <section className="py-4">
             <div className="container px-4 sm:px-6 max-w-xl mx-auto">
               <Suspense fallback={<div className="h-16 skeleton-shimmer rounded-lg" />}>
                 <ActiveLimitOrders />
+              </Suspense>
+            </div>
+          </section>
+
+          {/* DCA Orders Section */}
+          <section className="py-4">
+            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
+              <Suspense fallback={<div className="h-16 skeleton-shimmer rounded-lg" />}>
+                <ActiveDCAOrders />
               </Suspense>
             </div>
           </section>
@@ -214,6 +225,11 @@ const Index = () => {
           </Suspense>
         </>
       )}
+
+      {/* Crypto News Section */}
+      <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg mx-4" />}>
+        <CryptoNews />
+      </Suspense>
       
       <PriceAlerts />
       

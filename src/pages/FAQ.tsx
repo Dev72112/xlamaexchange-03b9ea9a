@@ -88,6 +88,14 @@ const faqs = [
     question: "Is xlama safe to use?",
     answer: "Yes! xlama is completely non-custodial - we never hold your funds or access your private keys. DEX swaps interact directly with audited smart contracts. Instant swaps are processed by ChangeNOW, a trusted exchange partner since 2017.",
   },
+  {
+    question: "What is DCA (Dollar Cost Averaging)?",
+    answer: "DCA is an investment strategy where you buy a fixed amount of crypto at regular intervals (daily, weekly, monthly) regardless of price. This reduces the impact of volatility and removes emotional decision-making. Create DCA orders from the DEX swap interface.",
+  },
+  {
+    question: "How do I set up a DCA order?",
+    answer: "In DEX mode, click the DCA button next to the swap button. Choose your token pair, amount per purchase, frequency (daily/weekly/monthly), and optionally set a total number of purchases. Sign the message with your wallet to create the order.",
+  },
 ];
 
 const FAQ = () => {
