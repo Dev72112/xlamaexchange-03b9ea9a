@@ -381,3 +381,26 @@ export function getChainIcon(chain: Chain): string {
 
 // Native token address for EVM chains (used for native ETH, BNB, etc.)
 export const NATIVE_TOKEN_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+
+// Get explorer transaction URL for a chain
+export function getExplorerTxUrl(chainIndex: string, txHash: string): string | null {
+  const chain = getChainByIndex(chainIndex);
+  if (!chain) return null;
+  
+  // Handle special cases for non-standard explorers
+  switch (chainIndex) {
+    case '501': // Solana
+      return `https://solscan.io/tx/${txHash}`;
+    case '784': // Sui
+      return `https://suiscan.xyz/mainnet/tx/${txHash}`;
+    case '607': // TON
+      return `https://tonscan.org/tx/${txHash}`;
+    case '195': // Tron
+      return `https://tronscan.org/#/transaction/${txHash}`;
+    case '196': // X Layer
+      return `https://www.okx.com/web3/explorer/xlayer/tx/${txHash}`;
+    default:
+      // Standard EVM explorers
+      return `${chain.blockExplorer}/tx/${txHash}`;
+  }
+}
