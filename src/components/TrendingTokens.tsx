@@ -1,98 +1,88 @@
 import { useState, useEffect, useCallback } from "react";
-import { Flame, TrendingUp, TrendingDown, Loader2, ExternalLink } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Loader2, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Chain, getEvmChains, getPrimaryChain, getChainIcon } from "@/data/chains";
+import { okxDexService, TrendingTokenData } from "@/services/okxdex";
 import { cn } from "@/lib/utils";
 
-interface TrendingToken {
-  symbol: string;
-  name: string;
-  logo: string;
-  price: number;
-  change24h: number;
-  volume24h?: number;
-}
-
 interface TrendingTokensProps {
-  onSelectToken?: (symbol: string) => void;
+  onSelectToken?: (symbol: string, address?: string, chainIndex?: string) => void;
 }
 
-// Popular tokens per chain with fallback data
-const CHAIN_TOKENS: Record<string, TrendingToken[]> = {
-  '196': [ // X Layer
-    { symbol: 'OKB', name: 'OKB', logo: 'https://static.okx.com/cdn/wallet/logo/OKB.png', price: 48.25, change24h: 2.3 },
-    { symbol: 'USDT', name: 'Tether', logo: 'https://static.okx.com/cdn/wallet/logo/USDT.png', price: 1.0, change24h: 0.01 },
-    { symbol: 'WETH', name: 'Wrapped ETH', logo: 'https://static.okx.com/cdn/wallet/logo/ETH.png', price: 3350, change24h: 1.5 },
-    { symbol: 'USDC', name: 'USD Coin', logo: 'https://static.okx.com/cdn/wallet/logo/USDC.png', price: 1.0, change24h: 0.0 },
-  ],
-  '1': [ // Ethereum
-    { symbol: 'ETH', name: 'Ethereum', logo: 'https://static.okx.com/cdn/wallet/logo/ETH.png', price: 3350, change24h: 1.8 },
-    { symbol: 'USDT', name: 'Tether', logo: 'https://static.okx.com/cdn/wallet/logo/USDT.png', price: 1.0, change24h: 0.01 },
-    { symbol: 'WBTC', name: 'Wrapped BTC', logo: 'https://static.okx.com/cdn/wallet/logo/BTC.png', price: 94500, change24h: 0.8 },
-    { symbol: 'LINK', name: 'Chainlink', logo: 'https://static.okx.com/cdn/wallet/logo/LINK.png', price: 23.5, change24h: 3.2 },
-  ],
-  '56': [ // BSC
-    { symbol: 'BNB', name: 'BNB', logo: 'https://static.okx.com/cdn/wallet/logo/bsc.png', price: 690, change24h: 2.1 },
-    { symbol: 'CAKE', name: 'PancakeSwap', logo: 'https://cryptologos.cc/logos/pancakeswap-cake-logo.png', price: 2.45, change24h: -1.2 },
-    { symbol: 'USDT', name: 'Tether', logo: 'https://static.okx.com/cdn/wallet/logo/USDT.png', price: 1.0, change24h: 0.0 },
-    { symbol: 'XVS', name: 'Venus', logo: 'https://cryptologos.cc/logos/venus-xvs-logo.png', price: 8.75, change24h: 4.5 },
-  ],
-  '137': [ // Polygon
-    { symbol: 'POL', name: 'POL', logo: 'https://static.okx.com/cdn/wallet/logo/polygon.png', price: 0.52, change24h: 3.4 },
-    { symbol: 'WETH', name: 'Wrapped ETH', logo: 'https://static.okx.com/cdn/wallet/logo/ETH.png', price: 3350, change24h: 1.5 },
-    { symbol: 'USDC', name: 'USD Coin', logo: 'https://static.okx.com/cdn/wallet/logo/USDC.png', price: 1.0, change24h: 0.0 },
-    { symbol: 'AAVE', name: 'Aave', logo: 'https://cryptologos.cc/logos/aave-aave-logo.png', price: 340, change24h: 2.8 },
-  ],
-  '42161': [ // Arbitrum
-    { symbol: 'ETH', name: 'Ethereum', logo: 'https://static.okx.com/cdn/wallet/logo/ETH.png', price: 3350, change24h: 1.8 },
-    { symbol: 'ARB', name: 'Arbitrum', logo: 'https://static.okx.com/cdn/wallet/logo/arb.png', price: 0.82, change24h: 4.2 },
-    { symbol: 'GMX', name: 'GMX', logo: 'https://cryptologos.cc/logos/gmx-gmx-logo.png', price: 28.5, change24h: 1.9 },
-    { symbol: 'USDC', name: 'USD Coin', logo: 'https://static.okx.com/cdn/wallet/logo/USDC.png', price: 1.0, change24h: 0.0 },
-  ],
-  '8453': [ // Base
-    { symbol: 'ETH', name: 'Ethereum', logo: 'https://static.okx.com/cdn/wallet/logo/ETH.png', price: 3350, change24h: 1.8 },
-    { symbol: 'USDC', name: 'USD Coin', logo: 'https://static.okx.com/cdn/wallet/logo/USDC.png', price: 1.0, change24h: 0.0 },
-    { symbol: 'cbETH', name: 'Coinbase ETH', logo: 'https://static.okx.com/cdn/wallet/logo/base.png', price: 3380, change24h: 1.6 },
-    { symbol: 'DAI', name: 'DAI', logo: 'https://cryptologos.cc/logos/multi-collateral-dai-dai-logo.png', price: 1.0, change24h: 0.0 },
-  ],
-};
+type SortBy = '2' | '5' | '6'; // 2=price change, 5=volume, 6=market cap
+type TimeFrame = '1' | '2' | '3' | '4'; // 1=5m, 2=1h, 3=4h, 4=24h
 
-// Default tokens for chains not in the list
-const DEFAULT_TOKENS: TrendingToken[] = [
-  { symbol: 'ETH', name: 'Ethereum', logo: 'https://static.okx.com/cdn/wallet/logo/ETH.png', price: 3350, change24h: 1.8 },
-  { symbol: 'USDT', name: 'Tether', logo: 'https://static.okx.com/cdn/wallet/logo/USDT.png', price: 1.0, change24h: 0.01 },
-  { symbol: 'USDC', name: 'USD Coin', logo: 'https://static.okx.com/cdn/wallet/logo/USDC.png', price: 1.0, change24h: 0.0 },
+const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+  { value: '2', label: 'Price Change' },
+  { value: '5', label: 'Volume' },
+  { value: '6', label: 'Market Cap' },
+];
+
+const TIME_OPTIONS: { value: TimeFrame; label: string }[] = [
+  { value: '1', label: '5m' },
+  { value: '2', label: '1h' },
+  { value: '3', label: '4h' },
+  { value: '4', label: '24h' },
 ];
 
 export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
   const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
-  const [tokens, setTokens] = useState<TrendingToken[]>([]);
+  const [tokens, setTokens] = useState<TrendingTokenData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<SortBy>('2');
+  const [timeFrame, setTimeFrame] = useState<TimeFrame>('4');
   
   const evmChains = getEvmChains().slice(0, 6); // Show top 6 chains
 
   const fetchTokens = useCallback(async () => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const chainTokens = CHAIN_TOKENS[selectedChain.chainIndex] || DEFAULT_TOKENS;
-    setTokens(chainTokens);
-    setIsLoading(false);
-  }, [selectedChain.chainIndex]);
+    try {
+      const data = await okxDexService.getTokenRanking(
+        selectedChain.chainIndex,
+        sortBy,
+        timeFrame
+      );
+      
+      // Take top 8 tokens
+      setTokens(data.slice(0, 8));
+    } catch (err) {
+      console.error('Failed to fetch trending tokens:', err);
+      setTokens([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedChain.chainIndex, sortBy, timeFrame]);
 
   useEffect(() => {
     fetchTokens();
   }, [fetchTokens]);
 
-  const formatPrice = (price: number) => {
-    if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    if (price >= 1) return `$${price.toFixed(2)}`;
-    return `$${price.toFixed(4)}`;
+  const formatPrice = (price: string) => {
+    const num = parseFloat(price);
+    if (isNaN(num)) return '$0.00';
+    if (num >= 1000) return `$${num.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    if (num >= 1) return `$${num.toFixed(2)}`;
+    if (num >= 0.0001) return `$${num.toFixed(4)}`;
+    return `$${num.toFixed(6)}`;
+  };
+
+  const formatVolume = (volume: string) => {
+    const num = parseFloat(volume);
+    if (isNaN(num)) return '$0';
+    if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(1)}B`;
+    if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+    if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
+    return `$${num.toFixed(0)}`;
+  };
+
+  const formatChange = (change: string) => {
+    const num = parseFloat(change);
+    if (isNaN(num)) return '0.00';
+    return Math.abs(num).toFixed(2);
   };
 
   return (
@@ -110,7 +100,7 @@ export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
                     <span className="truncate">Trending Tokens</span>
                   </CardTitle>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    Popular tokens on {selectedChain.name}
+                    Top movers on {selectedChain.name}
                   </p>
                 </div>
                 <Badge variant="secondary" className="gap-1.5 bg-success/10 text-success border-success/20 shrink-0 text-xs">
@@ -141,6 +131,36 @@ export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
                   </Button>
                 ))}
               </div>
+
+              {/* Sort & Time Controls */}
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex gap-1 bg-secondary/50 rounded-lg p-1">
+                  {SORT_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      variant={sortBy === option.value ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setSortBy(option.value)}
+                      className="h-7 text-xs"
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex gap-1 bg-secondary/50 rounded-lg p-1">
+                  {TIME_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      variant={timeFrame === option.value ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setTimeFrame(option.value)}
+                      className="h-7 text-xs px-2"
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -164,43 +184,60 @@ export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
                     </div>
                   </div>
                 ))
+              ) : tokens.length === 0 ? (
+                <div className="col-span-2 text-center py-8 text-muted-foreground">
+                  <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No trending tokens found</p>
+                </div>
               ) : (
-                tokens.map((token) => (
-                  <button
-                    key={token.symbol}
-                    onClick={() => onSelectToken?.(token.symbol)}
-                    className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 text-left w-full cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={token.logo}
-                        alt={token.name}
-                        className="w-10 h-10 rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.symbol}&background=random`;
-                        }}
-                      />
-                      <div className="min-w-0">
-                        <div className="font-semibold text-sm uppercase">{token.symbol}</div>
-                        <div className="text-xs text-muted-foreground truncate">{token.name}</div>
+                tokens.map((token, index) => {
+                  const change = parseFloat(token.change);
+                  const isPositive = change >= 0;
+                  
+                  return (
+                    <button
+                      key={`${token.tokenContractAddress}-${index}`}
+                      onClick={() => onSelectToken?.(token.tokenSymbol, token.tokenContractAddress, token.chainIndex)}
+                      className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 text-left w-full cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <img
+                            src={token.tokenLogoUrl}
+                            alt={token.tokenSymbol}
+                            className="w-10 h-10 rounded-full"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`;
+                            }}
+                          />
+                          <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm uppercase">{token.tokenSymbol}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            Vol: {formatVolume(token.volume)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-mono text-sm font-medium">{formatPrice(token.price)}</div>
-                      <div className={cn(
-                        "text-xs font-medium flex items-center justify-end gap-0.5",
-                        token.change24h >= 0 ? "text-success" : "text-destructive"
-                      )}>
-                        {token.change24h >= 0 ? (
-                          <TrendingUp className="w-3 h-3" />
-                        ) : (
-                          <TrendingDown className="w-3 h-3" />
-                        )}
-                        {Math.abs(token.change24h).toFixed(2)}%
+                      <div className="text-right shrink-0">
+                        <div className="font-mono text-sm font-medium">{formatPrice(token.price)}</div>
+                        <div className={cn(
+                          "text-xs font-medium flex items-center justify-end gap-0.5",
+                          isPositive ? "text-success" : "text-destructive"
+                        )}>
+                          {isPositive ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
+                          {formatChange(token.change)}%
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))
+                    </button>
+                  );
+                })
               )}
             </div>
           </CardContent>

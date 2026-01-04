@@ -10,15 +10,20 @@ const OKX_SECRET_KEY = Deno.env.get('OKX_SECRET_KEY') || '';
 const OKX_API_PASSPHRASE = Deno.env.get('OKX_API_PASSPHRASE') || '';
 const OKX_PROJECT_ID = Deno.env.get('OKX_PROJECT_ID') || '';
 const OKX_REFERRER_WALLET_ADDRESS = Deno.env.get('OKX_REFERRER_WALLET_ADDRESS') || '';
-const OKX_DEX_API_URL = 'https://www.okx.com/api/v5/dex/aggregator';
+
+// API Base URLs - using v6 for Market/Balance/Token APIs, v5 for DEX Aggregator
+const OKX_DEX_AGGREGATOR_URL = 'https://www.okx.com/api/v5/dex/aggregator';
+const OKX_MARKET_API_URL = 'https://web3.okx.com/api/v6/dex/market';
+const OKX_BALANCE_API_URL = 'https://web3.okx.com/api/v6/dex/balance';
+const OKX_TX_HISTORY_API_URL = 'https://web3.okx.com/api/v6/dex/post-transaction';
+const OKX_CROSS_CHAIN_URL = 'https://www.okx.com/api/v5/dex/cross-chain';
 
 // Commission fee percentage for partner revenue
-// Max is 3% for EVM chains, 10% for Solana
-// Using 1.5% as a balanced rate for good revenue without impacting user experience too much
 const COMMISSION_FEE_PERCENT = '1.5';
 
-// Valid actions
+// Valid actions - v6 API additions
 const VALID_ACTIONS = [
+  // DEX Aggregator (v5)
   'supported-chains',
   'tokens',
   'quote',
@@ -28,8 +33,18 @@ const VALID_ACTIONS = [
   'token-info',
   'cross-chain-quote',
   'cross-chain-swap',
+  // Market API (v6)
   'token-price',
+  'token-price-info',
+  'token-ranking',
+  'candlesticks',
+  'history-candles',
+  // Balance API (v6)
   'wallet-balances',
+  'portfolio-value',
+  // Transaction History API (v6)
+  'tx-history',
+  'tx-detail',
 ] as const;
 
 type ValidAction = typeof VALID_ACTIONS[number];
@@ -48,7 +63,14 @@ const RATE_LIMITS: Record<ValidAction, number> = {
   'cross-chain-quote': 30,
   'cross-chain-swap': 20,
   'token-price': 60,
+  'token-price-info': 60,
+  'token-ranking': 30,
+  'candlesticks': 60,
+  'history-candles': 30,
   'wallet-balances': 30,
+  'portfolio-value': 30,
+  'tx-history': 30,
+  'tx-detail': 30,
 };
 
 function checkRateLimit(action: ValidAction, clientIp: string): boolean {
@@ -108,18 +130,12 @@ function buildQueryString(params: Record<string, string | number | undefined>): 
   return filtered.length > 0 ? '?' + filtered.join('&') : '';
 }
 
-// Make authenticated request to OKX API
-async function okxRequest(
-  endpoint: string,
-  params: Record<string, string | number | undefined> = {},
-  method: string = 'GET'
-): Promise<Response> {
-  const queryString = buildQueryString(params);
-  const requestPath = `/api/v5/dex/aggregator${endpoint}${queryString}`;
+// Get OKX API headers
+async function getOkxHeaders(requestPath: string, method: string = 'GET'): Promise<Record<string, string>> {
   const timestamp = new Date().toISOString();
   const signature = await generateSignature(timestamp, method, requestPath);
   
-  const headers = {
+  return {
     'OK-ACCESS-KEY': OKX_API_KEY,
     'OK-ACCESS-SIGN': signature,
     'OK-ACCESS-TIMESTAMP': timestamp,
@@ -127,12 +143,70 @@ async function okxRequest(
     'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
     'Content-Type': 'application/json',
   };
+}
+
+// Make authenticated request to OKX DEX Aggregator API (v5)
+async function okxDexRequest(
+  endpoint: string,
+  params: Record<string, string | number | undefined> = {},
+  method: string = 'GET'
+): Promise<Response> {
+  const queryString = buildQueryString(params);
+  const requestPath = `/api/v5/dex/aggregator${endpoint}${queryString}`;
+  const headers = await getOkxHeaders(requestPath, method);
   
-  const url = `${OKX_DEX_API_URL}${endpoint}${queryString}`;
+  const url = `${OKX_DEX_AGGREGATOR_URL}${endpoint}${queryString}`;
   console.log(`OKX DEX API request: ${method} ${endpoint}`, params);
   
-  const response = await fetch(url, { method, headers });
-  return response;
+  return fetch(url, { method, headers });
+}
+
+// Make authenticated request to OKX Market API (v6)
+async function okxMarketRequest(
+  endpoint: string,
+  params: Record<string, string | number | undefined> = {},
+  method: string = 'GET'
+): Promise<Response> {
+  const queryString = buildQueryString(params);
+  const requestPath = `/api/v6/dex/market${endpoint}${queryString}`;
+  const headers = await getOkxHeaders(requestPath, method);
+  
+  const url = `${OKX_MARKET_API_URL}${endpoint}${queryString}`;
+  console.log(`OKX Market API v6 request: ${method} ${endpoint}`, params);
+  
+  return fetch(url, { method, headers });
+}
+
+// Make authenticated request to OKX Balance API (v6)
+async function okxBalanceRequest(
+  endpoint: string,
+  params: Record<string, string | number | undefined> = {},
+  method: string = 'GET'
+): Promise<Response> {
+  const queryString = buildQueryString(params);
+  const requestPath = `/api/v6/dex/balance${endpoint}${queryString}`;
+  const headers = await getOkxHeaders(requestPath, method);
+  
+  const url = `${OKX_BALANCE_API_URL}${endpoint}${queryString}`;
+  console.log(`OKX Balance API v6 request: ${method} ${endpoint}`, params);
+  
+  return fetch(url, { method, headers });
+}
+
+// Make authenticated request to OKX Transaction History API (v6)
+async function okxTxHistoryRequest(
+  endpoint: string,
+  params: Record<string, string | number | undefined> = {},
+  method: string = 'GET'
+): Promise<Response> {
+  const queryString = buildQueryString(params);
+  const requestPath = `/api/v6/dex/post-transaction${endpoint}${queryString}`;
+  const headers = await getOkxHeaders(requestPath, method);
+  
+  const url = `${OKX_TX_HISTORY_API_URL}${endpoint}${queryString}`;
+  console.log(`OKX Tx History API v6 request: ${method} ${endpoint}`, params);
+  
+  return fetch(url, { method, headers });
 }
 
 serve(async (req) => {
@@ -166,8 +240,9 @@ serve(async (req) => {
     let response: Response;
     
     switch (action as ValidAction) {
+      // ========== DEX Aggregator (v5) ==========
       case 'supported-chains': {
-        response = await okxRequest('/supported/chain');
+        response = await okxDexRequest('/supported/chain');
         break;
       }
       
@@ -179,7 +254,7 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        response = await okxRequest('/all-tokens', { chainIndex });
+        response = await okxDexRequest('/all-tokens', { chainIndex });
         break;
       }
       
@@ -192,7 +267,6 @@ serve(async (req) => {
           );
         }
         
-        // Build quote params with optional commission fee
         const quoteParams: Record<string, string | number | undefined> = {
           chainIndex,
           fromTokenAddress,
@@ -201,25 +275,17 @@ serve(async (req) => {
           slippage: slippage || '0.5',
         };
         
-        // Add commission fee if referrer wallet is configured
         if (OKX_REFERRER_WALLET_ADDRESS) {
           quoteParams.feePercent = COMMISSION_FEE_PERCENT;
           quoteParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
         }
         
-        response = await okxRequest('/quote', quoteParams);
+        response = await okxDexRequest('/quote', quoteParams);
         break;
       }
       
       case 'swap': {
-        const { 
-          chainIndex, 
-          fromTokenAddress, 
-          toTokenAddress, 
-          amount, 
-          slippage, 
-          userWalletAddress 
-        } = params;
+        const { chainIndex, fromTokenAddress, toTokenAddress, amount, slippage, userWalletAddress } = params;
         
         if (!chainIndex || !fromTokenAddress || !toTokenAddress || !amount || !userWalletAddress) {
           return new Response(
@@ -228,7 +294,6 @@ serve(async (req) => {
           );
         }
         
-        // Build swap params with optional commission fee
         const swapParams: Record<string, string | number | undefined> = {
           chainIndex,
           fromTokenAddress,
@@ -238,13 +303,12 @@ serve(async (req) => {
           userWalletAddress,
         };
         
-        // Add commission fee if referrer wallet is configured
         if (OKX_REFERRER_WALLET_ADDRESS) {
           swapParams.feePercent = COMMISSION_FEE_PERCENT;
           swapParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
         }
         
-        response = await okxRequest('/swap', swapParams);
+        response = await okxDexRequest('/swap', swapParams);
         break;
       }
       
@@ -256,7 +320,7 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        response = await okxRequest('/approve-transaction', {
+        response = await okxDexRequest('/approve-transaction', {
           chainIndex,
           tokenContractAddress,
           approveAmount: approveAmount || '',
@@ -272,7 +336,7 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        response = await okxRequest('/liquidity', { chainIndex });
+        response = await okxDexRequest('/liquidity', { chainIndex });
         break;
       }
 
@@ -287,61 +351,42 @@ serve(async (req) => {
         
         console.log(`Fetching token info for ${tokenAddress} on chain ${chainIndex}`);
         
-        // Chain-specific native token addresses for quote fallback
         const getNativeTokenAddress = (chain: string): string => {
           switch (chain) {
-            case '501': // Solana - wrapped SOL
-              return 'So11111111111111111111111111111111111111112';
-            case '195': // Tron
-              return 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'; // WTRX
-            case '784': // Sui
-              return '0x2::sui::SUI';
-            case '607': // TON
-              return 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c'; // native TON
-            default: // EVM chains
-              return '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+            case '501': return 'So11111111111111111111111111111111111111112';
+            case '195': return 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb';
+            case '784': return '0x2::sui::SUI';
+            case '607': return 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c';
+            default: return '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
           }
         };
 
-        // Chain-specific default decimals
         const getDefaultDecimals = (chain: string): string => {
           switch (chain) {
-            case '501': // Solana SPL tokens typically use 6 or 9 decimals
-              return '9';
-            case '195': // Tron
-              return '6';
-            case '784': // Sui
-              return '9';
-            case '607': // TON
-              return '9';
-            default:
-              return '18';
+            case '501': return '9';
+            case '195': return '6';
+            case '784': return '9';
+            case '607': return '9';
+            default: return '18';
           }
         };
 
-        // Chain-specific default amount for quote (accounting for decimals)
         const getDefaultAmount = (chain: string): string => {
           switch (chain) {
-            case '501': // Solana - 9 decimals
-              return '1000000000';
-            case '195': // Tron - 6 decimals
-              return '1000000';
-            case '784': // Sui - 9 decimals
-              return '1000000000';
-            case '607': // TON - 9 decimals
-              return '1000000000';
-            default: // EVM - 18 decimals
-              return '1000000000000000000';
+            case '501': return '1000000000';
+            case '195': return '1000000';
+            case '784': return '1000000000';
+            case '607': return '1000000000';
+            default: return '1000000000000000000';
           }
         };
         
         // First try to find in all-tokens list
         try {
-          const tokensResponse = await okxRequest('/all-tokens', { chainIndex });
+          const tokensResponse = await okxDexRequest('/all-tokens', { chainIndex });
           const tokensData = await tokensResponse.json();
           
           if (tokensData.code === '0' || tokensData.code === 0) {
-            // For non-EVM chains, do case-sensitive comparison
             const isNonEvmChain = ['501', '195', '784', '607'].includes(chainIndex);
             const foundToken = tokensData.data?.find((t: any) => {
               if (isNonEvmChain) {
@@ -362,15 +407,14 @@ serve(async (req) => {
           console.error('Error fetching all-tokens:', err);
         }
         
-        // If not in list, try quote endpoint with a small amount to get token info
-        // This is a workaround since OKX doesn't have a dedicated token-info endpoint
+        // Try quote endpoint as fallback
         try {
           const nativeAddress = getNativeTokenAddress(chainIndex);
           const defaultAmount = getDefaultAmount(chainIndex);
           
           console.log(`Trying quote with native token ${nativeAddress} and amount ${defaultAmount}`);
           
-          const quoteResponse = await okxRequest('/quote', {
+          const quoteResponse = await okxDexRequest('/quote', {
             chainIndex,
             fromTokenAddress: tokenAddress,
             toTokenAddress: nativeAddress,
@@ -383,7 +427,6 @@ serve(async (req) => {
           
           if ((quoteData.code === '0' || quoteData.code === 0) && quoteData.data?.[0]) {
             const quote = quoteData.data[0];
-            // Extract token info from quote response
             const tokenInfo = {
               tokenContractAddress: tokenAddress,
               tokenSymbol: quote.fromToken?.tokenSymbol || 'UNKNOWN',
@@ -401,7 +444,6 @@ serve(async (req) => {
           console.error('Error getting token via quote:', err);
         }
         
-        // Token not found
         console.log(`Token ${tokenAddress} not found on chain ${chainIndex}`);
         return new Response(
           JSON.stringify({ error: 'Token not found on this chain' }),
@@ -410,15 +452,7 @@ serve(async (req) => {
       }
 
       case 'cross-chain-quote': {
-        const { 
-          fromChainIndex, 
-          toChainIndex, 
-          fromTokenAddress, 
-          toTokenAddress, 
-          amount, 
-          slippage,
-          userWalletAddress 
-        } = params;
+        const { fromChainIndex, toChainIndex, fromTokenAddress, toTokenAddress, amount, slippage, userWalletAddress } = params;
         
         if (!fromChainIndex || !toChainIndex || !fromTokenAddress || !toTokenAddress || !amount) {
           return new Response(
@@ -427,8 +461,6 @@ serve(async (req) => {
           );
         }
         
-        // OKX Cross-chain API endpoint
-        const crossChainUrl = 'https://www.okx.com/api/v5/dex/cross-chain';
         const queryString = buildQueryString({
           fromChainIndex,
           toChainIndex,
@@ -439,33 +471,14 @@ serve(async (req) => {
           userWalletAddress,
         });
         const requestPath = `/api/v5/dex/cross-chain/quote${queryString}`;
-        const timestamp = new Date().toISOString();
-        const signature = await generateSignature(timestamp, 'GET', requestPath);
+        const headers = await getOkxHeaders(requestPath);
         
-        const headers = {
-          'OK-ACCESS-KEY': OKX_API_KEY,
-          'OK-ACCESS-SIGN': signature,
-          'OK-ACCESS-TIMESTAMP': timestamp,
-          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
-          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
-          'Content-Type': 'application/json',
-        };
-        
-        response = await fetch(`${crossChainUrl}/quote${queryString}`, { method: 'GET', headers });
+        response = await fetch(`${OKX_CROSS_CHAIN_URL}/quote${queryString}`, { method: 'GET', headers });
         break;
       }
 
       case 'cross-chain-swap': {
-        const { 
-          fromChainIndex, 
-          toChainIndex, 
-          fromTokenAddress, 
-          toTokenAddress, 
-          amount, 
-          slippage,
-          userWalletAddress,
-          receiveAddress
-        } = params;
+        const { fromChainIndex, toChainIndex, fromTokenAddress, toTokenAddress, amount, slippage, userWalletAddress, receiveAddress } = params;
         
         if (!fromChainIndex || !toChainIndex || !fromTokenAddress || !toTokenAddress || !amount || !userWalletAddress) {
           return new Response(
@@ -474,7 +487,6 @@ serve(async (req) => {
           );
         }
         
-        const crossChainUrl = 'https://www.okx.com/api/v5/dex/cross-chain';
         const queryString = buildQueryString({
           fromChainIndex,
           toChainIndex,
@@ -486,22 +498,13 @@ serve(async (req) => {
           receiveAddress: receiveAddress || userWalletAddress,
         });
         const requestPath = `/api/v5/dex/cross-chain/swap${queryString}`;
-        const timestamp = new Date().toISOString();
-        const signature = await generateSignature(timestamp, 'GET', requestPath);
+        const headers = await getOkxHeaders(requestPath);
         
-        const headers = {
-          'OK-ACCESS-KEY': OKX_API_KEY,
-          'OK-ACCESS-SIGN': signature,
-          'OK-ACCESS-TIMESTAMP': timestamp,
-          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
-          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
-          'Content-Type': 'application/json',
-        };
-        
-        response = await fetch(`${crossChainUrl}/swap${queryString}`, { method: 'GET', headers });
+        response = await fetch(`${OKX_CROSS_CHAIN_URL}/swap${queryString}`, { method: 'GET', headers });
         break;
       }
 
+      // ========== Market API (v6) ==========
       case 'token-price': {
         const { chainIndex, tokenAddress } = params;
         if (!chainIndex || !tokenAddress) {
@@ -511,28 +514,93 @@ serve(async (req) => {
           );
         }
         
-        // Use market-data API for token price
-        const marketUrl = 'https://www.okx.com/api/v5/dex/market';
-        const queryStr = buildQueryString({ chainIndex, tokenContractAddress: tokenAddress });
-        const requestPath = `/api/v5/dex/market/token-price${queryStr}`;
-        const timestamp = new Date().toISOString();
-        const signature = await generateSignature(timestamp, 'GET', requestPath);
-        
-        const headers = {
-          'OK-ACCESS-KEY': OKX_API_KEY,
-          'OK-ACCESS-SIGN': signature,
-          'OK-ACCESS-TIMESTAMP': timestamp,
-          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
-          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
-          'Content-Type': 'application/json',
-        };
-        
-        response = await fetch(`${marketUrl}/token-price${queryStr}`, { method: 'GET', headers });
+        // Use v6 Market API for price
+        response = await okxMarketRequest('/price', {
+          chainIndex,
+          tokenContractAddress: tokenAddress,
+        });
         break;
       }
 
+      case 'token-price-info': {
+        const { chainIndex, tokenContractAddress } = params;
+        if (!chainIndex || !tokenContractAddress) {
+          return new Response(
+            JSON.stringify({ error: 'chainIndex and tokenContractAddress are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // v6 Market API - Token Trading Information (includes price, volume, marketCap, etc.)
+        response = await okxMarketRequest('/price-info', {
+          chainIndex,
+          tokenContractAddress,
+        });
+        break;
+      }
+
+      case 'token-ranking': {
+        const { chains, sortBy, timeFrame } = params;
+        if (!chains || !sortBy || !timeFrame) {
+          return new Response(
+            JSON.stringify({ error: 'chains, sortBy, and timeFrame are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // v6 Market Token API - Token Ranking List
+        response = await okxMarketRequest('/token/toplist', {
+          chains,
+          sortBy, // 2=price change, 5=volume, 6=market cap
+          timeFrame, // 1=5m, 2=1h, 3=4h, 4=24h
+        });
+        break;
+      }
+
+      case 'candlesticks': {
+        const { chainIndex, tokenContractAddress, bar, limit, after, before } = params;
+        if (!chainIndex || !tokenContractAddress) {
+          return new Response(
+            JSON.stringify({ error: 'chainIndex and tokenContractAddress are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // v6 Market API - Candlesticks
+        response = await okxMarketRequest('/candles', {
+          chainIndex,
+          tokenContractAddress,
+          bar: bar || '1H',
+          limit: limit || '100',
+          after,
+          before,
+        });
+        break;
+      }
+
+      case 'history-candles': {
+        const { chainIndex, tokenContractAddress, bar, limit, after } = params;
+        if (!chainIndex || !tokenContractAddress) {
+          return new Response(
+            JSON.stringify({ error: 'chainIndex and tokenContractAddress are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // v6 Market API - Historical Candlesticks
+        response = await okxMarketRequest('/history-candles', {
+          chainIndex,
+          tokenContractAddress,
+          bar: bar || '1H',
+          limit: limit || '100',
+          after,
+        });
+        break;
+      }
+
+      // ========== Balance API (v6) ==========
       case 'wallet-balances': {
-        const { address, chains } = params;
+        const { address, chains, excludeRiskToken } = params;
         if (!address || !chains) {
           return new Response(
             JSON.stringify({ error: 'address and chains are required' }),
@@ -542,27 +610,71 @@ serve(async (req) => {
         
         console.log(`Fetching wallet balances for ${address} on chains: ${chains}`);
         
-        // Use OKX Wallet API for token balances
-        const walletUrl = 'https://www.okx.com/api/v5/wallet/asset';
-        const queryStr = buildQueryString({ 
-          address, 
+        // v6 Balance API
+        response = await okxBalanceRequest('/all-token-balances-by-address', {
+          address,
           chains,
-          filter: '0' // 0 = exclude risk tokens, 1 = include all
+          excludeRiskToken: excludeRiskToken || '0', // 0 = filter out risk tokens
         });
-        const requestPath = `/api/v5/wallet/asset/all-token-balances-by-address${queryStr}`;
-        const timestamp = new Date().toISOString();
-        const signature = await generateSignature(timestamp, 'GET', requestPath);
+        break;
+      }
+
+      case 'portfolio-value': {
+        const { address, chains } = params;
+        if (!address) {
+          return new Response(
+            JSON.stringify({ error: 'address is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         
-        const headers = {
-          'OK-ACCESS-KEY': OKX_API_KEY,
-          'OK-ACCESS-SIGN': signature,
-          'OK-ACCESS-TIMESTAMP': timestamp,
-          'OK-ACCESS-PASSPHRASE': OKX_API_PASSPHRASE,
-          'OK-ACCESS-PROJECT': OKX_PROJECT_ID,
-          'Content-Type': 'application/json',
-        };
+        // v6 Balance API - Total Portfolio Value
+        response = await okxBalanceRequest('/total-value', {
+          address,
+          chains,
+        });
+        break;
+      }
+
+      // ========== Transaction History API (v6) ==========
+      case 'tx-history': {
+        const { address, chains, tokenContractAddress, begin, end, cursor, limit } = params;
+        if (!address) {
+          return new Response(
+            JSON.stringify({ error: 'address is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         
-        response = await fetch(`${walletUrl}/all-token-balances-by-address${queryStr}`, { method: 'GET', headers });
+        console.log(`Fetching tx history for ${address}`);
+        
+        // v6 Transaction History API
+        response = await okxTxHistoryRequest('/transactions-by-address', {
+          address,
+          chains,
+          tokenContractAddress,
+          begin,
+          end,
+          cursor,
+          limit: limit || '20',
+        });
+        break;
+      }
+
+      case 'tx-detail': {
+        const { chainIndex, txHash } = params;
+        if (!chainIndex || !txHash) {
+          return new Response(
+            JSON.stringify({ error: 'chainIndex and txHash are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // v6 Transaction History API - Specific Transaction Detail
+        response = await okxTxHistoryRequest('/transaction-detail', {
+          chainIndex,
+          txHash,
+        });
         break;
       }
       
@@ -577,7 +689,7 @@ serve(async (req) => {
     
     // OKX API returns { code: "0", data: [...] } on success
     if (data.code !== '0' && data.code !== 0) {
-      console.error('OKX DEX API error:', data);
+      console.error('OKX API error:', data);
       return new Response(
         JSON.stringify({ error: data.msg || 'OKX API error', code: data.code }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
