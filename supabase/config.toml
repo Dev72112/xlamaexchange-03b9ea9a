@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.crypto-news]
 verify_jwt = false
+
+[functions.record-commission]
+verify_jwt = false
