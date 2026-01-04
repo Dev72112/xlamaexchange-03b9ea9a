@@ -10,17 +10,30 @@ export interface TradePreFill {
   fromRebalance?: boolean;
 }
 
+export interface SelectedToken {
+  chainIndex: string;
+  tokenAddress: string;
+  tokenSymbol: string;
+}
+
 interface TradePreFillContextType {
   preFill: TradePreFill | null;
   setPreFill: (preFill: TradePreFill | null) => void;
   clearPreFill: () => void;
   hasPreFill: boolean;
+  // Bidirectional token sync between components
+  selectedPredictionToken: SelectedToken | null;
+  setSelectedPredictionToken: (token: SelectedToken | null) => void;
+  selectedSwapToken: SelectedToken | null;
+  setSelectedSwapToken: (token: SelectedToken | null) => void;
 }
 
 const TradePreFillContext = createContext<TradePreFillContextType | undefined>(undefined);
 
 export function TradePreFillProvider({ children }: { children: ReactNode }) {
   const [preFill, setPreFillState] = useState<TradePreFill | null>(null);
+  const [selectedPredictionToken, setSelectedPredictionTokenState] = useState<SelectedToken | null>(null);
+  const [selectedSwapToken, setSelectedSwapTokenState] = useState<SelectedToken | null>(null);
 
   const setPreFill = useCallback((newPreFill: TradePreFill | null) => {
     setPreFillState(newPreFill);
@@ -39,6 +52,14 @@ export function TradePreFillProvider({ children }: { children: ReactNode }) {
     setPreFillState(null);
   }, []);
 
+  const setSelectedPredictionToken = useCallback((token: SelectedToken | null) => {
+    setSelectedPredictionTokenState(token);
+  }, []);
+
+  const setSelectedSwapToken = useCallback((token: SelectedToken | null) => {
+    setSelectedSwapTokenState(token);
+  }, []);
+
   return (
     <TradePreFillContext.Provider
       value={{
@@ -46,6 +67,10 @@ export function TradePreFillProvider({ children }: { children: ReactNode }) {
         setPreFill,
         clearPreFill,
         hasPreFill: preFill !== null,
+        selectedPredictionToken,
+        setSelectedPredictionToken,
+        selectedSwapToken,
+        setSelectedSwapToken,
       }}
     >
       {children}

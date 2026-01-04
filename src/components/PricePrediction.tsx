@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Minus, Activity, Target, Shield, Clock, ChevronDown, Loader2, BarChart2, Layers, Search, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePricePrediction, PricePrediction as PricePredictionType } from '@/hooks/usePricePrediction';
 import { useTokenWatchlist } from '@/hooks/useTokenWatchlist';
+import { useTradePreFill } from '@/contexts/TradePreFillContext';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 import { cn } from '@/lib/utils';
 import { FibonacciLevels, VolumeProfileBin } from '@/lib/technicalIndicators';
@@ -42,6 +43,7 @@ export function PricePrediction({
 }: PricePredictionProps) {
   const { predict, prediction, isLoading, error } = usePricePrediction();
   const { tokens: watchlist } = useTokenWatchlist();
+  const { selectedSwapToken, setSelectedPredictionToken } = useTradePreFill();
   
   const [selectedToken, setSelectedToken] = useState<{
     chainIndex: string;
@@ -60,6 +62,24 @@ export function PricePrediction({
   const [tokenSelectorOpen, setTokenSelectorOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Track if update came from swap widget to avoid loops
+  const lastSwapTokenRef = useRef<string | null>(null);
+
+  // Sync from swap widget to prediction
+  useEffect(() => {
+    if (selectedSwapToken) {
+      const key = `${selectedSwapToken.chainIndex}-${selectedSwapToken.tokenAddress}`;
+      if (lastSwapTokenRef.current !== key) {
+        lastSwapTokenRef.current = key;
+        setSelectedToken({
+          chainIndex: selectedSwapToken.chainIndex,
+          address: selectedSwapToken.tokenAddress,
+          symbol: selectedSwapToken.tokenSymbol,
+        });
+      }
+    }
+  }, [selectedSwapToken]);
+
   // Auto-predict when token or timeframe changes
   useEffect(() => {
     if (selectedToken) {
@@ -71,10 +91,17 @@ export function PricePrediction({
     setSelectedToken(token);
     setTokenSelectorOpen(false);
     setSearchQuery('');
+    // Notify swap widget of selection
+    setSelectedPredictionToken({
+      chainIndex: token.chainIndex,
+      tokenAddress: token.address,
+      tokenSymbol: token.symbol,
+    });
   };
 
   const handleClearToken = () => {
     setSelectedToken(null);
+    setSelectedPredictionToken(null);
   };
 
   const getChainName = (chainIndex: string) => {
