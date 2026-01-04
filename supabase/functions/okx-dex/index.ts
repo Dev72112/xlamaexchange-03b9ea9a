@@ -463,17 +463,26 @@ serve(async (req) => {
           );
         }
         
-        const queryString = buildQueryString({
+        // Build params - userWalletAddress is optional for quotes
+        const quoteParams: Record<string, string | number | undefined> = {
           fromChainIndex,
           toChainIndex,
           fromTokenAddress,
           toTokenAddress,
           amount,
           slippage: slippage || '0.5',
-          userWalletAddress,
-        });
+        };
+        
+        // Only include userWalletAddress if provided
+        if (userWalletAddress) {
+          quoteParams.userWalletAddress = userWalletAddress;
+        }
+        
+        const queryString = buildQueryString(quoteParams);
         const requestPath = `/api/v6/dex/cross-chain/quote${queryString}`;
         const headers = await getOkxHeaders(requestPath);
+        
+        console.log(`Cross-chain quote request: ${fromChainIndex} -> ${toChainIndex}`, { hasAddress: !!userWalletAddress });
         
         response = await fetch(`${OKX_CROSS_CHAIN_URL}/quote${queryString}`, { method: 'GET', headers });
         break;

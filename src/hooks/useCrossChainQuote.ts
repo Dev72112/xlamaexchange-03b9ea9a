@@ -91,6 +91,7 @@ export function useCrossChainQuote({
       const decimals = parseInt(fromToken.decimals);
       const amountInSmallestUnit = toSmallestUnit(amount, decimals);
 
+      // userAddress is optional for quotes - allows viewing quotes without connecting
       const data = await okxDexService.getCrossChainQuote(
         fromChain.chainIndex,
         toChain.chainIndex,
@@ -98,7 +99,7 @@ export function useCrossChainQuote({
         toToken.tokenContractAddress,
         amountInSmallestUnit,
         slippage,
-        userAddress || ''
+        userAddress || undefined // Pass undefined, not empty string
       );
 
       if (data && !data.error) {
@@ -106,12 +107,20 @@ export function useCrossChainQuote({
         setLastUpdated(new Date());
         setError(null);
       } else {
-        setError(data?.error || 'No route available for this cross-chain swap');
+        // Parse the error message for user-friendly display
+        const errorMsg = data?.error || data?.msg || 'No route available for this cross-chain swap';
+        setError(errorMsg);
         setQuote(null);
       }
     } catch (err) {
       console.error('Failed to fetch cross-chain quote:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get cross-chain quote');
+      // Provide user-friendly error messages
+      const errorMessage = err instanceof Error ? err.message : 'Failed to get cross-chain quote';
+      if (errorMessage.includes('non-2xx') || errorMessage.includes('fetch')) {
+        setError('Unable to fetch quote. Please try again.');
+      } else {
+        setError(errorMessage);
+      }
       setQuote(null);
     } finally {
       setIsLoading(false);
