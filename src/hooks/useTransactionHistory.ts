@@ -10,6 +10,8 @@ export interface TransactionRecord {
   toImage: string;
   fromAmount: string;
   toAmount: string;
+  fromAmountUsd?: number;
+  toAmountUsd?: number;
   status: 'pending' | 'completed' | 'failed';
   payinAddress?: string;
   payoutAddress?: string;

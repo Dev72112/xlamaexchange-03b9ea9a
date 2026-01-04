@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useDexTransactionHistory, DexTransaction } from './useDexTransactionHistory';
 import { useTransactionHistory, TransactionRecord } from './useTransactionHistory';
 
@@ -6,82 +6,121 @@ interface TradePairStats {
   pair: string;
   count: number;
   volume: number;
+  volumeUsd: number;
 }
 
 interface DailyVolume {
   date: string;
   volume: number;
+  volumeUsd: number;
   count: number;
 }
 
-interface TradeAnalytics {
+interface HourlyDistribution {
+  hour: number;
+  count: number;
+  label: string;
+}
+
+interface TokenStats {
+  symbol: string;
+  trades: number;
+  volumeUsd: number;
+}
+
+export interface TradeAnalytics {
   // Summary stats
   totalTrades: number;
-  totalVolume: number;
-  avgTradeSize: number;
+  totalVolumeUsd: number;
+  avgTradeSizeUsd: number;
   successRate: number;
+  failedTrades: number;
+  pendingTrades: number;
   
   // Time-based
   dailyVolume: DailyVolume[];
   weeklyVolume: DailyVolume[];
+  hourlyDistribution: HourlyDistribution[];
   
   // Pair analysis
   topPairs: TradePairStats[];
   uniqueTokens: number;
+  topTokens: TokenStats[];
   
   // Chain analysis
-  chainDistribution: { chain: string; count: number; percentage: number }[];
+  chainDistribution: { chain: string; count: number; percentage: number; volumeUsd: number }[];
   
   // Performance
-  bestTradingDay: { date: string; volume: number } | null;
+  bestTradingDay: { date: string; volumeUsd: number; count: number } | null;
   avgTradesPerDay: number;
   tradingStreak: number;
+  activeDays: number;
+  
+  // Recent activity
+  last7DaysTrades: number;
+  last30DaysTrades: number;
+  weekOverWeekChange: number;
 }
 
-export function useTradeAnalytics() {
+export function useTradeAnalytics(): TradeAnalytics {
   const { transactions: dexTransactions } = useDexTransactionHistory();
   const { transactions: instantTransactions } = useTransactionHistory();
 
   const analytics = useMemo((): TradeAnalytics => {
     // Combine all swap transactions
+    const dexSwaps = dexTransactions.filter(tx => tx.type === 'swap');
     const allSwaps = [
-      ...dexTransactions.filter(tx => tx.type === 'swap'),
+      ...dexSwaps,
       ...instantTransactions,
     ];
 
     const totalTrades = allSwaps.length;
 
-    // Calculate success rate from DEX transactions
-    const successfulSwaps = dexTransactions.filter(
-      tx => tx.type === 'swap' && tx.status === 'confirmed'
-    ).length;
-    const successRate = dexTransactions.length > 0 
-      ? (successfulSwaps / dexTransactions.filter(tx => tx.type === 'swap').length) * 100 
+    // Calculate success/fail/pending rates
+    const successfulDexSwaps = dexSwaps.filter(tx => tx.status === 'confirmed').length;
+    const failedDexSwaps = dexSwaps.filter(tx => tx.status === 'failed').length;
+    const pendingDexSwaps = dexSwaps.filter(tx => tx.status === 'pending').length;
+    
+    const successfulInstant = instantTransactions.filter(tx => tx.status === 'completed').length;
+    const failedInstant = instantTransactions.filter(tx => tx.status === 'failed').length;
+    const pendingInstant = instantTransactions.filter(tx => tx.status === 'pending').length;
+    
+    const successfulTotal = successfulDexSwaps + successfulInstant;
+    const failedTrades = failedDexSwaps + failedInstant;
+    const pendingTrades = pendingDexSwaps + pendingInstant;
+    
+    const successRate = totalTrades > 0 
+      ? (successfulTotal / totalTrades) * 100 
       : 100;
 
-    // Estimate total volume (simplified - uses amount strings)
-    let totalVolume = 0;
+    // Calculate total volume in USD
+    let totalVolumeUsd = 0;
     allSwaps.forEach(tx => {
-      const amount = 'fromAmount' in tx 
-        ? parseFloat(tx.fromAmount || '0') 
-        : parseFloat(tx.fromTokenAmount || '0');
-      if (!isNaN(amount)) totalVolume += amount;
+      if ('fromAmountUsd' in tx && typeof tx.fromAmountUsd === 'number') {
+        totalVolumeUsd += tx.fromAmountUsd;
+      } else if ('fromAmountUsd' in tx && typeof (tx as any).fromAmountUsd === 'number') {
+        totalVolumeUsd += (tx as any).fromAmountUsd;
+      }
     });
 
-    const avgTradeSize = totalTrades > 0 ? totalVolume / totalTrades : 0;
+    const avgTradeSizeUsd = totalTrades > 0 ? totalVolumeUsd / totalTrades : 0;
 
-    // Group by day
-    const volumeByDay = new Map<string, { volume: number; count: number }>();
+    // Group by day with USD volume
+    const volumeByDay = new Map<string, { volume: number; volumeUsd: number; count: number }>();
     allSwaps.forEach(tx => {
       const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
       const date = new Date(timestamp).toISOString().split('T')[0];
-      const existing = volumeByDay.get(date) || { volume: 0, count: 0 };
+      const existing = volumeByDay.get(date) || { volume: 0, volumeUsd: 0, count: 0 };
+      
       const amount = 'fromAmount' in tx 
         ? parseFloat(tx.fromAmount || '0') 
-        : parseFloat(tx.fromTokenAmount || '0');
+        : parseFloat((tx as DexTransaction).fromTokenAmount || '0');
+      
+      const amountUsd = 'fromAmountUsd' in tx ? (tx.fromAmountUsd || 0) : 0;
       
       volumeByDay.set(date, {
         volume: existing.volume + (isNaN(amount) ? 0 : amount),
+        volumeUsd: existing.volumeUsd + amountUsd,
         count: existing.count + 1,
       });
     });
@@ -89,7 +128,7 @@ export function useTradeAnalytics() {
     const dailyVolume = Array.from(volumeByDay.entries())
       .map(([date, data]) => ({ date, ...data }))
       .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-30); // Last 30 days
+      .slice(-90); // Last 90 days
 
     // Weekly aggregation
     const weeklyVolume = dailyVolume.reduce<DailyVolume[]>((acc, day) => {
@@ -97,87 +136,171 @@ export function useTradeAnalytics() {
       const existing = acc.find(w => w.date === weekStart);
       if (existing) {
         existing.volume += day.volume;
+        existing.volumeUsd += day.volumeUsd;
         existing.count += day.count;
       } else {
-        acc.push({ date: weekStart, volume: day.volume, count: day.count });
+        acc.push({ date: weekStart, volume: day.volume, volumeUsd: day.volumeUsd, count: day.count });
       }
       return acc;
     }, []);
 
-    // Top pairs analysis
-    const pairCounts = new Map<string, { count: number; volume: number }>();
+    // Hourly distribution
+    const hourCounts = new Map<number, number>();
     allSwaps.forEach(tx => {
-      const fromSymbol = 'fromTicker' in tx ? tx.fromTicker : tx.fromTokenSymbol;
-      const toSymbol = 'toTicker' in tx ? tx.toTicker : tx.toTokenSymbol;
+      const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
+      const hour = new Date(timestamp).getHours();
+      hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+    });
+    
+    const hourlyDistribution: HourlyDistribution[] = Array.from({ length: 24 }, (_, i) => ({
+      hour: i,
+      count: hourCounts.get(i) || 0,
+      label: `${i.toString().padStart(2, '0')}:00`
+    }));
+
+    // Top pairs analysis with USD
+    const pairCounts = new Map<string, { count: number; volume: number; volumeUsd: number }>();
+    allSwaps.forEach(tx => {
+      const fromSymbol = 'fromTicker' in tx ? tx.fromTicker : (tx as DexTransaction).fromTokenSymbol;
+      const toSymbol = 'toTicker' in tx ? tx.toTicker : (tx as DexTransaction).toTokenSymbol;
       const pair = `${fromSymbol}/${toSymbol}`;
-      const existing = pairCounts.get(pair) || { count: 0, volume: 0 };
+      const existing = pairCounts.get(pair) || { count: 0, volume: 0, volumeUsd: 0 };
+      
       const amount = 'fromAmount' in tx 
         ? parseFloat(tx.fromAmount || '0') 
-        : parseFloat(tx.fromTokenAmount || '0');
+        : parseFloat((tx as DexTransaction).fromTokenAmount || '0');
+      
+      const amountUsd = 'fromAmountUsd' in tx ? (tx.fromAmountUsd || 0) : 0;
       
       pairCounts.set(pair, {
         count: existing.count + 1,
         volume: existing.volume + (isNaN(amount) ? 0 : amount),
+        volumeUsd: existing.volumeUsd + amountUsd,
       });
     });
 
     const topPairs = Array.from(pairCounts.entries())
       .map(([pair, data]) => ({ pair, ...data }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+      .sort((a, b) => b.volumeUsd - a.volumeUsd || b.count - a.count)
+      .slice(0, 10);
 
-    // Unique tokens
-    const uniqueTokensSet = new Set<string>();
+    // Unique tokens & top tokens
+    const tokenStats = new Map<string, { trades: number; volumeUsd: number }>();
     allSwaps.forEach(tx => {
-      const fromSymbol = 'fromTicker' in tx ? tx.fromTicker : tx.fromTokenSymbol;
-      const toSymbol = 'toTicker' in tx ? tx.toTicker : tx.toTokenSymbol;
-      uniqueTokensSet.add(fromSymbol);
-      uniqueTokensSet.add(toSymbol);
+      const fromSymbol = 'fromTicker' in tx ? tx.fromTicker : (tx as DexTransaction).fromTokenSymbol;
+      const toSymbol = 'toTicker' in tx ? tx.toTicker : (tx as DexTransaction).toTokenSymbol;
+      const amountUsd = 'fromAmountUsd' in tx ? (tx.fromAmountUsd || 0) : 0;
+      
+      // From token
+      const fromStats = tokenStats.get(fromSymbol) || { trades: 0, volumeUsd: 0 };
+      tokenStats.set(fromSymbol, {
+        trades: fromStats.trades + 1,
+        volumeUsd: fromStats.volumeUsd + amountUsd,
+      });
+      
+      // To token
+      const toStats = tokenStats.get(toSymbol) || { trades: 0, volumeUsd: 0 };
+      tokenStats.set(toSymbol, {
+        trades: toStats.trades + 1,
+        volumeUsd: toStats.volumeUsd,
+      });
     });
 
-    // Chain distribution (DEX only)
-    const chainCounts = new Map<string, number>();
-    dexTransactions.forEach(tx => {
-      const current = chainCounts.get(tx.chainName) || 0;
-      chainCounts.set(tx.chainName, current + 1);
+    const topTokens = Array.from(tokenStats.entries())
+      .map(([symbol, data]) => ({ symbol, ...data }))
+      .sort((a, b) => b.volumeUsd - a.volumeUsd)
+      .slice(0, 10);
+
+    // Chain distribution with USD (DEX only)
+    const chainStats = new Map<string, { count: number; volumeUsd: number }>();
+    dexSwaps.forEach(tx => {
+      const current = chainStats.get(tx.chainName) || { count: 0, volumeUsd: 0 };
+      chainStats.set(tx.chainName, {
+        count: current.count + 1,
+        volumeUsd: current.volumeUsd + (tx.fromAmountUsd || 0),
+      });
     });
 
-    const chainDistribution = Array.from(chainCounts.entries())
-      .map(([chain, count]) => ({
+    const chainDistribution = Array.from(chainStats.entries())
+      .map(([chain, data]) => ({
         chain,
-        count,
-        percentage: dexTransactions.length > 0 ? (count / dexTransactions.length) * 100 : 0,
+        count: data.count,
+        volumeUsd: data.volumeUsd,
+        percentage: dexSwaps.length > 0 ? (data.count / dexSwaps.length) * 100 : 0,
       }))
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => b.volumeUsd - a.volumeUsd);
 
-    // Best trading day
+    // Best trading day (by USD volume)
     const bestTradingDay = dailyVolume.length > 0
-      ? dailyVolume.reduce((best, day) => day.volume > best.volume ? day : best)
+      ? dailyVolume.reduce((best, day) => day.volumeUsd > best.volumeUsd ? day : best)
       : null;
 
-    // Average trades per day
+    // Unique trading days
     const uniqueDays = new Set(allSwaps.map(tx => {
       const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
       return new Date(timestamp).toISOString().split('T')[0];
     }));
-    const avgTradesPerDay = uniqueDays.size > 0 ? totalTrades / uniqueDays.size : 0;
+    const activeDays = uniqueDays.size;
+    const avgTradesPerDay = activeDays > 0 ? totalTrades / activeDays : 0;
 
     // Trading streak (consecutive days)
     const tradingStreak = calculateTradingStreak(Array.from(uniqueDays).sort());
 
+    // Recent activity metrics
+    const now = Date.now();
+    const last7Days = allSwaps.filter(tx => {
+      const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
+      return now - timestamp < 7 * 24 * 60 * 60 * 1000;
+    }).length;
+    
+    const last30Days = allSwaps.filter(tx => {
+      const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
+      return now - timestamp < 30 * 24 * 60 * 60 * 1000;
+    }).length;
+
+    // Week over week change
+    const thisWeekStart = now - 7 * 24 * 60 * 60 * 1000;
+    const lastWeekStart = now - 14 * 24 * 60 * 60 * 1000;
+    
+    const thisWeekTrades = allSwaps.filter(tx => {
+      const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
+      return timestamp >= thisWeekStart;
+    }).length;
+    
+    const lastWeekTrades = allSwaps.filter(tx => {
+      const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
+      return timestamp >= lastWeekStart && timestamp < thisWeekStart;
+    }).length;
+    
+    const weekOverWeekChange = lastWeekTrades > 0 
+      ? ((thisWeekTrades - lastWeekTrades) / lastWeekTrades) * 100 
+      : thisWeekTrades > 0 ? 100 : 0;
+
     return {
       totalTrades,
-      totalVolume,
-      avgTradeSize,
+      totalVolumeUsd,
+      avgTradeSizeUsd,
       successRate,
+      failedTrades,
+      pendingTrades,
       dailyVolume,
       weeklyVolume,
+      hourlyDistribution,
       topPairs,
-      uniqueTokens: uniqueTokensSet.size,
+      uniqueTokens: tokenStats.size,
+      topTokens,
       chainDistribution,
-      bestTradingDay: bestTradingDay ? { date: bestTradingDay.date, volume: bestTradingDay.volume } : null,
+      bestTradingDay: bestTradingDay ? { 
+        date: bestTradingDay.date, 
+        volumeUsd: bestTradingDay.volumeUsd,
+        count: bestTradingDay.count
+      } : null,
       avgTradesPerDay,
       tradingStreak,
+      activeDays,
+      last7DaysTrades: last7Days,
+      last30DaysTrades: last30Days,
+      weekOverWeekChange,
     };
   }, [dexTransactions, instantTransactions]);
 
