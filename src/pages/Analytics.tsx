@@ -57,11 +57,19 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 
 type TimePeriod = '7d' | '30d' | '90d' | 'all';
 
-const formatUsd = (value: number) => {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(2)}K`;
-  if (value >= 1) return `$${value.toFixed(2)}`;
-  return `$${value.toFixed(4)}`;
+const formatUsd = (value: number, compact = false) => {
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+  
+  if (absValue >= 1000000) return `${sign}$${(absValue / 1000000).toFixed(2)}M`;
+  if (absValue >= 1000) return `${sign}$${(absValue / 1000).toFixed(2)}K`;
+  if (absValue >= 100) return `${sign}$${absValue.toFixed(2)}`;
+  if (absValue >= 1) return `${sign}$${absValue.toFixed(2)}`;
+  if (absValue >= 0.01) return `${sign}$${absValue.toFixed(3)}`;
+  if (absValue >= 0.0001) return `${sign}$${absValue.toFixed(4)}`;
+  if (absValue >= 0.000001) return `${sign}$${absValue.toFixed(6)}`;
+  if (absValue === 0) return '$0.00';
+  return `${sign}$${absValue.toExponential(2)}`;
 };
 
 const StatCard = memo(function StatCard({ 
@@ -742,6 +750,68 @@ const Analytics = () => {
                     </p>
                   </div>
                 </div>
+
+                {/* Cumulative Performance Chart */}
+                {tradeVsHodl.cumulativeData.length > 1 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Cumulative Performance Over Time</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Shows how your trades performed vs holding over each successive trade
+                    </p>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <AreaChart data={tradeVsHodl.cumulativeData}>
+                        <defs>
+                          <linearGradient id="tradePnlGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="hodlPnlGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                          axisLine={{ stroke: 'hsl(var(--border))' }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                          axisLine={{ stroke: 'hsl(var(--border))' }}
+                          tickFormatter={(v) => formatUsd(v)}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area 
+                          type="monotone" 
+                          dataKey="tradePnl" 
+                          name="Trade P&L (USD)"
+                          stroke="hsl(var(--primary))" 
+                          strokeWidth={2}
+                          fill="url(#tradePnlGradient)" 
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="hodlPnl" 
+                          name="HODL P&L (USD)"
+                          stroke="hsl(var(--chart-3))" 
+                          strokeWidth={2}
+                          fill="url(#hodlPnlGradient)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    <div className="flex items-center justify-center gap-6 text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-0.5 bg-primary rounded" />
+                        <span className="text-muted-foreground">Trade P&L</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-0.5 bg-chart-3 rounded" />
+                        <span className="text-muted-foreground">HODL P&L</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Best & Worst Trade */}
                 <div className="grid md:grid-cols-2 gap-4">
