@@ -81,7 +81,9 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     exchangeRate,
     estimatedTimeMinutes,
     isLoading: quoteLoading,
+    isRetrying,
     error: quoteError,
+    refetch: refetchQuote,
   } = useCrossChainQuote({
     fromChain,
     toChain,
@@ -172,11 +174,11 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
         </>
       );
     }
-    if (quoteLoading) {
+    if (quoteLoading || isRetrying) {
       return (
         <>
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          Getting Quote...
+          {isRetrying ? 'Retrying...' : 'Getting Quote...'}
         </>
       );
     }
@@ -348,10 +350,20 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           )}
 
           {/* Error */}
-          {quoteError && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>{quoteError}</span>
+          {quoteError && !isRetrying && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-between text-sm text-destructive">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{quoteError}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refetchQuote}
+                className="h-7 text-xs"
+              >
+                Retry
+              </Button>
             </div>
           )}
 
