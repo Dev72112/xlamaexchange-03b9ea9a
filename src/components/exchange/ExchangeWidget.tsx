@@ -542,16 +542,18 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     setShowReviewModal(false);
     setShowSwapProgress(true);
     
-    // Add to transaction history as pending with USD values
+    // Add to transaction history as pending with USD values and token addresses
     const pendingTx = addTransaction({
       hash: '', // Will be updated
       chainId: selectedChain.chainIndex,
       chainName: selectedChain.name,
       fromTokenSymbol: fromDexToken!.tokenSymbol,
+      fromTokenAddress: fromDexToken!.tokenContractAddress,
       fromTokenAmount: fromAmount,
       fromTokenLogo: fromDexToken!.tokenLogoUrl,
       fromAmountUsd: fromUsdValue ? parseFloat(fromUsdValue.replace(/[,$]/g, '')) : undefined,
       toTokenSymbol: toDexToken!.tokenSymbol,
+      toTokenAddress: toDexToken!.tokenContractAddress,
       toTokenAmount: dexOutputAmount || '0',
       toTokenLogo: toDexToken!.tokenLogoUrl,
       toAmountUsd: toUsdValue ? parseFloat(toUsdValue.replace(/[,$]/g, '')) : undefined,

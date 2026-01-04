@@ -26,9 +26,13 @@ import {
   TrendingDown,
   AlertCircle,
   CheckCircle2,
-  Timer
+  Timer,
+  Scale,
+  Trophy,
+  Frown
 } from 'lucide-react';
 import { useTradeAnalytics } from '@/hooks/useTradeAnalytics';
+import { useTradeVsHodl } from '@/hooks/useTradeVsHodl';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { 
   BarChart, 
@@ -47,6 +51,7 @@ import {
   Line,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
 
@@ -186,6 +191,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const Analytics = () => {
   const analytics = useTradeAnalytics();
+  const tradeVsHodl = useTradeVsHodl();
   const { isConnected } = useMultiWallet();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -664,7 +670,182 @@ const Analytics = () => {
           </Card>
         </div>
 
-        {/* Best Trading Day */}
+        {/* Trade vs HODL Analysis */}
+        <Card className="bg-card/50 border-border/50 mb-8">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Scale className="w-4 h-4 text-primary" />
+              Trade vs HODL Analysis
+            </CardTitle>
+            <CardDescription>
+              Compare your trading performance against simply holding
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {tradeVsHodl.isLoading ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-20" />
+                  ))}
+                </div>
+                <Skeleton className="h-32" />
+              </div>
+            ) : tradeVsHodl.tradesAnalyzed > 0 ? (
+              <div className="space-y-6">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-lg bg-secondary/30">
+                    <p className="text-xs text-muted-foreground mb-1">Trade P&L</p>
+                    <p className={cn(
+                      "text-xl font-semibold font-mono",
+                      tradeVsHodl.tradePnl >= 0 ? "text-green-500" : "text-red-500"
+                    )}>
+                      {tradeVsHodl.tradePnl >= 0 ? '+' : ''}{formatUsd(tradeVsHodl.tradePnl)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Current value of trades</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-secondary/30">
+                    <p className="text-xs text-muted-foreground mb-1">HODL P&L</p>
+                    <p className={cn(
+                      "text-xl font-semibold font-mono",
+                      tradeVsHodl.hodlPnl >= 0 ? "text-green-500" : "text-red-500"
+                    )}>
+                      {tradeVsHodl.hodlPnl >= 0 ? '+' : ''}{formatUsd(tradeVsHodl.hodlPnl)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">If you had held instead</p>
+                  </div>
+                  <div className={cn(
+                    "p-4 rounded-lg",
+                    tradeVsHodl.tradingWasBetter ? "bg-green-500/10" : "bg-red-500/10"
+                  )}>
+                    <p className="text-xs text-muted-foreground mb-1">Trade vs HODL</p>
+                    <p className={cn(
+                      "text-xl font-semibold font-mono",
+                      tradeVsHodl.tradingWasBetter ? "text-green-500" : "text-red-500"
+                    )}>
+                      {tradeVsHodl.tradeVsHodlDiff >= 0 ? '+' : ''}{formatUsd(tradeVsHodl.tradeVsHodlDiff)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tradeVsHodl.tradingWasBetter ? 'Trading outperformed' : 'HODL would have been better'}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-secondary/30">
+                    <p className="text-xs text-muted-foreground mb-1">Win Rate</p>
+                    <p className="text-xl font-semibold font-mono">
+                      {tradeVsHodl.tradesAnalyzed > 0 
+                        ? ((tradeVsHodl.winningTrades / tradeVsHodl.tradesAnalyzed) * 100).toFixed(0) 
+                        : 0}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tradeVsHodl.winningTrades}W / {tradeVsHodl.losingTrades}L
+                    </p>
+                  </div>
+                </div>
+
+                {/* Best & Worst Trade */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  {tradeVsHodl.bestTrade && tradeVsHodl.bestTrade.tradeVsHodl > 0 && (
+                    <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Trophy className="w-4 h-4 text-green-500" />
+                        <span className="text-sm font-medium text-green-500">Best Trade</span>
+                      </div>
+                      <p className="font-medium">
+                        {tradeVsHodl.bestTrade.fromSymbol} → {tradeVsHodl.bestTrade.toSymbol}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Outperformed HODL by{' '}
+                        <span className="text-green-500 font-medium">
+                          {formatUsd(tradeVsHodl.bestTrade.tradeVsHodl)}
+                        </span>
+                        {' '}({tradeVsHodl.bestTrade.tradeVsHodlPercent > 0 ? '+' : ''}
+                        {tradeVsHodl.bestTrade.tradeVsHodlPercent.toFixed(1)}%)
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(tradeVsHodl.bestTrade.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                  {tradeVsHodl.worstTrade && tradeVsHodl.worstTrade.tradeVsHodl < 0 && (
+                    <div className="p-4 rounded-lg bg-red-500/5 border border-red-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Frown className="w-4 h-4 text-red-500" />
+                        <span className="text-sm font-medium text-red-500">Worst Trade</span>
+                      </div>
+                      <p className="font-medium">
+                        {tradeVsHodl.worstTrade.fromSymbol} → {tradeVsHodl.worstTrade.toSymbol}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Underperformed HODL by{' '}
+                        <span className="text-red-500 font-medium">
+                          {formatUsd(Math.abs(tradeVsHodl.worstTrade.tradeVsHodl))}
+                        </span>
+                        {' '}({tradeVsHodl.worstTrade.tradeVsHodlPercent.toFixed(1)}%)
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(tradeVsHodl.worstTrade.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Trade Performance List */}
+                {tradeVsHodl.trades.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Recent Trade Performance</h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {tradeVsHodl.trades.slice(0, 10).map((trade) => (
+                        <div 
+                          key={trade.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full flex-shrink-0",
+                              trade.tradeVsHodl >= 0 ? "bg-green-500" : "bg-red-500"
+                            )} />
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {trade.fromSymbol} → {trade.toSymbol}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(trade.date).toLocaleDateString()} • {trade.chainName}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className={cn(
+                              "text-sm font-medium font-mono",
+                              trade.tradeVsHodl >= 0 ? "text-green-500" : "text-red-500"
+                            )}>
+                              {trade.tradeVsHodl >= 0 ? '+' : ''}{formatUsd(trade.tradeVsHodl)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              vs HODL
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground text-center">
+                  Analyzed {tradeVsHodl.tradesAnalyzed} of {tradeVsHodl.totalTrades} trades • 
+                  Prices update every minute
+                </p>
+              </div>
+            ) : (
+              <EmptyState 
+                icon={Scale}
+                title="No trade data to analyze"
+                description="Complete some trades with USD value tracking to see how your trades compare to holding"
+              />
+            )}
+          </CardContent>
+        </Card>
+
         {analytics.bestTradingDay && analytics.bestTradingDay.volumeUsd > 0 && (
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardHeader className="pb-2">
