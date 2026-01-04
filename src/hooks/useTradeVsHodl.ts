@@ -24,6 +24,15 @@ interface TradePerformance {
   chainName?: string;
 }
 
+interface CumulativeDataPoint {
+  date: string;
+  tradeValue: number;
+  hodlValue: number;
+  tradePnl: number;
+  hodlPnl: number;
+  difference: number;
+}
+
 interface TradeVsHodlSummary {
   totalTrades: number;
   tradesAnalyzed: number;
@@ -40,6 +49,7 @@ interface TradeVsHodlSummary {
   bestTrade: TradePerformance | null;
   worstTrade: TradePerformance | null;
   trades: TradePerformance[];
+  cumulativeData: CumulativeDataPoint[];
   isLoading: boolean;
 }
 
@@ -186,6 +196,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
         bestTrade: null,
         worstTrade: null,
         trades: [],
+        cumulativeData: [],
         isLoading,
       };
     }
@@ -204,6 +215,27 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
 
     const sortedByPerformance = [...validTrades].sort((a, b) => b.tradeVsHodl - a.tradeVsHodl);
 
+    // Build cumulative chart data (sorted by date, oldest first)
+    const sortedByDate = [...validTrades].sort((a, b) => a.date - b.date);
+    let cumulativeTradeValue = 0;
+    let cumulativeHodlValue = 0;
+    let cumulativeOriginalValue = 0;
+    
+    const cumulativeData: CumulativeDataPoint[] = sortedByDate.map(trade => {
+      cumulativeOriginalValue += trade.tradeValueUsd;
+      cumulativeTradeValue += trade.currentToValueUsd;
+      cumulativeHodlValue += trade.currentFromValueUsd;
+      
+      return {
+        date: new Date(trade.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+        tradeValue: cumulativeTradeValue,
+        hodlValue: cumulativeHodlValue,
+        tradePnl: cumulativeTradeValue - cumulativeOriginalValue,
+        hodlPnl: cumulativeHodlValue - cumulativeOriginalValue,
+        difference: (cumulativeTradeValue - cumulativeOriginalValue) - (cumulativeHodlValue - cumulativeOriginalValue),
+      };
+    });
+
     return {
       totalTrades: confirmedSwaps.length,
       tradesAnalyzed: validTrades.length,
@@ -220,6 +252,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       bestTrade: sortedByPerformance[0] || null,
       worstTrade: sortedByPerformance[sortedByPerformance.length - 1] || null,
       trades: validTrades,
+      cumulativeData,
       isLoading,
     };
   }, [performances, confirmedSwaps.length, isLoading]);
