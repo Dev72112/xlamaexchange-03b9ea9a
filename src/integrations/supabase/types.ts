@@ -14,7 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      limit_orders: {
+        Row: {
+          amount: string
+          chain_index: string
+          condition: string
+          created_at: string
+          expires_at: string | null
+          from_token_address: string
+          from_token_symbol: string
+          id: string
+          slippage: string | null
+          status: string
+          target_price: number
+          to_token_address: string
+          to_token_symbol: string
+          triggered_at: string | null
+          user_address: string
+        }
+        Insert: {
+          amount: string
+          chain_index: string
+          condition: string
+          created_at?: string
+          expires_at?: string | null
+          from_token_address: string
+          from_token_symbol: string
+          id?: string
+          slippage?: string | null
+          status?: string
+          target_price: number
+          to_token_address: string
+          to_token_symbol: string
+          triggered_at?: string | null
+          user_address: string
+        }
+        Update: {
+          amount?: string
+          chain_index?: string
+          condition?: string
+          created_at?: string
+          expires_at?: string | null
+          from_token_address?: string
+          from_token_symbol?: string
+          id?: string
+          slippage?: string | null
+          status?: string
+          target_price?: number
+          to_token_address?: string
+          to_token_symbol?: string
+          triggered_at?: string | null
+          user_address?: string
+        }
+        Relationships: []
+      }
+      portfolio_snapshots: {
+        Row: {
+          chain_index: string
+          created_at: string
+          id: string
+          snapshot_date: string
+          total_value_usd: number | null
+          user_address: string
+        }
+        Insert: {
+          chain_index: string
+          created_at?: string
+          id?: string
+          snapshot_date: string
+          total_value_usd?: number | null
+          user_address: string
+        }
+        Update: {
+          chain_index?: string
+          created_at?: string
+          id?: string
+          snapshot_date?: string
+          total_value_usd?: number | null
+          user_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
