@@ -28,9 +28,11 @@ import {
   Download,
   Clock,
   ArrowRight,
+  BarChart3,
 } from 'lucide-react';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
+import { DCADashboard } from './DCADashboard';
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -223,15 +225,18 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
             </div>
             <div className="flex items-center gap-2">
               {orders.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={exportToCSV}
-                  title="Export to CSV"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
+                <>
+                  <DCADashboard />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={exportToCSV}
+                    title="Export to CSV"
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </>
               )}
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
