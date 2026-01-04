@@ -27,8 +27,52 @@ export function useLimitOrders() {
   const { toast } = useToast();
   const [orders, setOrders] = useState<LimitOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const notifiedOrdersRef = useRef<Set<string>>(new Set());
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestNotificationPermission = useCallback(async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      return permission === 'granted';
+    }
+    return Notification.permission === 'granted';
+  }, []);
+
+  // Export orders to CSV
+  const exportToCSV = useCallback(() => {
+    if (orders.length === 0) return;
+    
+    const headers = ['ID', 'From Token', 'To Token', 'Amount', 'Target Price', 'Condition', 'Status', 'Created At', 'Triggered At', 'Expires At'];
+    const rows = orders.map(order => [
+      order.id,
+      order.from_token_symbol,
+      order.to_token_symbol,
+      order.amount,
+      order.target_price.toString(),
+      order.condition,
+      order.status,
+      order.created_at,
+      order.triggered_at || '',
+      order.expires_at || '',
+    ]);
+    
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `limit-orders-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, [orders]);
 
   // Fetch user's orders
   const fetchOrders = useCallback(async () => {
@@ -174,6 +218,15 @@ export function useLimitOrders() {
             audio.play().catch(() => {});
           } catch {}
           
+          // Browser push notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('🎯 Limit Order Triggered!', {
+              body: `${order.from_token_symbol} is now ${order.condition} $${targetPrice.toFixed(6)}. Current: $${currentPrice.toFixed(6)}`,
+              icon: '/favicon.ico',
+              tag: `limit-order-${order.id}`,
+            });
+          }
+          
           toast({
             title: '🎯 Limit Order Triggered!',
             description: `${order.from_token_symbol} is now ${order.condition} $${targetPrice.toFixed(6)}. Current: $${currentPrice.toFixed(6)}`,
@@ -215,8 +268,11 @@ export function useLimitOrders() {
     activeOrders: orders.filter(o => o.status === 'active'),
     triggeredOrders: orders.filter(o => o.status === 'triggered'),
     isLoading,
+    notificationPermission,
     createOrder,
     cancelOrder,
     refetch: fetchOrders,
+    exportToCSV,
+    requestNotificationPermission,
   };
 }
