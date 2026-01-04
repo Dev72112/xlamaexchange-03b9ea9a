@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { okxDexService, CandlestickData } from '@/services/okxdex';
+import { okxDexService, CandlestickData, TokenPriceInfo } from '@/services/okxdex';
 import { 
   calculateSMA, 
   calculateEMA, 
@@ -230,13 +230,11 @@ export function usePricePrediction() {
     setError(null);
     
     try {
-      // Fetch candlestick data
-      const candles = await okxDexService.getCandlesticks(
-        chainIndex,
-        tokenAddress,
-        timeframe,
-        100
-      );
+      // Fetch live price and candlestick data in parallel for accuracy
+      const [priceInfo, candles] = await Promise.all([
+        okxDexService.getTokenPriceInfo(chainIndex, tokenAddress),
+        okxDexService.getCandlesticks(chainIndex, tokenAddress, timeframe, 100),
+      ]);
 
       if (candles.length < 50) {
         setError('Insufficient historical data for prediction');
@@ -245,6 +243,9 @@ export function usePricePrediction() {
       }
 
       const ohlcData = convertToOHLC(candles);
+      
+      // Use live price from OKX Market API for accurate current price
+      const livePrice = priceInfo?.price ? parseFloat(priceInfo.price) : null;
       
       // Calculate indicators
       const sma20 = calculateSMA(ohlcData, 20);
@@ -290,7 +291,9 @@ export function usePricePrediction() {
         bullishSignals > bearishSignals ? 'bullish' : 
         bearishSignals > bullishSignals ? 'bearish' : 'neutral';
 
-      const currentPrice = ohlcData[ohlcData.length - 1].close;
+      // Use live price from Market API if available, otherwise fallback to candle close
+      const candlePrice = ohlcData[ohlcData.length - 1].close;
+      const currentPrice = livePrice && livePrice > 0 ? livePrice : candlePrice;
       const predictedPrice = currentPrice * (1 + predictedChange / 100);
 
       const result: PricePrediction = {
