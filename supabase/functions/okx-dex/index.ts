@@ -295,6 +295,8 @@ serve(async (req) => {
           fromTokenAddress,
           toTokenAddress,
           amount,
+          // OKX v6 expects slippagePercent; keep slippage for backward compatibility
+          slippagePercent: validSlippage,
           slippage: validSlippage,
         };
         
@@ -327,6 +329,8 @@ serve(async (req) => {
           fromTokenAddress,
           toTokenAddress,
           amount,
+          // OKX v6 expects slippagePercent; keep slippage for backward compatibility
+          slippagePercent: validSlippage,
           slippage: validSlippage,
           userWalletAddress,
         };
@@ -501,6 +505,8 @@ serve(async (req) => {
           fromTokenAddress,
           toTokenAddress,
           amount,
+          // OKX v6 expects slippagePercent; keep slippage for backward compatibility
+          slippagePercent: validSlippage,
           slippage: validSlippage,
         };
         
@@ -540,6 +546,8 @@ serve(async (req) => {
           fromTokenAddress,
           toTokenAddress,
           amount,
+          // OKX v6 expects slippagePercent; keep slippage for backward compatibility
+          slippagePercent: validSlippage,
           slippage: validSlippage,
           userWalletAddress,
           receiveAddress: receiveAddress || userWalletAddress,
