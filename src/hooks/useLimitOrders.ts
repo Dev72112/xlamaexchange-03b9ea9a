@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { okxDexService } from '@/services/okxdex';
 import { useToast } from './use-toast';
 import { useFeedback } from './useFeedback';
-
+import { createWalletClient } from '@/lib/supabaseWithWallet';
 export interface LimitOrder {
   id: string;
   user_address: string;
@@ -32,6 +31,9 @@ export function useLimitOrders() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const notifiedOrdersRef = useRef<Set<string>>(new Set());
+  
+  // Create wallet-authenticated Supabase client
+  const supabase = useMemo(() => createWalletClient(activeAddress), [activeAddress]);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -91,11 +93,11 @@ export function useLimitOrders() {
       if (error) throw error;
       setOrders((data as LimitOrder[]) || []);
     } catch (err) {
-      console.error('Failed to fetch limit orders:', err);
+      // Silently handle fetch errors
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress]);
+  }, [activeAddress, supabase]);
 
   // Create new limit order
   const createOrder = useCallback(async (order: Omit<LimitOrder, 'id' | 'user_address' | 'status' | 'created_at' | 'triggered_at'>) => {
@@ -130,7 +132,6 @@ export function useLimitOrders() {
       fetchOrders();
       return data as LimitOrder;
     } catch (err) {
-      console.error('Failed to create limit order:', err);
       toast({
         title: 'Error',
         description: 'Failed to create limit order',
@@ -138,7 +139,7 @@ export function useLimitOrders() {
       });
       return null;
     }
-  }, [activeAddress, fetchOrders, toast]);
+  }, [activeAddress, supabase, fetchOrders, toast]);
 
   // Cancel order
   const cancelOrder = useCallback(async (orderId: string) => {
@@ -157,9 +158,9 @@ export function useLimitOrders() {
       
       fetchOrders();
     } catch (err) {
-      console.error('Failed to cancel order:', err);
+      // Silently handle cancel errors
     }
-  }, [fetchOrders, toast]);
+  }, [supabase, fetchOrders, toast]);
 
   // Mark order as triggered
   const markTriggered = useCallback(async (orderId: string) => {
@@ -175,9 +176,9 @@ export function useLimitOrders() {
       if (error) throw error;
       fetchOrders();
     } catch (err) {
-      console.error('Failed to mark order as triggered:', err);
+      // Silently handle trigger errors
     }
-  }, [fetchOrders]);
+  }, [supabase, fetchOrders]);
 
   // Monitor active orders for price triggers
   const checkPrices = useCallback(async () => {
@@ -232,11 +233,11 @@ export function useLimitOrders() {
             description: `${order.from_token_symbol} is now ${order.condition} $${targetPrice.toFixed(6)}. Current: $${currentPrice.toFixed(6)}`,
           });
         }
-      } catch (err) {
-        console.error('Failed to check price for order:', order.id, err);
+      } catch {
+        // Silently handle price check errors
       }
     }
-  }, [orders, markTriggered, toast]);
+  }, [orders, supabase, markTriggered, settings.soundEnabled, playAlert, toast]);
 
   // Start/stop price monitoring
   useEffect(() => {

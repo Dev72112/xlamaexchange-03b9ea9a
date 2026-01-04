@@ -121,12 +121,10 @@ export const initializeProjectId = async (): Promise<string> => {
     // Use cache only if version matches AND project ID is valid
     if (cachedVersion === CURRENT_VERSION && isValidProjectId(cachedProjectId)) {
       projectId = cachedProjectId;
-      console.log('[AppKit] Using cached WalletConnect Project ID');
       return projectId;
     }
 
     // Always fetch from backend
-    console.log('[AppKit] Fetching WalletConnect Project ID from backend...');
     const response = await fetch(`${backendUrl}/functions/v1/walletconnect-config`, {
       headers: {
         apikey: anonKey,
@@ -136,15 +134,12 @@ export const initializeProjectId = async (): Promise<string> => {
 
     if (response.ok) {
       const data = await response.json();
-      console.log('[AppKit] Backend response:', { configured: data.configured, hasProjectId: !!data.projectId });
       
       if (data.projectId && isValidProjectId(data.projectId)) {
         projectId = data.projectId;
         localStorage.setItem('walletconnectProjectId', data.projectId);
         localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
-        console.log('[AppKit] WalletConnect Project ID loaded and cached from backend');
       } else {
-        console.error('[AppKit] Invalid or missing Project ID from backend');
         // Clear invalid cache
         localStorage.removeItem('walletconnectProjectId');
         localStorage.removeItem(STORAGE_VERSION_KEY);

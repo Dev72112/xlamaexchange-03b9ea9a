@@ -110,9 +110,6 @@ export function useDexSwap() {
             const currentAllowance = BigInt(allowanceResult || '0x0');
             const requiredAmount = BigInt(amountInSmallestUnit);
 
-            console.log('Current allowance:', currentAllowance.toString());
-            console.log('Required amount:', requiredAmount.toString());
-
             // If current allowance is less than required, request approval
             if (currentAllowance < requiredAmount) {
               setStep('approving');
@@ -145,8 +142,6 @@ export function useDexSwap() {
                 title: "Approval Confirmed",
                 description: `${fromToken.tokenSymbol} approved for spending`,
               });
-            } else {
-              console.log('Sufficient allowance already exists');
             }
           } catch (allowanceError) {
             console.error('Error checking allowance:', allowanceError);
