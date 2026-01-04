@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign, BarChart3, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ import { ModeToggle, ExchangeMode } from "./ModeToggle";
 import { ChainSelector } from "./ChainSelector";
 import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
-import { Chain, getPrimaryChain, NATIVE_TOKEN_ADDRESS } from "@/data/chains";
+import { Chain, getPrimaryChain, NATIVE_TOKEN_ADDRESS, SUPPORTED_CHAINS } from "@/data/chains";
 import { OkxToken } from "@/services/okxdex";
 import { useDexTokens } from "@/hooks/useDexTokens";
 import { useDexQuote } from "@/hooks/useDexQuote";
@@ -34,6 +34,7 @@ import { HighPriceImpactModal } from "./HighPriceImpactModal";
 import { AdvancedPriceChart } from "./AdvancedPriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
+import { useTradePreFill } from "@/contexts/TradePreFillContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LimitOrderForm } from "@/components/LimitOrderForm";
 import { DCAOrderForm } from "@/components/DCAOrderForm";
@@ -82,6 +83,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { isFavorite, toggleFavorite } = useFavoritePairs();
   const { isConnected, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain } = useMultiWallet();
   const { triggerFeedback } = useFeedback();
+  const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   
   // Exchange mode state
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
@@ -114,6 +116,9 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showHighImpactModal, setShowHighImpactModal] = useState(false);
   const [showChart, setShowChart] = useState(false);
+
+  // Track if update came from prediction to avoid loops
+  const lastPredictionTokenRef = useRef<string | null>(null);
   
   // DEX hooks - tokens for source chain
   const { tokens: dexTokens, nativeToken, isLoading: tokensLoading, refetch: refetchTokens } = useDexTokens(
@@ -233,6 +238,45 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       }
     }
   }, [exchangeMode, dexTokens, nativeToken, fromDexToken, toDexToken]);
+
+  // Sync from prediction component to swap widget (set "to" token)
+  useEffect(() => {
+    if (selectedPredictionToken && exchangeMode === 'dex' && dexTokens.length > 0) {
+      const key = `${selectedPredictionToken.chainIndex}-${selectedPredictionToken.tokenAddress}`;
+      if (lastPredictionTokenRef.current !== key) {
+        lastPredictionTokenRef.current = key;
+        
+        // Switch chain if needed
+        if (selectedPredictionToken.chainIndex !== selectedChain.chainIndex) {
+          const newChain = SUPPORTED_CHAINS.find(c => c.chainIndex === selectedPredictionToken.chainIndex);
+          if (newChain) {
+            setSelectedChain(newChain);
+            // Token will be set after chain tokens load
+            return;
+          }
+        }
+        
+        // Find and set the token as "to" token
+        const matchingToken = dexTokens.find(
+          t => t.tokenContractAddress.toLowerCase() === selectedPredictionToken.tokenAddress.toLowerCase()
+        );
+        if (matchingToken) {
+          setToDexToken(matchingToken);
+        }
+      }
+    }
+  }, [selectedPredictionToken, exchangeMode, dexTokens, selectedChain.chainIndex]);
+
+  // Emit swap token changes to sync with prediction
+  useEffect(() => {
+    if (exchangeMode === 'dex' && toDexToken && selectedChain) {
+      setSelectedSwapToken({
+        chainIndex: selectedChain.chainIndex,
+        tokenAddress: toDexToken.tokenContractAddress,
+        tokenSymbol: toDexToken.tokenSymbol,
+      });
+    }
+  }, [exchangeMode, toDexToken, selectedChain, setSelectedSwapToken]);
 
   // Fetch available currencies on mount
   const fetchCurrencies = useCallback(async () => {
