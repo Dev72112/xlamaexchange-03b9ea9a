@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.price-history]
 verify_jwt = false
+
+[functions.signed-orders]
+verify_jwt = false

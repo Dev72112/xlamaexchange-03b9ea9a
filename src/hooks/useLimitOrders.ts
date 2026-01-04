@@ -4,6 +4,9 @@ import { okxDexService } from '@/services/okxdex';
 import { useToast } from './use-toast';
 import { useFeedback } from './useFeedback';
 import { createWalletClient } from '@/lib/supabaseWithWallet';
+import { supabase } from '@/integrations/supabase/client';
+import { createSignedOrderRequest, createSignedCancelRequest } from '@/lib/requestSigning';
+
 export interface LimitOrder {
   id: string;
   user_address: string;
@@ -23,17 +26,18 @@ export interface LimitOrder {
 }
 
 export function useLimitOrders() {
-  const { activeAddress, isConnected } = useMultiWallet();
+  const { activeAddress, isConnected, activeChainType } = useMultiWallet();
   const { toast } = useToast();
   const { playAlert, settings } = useFeedback();
   const [orders, setOrders] = useState<LimitOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const notifiedOrdersRef = useRef<Set<string>>(new Set());
   
-  // Create wallet-authenticated Supabase client
-  const supabase = useMemo(() => createWalletClient(activeAddress), [activeAddress]);
+  // Create wallet-authenticated Supabase client for reads
+  const walletSupabase = useMemo(() => createWalletClient(activeAddress), [activeAddress]);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -84,7 +88,7 @@ export function useLimitOrders() {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await walletSupabase
         .from('limit_orders')
         .select('*')
         .eq('user_address', activeAddress.toLowerCase())
@@ -92,80 +96,231 @@ export function useLimitOrders() {
       
       if (error) throw error;
       setOrders((data as LimitOrder[]) || []);
-    } catch (err) {
+    } catch {
       // Silently handle fetch errors
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress, supabase]);
+  }, [activeAddress, walletSupabase]);
 
-  // Create new limit order
+  // Create new limit order with signature verification
   const createOrder = useCallback(async (order: Omit<LimitOrder, 'id' | 'user_address' | 'status' | 'created_at' | 'triggered_at'>) => {
     if (!activeAddress) return null;
     
+    // Only EVM chains support message signing currently
+    const chainType = activeChainType === 'solana' ? 'solana' : 'evm';
+    
+    // For non-EVM/Solana chains, fall back to direct insert (less secure)
+    if (!['evm', 'solana'].includes(activeChainType)) {
+      toast({
+        title: 'Signature Not Supported',
+        description: `Message signing is not yet supported for ${activeChainType} chains. Order created without signature.`,
+      });
+      
+      // Direct insert for unsupported chains
+      try {
+        const { data, error } = await walletSupabase
+          .from('limit_orders')
+          .insert({
+            user_address: activeAddress.toLowerCase(),
+            chain_index: order.chain_index,
+            from_token_address: order.from_token_address,
+            to_token_address: order.to_token_address,
+            from_token_symbol: order.from_token_symbol,
+            to_token_symbol: order.to_token_symbol,
+            amount: order.amount,
+            target_price: order.target_price,
+            condition: order.condition,
+            slippage: order.slippage || '0.5',
+            expires_at: order.expires_at,
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        toast({
+          title: 'Limit Order Created',
+          description: `Will trigger when ${order.from_token_symbol} is ${order.condition} $${order.target_price.toFixed(6)}`,
+        });
+        
+        fetchOrders();
+        return data as LimitOrder;
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Failed to create limit order',
+          variant: 'destructive',
+        });
+        return null;
+      }
+    }
+    
+    setIsSigning(true);
+    
     try {
-      const { data, error } = await supabase
-        .from('limit_orders')
-        .insert({
-          user_address: activeAddress.toLowerCase(),
-          chain_index: order.chain_index,
-          from_token_address: order.from_token_address,
-          to_token_address: order.to_token_address,
+      toast({
+        title: 'Sign Message',
+        description: 'Please sign the message in your wallet to create the order',
+      });
+      
+      // Create signed request
+      const signedRequest = await createSignedOrderRequest(
+        {
+          amount: order.amount,
           from_token_symbol: order.from_token_symbol,
           to_token_symbol: order.to_token_symbol,
-          amount: order.amount,
           target_price: order.target_price,
           condition: order.condition,
-          slippage: order.slippage || '0.5',
-          expires_at: order.expires_at,
-        })
-        .select()
-        .single();
+          chain_index: order.chain_index,
+        },
+        chainType
+      );
+      
+      if (!signedRequest) {
+        toast({
+          title: 'Signing Cancelled',
+          description: 'You need to sign the message to create a limit order',
+          variant: 'destructive',
+        });
+        return null;
+      }
+      
+      // Call signed-orders edge function
+      const { data, error } = await supabase.functions.invoke('signed-orders', {
+        body: {
+          action: 'create-order',
+          order: {
+            chain_index: order.chain_index,
+            from_token_address: order.from_token_address,
+            to_token_address: order.to_token_address,
+            from_token_symbol: order.from_token_symbol,
+            to_token_symbol: order.to_token_symbol,
+            amount: order.amount,
+            target_price: order.target_price,
+            condition: order.condition,
+            slippage: order.slippage || '0.5',
+            expires_at: order.expires_at,
+          },
+          signature: signedRequest.signature,
+          timestamp: signedRequest.timestamp,
+          nonce: signedRequest.nonce,
+          walletAddress: activeAddress,
+          chainType,
+        },
+      });
       
       if (error) throw error;
       
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
       toast({
-        title: 'Limit Order Created',
-        description: `Will trigger when ${order.from_token_symbol} is ${order.condition} $${order.target_price.toFixed(6)}`,
+        title: '✅ Limit Order Created',
+        description: `Signed and verified. Will trigger when ${order.from_token_symbol} is ${order.condition} $${order.target_price.toFixed(6)}`,
       });
       
       fetchOrders();
-      return data as LimitOrder;
+      return data.order as LimitOrder;
     } catch (err) {
       toast({
         title: 'Error',
-        description: 'Failed to create limit order',
+        description: err instanceof Error ? err.message : 'Failed to create limit order',
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setIsSigning(false);
     }
-  }, [activeAddress, supabase, fetchOrders, toast]);
+  }, [activeAddress, activeChainType, walletSupabase, fetchOrders, toast]);
 
-  // Cancel order
+  // Cancel order with signature verification
   const cancelOrder = useCallback(async (orderId: string) => {
+    if (!activeAddress) return;
+    
+    const chainType = activeChainType === 'solana' ? 'solana' : 'evm';
+    
+    // For non-EVM/Solana chains, fall back to direct update
+    if (!['evm', 'solana'].includes(activeChainType)) {
+      try {
+        const { error } = await walletSupabase
+          .from('limit_orders')
+          .update({ status: 'cancelled' })
+          .eq('id', orderId);
+        
+        if (error) throw error;
+        
+        toast({
+          title: 'Order Cancelled',
+          description: 'Limit order has been cancelled',
+        });
+        
+        fetchOrders();
+      } catch {
+        // Silently handle cancel errors
+      }
+      return;
+    }
+    
+    setIsSigning(true);
+    
     try {
-      const { error } = await supabase
-        .from('limit_orders')
-        .update({ status: 'cancelled' })
-        .eq('id', orderId);
+      toast({
+        title: 'Sign Message',
+        description: 'Please sign the message in your wallet to cancel the order',
+      });
+      
+      const signedRequest = await createSignedCancelRequest(orderId, chainType);
+      
+      if (!signedRequest) {
+        toast({
+          title: 'Signing Cancelled',
+          description: 'You need to sign the message to cancel the order',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      const { data, error } = await supabase.functions.invoke('signed-orders', {
+        body: {
+          action: 'cancel-order',
+          order: { orderId },
+          signature: signedRequest.signature,
+          timestamp: signedRequest.timestamp,
+          nonce: signedRequest.nonce,
+          walletAddress: activeAddress,
+          chainType,
+        },
+      });
       
       if (error) throw error;
       
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
       toast({
-        title: 'Order Cancelled',
-        description: 'Limit order has been cancelled',
+        title: '✅ Order Cancelled',
+        description: 'Limit order has been cancelled and verified',
       });
       
       fetchOrders();
     } catch (err) {
-      // Silently handle cancel errors
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to cancel order',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSigning(false);
     }
-  }, [supabase, fetchOrders, toast]);
+  }, [activeAddress, activeChainType, walletSupabase, fetchOrders, toast]);
 
-  // Mark order as triggered
+  // Mark order as triggered (internal use - no signature needed)
   const markTriggered = useCallback(async (orderId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await walletSupabase
         .from('limit_orders')
         .update({ 
           status: 'triggered',
@@ -175,10 +330,10 @@ export function useLimitOrders() {
       
       if (error) throw error;
       fetchOrders();
-    } catch (err) {
+    } catch {
       // Silently handle trigger errors
     }
-  }, [supabase, fetchOrders]);
+  }, [walletSupabase, fetchOrders]);
 
   // Monitor active orders for price triggers
   const checkPrices = useCallback(async () => {
@@ -188,7 +343,7 @@ export function useLimitOrders() {
     for (const order of activeOrders) {
       // Check expiration
       if (order.expires_at && new Date(order.expires_at) < new Date()) {
-        await supabase
+        await walletSupabase
           .from('limit_orders')
           .update({ status: 'expired' })
           .eq('id', order.id);
@@ -237,7 +392,7 @@ export function useLimitOrders() {
         // Silently handle price check errors
       }
     }
-  }, [orders, supabase, markTriggered, settings.soundEnabled, playAlert, toast]);
+  }, [orders, walletSupabase, markTriggered, settings.soundEnabled, playAlert, toast]);
 
   // Start/stop price monitoring
   useEffect(() => {
@@ -269,6 +424,7 @@ export function useLimitOrders() {
     activeOrders: orders.filter(o => o.status === 'active'),
     triggeredOrders: orders.filter(o => o.status === 'triggered'),
     isLoading,
+    isSigning,
     notificationPermission,
     createOrder,
     cancelOrder,
