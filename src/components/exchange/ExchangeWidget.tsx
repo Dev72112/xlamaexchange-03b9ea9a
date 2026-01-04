@@ -31,7 +31,7 @@ import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
 import { SwapReviewModal } from "./SwapReviewModal";
 import { HighPriceImpactModal } from "./HighPriceImpactModal";
-import { DexPriceChart } from "./DexPriceChart";
+import { AdvancedPriceChart } from "./AdvancedPriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -988,7 +988,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="mt-3">
-                    <DexPriceChart
+                    <AdvancedPriceChart
                       chain={selectedChain}
                       token={toDexToken}
                     />
