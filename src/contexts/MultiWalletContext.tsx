@@ -392,14 +392,44 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     return false; // TonWalletPicker handles the actual connection
   }, []);
 
-  // Watch for TON connection
+  // Watch for TON connection and capture tonProof
   useEffect(() => {
     if (!tonConnectUI) return;
+    
+    // Request tonProof during connection for secure signed operations
+    const payload = crypto.randomUUID();
+    tonConnectUI.setConnectRequestParameters({
+      state: 'ready',
+      value: { tonProof: payload },
+    });
+    
     const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
       if (wallet) {
         setConnectionStatus('connected');
+        
+        // Capture tonProof if available for signed operations
+        if (wallet.connectItems?.tonProof && 'proof' in wallet.connectItems.tonProof) {
+          const proof = wallet.connectItems.tonProof.proof;
+          // Store the proof globally for use in signing operations
+          import('@/hooks/useTonProof').then(({ setGlobalTonProof }) => {
+            setGlobalTonProof({
+              timestamp: proof.timestamp,
+              domainLengthBytes: proof.domain.lengthBytes,
+              domainValue: proof.domain.value,
+              signature: proof.signature,
+              payload: proof.payload,
+              stateInit: wallet.account.walletStateInit || '',
+              publicKey: wallet.account.publicKey || '',
+            });
+            console.log('[MultiWallet] Captured TON proof for signed operations');
+          });
+        }
       } else if (!evmAddress && !solanaAddress && !suiAddress && !tronAddress) {
         setConnectionStatus('disconnected');
+        // Clear stored proof when disconnected
+        import('@/hooks/useTonProof').then(({ setGlobalTonProof }) => {
+          setGlobalTonProof(null);
+        });
       }
     });
     return () => unsubscribe();
@@ -490,6 +520,10 @@ export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
       <SuiWalletProvider autoConnect>
         <TonConnectUIProvider 
           manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}
+          actionsConfiguration={{
+            // Request tonProof during connection for secure operations
+            twaReturnUrl: window.location.origin as `${string}://${string}`,
+          }}
           walletsListConfiguration={{
             includeWallets: [
               {

@@ -181,6 +181,7 @@ export function useDCAOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
+          tonProof: signedRequest.tonProof,
         },
       });
       
@@ -250,6 +251,7 @@ export function useDCAOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
+          tonProof: signedRequest.tonProof,
         },
       });
       
@@ -309,6 +311,7 @@ export function useDCAOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
+          tonProof: signedRequest.tonProof,
         },
       });
       
@@ -368,6 +371,7 @@ export function useDCAOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
+          tonProof: signedRequest.tonProof,
         },
       });
       
