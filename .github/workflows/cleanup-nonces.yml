@@ -1,0 +1,31 @@
+name: Daily Nonce Cleanup
+
+on:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call cleanup-nonces edge function
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://mnziekrimlmvnrcwgmbk.supabase.co/functions/v1/cleanup-nonces" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response: $body"
+          echo "HTTP Status: $http_code"
+          
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Nonce cleanup completed successfully"
+          else
+            echo "❌ Nonce cleanup failed with status $http_code"
+            exit 1
+          fi
