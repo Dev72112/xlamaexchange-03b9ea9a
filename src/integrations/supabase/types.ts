@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      anonymous_feedback: {
+        Row: {
+          created_at: string
+          feedback_type: string
+          id: string
+          message: string
+          page_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          feedback_type: string
+          id?: string
+          message: string
+          page_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          message?: string
+          page_url?: string | null
+        }
+        Relationships: []
+      }
       bridge_intents: {
         Row: {
           bridge_provider: string | null
@@ -191,6 +215,27 @@ export type Database = {
           total_spent?: string | null
           updated_at?: string | null
           user_address?: string
+        }
+        Relationships: []
+      }
+      feature_votes: {
+        Row: {
+          feature_id: string
+          id: string
+          updated_at: string
+          vote_count: number
+        }
+        Insert: {
+          feature_id: string
+          id?: string
+          updated_at?: string
+          vote_count?: number
+        }
+        Update: {
+          feature_id?: string
+          id?: string
+          updated_at?: string
+          vote_count?: number
         }
         Relationships: []
       }
@@ -491,6 +536,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: number }
+      increment_feature_vote: {
+        Args: { p_feature_id: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
