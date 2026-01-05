@@ -70,6 +70,7 @@ export const Footer = memo(function Footer() {
           <nav aria-label="Support links">
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">Support</h4>
             <ul className="space-y-2.5 text-sm">
+              <li><Link to="/docs" onMouseEnter={() => handleLinkHover('/docs')} className="text-foreground/80 hover:text-foreground transition-colors">Documentation</Link></li>
               <li><Link to="/faq" onMouseEnter={() => handleLinkHover('/faq')} className="text-foreground/80 hover:text-foreground transition-colors">FAQ</Link></li>
               <li><Link to="/about" onMouseEnter={() => handleLinkHover('/about')} className="text-foreground/80 hover:text-foreground transition-colors">About Us</Link></li>
               <li>
