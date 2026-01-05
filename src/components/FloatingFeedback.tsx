@@ -1,4 +1,4 @@
-import React, { useState, memo } from "react";
+import React, { useState, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -27,7 +27,7 @@ const FEEDBACK_TYPES = [
 
 const MAX_MESSAGE_LENGTH = 1000;
 
-export const FloatingFeedback = memo(function FloatingFeedback() {
+export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeedback(_props, ref) {
   const [open, setOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState<string>("");
   const [message, setMessage] = useState("");
@@ -82,7 +82,7 @@ export const FloatingFeedback = memo(function FloatingFeedback() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div ref={ref} className="fixed bottom-4 right-4 z-50">
       <Popover open={open} onOpenChange={(isOpen) => {
         setOpen(isOpen);
         if (!isOpen) resetForm();
@@ -191,3 +191,5 @@ export const FloatingFeedback = memo(function FloatingFeedback() {
     </div>
   );
 });
+
+FloatingFeedback.displayName = "FloatingFeedback";
