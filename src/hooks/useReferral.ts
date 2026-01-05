@@ -53,9 +53,10 @@ export function useReferral(walletAddress: string | null) {
   }, [walletAddress]);
 
   const referralLink = useMemo(() => {
-    if (!referralCode) return null;
-    return `${window.location.origin}?ref=${referralCode}`;
-  }, [referralCode]);
+    if (!referralCode || !walletAddress) return null;
+    // Include wallet address in referral link for first-time referral verification
+    return `${window.location.origin}?ref=${referralCode}&ra=${walletAddress}`;
+  }, [referralCode, walletAddress]);
 
   const canClaim = useMemo(() => {
     return data && data.claimableEarnings >= MINIMUM_CLAIM_USD && !pendingClaim;
@@ -158,15 +159,23 @@ export function useReferral(walletAddress: string | null) {
 
       const urlParams = new URLSearchParams(window.location.search);
       const refCode = urlParams.get('ref');
+      const referrerAddr = urlParams.get('ra'); // Referrer address for first-time verification
       
       if (!refCode || refCode === referralCode) return;
 
       try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        // Include referrer address header for first-time referral verification
+        if (referrerAddr) {
+          headers['x-referrer-address'] = referrerAddr;
+        }
+
         const response = await fetch(`${SUPABASE_URL}/functions/v1/register-referral`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             referralCode: refCode,
             refereeAddress: walletAddress,
@@ -181,6 +190,7 @@ export function useReferral(walletAddress: string | null) {
 
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('ref');
+        newUrl.searchParams.delete('ra');
         window.history.replaceState({}, '', newUrl.toString());
 
       } catch (err) {
