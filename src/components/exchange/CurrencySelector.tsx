@@ -120,8 +120,8 @@ export function CurrencySelector({
       key={currency.ticker}
       onClick={() => handleSelect(currency)}
       className={cn(
-        "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
-        "hover:bg-accent/50",
+        "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 min-h-[44px] cursor-pointer rounded-lg transition-colors",
+        "hover:bg-accent/50 active:bg-accent/70",
         value.ticker === currency.ticker && "bg-accent"
       )}
     >
