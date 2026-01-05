@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowDown, Clock, Fuel, AlertTriangle, Loader2, ArrowRightLeft, Wallet, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,16 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChainSelector } from './ChainSelector';
 import { DexTokenSelector } from './DexTokenSelector';
-import { BridgeProgress } from './BridgeProgress';
+import { LiFiBridgeProgress } from './LiFiBridgeProgress';
 import { Chain, getPrimaryChain, SUPPORTED_CHAINS, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { OkxToken } from '@/services/okxdex';
+import { lifiService } from '@/services/lifi';
 import { useDexTokens } from '@/hooks/useDexTokens';
-import { useCrossChainQuote } from '@/hooks/useCrossChainQuote';
+import { useLiFiQuote } from '@/hooks/useLiFiQuote';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
-import { useCrossChainSwapExecution, BridgeTransaction } from '@/hooks/useCrossChainSwapExecution';
+import { useLiFiSwapExecution } from '@/hooks/useLiFiSwapExecution';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
-import { useReferral } from '@/hooks/useReferral';
 import { cn } from '@/lib/utils';
 import { SlippageSettings } from './SlippageSettings';
 import {
@@ -27,31 +27,37 @@ interface CrossChainSwapProps {
   className?: string;
 }
 
+// Note: ChainSelector will show all chains, but Li.Fi only supports a subset
+// Quote errors will inform users when a chain isn't supported
+
 export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const { toast } = useToast();
   const { isConnected, activeAddress, getEvmProvider } = useMultiWallet();
-  const { recordTradeCommission } = useReferral(activeAddress);
 
-  // Chain states
-  const [fromChain, setFromChain] = useState<Chain>(getPrimaryChain());
-  const [toChain, setToChain] = useState<Chain>(SUPPORTED_CHAINS.find(c => c.chainIndex === '1') || SUPPORTED_CHAINS[1]);
+  // Chain states - default to Ethereum and Polygon (both Li.Fi supported)
+  const [fromChain, setFromChain] = useState<Chain>(
+    SUPPORTED_CHAINS.find(c => c.chainIndex === '1') || getPrimaryChain()
+  );
+  const [toChain, setToChain] = useState<Chain>(
+    SUPPORTED_CHAINS.find(c => c.chainIndex === '137') || SUPPORTED_CHAINS[1]
+  );
 
-  // Token states
+  // Token states - using OkxToken type for compatibility with DexTokenSelector
   const [fromToken, setFromToken] = useState<OkxToken | null>(null);
   const [toToken, setToToken] = useState<OkxToken | null>(null);
   const [fromAmount, setFromAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<string>('1.0');
   const [showBridgeProgress, setShowBridgeProgress] = useState(false);
 
-  // Load tokens for both chains
+  // Load tokens for both chains (using OKX tokens for display, Li.Fi for quotes)
   const { tokens: fromTokens, nativeToken: fromNative, isLoading: fromTokensLoading } = useDexTokens(fromChain);
   const { tokens: toTokens, nativeToken: toNative, isLoading: toTokensLoading } = useDexTokens(toChain);
 
   // Get balance for from token
   const { formatted: formattedBalance, loading: balanceLoading } = useTokenBalance(fromToken, fromChain);
 
-  // Bridge execution
-  const { currentTx, executeSwap } = useCrossChainSwapExecution();
+  // Li.Fi bridge execution
+  const { currentTx, executeSwap, resetCurrentTx } = useLiFiSwapExecution();
 
   // Set default tokens when loaded
   useEffect(() => {
@@ -76,7 +82,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     setToToken(null);
   }, [toChain.chainIndex]);
 
-  // Cross-chain quote - works without wallet connection too
+  // Li.Fi cross-chain quote - needs wallet connection for quotes
   const {
     quote,
     formattedOutputAmount,
@@ -86,15 +92,29 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     isRetrying,
     error: quoteError,
     refetch: refetchQuote,
-  } = useCrossChainQuote({
+  } = useLiFiQuote({
     fromChain,
     toChain,
-    fromToken,
-    toToken,
+    fromToken: fromToken ? {
+      tokenContractAddress: fromToken.tokenContractAddress,
+      tokenSymbol: fromToken.tokenSymbol,
+      decimals: fromToken.decimals,
+      tokenLogoUrl: fromToken.tokenLogoUrl,
+    } : null,
+    toToken: toToken ? {
+      tokenContractAddress: toToken.tokenContractAddress,
+      tokenSymbol: toToken.tokenSymbol,
+      decimals: toToken.decimals,
+      tokenLogoUrl: toToken.tokenLogoUrl,
+    } : null,
     amount: fromAmount,
     slippage,
     userAddress: activeAddress || undefined,
-    enabled: fromChain.chainIndex !== toChain.chainIndex && !!fromToken && !!toToken && parseFloat(fromAmount) > 0,
+    enabled: fromChain.chainIndex !== toChain.chainIndex && 
+             !!fromToken && !!toToken && 
+             parseFloat(fromAmount) > 0 &&
+             lifiService.isChainSupported(fromChain.chainIndex) &&
+             lifiService.isChainSupported(toChain.chainIndex),
   });
 
   const handleSwapChains = () => {
@@ -109,7 +129,6 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
 
   const handleMaxClick = () => {
     if (formattedBalance) {
-      // Leave a small amount for gas if it's native token
       const isNative = fromToken?.tokenContractAddress === NATIVE_TOKEN_ADDRESS || 
                        fromToken?.tokenContractAddress.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
       const maxAmount = isNative 
@@ -120,7 +139,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
   };
 
   const handleBridge = async () => {
-    if (!fromToken || !toToken || !activeAddress) return;
+    if (!fromToken || !toToken || !activeAddress || !quote) return;
 
     try {
       setShowBridgeProgress(true);
@@ -132,10 +151,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
         {
           fromChain,
           toChain,
-          fromToken,
-          toToken,
-          amount: fromAmount,
-          slippage,
+          quote,
           userAddress: activeAddress,
         },
         async (txData) => {
@@ -145,43 +161,35 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             params: [txData],
           });
           if (!hash) throw new Error('Transaction rejected');
-          
-          // TODO: Re-enable when referral program resumes with Li.Fi fee collection
-          // Record trade for referral commission tracking
-          // Estimate USD value from the quote if available
-          // const amountUsd = quote?.toTokenAmount 
-          //   ? parseFloat(fromAmount) * (quote.toTokenAmount ? parseFloat(quote.toTokenAmount) / parseFloat(fromAmount) : 1)
-          //   : parseFloat(fromAmount);
-          // if (amountUsd > 0) {
-          //   await recordTradeCommission(
-          //     hash,
-          //     fromChain.chainIndex,
-          //     fromToken.tokenSymbol,
-          //     amountUsd
-          //   );
-          // }
-          
           return hash;
         }
       );
-    } catch (error) {
-      console.error('Bridge error:', error);
-    }
-  };
 
-  const formatPrice = (amount: string, decimals: string = '18') => {
-    const value = parseFloat(amount) / Math.pow(10, parseInt(decimals));
-    if (value >= 1) return value.toFixed(4);
-    if (value >= 0.0001) return value.toFixed(6);
-    return value.toFixed(8);
+      toast({
+        title: "Bridge Initiated! 🌉",
+        description: `Bridging ${fromAmount} ${fromToken.tokenSymbol} to ${toChain.name}`,
+      });
+    } catch (error: any) {
+      console.error('Bridge error:', error);
+      toast({
+        title: "Bridge Failed",
+        description: error?.message || "Failed to initiate bridge",
+        variant: "destructive",
+      });
+    }
   };
 
   // Check if user has sufficient balance
   const hasInsufficientBalance = isConnected && formattedBalance && fromAmount && 
     parseFloat(fromAmount) > parseFloat(formattedBalance);
 
+  // Check if chains are supported by Li.Fi
+  const fromChainSupported = lifiService.isChainSupported(fromChain.chainIndex);
+  const toChainSupported = lifiService.isChainSupported(toChain.chainIndex);
+
   const canSwap = isConnected && fromToken && toToken && 
-    parseFloat(fromAmount) > 0 && quote && !quoteLoading && !hasInsufficientBalance;
+    parseFloat(fromAmount) > 0 && quote && !quoteLoading && !hasInsufficientBalance &&
+    fromChainSupported && toChainSupported;
 
   const getButtonText = () => {
     if (!isConnected) {
@@ -191,6 +199,9 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           Connect Wallet to Bridge
         </>
       );
+    }
+    if (!fromChainSupported || !toChainSupported) {
+      return 'Chain Not Supported';
     }
     if (quoteLoading || isRetrying) {
       return (
@@ -222,12 +233,13 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <ArrowRightLeft className="w-5 h-5" />
-              Cross-Chain Swap
+              Cross-Chain Bridge
+              <Badge variant="secondary" className="text-xs">Li.Fi</Badge>
             </CardTitle>
             <SlippageSettings slippage={slippage} onSlippageChange={setSlippage} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Bridge and swap tokens across different blockchains
+            Bridge tokens across blockchains with best rates from 20+ bridges
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -356,12 +368,12 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
                   <span>~{estimatedTimeMinutes} min</span>
                 </div>
               )}
-              {quote.bridgeFee && (
+              {quote.estimatedGasCostUSD && parseFloat(quote.estimatedGasCostUSD) > 0 && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-1">
-                    <Fuel className="w-3 h-3" /> Bridge Fee
+                    <Fuel className="w-3 h-3" /> Gas Cost
                   </span>
-                  <span className="font-mono">{formatPrice(quote.bridgeFee)} {fromToken?.tokenSymbol}</span>
+                  <span className="font-mono">${quote.estimatedGasCostUSD}</span>
                 </div>
               )}
             </div>
@@ -372,7 +384,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-between text-sm text-destructive">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{quoteError.includes('Retry') ? quoteError : 'Unable to fetch quote'}</span>
+                <span>{quoteError}</span>
               </div>
               <Button
                 variant="ghost"
@@ -389,7 +401,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           {isRetrying && (
             <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-              <span>Fetching best route...</span>
+              <span>Finding best bridge route...</span>
             </div>
           )}
 
@@ -402,10 +414,10 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           )}
 
           {/* Info when not connected */}
-          {!isConnected && quote && (
+          {!isConnected && fromAmount && parseFloat(fromAmount) > 0 && (
             <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex items-center gap-2 text-sm text-muted-foreground">
               <Info className="w-4 h-4 flex-shrink-0" />
-              <span>Connect your wallet to execute this bridge</span>
+              <span>Connect your wallet to get quotes and execute bridges</span>
             </div>
           )}
 
@@ -422,13 +434,17 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
       </Card>
 
       {/* Bridge Progress Dialog */}
-      <Dialog open={showBridgeProgress && !!currentTx} onOpenChange={setShowBridgeProgress}>
+      <Dialog open={showBridgeProgress && !!currentTx} onOpenChange={(open) => {
+        setShowBridgeProgress(open);
+        if (!open) resetCurrentTx();
+      }}>
         <DialogContent className="sm:max-w-md p-0 border-0 bg-transparent shadow-none">
           {currentTx && (
-            <BridgeProgress 
+            <LiFiBridgeProgress 
               transaction={currentTx}
               onClose={() => {
                 setShowBridgeProgress(false);
+                resetCurrentTx();
                 if (currentTx.status === 'completed') {
                   setFromAmount('');
                 }
