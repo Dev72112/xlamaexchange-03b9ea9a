@@ -37,13 +37,13 @@ export const Partners = memo(function Partners() {
         </div>
 
         {/* Main Partners */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto">
           {/* ChangeNow Partner */}
           <a
             href="https://changenow.io"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all w-full sm:w-auto"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all"
           >
             <div className="flex items-center gap-3">
               <img
@@ -58,7 +58,7 @@ export const Partners = memo(function Partners() {
               <div className="text-left">
                 <span className="font-bold text-lg sm:text-xl">ChangeNOW</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  Instant Exchange API
+                  Instant Exchange
                   <ExternalLink className="w-3 h-3" aria-hidden="true" />
                 </div>
               </div>
@@ -73,7 +73,7 @@ export const Partners = memo(function Partners() {
             href="https://www.okx.com/web3/dex"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all w-full sm:w-auto"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all"
           >
             <div className="flex items-center gap-3">
               <img
@@ -95,6 +95,36 @@ export const Partners = memo(function Partners() {
             </div>
             <p className="text-xs text-muted-foreground text-center max-w-[200px]">
               Best rates from 400+ DEXs across 25+ chains
+            </p>
+          </a>
+
+          {/* Li.Fi Partner */}
+          <a
+            href="https://li.fi"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <img
+                src="https://li.fi/logo192.png"
+                alt="Li.Fi cross-chain bridge logo"
+                loading="lazy"
+                decoding="async"
+                width="48"
+                height="48"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-background"
+              />
+              <div className="text-left">
+                <span className="font-bold text-lg sm:text-xl">Li.Fi</span>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  Cross-Chain Bridge
+                  <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center max-w-[200px]">
+              Bridge assets across 20+ chains seamlessly
             </p>
           </a>
         </div>

@@ -31,7 +31,7 @@ const features = [
   {
     icon: Lock,
     title: "Cross-Chain",
-    description: "Bridge assets between chains with secure, audited protocols.",
+    description: "Bridge assets between 20+ chains with Li.Fi's secure protocols.",
   },
   {
     icon: Clock,
