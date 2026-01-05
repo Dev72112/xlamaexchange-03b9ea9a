@@ -26,6 +26,9 @@ import {
   BarChart3,
   AlertCircle,
   CheckCircle2,
+  Code,
+  Terminal,
+  ExternalLink,
 } from "lucide-react";
 import { SUPPORTED_CHAINS, getChainIcon } from "@/data/chains";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
@@ -606,6 +609,129 @@ const Docs = () => {
                     the protocol and network congestion. Some routes may take longer for finality.
                   </p>
                 </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Developer API */}
+          <AccordionItem value="developer-api" id="developer-api" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <Code className="h-5 w-5 text-primary" />
+                <span className="text-lg font-semibold">Developer API</span>
+                <Badge variant="outline" className="ml-2">Public</Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-6 pb-6">
+              <p className="text-muted-foreground">
+                Integrate xLama functionality into your own applications using our public APIs and partner services.
+              </p>
+
+              {/* Price Data */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold">Price Data (DefiLlama)</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  We use DefiLlama for reliable, real-time token pricing across all supported chains.
+                </p>
+                <div className="bg-muted rounded-lg p-4 font-mono text-sm overflow-x-auto">
+                  <p className="text-muted-foreground mb-2"># Get current price for any token</p>
+                  <code className="text-foreground">
+                    GET https://coins.llama.fi/prices/current/ethereum:0x...
+                  </code>
+                </div>
+                <a 
+                  href="https://defillama.com/docs/api" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  DefiLlama API Docs <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+
+              {/* DEX Aggregation */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold">DEX Aggregation (OKX DEX)</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  On-chain swap quotes and execution via OKX DEX aggregator API.
+                </p>
+                <div className="bg-muted rounded-lg p-4 font-mono text-sm overflow-x-auto">
+                  <p className="text-muted-foreground mb-2"># Get swap quote</p>
+                  <code className="text-foreground">
+                    GET /api/v5/dex/aggregator/quote?chainId=1&fromTokenAddress=...
+                  </code>
+                </div>
+                <a 
+                  href="https://www.okx.com/web3/build/docs/waas/dex-api-reference" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  OKX DEX API Docs <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+
+              {/* Cross-Chain Bridge */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold">Cross-Chain Bridge (Li.Fi)</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Bridge aggregation with 20+ protocols for cross-chain transfers.
+                </p>
+                <div className="bg-muted rounded-lg p-4 font-mono text-sm overflow-x-auto">
+                  <p className="text-muted-foreground mb-2"># Get bridge routes</p>
+                  <code className="text-foreground">
+                    GET https://li.quest/v1/quote?fromChain=1&toChain=137&...
+                  </code>
+                </div>
+                <a 
+                  href="https://docs.li.fi/li.fi-api/li.fi-api" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  Li.Fi API Docs <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+
+              {/* Instant Exchange */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold">Instant Exchange (ChangeNOW)</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Cross-chain instant swaps with 900+ supported tokens.
+                </p>
+                <div className="bg-muted rounded-lg p-4 font-mono text-sm overflow-x-auto">
+                  <p className="text-muted-foreground mb-2"># Get exchange estimate</p>
+                  <code className="text-foreground">
+                    GET https://api.changenow.io/v2/exchange/estimated-amount?...
+                  </code>
+                </div>
+                <a 
+                  href="https://changenow.io/api/docs" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  ChangeNOW API Docs <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-sm">
+                  <strong>Note:</strong> These are public APIs from our partner services. 
+                  For production use, refer to each provider&apos;s documentation for API keys and rate limits.
+                </p>
               </div>
             </AccordionContent>
           </AccordionItem>
