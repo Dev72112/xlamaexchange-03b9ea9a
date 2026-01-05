@@ -1,4 +1,4 @@
-import React, { useState, memo } from "react";
+import React, { useState, memo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { MessageSquare, Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { MessageSquare, Send, CheckCircle2, AlertCircle, ImagePlus, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -29,6 +29,7 @@ const FEEDBACK_TYPES = [
 ] as const;
 
 const MAX_MESSAGE_LENGTH = 1000;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const AnonymousFeedback = memo(function AnonymousFeedback() {
   const [open, setOpen] = useState(false);
@@ -36,11 +37,63 @@ export const AnonymousFeedback = memo(function AnonymousFeedback() {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed");
+      return;
+    }
+
+    setScreenshot(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeScreenshot = () => {
+    setScreenshot(null);
+    setScreenshotPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadScreenshot = async (file: File): Promise<string | null> => {
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`;
+    
+    const { error } = await supabase.storage
+      .from("feedback-screenshots")
+      .upload(fileName, file);
+
+    if (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("feedback-screenshots")
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate
     const trimmedMessage = message.trim();
     if (!feedbackType || !trimmedMessage) {
       toast.error("Please select a type and enter your feedback");
@@ -55,10 +108,25 @@ export const AnonymousFeedback = memo(function AnonymousFeedback() {
     setIsSubmitting(true);
 
     try {
+      let screenshotUrl: string | null = null;
+
+      if (screenshot) {
+        setIsUploading(true);
+        screenshotUrl = await uploadScreenshot(screenshot);
+        setIsUploading(false);
+        
+        if (!screenshotUrl) {
+          toast.error("Failed to upload screenshot");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.from("anonymous_feedback").insert({
         feedback_type: feedbackType,
         message: trimmedMessage,
         page_url: window.location.pathname,
+        screenshot_url: screenshotUrl,
       });
 
       if (error) throw error;
@@ -66,17 +134,15 @@ export const AnonymousFeedback = memo(function AnonymousFeedback() {
       setSubmitted(true);
       toast.success("Thank you for your feedback!");
 
-      // Reset after delay
       setTimeout(() => {
         setOpen(false);
-        setSubmitted(false);
-        setFeedbackType("");
-        setMessage("");
+        resetForm();
       }, 2000);
     } catch (error) {
       toast.error("Failed to submit feedback. Please try again.");
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -84,6 +150,11 @@ export const AnonymousFeedback = memo(function AnonymousFeedback() {
     setSubmitted(false);
     setFeedbackType("");
     setMessage("");
+    setScreenshot(null);
+    setScreenshotPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -154,6 +225,49 @@ export const AnonymousFeedback = memo(function AnonymousFeedback() {
               />
             </div>
 
+            {/* Screenshot upload */}
+            <div className="space-y-2">
+              <Label>Screenshot (optional)</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                id="dialog-screenshot"
+              />
+              
+              {screenshotPreview ? (
+                <div className="relative">
+                  <img
+                    src={screenshotPreview}
+                    alt="Screenshot preview"
+                    className="w-full h-32 object-cover rounded-md border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6"
+                    onClick={removeScreenshot}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  Add Screenshot
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">Max 5MB, images only</p>
+            </div>
+
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 text-sm">
               <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
               <p className="text-muted-foreground">
@@ -176,7 +290,10 @@ export const AnonymousFeedback = memo(function AnonymousFeedback() {
                 className="gap-2"
               >
                 {isSubmitting ? (
-                  <>Submitting...</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {isUploading ? "Uploading..." : "Submitting..."}
+                  </>
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
