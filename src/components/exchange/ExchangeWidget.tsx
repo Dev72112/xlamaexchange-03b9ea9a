@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign, BarChart3, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,21 +29,23 @@ import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { SlippageSettings } from "./SlippageSettings";
 import { DexQuoteInfo } from "./DexQuoteInfo";
 import { DexSwapProgress } from "./DexSwapProgress";
-import { SwapReviewModal } from "./SwapReviewModal";
-import { HighPriceImpactModal } from "./HighPriceImpactModal";
-import { AdvancedPriceChart } from "./AdvancedPriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
 import { useTradePreFill } from "@/contexts/TradePreFillContext";
 import { useReferral } from "@/hooks/useReferral";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { LimitOrderForm } from "@/components/LimitOrderForm";
-import { DCAOrderForm } from "@/components/DCAOrderForm";
-import { ActiveLimitOrders } from "@/components/ActiveLimitOrders";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+
+// Lazy load heavy components for better bundle splitting
+const AdvancedPriceChart = lazy(() => import("./AdvancedPriceChart").then(m => ({ default: m.AdvancedPriceChart })));
+const SwapReviewModal = lazy(() => import("./SwapReviewModal").then(m => ({ default: m.SwapReviewModal })));
+const HighPriceImpactModal = lazy(() => import("./HighPriceImpactModal").then(m => ({ default: m.HighPriceImpactModal })));
+const LimitOrderForm = lazy(() => import("@/components/LimitOrderForm").then(m => ({ default: m.LimitOrderForm })));
+const DCAOrderForm = lazy(() => import("@/components/DCAOrderForm").then(m => ({ default: m.DCAOrderForm })));
+const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
 
 // Detect network from ticker and name
 function detectNetwork(ticker: string, name: string): string | undefined {
@@ -1058,10 +1060,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="mt-3">
-                    <AdvancedPriceChart
-                      chain={selectedChain}
-                      token={toDexToken}
-                    />
+                    <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
+                      <AdvancedPriceChart
+                        chain={selectedChain}
+                        token={toDexToken}
+                      />
+                    </Suspense>
                   </div>
                 </CollapsibleContent>
               </Collapsible>
@@ -1136,36 +1140,42 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               
               {/* Limit Order Button - DEX mode only */}
               {exchangeMode === 'dex' && (
-                <LimitOrderForm
-                  fromToken={fromDexToken}
-                  toToken={toDexToken}
-                  chain={selectedChain}
-                  currentPrice={dexExchangeRate || undefined}
-                />
+                <Suspense fallback={<Skeleton className="h-10 w-10 rounded-lg" />}>
+                  <LimitOrderForm
+                    fromToken={fromDexToken}
+                    toToken={toDexToken}
+                    chain={selectedChain}
+                    currentPrice={dexExchangeRate || undefined}
+                  />
+                </Suspense>
               )}
               
               {/* DCA Order Button - DEX mode only */}
               {exchangeMode === 'dex' && (
-                <DCAOrderForm
-                  fromToken={fromDexToken ? { address: fromDexToken.tokenContractAddress, symbol: fromDexToken.tokenSymbol } : undefined}
-                  toToken={toDexToken ? { address: toDexToken.tokenContractAddress, symbol: toDexToken.tokenSymbol } : undefined}
-                  chainIndex={selectedChain.chainIndex}
-                />
+                <Suspense fallback={<Skeleton className="h-10 w-10 rounded-lg" />}>
+                  <DCAOrderForm
+                    fromToken={fromDexToken ? { address: fromDexToken.tokenContractAddress, symbol: fromDexToken.tokenSymbol } : undefined}
+                    toToken={toDexToken ? { address: toDexToken.tokenContractAddress, symbol: toDexToken.tokenSymbol } : undefined}
+                    chainIndex={selectedChain.chainIndex}
+                  />
+                </Suspense>
               )}
             </div>
             
             {/* Active Limit Orders - DEX mode only */}
             {exchangeMode === 'dex' && (
-              <ActiveLimitOrders 
-                onExecuteOrder={(order) => {
-                  // Pre-fill swap with limit order details
-                  setFromAmount(order.amount);
-                  toast({
-                    title: "Limit Order Ready",
-                    description: `Execute your ${order.from_token_symbol} → ${order.to_token_symbol} swap now.`,
-                  });
-                }}
-              />
+              <Suspense fallback={<Skeleton className="h-20 w-full rounded-lg" />}>
+                <ActiveLimitOrders 
+                  onExecuteOrder={(order) => {
+                    // Pre-fill swap with limit order details
+                    setFromAmount(order.amount);
+                    toast({
+                      title: "Limit Order Ready",
+                      description: `Execute your ${order.from_token_symbol} → ${order.to_token_symbol} swap now.`,
+                    });
+                  }}
+                />
+              </Suspense>
             )}
           </div>
 
@@ -1280,33 +1290,37 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       {/* DEX Review Modal */}
       <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
         <DialogContent className="sm:max-w-md">
-          {fromDexToken && toDexToken && dexQuote && (
-            <SwapReviewModal
-              fromToken={fromDexToken}
-              toToken={toDexToken}
-              fromAmount={fromAmount}
-              toAmount={dexOutputAmount || '0'}
-              quote={dexQuote}
-              chain={selectedChain}
-              slippage={slippage}
-              onConfirm={handleConfirmSwap}
-              onCancel={() => setShowReviewModal(false)}
-              isLoading={swapLoading}
-            />
-          )}
+          <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+            {fromDexToken && toDexToken && dexQuote && (
+              <SwapReviewModal
+                fromToken={fromDexToken}
+                toToken={toDexToken}
+                fromAmount={fromAmount}
+                toAmount={dexOutputAmount || '0'}
+                quote={dexQuote}
+                chain={selectedChain}
+                slippage={slippage}
+                onConfirm={handleConfirmSwap}
+                onCancel={() => setShowReviewModal(false)}
+                isLoading={swapLoading}
+              />
+            )}
+          </Suspense>
         </DialogContent>
       </Dialog>
 
       {/* High Price Impact Warning Modal */}
       <Dialog open={showHighImpactModal} onOpenChange={setShowHighImpactModal}>
         <DialogContent className="sm:max-w-md">
-          <HighPriceImpactModal
-            priceImpact={priceImpact}
-            fromSymbol={fromDexToken?.tokenSymbol || ''}
-            toSymbol={toDexToken?.tokenSymbol || ''}
-            onConfirm={handleHighImpactConfirm}
-            onCancel={() => setShowHighImpactModal(false)}
-          />
+          <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+            <HighPriceImpactModal
+              priceImpact={priceImpact}
+              fromSymbol={fromDexToken?.tokenSymbol || ''}
+              toSymbol={toDexToken?.tokenSymbol || ''}
+              onConfirm={handleHighImpactConfirm}
+              onCancel={() => setShowHighImpactModal(false)}
+            />
+          </Suspense>
         </DialogContent>
       </Dialog>
     </>
