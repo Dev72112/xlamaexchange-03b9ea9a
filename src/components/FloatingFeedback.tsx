@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from "react";
+import React, { useState, forwardRef, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -14,7 +14,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
-import { MessageSquarePlus, Send, CheckCircle2, X } from "lucide-react";
+import { MessageSquarePlus, Send, CheckCircle2, X, ImagePlus, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ const FEEDBACK_TYPES = [
 ] as const;
 
 const MAX_MESSAGE_LENGTH = 1000;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeedback(_props, ref) {
   const [open, setOpen] = useState(false);
@@ -33,6 +34,59 @@ export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeed
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed");
+      return;
+    }
+
+    setScreenshot(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeScreenshot = () => {
+    setScreenshot(null);
+    setScreenshotPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadScreenshot = async (file: File): Promise<string | null> => {
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`;
+    
+    const { error } = await supabase.storage
+      .from("feedback-screenshots")
+      .upload(fileName, file);
+
+    if (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("feedback-screenshots")
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,10 +105,25 @@ export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeed
     setIsSubmitting(true);
 
     try {
+      let screenshotUrl: string | null = null;
+
+      if (screenshot) {
+        setIsUploading(true);
+        screenshotUrl = await uploadScreenshot(screenshot);
+        setIsUploading(false);
+        
+        if (!screenshotUrl) {
+          toast.error("Failed to upload screenshot");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.from("anonymous_feedback").insert({
         feedback_type: feedbackType,
         message: trimmedMessage,
         page_url: window.location.pathname,
+        screenshot_url: screenshotUrl,
       });
 
       if (error) throw error;
@@ -64,14 +133,13 @@ export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeed
 
       setTimeout(() => {
         setOpen(false);
-        setSubmitted(false);
-        setFeedbackType("");
-        setMessage("");
+        resetForm();
       }, 2000);
     } catch (error) {
       toast.error("Failed to submit feedback. Please try again.");
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -79,6 +147,11 @@ export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeed
     setSubmitted(false);
     setFeedbackType("");
     setMessage("");
+    setScreenshot(null);
+    setScreenshotPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -164,6 +237,49 @@ export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeed
                   />
                 </div>
 
+                {/* Screenshot upload */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Screenshot (optional)</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="floating-screenshot"
+                  />
+                  
+                  {screenshotPreview ? (
+                    <div className="relative">
+                      <img
+                        src={screenshotPreview}
+                        alt="Screenshot preview"
+                        className="w-full h-20 object-cover rounded-md border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-5 w-5"
+                        onClick={removeScreenshot}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2 h-8"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <ImagePlus className="h-3.5 w-3.5" />
+                      Add Screenshot
+                    </Button>
+                  )}
+                </div>
+
                 <p className="text-xs text-muted-foreground">
                   100% anonymous • No data collected
                 </p>
@@ -175,7 +291,10 @@ export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeed
                   disabled={isSubmitting || !feedbackType || !message.trim()}
                 >
                   {isSubmitting ? (
-                    "Submitting..."
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      {isUploading ? "Uploading..." : "Submitting..."}
+                    </>
                   ) : (
                     <>
                       <Send className="h-3.5 w-3.5" />
