@@ -3,11 +3,11 @@ import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
-import { useBridgeTransactions, BridgeStatus } from "@/contexts/BridgeTransactionContext";
+import { useBridgeTransactions, BridgeStatus, BridgeTransaction } from "@/contexts/BridgeTransactionContext";
 import { useBridgeStatusPolling } from "@/hooks/useBridgeStatusPolling";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";
-import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight } from "lucide-react";
+import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,26 @@ import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
 
+// Unified transaction type for the timeline
+type UnifiedTransaction = {
+  id: string;
+  type: 'instant' | 'dex' | 'bridge';
+  timestamp: number;
+  status: string;
+  fromSymbol: string;
+  toSymbol: string;
+  fromAmount: string;
+  toAmount: string;
+  fromLogo?: string;
+  toLogo?: string;
+  chainName?: string;
+  chainIcon?: string;
+  explorerUrl?: string;
+  bridgeFromChain?: string;
+  bridgeToChain?: string;
+  original: any;
+};
+
 const History = () => {
   const { transactions, removeTransaction, clearHistory } = useTransactionHistory();
   const { transactions: dexTransactions, clearHistory: clearDexHistory } = useDexTransactions();
@@ -29,7 +49,7 @@ const History = () => {
   const navigate = useNavigate();
   
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'instant' | 'dex' | 'bridge' | 'onchain'>('instant');
+  const [activeTab, setActiveTab] = useState<'all' | 'instant' | 'dex' | 'bridge' | 'onchain'>('all');
   
   // On-chain history state
   const [onchainHistory, setOnchainHistory] = useState<TransactionHistoryItem[]>([]);
@@ -122,11 +142,6 @@ const History = () => {
     return base ? `${base}${txHash}` : null;
   };
 
-  // Memoized sorted bridge transactions
-  const sortedBridgeTransactions = useMemo(() => {
-    return [...bridgeTransactions].sort((a, b) => b.startTime - a.startTime);
-  }, [bridgeTransactions]);
-
   const formatAmount = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(num)) return '0';
@@ -140,10 +155,86 @@ const History = () => {
     return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
   };
 
+  // Memoized sorted bridge transactions
+  const sortedBridgeTransactions = useMemo(() => {
+    return [...bridgeTransactions].sort((a, b) => b.startTime - a.startTime);
+  }, [bridgeTransactions]);
+
   // Memoized DEX transactions sorted by timestamp
   const sortedDexTransactions = useMemo(() => {
     return [...dexTransactions].sort((a, b) => b.timestamp - a.timestamp);
   }, [dexTransactions]);
+
+  // Unified transaction feed - merge all transaction types chronologically
+  const unifiedTransactions = useMemo((): UnifiedTransaction[] => {
+    const unified: UnifiedTransaction[] = [];
+
+    // Add instant transactions
+    transactions.forEach(tx => {
+      unified.push({
+        id: `instant-${tx.id}`,
+        type: 'instant',
+        timestamp: new Date(tx.createdAt).getTime(),
+        status: tx.status,
+        fromSymbol: tx.fromTicker,
+        toSymbol: tx.toTicker,
+        fromAmount: tx.fromAmount,
+        toAmount: tx.toAmount,
+        fromLogo: tx.fromImage,
+        toLogo: tx.toImage,
+        original: tx,
+      });
+    });
+
+    // Add DEX transactions
+    dexTransactions.forEach(tx => {
+      const chain = getChainByIndex(tx.chainId);
+      unified.push({
+        id: `dex-${tx.id}`,
+        type: 'dex',
+        timestamp: tx.timestamp,
+        status: tx.status,
+        fromSymbol: tx.fromTokenSymbol,
+        toSymbol: tx.toTokenSymbol,
+        fromAmount: String(tx.fromTokenAmount),
+        toAmount: String(tx.toTokenAmount),
+        fromLogo: tx.fromTokenLogo,
+        toLogo: tx.toTokenLogo,
+        chainName: chain?.shortName,
+        chainIcon: chain?.icon,
+        explorerUrl: tx.explorerUrl || (tx.hash ? getExplorerTxUrl(tx.chainId, tx.hash) : undefined),
+        original: tx,
+      });
+    });
+
+    // Add bridge transactions
+    bridgeTransactions.forEach(tx => {
+      const sourceExplorerUrl = tx.sourceTxHash && tx.fromChain?.chainId 
+        ? getBridgeExplorerUrl(tx.fromChain.chainId, tx.sourceTxHash) 
+        : null;
+      unified.push({
+        id: `bridge-${tx.id}`,
+        type: 'bridge',
+        timestamp: tx.startTime,
+        status: tx.status,
+        fromSymbol: tx.fromToken?.symbol || '',
+        toSymbol: tx.toToken?.symbol || '',
+        fromAmount: tx.fromAmount,
+        toAmount: tx.toAmount,
+        fromLogo: tx.fromToken?.logoURI,
+        toLogo: tx.toToken?.logoURI,
+        bridgeFromChain: tx.fromChain?.name,
+        bridgeToChain: tx.toChain?.name,
+        explorerUrl: sourceExplorerUrl || undefined,
+        original: tx,
+      });
+    });
+
+    // Sort by timestamp (newest first)
+    return unified.sort((a, b) => b.timestamp - a.timestamp);
+  }, [transactions, dexTransactions, bridgeTransactions]);
+
+  const totalTransactionCount = transactions.length + dexTransactions.length + bridgeTransactions.length;
 
   return (
     <Layout>
@@ -170,7 +261,16 @@ const History = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="all" className="gap-2">
+              <LayoutList className="w-4 h-4" />
+              <span className="hidden sm:inline">All</span>
+              {totalTransactionCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {totalTransactionCount}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="instant" className="gap-2">
               <ArrowRight className="w-4 h-4" />
               <span className="hidden sm:inline">Instant</span>
@@ -206,6 +306,126 @@ const History = () => {
               <span className="hidden sm:inline">On-Chain</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Unified Timeline Tab */}
+          <TabsContent value="all" className="space-y-4">
+            {unifiedTransactions.length === 0 ? (
+              <Card className="p-12 text-center border-dashed">
+                <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
+                <h3 className="text-lg font-semibold mb-2">No transactions yet</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                  Your transaction history across all platforms will appear here.
+                </p>
+                <Button onClick={() => navigate('/')}>
+                  Start Trading
+                </Button>
+              </Card>
+            ) : (
+              <div className="grid gap-3">
+                {unifiedTransactions.map((tx, i) => (
+                  <Card
+                    key={tx.id}
+                    className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
+                    style={getStaggerStyle(i, 60)}
+                  >
+                    <div className="flex items-center gap-4">
+                      {/* Token/Chain icons */}
+                      <div className="flex items-center shrink-0">
+                        <div className="relative">
+                          {tx.fromLogo ? (
+                            <img
+                              src={tx.fromLogo}
+                              alt={tx.fromSymbol}
+                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.fromSymbol}&background=random`;
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
+                              {tx.fromSymbol?.slice(0, 2)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="relative -ml-3">
+                          {tx.toLogo ? (
+                            <img
+                              src={tx.toLogo}
+                              alt={tx.toSymbol}
+                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.toSymbol}&background=random`;
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
+                              {tx.toSymbol?.slice(0, 2)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-medium">
+                            {formatAmount(tx.fromAmount)}{" "}
+                            <span className="uppercase text-muted-foreground">{tx.fromSymbol}</span>
+                          </span>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <span className="font-medium">
+                            {formatAmount(tx.toAmount)}{" "}
+                            <span className="uppercase text-muted-foreground">{tx.toSymbol}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "h-5 text-xs",
+                              tx.type === 'instant' && "border-blue-500/30 text-blue-500",
+                              tx.type === 'dex' && "border-green-500/30 text-green-500",
+                              tx.type === 'bridge' && "border-purple-500/30 text-purple-500"
+                            )}
+                          >
+                            {tx.type === 'instant' && 'Instant'}
+                            {tx.type === 'dex' && 'DEX'}
+                            {tx.type === 'bridge' && 'Bridge'}
+                          </Badge>
+                          {tx.type === 'bridge' && tx.bridgeFromChain && tx.bridgeToChain && (
+                            <Badge variant="secondary" className="h-5 text-xs">
+                              {tx.bridgeFromChain} → {tx.bridgeToChain}
+                            </Badge>
+                          )}
+                          {tx.chainName && tx.chainIcon && (
+                            <Badge variant="outline" className="h-5 text-xs gap-1">
+                              <img src={tx.chainIcon} alt={tx.chainName} className="w-3 h-3 rounded-full" />
+                              {tx.chainName}
+                            </Badge>
+                          )}
+                          <span>•</span>
+                          <span>{formatDistanceToNow(tx.timestamp, { addSuffix: true })}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(tx.status)}
+                        {tx.explorerUrl && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={() => window.open(tx.explorerUrl, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
           {/* Instant Transactions Tab */}
           <TabsContent value="instant" className="space-y-4">

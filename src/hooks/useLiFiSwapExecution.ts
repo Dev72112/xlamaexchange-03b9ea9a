@@ -2,6 +2,11 @@ import { useState, useCallback } from 'react';
 import { lifiService, LiFiQuoteResult } from '@/services/lifi';
 import { Chain } from '@/data/chains';
 import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
+import { useBridgeSettings } from '@/hooks/useBridgeSettings';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { createSignedBridgeRequest } from '@/lib/requestSigning';
+import { supabase } from '@/integrations/supabase/client';
 import type { Route } from '@lifi/sdk';
 
 export type BridgeStatus = 
@@ -57,6 +62,7 @@ interface UseLiFiSwapExecutionOptions {
   quote: LiFiQuoteResult;
   userAddress: string;
   selectedRoute?: Route; // Optional: use a specific route instead of default quote route
+  estimatedValueUsd?: number; // For signature threshold check
 }
 
 // Max uint256 for unlimited approval
@@ -66,7 +72,11 @@ export function useLiFiSwapExecution() {
   const [transactions, setTransactions] = useState<LiFiBridgeTransaction[]>([]);
   const [currentTx, setCurrentTx] = useState<LiFiBridgeTransaction | null>(null);
   const [pendingApproval, setPendingApproval] = useState<ApprovalInfo | null>(null);
+  const [isSigningIntent, setIsSigningIntent] = useState(false);
   const { addTransaction, updateTransaction: updateGlobalTx } = useBridgeTransactions();
+  const { settings: bridgeSettings, shouldRequireSignature } = useBridgeSettings();
+  const { activeAddress } = useMultiWallet();
+  const { showNotification, isSubscribed: pushEnabled } = usePushNotifications(activeAddress);
 
   const updateTransaction = useCallback((id: string, updates: Partial<LiFiBridgeTransaction>) => {
     setTransactions(prev => prev.map(tx => 
@@ -75,10 +85,54 @@ export function useLiFiSwapExecution() {
     setCurrentTx(prev => prev?.id === id ? { ...prev, ...updates } : prev);
   }, []);
 
+  // Send push notification for bridge completion/failure
+  const sendBridgeNotification = useCallback(async (
+    type: 'bridge_completed' | 'bridge_failed',
+    tx: LiFiBridgeTransaction,
+    destTxHash?: string,
+    errorMessage?: string
+  ) => {
+    // Show local notification if push enabled
+    if (bridgeSettings.pushNotificationsEnabled && pushEnabled) {
+      if (type === 'bridge_completed') {
+        showNotification('🎉 Bridge Complete!', {
+          body: `${tx.fromAmount} ${tx.fromToken.symbol} → ${tx.toAmount} ${tx.toToken.symbol}`,
+          tag: `bridge-${destTxHash?.slice(0, 8) || Date.now()}`,
+        });
+      } else {
+        showNotification('❌ Bridge Failed', {
+          body: errorMessage || `Failed to bridge ${tx.fromToken.symbol}`,
+          tag: `bridge-failed-${Date.now()}`,
+        });
+      }
+    }
+
+    // Also try server-side push (for when app is closed)
+    try {
+      await supabase.functions.invoke('send-bridge-notification', {
+        body: {
+          walletAddress: activeAddress,
+          type,
+          fromToken: tx.fromToken.symbol,
+          toToken: tx.toToken.symbol,
+          fromAmount: tx.fromAmount,
+          toAmount: tx.toAmount,
+          fromChain: tx.fromChain.name,
+          toChain: tx.toChain.name,
+          txHash: destTxHash || tx.sourceTxHash,
+          error: errorMessage,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to send server push notification:', err);
+    }
+  }, [bridgeSettings.pushNotificationsEnabled, pushEnabled, showNotification, activeAddress]);
+
   const startStatusPolling = useCallback((
     txId: string, 
     globalTxId: string,
-    params: { txHash: string; fromChainId: number; toChainId: number; bridge?: string }
+    params: { txHash: string; fromChainId: number; toChainId: number; bridge?: string },
+    txRef: LiFiBridgeTransaction
   ) => {
     const pollInterval = setInterval(async () => {
       try {
@@ -99,16 +153,25 @@ export function useLiFiSwapExecution() {
             destTxHash: status.receiving?.txHash,
             completedTime: Date.now(),
           });
+          
+          // Send push notification
+          sendBridgeNotification('bridge_completed', txRef, status.receiving?.txHash);
+          
           clearInterval(pollInterval);
         } else if (status.status === 'FAILED') {
+          const errorMsg = status.substatus || 'Bridge transaction failed';
           updateTransaction(txId, { 
             status: 'failed',
-            error: status.substatus || 'Bridge transaction failed',
+            error: errorMsg,
           });
           updateGlobalTx(globalTxId, {
             status: 'failed',
-            error: status.substatus || 'Bridge transaction failed',
+            error: errorMsg,
           });
+          
+          // Send push notification
+          sendBridgeNotification('bridge_failed', txRef, undefined, errorMsg);
+          
           clearInterval(pollInterval);
         }
       } catch (error) {
@@ -118,13 +181,82 @@ export function useLiFiSwapExecution() {
 
     setTimeout(() => clearInterval(pollInterval), 30 * 60 * 1000);
     return pollInterval;
-  }, [updateTransaction, updateGlobalTx]);
+  }, [updateTransaction, updateGlobalTx, sendBridgeNotification]);
+
+  // Sign bridge intent for audit trail
+  const signBridgeIntent = useCallback(async (
+    fromChainId: number,
+    toChainId: number,
+    quote: LiFiQuoteResult,
+    fromAmount: string,
+    toAmount: string,
+    bridgeProvider?: string
+  ): Promise<string | null> => {
+    setIsSigningIntent(true);
+    try {
+      const signedRequest = await createSignedBridgeRequest(
+        {
+          from_chain_id: fromChainId,
+          to_chain_id: toChainId,
+          from_token_address: quote.fromToken.address,
+          to_token_address: quote.toToken.address,
+          from_token_symbol: quote.fromToken.symbol,
+          to_token_symbol: quote.toToken.symbol,
+          from_amount: fromAmount,
+          to_amount_expected: toAmount,
+          bridge_provider: bridgeProvider,
+        },
+        'evm' // Bridge is EVM-only via Li.Fi
+      );
+
+      if (!signedRequest) {
+        console.warn('User cancelled bridge signing');
+        return null;
+      }
+
+      // Record the intent on the server
+      const { data, error } = await supabase.functions.invoke('signed-orders', {
+        body: {
+          action: 'create-bridge-intent',
+          order: {
+            from_chain_id: fromChainId,
+            to_chain_id: toChainId,
+            from_token_address: quote.fromToken.address,
+            to_token_address: quote.toToken.address,
+            from_token_symbol: quote.fromToken.symbol,
+            to_token_symbol: quote.toToken.symbol,
+            from_amount: fromAmount,
+            to_amount_expected: toAmount,
+            bridge_provider: bridgeProvider,
+          },
+          signature: signedRequest.signature,
+          timestamp: signedRequest.timestamp,
+          nonce: signedRequest.nonce,
+          walletAddress: activeAddress,
+          chainType: 'evm',
+          payload: signedRequest.payload,
+        },
+      });
+
+      if (error) {
+        console.error('Failed to record bridge intent:', error);
+        return null;
+      }
+
+      return data?.intent?.id || null;
+    } catch (err) {
+      console.error('Bridge signing error:', err);
+      return null;
+    } finally {
+      setIsSigningIntent(false);
+    }
+  }, [activeAddress]);
 
   const executeSwap = useCallback(async (
     options: UseLiFiSwapExecutionOptions,
     sendTransaction: (txData: { to: string; data: string; value: string; chainId: number }) => Promise<string>
   ) => {
-    const { fromChain, toChain, quote, selectedRoute } = options;
+    const { fromChain, toChain, quote, selectedRoute, estimatedValueUsd } = options;
     
     // Use selected route if provided, otherwise use default quote route
     const routeToUse = selectedRoute || quote.route;
@@ -132,6 +264,27 @@ export function useLiFiSwapExecution() {
     const txId = `lifi-${Date.now()}`;
     const fromAmount = (parseFloat(quote.fromAmount) / Math.pow(10, quote.fromToken.decimals)).toString();
     const toAmount = (parseFloat(quote.toAmount) / Math.pow(10, quote.toToken.decimals)).toString();
+    const fromChainId = lifiService.getChainId(fromChain.chainIndex) || 1;
+    const toChainId = lifiService.getChainId(toChain.chainIndex) || 1;
+
+    // Check if signature is required based on settings and amount
+    const valueUsd = estimatedValueUsd || 0;
+    if (shouldRequireSignature(valueUsd)) {
+      const intentId = await signBridgeIntent(
+        fromChainId,
+        toChainId,
+        quote,
+        fromAmount,
+        toAmount,
+        quote.bridgeName
+      );
+
+      if (!intentId) {
+        throw new Error('Bridge signature cancelled or failed');
+      }
+      
+      console.log('Bridge intent signed:', intentId);
+    }
     
     const newTx: LiFiBridgeTransaction = {
       id: txId,
@@ -163,8 +316,8 @@ export function useLiFiSwapExecution() {
     // Add to global bridge transaction history and get the ID
     const globalTxId = addTransaction({
       status: 'checking-approval',
-      fromChain: { chainId: lifiService.getChainId(fromChain.chainIndex) || 1, name: fromChain.name, icon: fromChain.icon },
-      toChain: { chainId: lifiService.getChainId(toChain.chainIndex) || 1, name: toChain.name, icon: toChain.icon },
+      fromChain: { chainId: fromChainId, name: fromChain.name, icon: fromChain.icon },
+      toChain: { chainId: toChainId, name: toChain.name, icon: toChain.icon },
       fromToken: { symbol: quote.fromToken.symbol, address: quote.fromToken.address, logoURI: quote.fromToken.logoURI },
       toToken: { symbol: quote.toToken.symbol, address: quote.toToken.address, logoURI: quote.toToken.logoURI },
       fromAmount,
@@ -282,6 +435,26 @@ export function useLiFiSwapExecution() {
       fromChainId: lifiService.getChainId(fromChain.chainIndex) || 1,
       toChainId: lifiService.getChainId(toChain.chainIndex) || 1,
       bridge: quote.bridgeName,
+    }, {
+      id: txId,
+      status: 'bridging',
+      fromChain,
+      toChain,
+      fromToken: {
+        symbol: quote.fromToken.symbol,
+        logoURI: quote.fromToken.logoURI || '',
+        address: quote.fromToken.address,
+        decimals: quote.fromToken.decimals,
+      },
+      toToken: {
+        symbol: quote.toToken.symbol,
+        logoURI: quote.toToken.logoURI || '',
+      },
+      fromAmount: (parseFloat(quote.fromAmount) / Math.pow(10, quote.fromToken.decimals)).toString(),
+      toAmount: (parseFloat(quote.toAmount) / Math.pow(10, quote.toToken.decimals)).toString(),
+      sourceTxHash: txHash,
+      bridgeName: quote.bridgeName,
+      startTime: Date.now(),
     });
 
     return { txHash, status: 'PENDING' };
@@ -382,6 +555,8 @@ export function useLiFiSwapExecution() {
     transactions,
     currentTx,
     pendingApproval,
+    isSigningIntent,
+    bridgeSettings,
     executeSwap,
     handleApproval,
     cancelApproval,
