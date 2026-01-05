@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,9 @@ import {
   ArrowRight,
   Check,
   Loader2,
-  Route as RouteIcon
+  Route as RouteIcon,
+  TrendingUp,
+  Coins
 } from "lucide-react";
 import { RouteOption } from "@/hooks/useLiFiRoutes";
 import { cn } from "@/lib/utils";
@@ -41,20 +43,50 @@ function formatTime(seconds: number): string {
   return `~${hours}h ${remainingMinutes}m`;
 }
 
+// Calculate savings compared to worst route
+function calculateSavings(route: RouteOption, allRoutes: RouteOption[], toTokenDecimals: number): {
+  gasSavings: string | null;
+  outputGain: string | null;
+  outputGainPercent: string | null;
+} {
+  if (allRoutes.length < 2) return { gasSavings: null, outputGain: null, outputGainPercent: null };
+
+  // Find highest gas cost (worst)
+  const maxGas = Math.max(...allRoutes.map(r => parseFloat(r.totalFeesUSD)));
+  const currentGas = parseFloat(route.totalFeesUSD);
+  const gasSavings = maxGas > currentGas ? (maxGas - currentGas).toFixed(2) : null;
+
+  // Find lowest output (worst)
+  const minOutput = Math.min(...allRoutes.map(r => parseFloat(r.toAmount)));
+  const currentOutput = parseFloat(route.toAmount);
+  const outputDiff = currentOutput - minOutput;
+  const outputGain = outputDiff > 0 
+    ? (outputDiff / Math.pow(10, toTokenDecimals)).toFixed(4)
+    : null;
+  const outputGainPercent = minOutput > 0 && outputDiff > 0
+    ? ((outputDiff / minOutput) * 100).toFixed(2)
+    : null;
+
+  return { gasSavings, outputGain, outputGainPercent };
+}
+
 const RouteCard = memo(function RouteCard({
   route,
   isSelected,
   onSelect,
   toTokenSymbol,
   toTokenDecimals,
+  allRoutes,
 }: {
   route: RouteOption;
   isSelected: boolean;
   onSelect: () => void;
   toTokenSymbol: string;
   toTokenDecimals: number;
+  allRoutes: RouteOption[];
 }) {
   const [showSteps, setShowSteps] = useState(false);
+  const savings = useMemo(() => calculateSavings(route, allRoutes, toTokenDecimals), [route, allRoutes, toTokenDecimals]);
 
   return (
     <div
@@ -141,6 +173,24 @@ const RouteCard = memo(function RouteCard({
           <span>Fees: ${route.totalFeesUSD}</span>
         </div>
       </div>
+
+      {/* Savings indicators */}
+      {(savings.gasSavings || savings.outputGain) && (
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          {savings.gasSavings && parseFloat(savings.gasSavings) > 0.01 && (
+            <Badge variant="outline" className="text-[10px] py-0 px-1.5 text-green-600 border-green-600/30 bg-green-500/5">
+              <Coins className="w-3 h-3 mr-0.5" />
+              Save ${savings.gasSavings} fees
+            </Badge>
+          )}
+          {savings.outputGain && savings.outputGainPercent && parseFloat(savings.outputGainPercent) > 0.1 && (
+            <Badge variant="outline" className="text-[10px] py-0 px-1.5 text-primary border-primary/30 bg-primary/5">
+              <TrendingUp className="w-3 h-3 mr-0.5" />
+              +{savings.outputGainPercent}% output
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Route steps (expandable) */}
       {route.steps.length > 1 && (
@@ -256,6 +306,7 @@ export const RouteComparison = memo(function RouteComparison({
                 onSelect={() => onSelectRoute(route.id)}
                 toTokenSymbol={toTokenSymbol}
                 toTokenDecimals={toTokenDecimals}
+                allRoutes={routes}
               />
             ))}
           </>
