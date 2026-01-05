@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,14 +10,17 @@ import {
   ExternalLink, 
   Trash2,
   ArrowRight,
-  History
+  History,
+  RefreshCw
 } from "lucide-react";
 import { useBridgeTransactions, BridgeTransaction, BridgeStatus } from "@/contexts/BridgeTransactionContext";
+import { useBridgeStatusPolling } from "@/hooks/useBridgeStatusPolling";
 import { formatDistanceToNow } from "date-fns";
 
 const statusConfig: Record<BridgeStatus, { label: string; icon: typeof Clock; color: string }> = {
   idle: { label: "Idle", icon: Clock, color: "bg-muted text-muted-foreground" },
   "checking-approval": { label: "Checking", icon: Loader2, color: "bg-yellow-500/10 text-yellow-500" },
+  "awaiting-approval": { label: "Awaiting Approval", icon: Clock, color: "bg-orange-500/10 text-orange-500" },
   approving: { label: "Approving", icon: Loader2, color: "bg-yellow-500/10 text-yellow-500" },
   "pending-source": { label: "Pending", icon: Loader2, color: "bg-blue-500/10 text-blue-500" },
   bridging: { label: "Bridging", icon: Loader2, color: "bg-primary/10 text-primary" },
@@ -47,9 +50,10 @@ function getExplorerUrl(chainId: number, txHash: string): string {
 interface TransactionRowProps {
   tx: BridgeTransaction;
   onRemove: (id: string) => void;
+  onRefresh?: (tx: BridgeTransaction) => void;
 }
 
-const TransactionRow = memo(function TransactionRow({ tx, onRemove }: TransactionRowProps) {
+const TransactionRow = memo(function TransactionRow({ tx, onRemove, onRefresh }: TransactionRowProps) {
   const config = statusConfig[tx.status];
   const StatusIcon = config.icon;
   const isLoading = tx.status === 'bridging' || tx.status === 'pending-source' || tx.status === 'approving' || tx.status === 'checking-approval';
@@ -101,6 +105,17 @@ const TransactionRow = memo(function TransactionRow({ tx, onRemove }: Transactio
 
       {/* Actions */}
       <div className="flex items-center gap-1 flex-shrink-0">
+        {isLoading && onRefresh && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onRefresh(tx)}
+            title="Refresh status"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        )}
         {tx.sourceTxHash && (
           <a
             href={getExplorerUrl(tx.fromChain.chainId, tx.sourceTxHash)}
@@ -141,6 +156,11 @@ const TransactionRow = memo(function TransactionRow({ tx, onRemove }: Transactio
 
 export const BridgeTransactionHistory = memo(function BridgeTransactionHistory() {
   const { transactions, removeTransaction, clearHistory, pendingCount } = useBridgeTransactions();
+  const { pollTransaction } = useBridgeStatusPolling();
+
+  const handleRefresh = useCallback((tx: BridgeTransaction) => {
+    pollTransaction(tx);
+  }, [pollTransaction]);
 
   const { pending, completed } = useMemo(() => {
     const pending = transactions.filter(
@@ -157,14 +177,14 @@ export const BridgeTransactionHistory = memo(function BridgeTransactionHistory()
   }
 
   return (
-    <Card className="bg-card/50 border-border">
+    <Card className="bg-card/50 border-border overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <History className="w-4 h-4 text-primary" />
             Bridge History
             {pendingCount > 0 && (
-              <Badge variant="secondary" className="ml-1">
+              <Badge variant="secondary" className="ml-1 animate-pulse">
                 {pendingCount} pending
               </Badge>
             )}
@@ -185,7 +205,7 @@ export const BridgeTransactionHistory = memo(function BridgeTransactionHistory()
       <CardContent className="space-y-2">
         {/* Pending transactions first */}
         {pending.map(tx => (
-          <TransactionRow key={tx.id} tx={tx} onRemove={removeTransaction} />
+          <TransactionRow key={tx.id} tx={tx} onRemove={removeTransaction} onRefresh={handleRefresh} />
         ))}
         
         {/* Separator if both exist */}

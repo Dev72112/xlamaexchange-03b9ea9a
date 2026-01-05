@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 export type BridgeStatus = 
   | 'idle' 
   | 'checking-approval' 
+  | 'awaiting-approval'
   | 'approving' 
   | 'pending-source' 
   | 'bridging' 
