@@ -4,7 +4,9 @@ import { createConfig, getQuote, getChains, getTokens, executeRoute, getStatus, 
 const INTEGRATOR_ID = 'xlama';
 
 // Platform fee: 1.5% (0.015) - configured in Li.Fi Portal (portal.li.fi)
+// NOTE: Fee collection requires completing portal.li.fi setup - disabled until confirmed
 const PLATFORM_FEE = 0.015;
+const FEES_ENABLED = false; // Set to true once portal.li.fi integration is confirmed
 
 // Initialize the SDK configuration
 createConfig({
@@ -163,8 +165,12 @@ export const lifiService = {
       fromAddress: params.fromAddress,
       toAddress: params.toAddress || params.fromAddress,
       slippage: params.slippage || 0.01, // Default 1%
-      fee: PLATFORM_FEE, // 1.5% platform fee - routed to wallets configured in portal.li.fi
     };
+    
+    // Add fee only when enabled (requires portal.li.fi setup)
+    if (FEES_ENABLED) {
+      (quoteRequest as QuoteRequest & { fee?: number }).fee = PLATFORM_FEE;
+    }
 
     try {
       const quote = await getQuote(quoteRequest);
