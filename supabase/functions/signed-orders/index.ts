@@ -86,28 +86,20 @@ async function verifySuiSigner(message: string, signature: string, address: stri
 }
 
 // Verify TON signature (proof-based)
-async function verifyTonSigner(signature: string, payload: string, address: string): Promise<boolean> {
-  try {
-    // For TON, we verify the payload contains the expected data
-    // and the hash matches the provided signature
-    const parsedPayload = JSON.parse(payload);
-    
-    if (parsedPayload.wallet.toLowerCase() !== address.toLowerCase()) {
-      return false;
-    }
-    
-    // Verify the hash matches
-    const encoder = new TextEncoder();
-    const data = encoder.encode(payload);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const expectedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    return signature === expectedHash;
-  } catch (error) {
-    console.error('Failed to verify TON signature:', error);
-    return false;
-  }
+// SECURITY: TON verification is DISABLED until proper tonProof implementation.
+// The previous implementation only verified a SHA-256 hash which could be trivially forged.
+// Proper implementation requires:
+// 1. Parsing and verifying stateInit
+// 2. Extracting public key from wallet contract
+// 3. Verifying Ed25519 signature with ton-proof-item-v2 message format
+// 4. Checking domain, timestamp, and payload
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function verifyTonSigner(_signature: string, _payload: string, _address: string): Promise<boolean> {
+  // TON signature verification is temporarily disabled for security.
+  // Returning false means TON users cannot use signed operations until
+  // proper tonProof verification is implemented.
+  console.error('TON signature verification is disabled - tonProof not yet implemented');
+  return false;
 }
 
 // Generate limit order message
