@@ -604,3 +604,91 @@ export async function createSignedBridgeRequest(
   
   return { signature, timestamp, nonce, message, payload };
 }
+
+/**
+ * Generate the message to be signed for bridge intent update
+ */
+export function generateBridgeUpdateMessage(
+  intentId: string,
+  updates: {
+    source_tx_hash?: string;
+    dest_tx_hash?: string;
+    status?: string;
+  },
+  timestamp: number,
+  nonce: string
+): string {
+  return `Sign this message to update bridge intent on xLama.
+
+Intent ID: ${intentId}
+${updates.source_tx_hash ? `Source TX: ${updates.source_tx_hash}` : ''}
+${updates.dest_tx_hash ? `Dest TX: ${updates.dest_tx_hash}` : ''}
+${updates.status ? `Status: ${updates.status}` : ''}
+Timestamp: ${timestamp}
+Nonce: ${nonce}
+
+This signature authorizes the update.`;
+}
+
+/**
+ * Create a signed request for bridge intent update
+ */
+export async function createSignedBridgeUpdateRequest(
+  intentId: string,
+  updates: {
+    source_tx_hash?: string;
+    dest_tx_hash?: string;
+    status?: string;
+  },
+  chainType: 'evm' | 'solana' | 'tron' | 'sui' | 'ton',
+  providers?: {
+    solanaProvider?: any;
+    tronWeb?: any;
+    signPersonalMessage?: (input: { message: Uint8Array }) => Promise<{ signature: string }>;
+    tonConnectUI?: any;
+    walletAddress?: string;
+  }
+): Promise<SignedRequest | null> {
+  const timestamp = Date.now();
+  const nonce = generateNonce();
+  const message = generateBridgeUpdateMessage(intentId, updates, timestamp, nonce);
+  
+  let signature: string | null = null;
+  let payload: string | undefined;
+  
+  switch (chainType) {
+    case 'solana':
+      if (providers?.solanaProvider) {
+        signature = await signSolanaMessage(message, providers.solanaProvider);
+      }
+      break;
+    case 'tron':
+      if (providers?.tronWeb) {
+        signature = await signTronMessage(message, providers.tronWeb);
+      }
+      break;
+    case 'sui':
+      if (providers?.signPersonalMessage) {
+        signature = await signSuiMessage(message, providers.signPersonalMessage);
+      }
+      break;
+    case 'ton':
+      if (providers?.tonConnectUI && providers?.walletAddress) {
+        const result = await signTonMessage(message, timestamp, providers.tonConnectUI, providers.walletAddress);
+        if (result) {
+          signature = result.signature;
+          payload = result.payload;
+          return { signature, timestamp, nonce, message, payload, tonProof: result.tonProof };
+        }
+      }
+      break;
+    default:
+      signature = await signEvmMessage(message);
+  }
+  
+  if (!signature) {
+    return null;
+  }
+  
+  return { signature, timestamp, nonce, message, payload };
+}

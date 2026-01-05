@@ -428,6 +428,27 @@ export type Database = {
         }
         Relationships: []
       }
+      signature_nonces: {
+        Row: {
+          action: string
+          nonce: string
+          used_at: string
+          wallet_address: string
+        }
+        Insert: {
+          action: string
+          nonce: string
+          used_at?: string
+          wallet_address: string
+        }
+        Update: {
+          action?: string
+          nonce?: string
+          used_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
