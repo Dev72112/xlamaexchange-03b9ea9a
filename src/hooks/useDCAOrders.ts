@@ -10,6 +10,7 @@ import {
 } from '@/lib/requestSigning';
 import { useSignPersonalMessage } from '@mysten/dapp-kit';
 import { useTonConnectUI } from '@tonconnect/ui-react';
+import { trackOrderCreated } from '@/lib/tracking';
 
 export interface DCAOrder {
   id: string;
@@ -200,6 +201,9 @@ export function useDCAOrders() {
         title: '✅ DCA Order Created',
         description: `Will buy ${order.to_token_symbol} ${order.frequency} with ${order.amount_per_interval} ${order.from_token_symbol}`,
       });
+      
+      // Track order creation
+      trackOrderCreated('dca', order.chain_index, order.from_token_symbol, order.to_token_symbol);
       
       fetchOrders();
       return data.order as DCAOrder;

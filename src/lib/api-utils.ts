@@ -99,8 +99,33 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
   }
 
   // Rate limiting
-  if (message.includes("rate limit") || message.includes("too many requests")) {
+  if (message.includes("rate limit") || message.includes("too many requests") || message.includes("50011")) {
     return "Too many requests. Please wait a moment and try again.";
+  }
+
+  // Wallet/transaction errors
+  if (message.includes("rejected") || message.includes("4001") || message.includes("user denied")) {
+    return "Transaction was rejected. Please try again when ready.";
+  }
+
+  if (message.includes("insufficient funds") || message.includes("insufficient balance")) {
+    return "Insufficient funds for this transaction. Please check your balance.";
+  }
+
+  if (message.includes("gas") && message.includes("estimate")) {
+    return "Unable to estimate gas. Try increasing slippage or reducing amount.";
+  }
+
+  if (message.includes("execution reverted")) {
+    return "Transaction would fail on-chain. Try increasing slippage.";
+  }
+
+  if (message.includes("slippage") || message.includes("price impact")) {
+    return "Price moved too much. Increase slippage tolerance or try a smaller amount.";
+  }
+
+  if (message.includes("allowance") || message.includes("approve")) {
+    return "Token approval required. Please approve the token first.";
   }
 
   // Specific exchange errors
@@ -114,6 +139,19 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
 
   if (message.includes("fixed_rate_not_enabled")) {
     return "Fixed rate is not available for this pair. Please use floating rate.";
+  }
+
+  if (message.includes("no route") || message.includes("no path")) {
+    return "No swap route found. Try a different token pair or amount.";
+  }
+
+  if (message.includes("liquidity")) {
+    return "Insufficient liquidity for this swap. Try a smaller amount.";
+  }
+
+  // Bridge-specific errors
+  if (message.includes("bridge") && message.includes("not supported")) {
+    return "This bridge route is not available. Try a different chain pair.";
   }
 
   // Default: return original message if it's reasonably user-friendly
