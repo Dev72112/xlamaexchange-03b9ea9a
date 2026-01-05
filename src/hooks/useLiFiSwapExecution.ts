@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { lifiService, LiFiQuoteResult } from '@/services/lifi';
 import { Chain } from '@/data/chains';
-import { type Route } from '@lifi/sdk';
+import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
 
 export type BridgeStatus = 
   | 'idle'
@@ -45,6 +45,7 @@ interface UseLiFiSwapExecutionOptions {
 export function useLiFiSwapExecution() {
   const [transactions, setTransactions] = useState<LiFiBridgeTransaction[]>([]);
   const [currentTx, setCurrentTx] = useState<LiFiBridgeTransaction | null>(null);
+  const { addTransaction, updateTransaction: updateGlobalTx } = useBridgeTransactions();
 
   const updateTransaction = useCallback((id: string, updates: Partial<LiFiBridgeTransaction>) => {
     setTransactions(prev => prev.map(tx => 
@@ -55,11 +56,14 @@ export function useLiFiSwapExecution() {
 
   const executeSwap = useCallback(async (
     options: UseLiFiSwapExecutionOptions,
-    _sendTransaction: (txData: any) => Promise<string>
+    sendTransaction: (txData: { to: string; data: string; value: string; chainId: number }) => Promise<string>
   ) => {
     const { fromChain, toChain, quote } = options;
     
     const txId = `lifi-${Date.now()}`;
+    const fromAmount = (parseFloat(quote.fromAmount) / Math.pow(10, quote.fromToken.decimals)).toString();
+    const toAmount = (parseFloat(quote.toAmount) / Math.pow(10, quote.toToken.decimals)).toString();
+    
     const newTx: LiFiBridgeTransaction = {
       id: txId,
       status: 'checking-approval',
@@ -73,8 +77,8 @@ export function useLiFiSwapExecution() {
         symbol: quote.toToken.symbol,
         logoURI: quote.toToken.logoURI || '',
       },
-      fromAmount: (parseFloat(quote.fromAmount) / Math.pow(10, quote.fromToken.decimals)).toString(),
-      toAmount: (parseFloat(quote.toAmount) / Math.pow(10, quote.toToken.decimals)).toString(),
+      fromAmount,
+      toAmount,
       bridgeName: quote.bridgeName,
       estimatedTime: quote.estimatedDurationSeconds,
       startTime: Date.now(),
@@ -83,43 +87,58 @@ export function useLiFiSwapExecution() {
     setTransactions(prev => [newTx, ...prev]);
     setCurrentTx(newTx);
 
+    // Add to global bridge transaction history
+    addTransaction({
+      status: 'checking-approval',
+      fromChain: { chainId: lifiService.getChainId(fromChain.chainIndex) || 1, name: fromChain.name, icon: fromChain.icon },
+      toChain: { chainId: lifiService.getChainId(toChain.chainIndex) || 1, name: toChain.name, icon: toChain.icon },
+      fromToken: { symbol: quote.fromToken.symbol, address: quote.fromToken.address, logoURI: quote.fromToken.logoURI },
+      toToken: { symbol: quote.toToken.symbol, address: quote.toToken.address, logoURI: quote.toToken.logoURI },
+      fromAmount,
+      toAmount,
+      bridgeName: quote.bridgeName,
+      estimatedTime: quote.estimatedDurationSeconds,
+    });
+
     try {
       const route = quote.route;
+      const step = route.steps[0];
       
-      updateTransaction(txId, { status: 'pending-source' });
-
-      // Li.Fi SDK handles the execution flow with route updates
-      const result = await lifiService.executeSwap(route, (updatedRoute: Route) => {
-        // Handle route updates from Li.Fi
-        const step = updatedRoute.steps[0];
-        if (step?.transactionId) {
-          updateTransaction(txId, { sourceTxHash: step.transactionId });
-        }
-        
-        // Update status based on route progress
-        // Li.Fi routes have steps that indicate progress
-        const allStepsComplete = updatedRoute.steps.every(s => s.transactionId);
-        if (allStepsComplete) {
-          updateTransaction(txId, { status: 'bridging' });
-        }
-      });
-
-      if (result.txHash) {
-        updateTransaction(txId, { 
-          sourceTxHash: result.txHash,
-          status: 'bridging'
-        });
-
-        // Start polling for completion
-        startStatusPolling(txId, {
-          txHash: result.txHash,
-          fromChainId: lifiService.getChainId(fromChain.chainIndex) || 1,
-          toChainId: lifiService.getChainId(toChain.chainIndex) || 1,
-          bridge: quote.bridgeName,
-        });
+      if (!step) {
+        throw new Error('No steps in route');
       }
 
-      return result;
+      updateTransaction(txId, { status: 'pending-source' });
+
+      // Get the transaction data for this step
+      const txData = await lifiService.getStepTransactionData(step);
+      
+      // Send the transaction using the provided wallet function
+      const txHash = await sendTransaction({
+        to: txData.to,
+        data: txData.data,
+        value: txData.value,
+        chainId: txData.chainId,
+      });
+
+      if (!txHash) {
+        throw new Error('Transaction rejected or failed');
+      }
+
+      updateTransaction(txId, { 
+        sourceTxHash: txHash,
+        status: 'bridging'
+      });
+
+      // Start polling for completion
+      startStatusPolling(txId, {
+        txHash,
+        fromChainId: lifiService.getChainId(fromChain.chainIndex) || 1,
+        toChainId: lifiService.getChainId(toChain.chainIndex) || 1,
+        bridge: quote.bridgeName,
+      });
+
+      return { txHash, status: 'PENDING' };
     } catch (error: any) {
       console.error('Li.Fi swap execution error:', error);
       updateTransaction(txId, { 
@@ -128,7 +147,7 @@ export function useLiFiSwapExecution() {
       });
       throw error;
     }
-  }, [updateTransaction]);
+  }, [updateTransaction, addTransaction]);
 
   const startStatusPolling = useCallback((
     txId: string, 

@@ -1,12 +1,14 @@
 import { memo } from "react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { TokenWatchlist } from "@/components/TokenWatchlist";
 import { GasEstimator } from "@/components/GasEstimator";
 import { PricePrediction } from "@/components/PricePrediction";
 import { PortfolioRebalancer } from "@/components/PortfolioRebalancer";
 import { PriceAlerts } from "@/components/PriceAlerts";
-import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 const toolsConfig = [
@@ -112,6 +114,30 @@ const Tools = memo(function Tools() {
           {/* Price Alerts */}
           <section id="alerts" className="scroll-mt-20">
             <PriceAlerts />
+          </section>
+
+          {/* Token Compare Link */}
+          <section className="max-w-xl mx-auto">
+            <Link to="/compare">
+              <Card className="bg-card/50 border-border hover:border-primary/30 transition-all group cursor-pointer">
+                <CardContent className="pt-6 pb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <BarChart3 className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Token Compare</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Compare up to 5 tokens side by side
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           </section>
         </div>
       </main>
