@@ -216,12 +216,16 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
       // Get EVM provider for sending transactions
       const provider = await getEvmProvider();
       
+      // Use selected route if available, otherwise use default quote
+      const routeToUse = selectedRoute?.route;
+      
       const result = await executeSwap(
         {
           fromChain,
           toChain,
           quote,
           userAddress: activeAddress,
+          selectedRoute: routeToUse,
         },
         async (txData) => {
           if (!provider) throw new Error('No wallet provider');
@@ -240,9 +244,10 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
         return;
       }
 
+      const bridgeName = selectedRoute?.bridgeName || quote.bridgeName || 'bridge';
       toast({
         title: "Bridge Initiated! 🌉",
-        description: `Bridging ${fromAmount} ${fromToken.tokenSymbol} to ${toChain.name}`,
+        description: `Bridging ${fromAmount} ${fromToken.tokenSymbol} to ${toChain.name} via ${bridgeName}`,
       });
     } catch (error: any) {
       console.error('Bridge error:', error);
@@ -494,6 +499,18 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           {/* Quote Info */}
           {quote && !quoteError && (
             <div className="p-3 rounded-lg bg-secondary/30 space-y-2">
+              {/* Show selected route info if different from default */}
+              {selectedRoute && showRoutes && (
+                <div className="flex items-center justify-between text-sm pb-2 border-b border-border/50 mb-2">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <RouteIcon className="w-3 h-3" /> Selected Route
+                  </span>
+                  <Badge variant="default" className="text-xs">
+                    {selectedRoute.bridgeName}
+                  </Badge>
+                </div>
+              )}
+              
               {exchangeRate && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Rate</span>
@@ -502,26 +519,28 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
                   </span>
                 </div>
               )}
-              {quote.bridgeName && (
+              {(selectedRoute?.bridgeName || quote.bridgeName) && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Bridge</span>
-                  <Badge variant="secondary">{quote.bridgeName}</Badge>
+                  <Badge variant="secondary">{selectedRoute?.bridgeName || quote.bridgeName}</Badge>
                 </div>
               )}
-              {estimatedTimeMinutes && (
+              {(selectedRoute || estimatedTimeMinutes) && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-1">
                     <Clock className="w-3 h-3" /> Est. Time
                   </span>
-                  <span>~{estimatedTimeMinutes} min</span>
+                  <span>~{selectedRoute 
+                    ? Math.ceil(selectedRoute.estimatedTimeSeconds / 60) 
+                    : estimatedTimeMinutes} min</span>
                 </div>
               )}
-              {quote.estimatedGasCostUSD && parseFloat(quote.estimatedGasCostUSD) > 0 && (
+              {(selectedRoute?.totalFeesUSD || (quote.estimatedGasCostUSD && parseFloat(quote.estimatedGasCostUSD) > 0)) && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-1">
-                    <Fuel className="w-3 h-3" /> Gas Cost
+                    <Fuel className="w-3 h-3" /> Total Fees
                   </span>
-                  <span className="font-mono">${quote.estimatedGasCostUSD}</span>
+                  <span className="font-mono">${selectedRoute?.totalFeesUSD || quote.estimatedGasCostUSD}</span>
                 </div>
               )}
               

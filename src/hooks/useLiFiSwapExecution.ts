@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { lifiService, LiFiQuoteResult } from '@/services/lifi';
 import { Chain } from '@/data/chains';
 import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
+import type { Route } from '@lifi/sdk';
 
 export type BridgeStatus = 
   | 'idle'
@@ -55,6 +56,7 @@ interface UseLiFiSwapExecutionOptions {
   toChain: Chain;
   quote: LiFiQuoteResult;
   userAddress: string;
+  selectedRoute?: Route; // Optional: use a specific route instead of default quote route
 }
 
 // Max uint256 for unlimited approval
@@ -77,7 +79,10 @@ export function useLiFiSwapExecution() {
     options: UseLiFiSwapExecutionOptions,
     sendTransaction: (txData: { to: string; data: string; value: string; chainId: number }) => Promise<string>
   ) => {
-    const { fromChain, toChain, quote } = options;
+    const { fromChain, toChain, quote, selectedRoute } = options;
+    
+    // Use selected route if provided, otherwise use default quote route
+    const routeToUse = selectedRoute || quote.route;
     
     const txId = `lifi-${Date.now()}`;
     const fromAmount = (parseFloat(quote.fromAmount) / Math.pow(10, quote.fromToken.decimals)).toString();
@@ -100,8 +105,10 @@ export function useLiFiSwapExecution() {
       },
       fromAmount,
       toAmount,
-      bridgeName: quote.bridgeName,
-      estimatedTime: quote.estimatedDurationSeconds,
+      bridgeName: selectedRoute ? (routeToUse.steps[0]?.toolDetails?.name || quote.bridgeName) : quote.bridgeName,
+      estimatedTime: selectedRoute 
+        ? routeToUse.steps.reduce((acc, step) => acc + (step.estimate?.executionDuration || 0), 0)
+        : quote.estimatedDurationSeconds,
       startTime: Date.now(),
     };
 
@@ -122,8 +129,8 @@ export function useLiFiSwapExecution() {
     });
 
     try {
-      // Get the step from the route
-      const step = quote.route.steps[0];
+      // Get the step from the route (use selected route if provided)
+      const step = routeToUse.steps[0];
       
       if (!step) {
         throw new Error('No steps in route');
