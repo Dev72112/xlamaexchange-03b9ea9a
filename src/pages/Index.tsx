@@ -11,9 +11,7 @@ import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
 import { PortfolioOverview } from "@/components/PortfolioOverview";
 import { TokenWatchlist } from "@/components/TokenWatchlist";
-import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
 import { GasEstimator } from "@/components/GasEstimator";
-import { ReferralDashboard } from "@/components/ReferralDashboard";
 import { PortfolioRebalancer } from "@/components/PortfolioRebalancer";
 import { PricePrediction } from "@/components/PricePrediction";
 import { Helmet } from "react-helmet-async";
@@ -216,12 +214,14 @@ const Index = () => {
             </div>
           </section>
 
-          {/* Cross-Chain Swap Section */}
+          {/* Cross-Chain Swap Section - Temporarily disabled, Li.Fi integration in progress */}
+          {/* TODO: Re-enable when Li.Fi integration is complete
           <section className="py-8">
             <div className="container px-4 sm:px-6 max-w-xl mx-auto">
               <CrossChainSwap />
             </div>
           </section>
+          */}
 
           {/* Limit Orders Section */}
           <section className="py-4">
@@ -241,12 +241,14 @@ const Index = () => {
             </div>
           </section>
 
-          {/* Referral Dashboard */}
+          {/* Referral Dashboard - Paused pending sustainable payout solution */}
+          {/* TODO: Re-enable when Li.Fi fee collection is set up
           <section className="py-4">
             <div className="container px-4 sm:px-6 max-w-xl mx-auto">
               <ReferralDashboard />
             </div>
           </section>
+          */}
 
           <Suspense fallback={<TransactionTrackerSkeleton />}>
             <DexTransactionHistory />
