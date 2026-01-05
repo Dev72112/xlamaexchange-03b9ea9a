@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { createSignedOrderRequest, createSignedCancelRequest } from '@/lib/requestSigning';
 import { useSignPersonalMessage } from '@mysten/dapp-kit';
 import { useTonConnectUI } from '@tonconnect/ui-react';
+import { trackOrderCreated } from '@/lib/tracking';
 
 export interface LimitOrder {
   id: string;
@@ -203,6 +204,9 @@ export function useLimitOrders() {
         title: '✅ Limit Order Created',
         description: `Signed and verified. Will trigger when ${order.from_token_symbol} is ${order.condition} $${order.target_price.toFixed(6)}`,
       });
+      
+      // Track order creation
+      trackOrderCreated('limit', order.chain_index, order.from_token_symbol, order.to_token_symbol);
       
       fetchOrders();
       return data.order as LimitOrder;

@@ -4,6 +4,7 @@ import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
 import { trackSwapInitiated, trackSwapCompleted } from '@/lib/tracking';
+import { getUserFriendlyErrorMessage } from '@/lib/api-utils';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
@@ -253,17 +254,8 @@ export function useDexSwap() {
     } catch (err: any) {
       console.error('Swap error:', err);
       
-      let errorMessage = 'Swap failed';
-      
-      if (err.code === 4001 || err.message?.includes('rejected')) {
-        errorMessage = 'Transaction rejected by user';
-      } else if (err.message?.includes('insufficient funds')) {
-        errorMessage = 'Insufficient funds for gas';
-      } else if (err.message?.includes('execution reverted')) {
-        errorMessage = 'Transaction would fail. Try increasing slippage.';
-      } else if (err.message) {
-        errorMessage = err.message.slice(0, 100);
-      }
+      // Use the centralized error message handler
+      const errorMessage = getUserFriendlyErrorMessage(err);
       
       setError(errorMessage);
       setStep('error');
