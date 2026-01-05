@@ -3,9 +3,11 @@ import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
+import { useBridgeTransactions, BridgeStatus } from "@/contexts/BridgeTransactionContext";
+import { useBridgeStatusPolling } from "@/hooks/useBridgeStatusPolling";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";
-import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw } from "lucide-react";
+import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,11 +23,13 @@ import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
 const History = () => {
   const { transactions, removeTransaction, clearHistory } = useTransactionHistory();
   const { transactions: dexTransactions, clearHistory: clearDexHistory } = useDexTransactions();
+  const { transactions: bridgeTransactions, removeTransaction: removeBridgeTx, clearHistory: clearBridgeHistory, pendingCount: bridgePendingCount } = useBridgeTransactions();
+  const { pollTransaction } = useBridgeStatusPolling();
   const { isConnected, activeAddress } = useMultiWallet();
   const navigate = useNavigate();
   
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'instant' | 'dex' | 'onchain'>('instant');
+  const [activeTab, setActiveTab] = useState<'instant' | 'dex' | 'bridge' | 'onchain'>('instant');
   
   // On-chain history state
   const [onchainHistory, setOnchainHistory] = useState<TransactionHistoryItem[]>([]);
@@ -84,6 +88,14 @@ const History = () => {
             Failed
           </Badge>
         );
+      case 'bridging':
+      case 'pending-source':
+        return (
+          <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">
+            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            Bridging
+          </Badge>
+        );
       default:
         return (
           <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
@@ -93,6 +105,27 @@ const History = () => {
         );
     }
   };
+
+  const getBridgeExplorerUrl = (chainId: number, txHash: string): string | null => {
+    const explorerUrls: Record<number, string> = {
+      1: 'https://etherscan.io/tx/',
+      10: 'https://optimistic.etherscan.io/tx/',
+      56: 'https://bscscan.com/tx/',
+      137: 'https://polygonscan.com/tx/',
+      42161: 'https://arbiscan.io/tx/',
+      43114: 'https://snowtrace.io/tx/',
+      8453: 'https://basescan.org/tx/',
+      324: 'https://explorer.zksync.io/tx/',
+      59144: 'https://lineascan.build/tx/',
+    };
+    const base = explorerUrls[chainId];
+    return base ? `${base}${txHash}` : null;
+  };
+
+  // Memoized sorted bridge transactions
+  const sortedBridgeTransactions = useMemo(() => {
+    return [...bridgeTransactions].sort((a, b) => b.startTime - a.startTime);
+  }, [bridgeTransactions]);
 
   const formatAmount = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -137,7 +170,7 @@ const History = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="instant" className="gap-2">
               <ArrowRight className="w-4 h-4" />
               <span className="hidden sm:inline">Instant</span>
@@ -154,6 +187,18 @@ const History = () => {
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                   {dexTransactions.length}
                 </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="bridge" className="gap-2 relative">
+              <ArrowLeftRight className="w-4 h-4" />
+              <span className="hidden sm:inline">Bridge</span>
+              {bridgeTransactions.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {bridgeTransactions.length}
+                </Badge>
+              )}
+              {bridgePendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
               )}
             </TabsTrigger>
             <TabsTrigger value="onchain" className="gap-2">
@@ -394,6 +439,165 @@ const History = () => {
             )}
           </TabsContent>
 
+          {/* Bridge Transactions Tab */}
+          <TabsContent value="bridge" className="space-y-4">
+            {bridgeTransactions.length > 0 && (
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    sortedBridgeTransactions
+                      .filter(tx => tx.status === 'bridging' || tx.status === 'pending-source')
+                      .forEach(tx => pollTransaction(tx));
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh Status
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to clear completed bridge transactions?')) {
+                      clearBridgeHistory();
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear History
+                </Button>
+              </div>
+            )}
+            
+            {sortedBridgeTransactions.length === 0 ? (
+              <Card className="p-12 text-center border-dashed">
+                <ArrowLeftRight className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
+                <h3 className="text-lg font-semibold mb-2">No bridge transactions yet</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                  Your cross-chain bridge transactions will appear here.
+                </p>
+                <Button onClick={() => navigate('/bridge')}>
+                  Start Bridging
+                </Button>
+              </Card>
+            ) : (
+              <div className="grid gap-3">
+                {sortedBridgeTransactions.map((tx, i) => {
+                  const sourceExplorerUrl = tx.sourceTxHash && tx.fromChain?.chainId 
+                    ? getBridgeExplorerUrl(tx.fromChain.chainId, tx.sourceTxHash) 
+                    : null;
+                  const destExplorerUrl = tx.destTxHash && tx.toChain?.chainId 
+                    ? getBridgeExplorerUrl(tx.toChain.chainId, tx.destTxHash) 
+                    : null;
+                  
+                  return (
+                    <Card
+                      key={tx.id}
+                      className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
+                      style={getStaggerStyle(i, 60)}
+                    >
+                      <div className="flex items-center gap-4">
+                        {/* Chain icons */}
+                        <div className="flex items-center shrink-0">
+                          <div className="relative">
+                            {tx.fromChain?.icon ? (
+                              <img
+                                src={tx.fromChain.icon}
+                                alt={tx.fromChain.name}
+                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
+                                {tx.fromChain?.name?.slice(0, 2) || '?'}
+                              </div>
+                            )}
+                          </div>
+                          <div className="relative -ml-3">
+                            {tx.toChain?.icon ? (
+                              <img
+                                src={tx.toChain.icon}
+                                alt={tx.toChain.name}
+                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
+                                {tx.toChain?.name?.slice(0, 2) || '?'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-medium">
+                              {formatAmount(tx.fromAmount)}{" "}
+                              <span className="uppercase text-muted-foreground">{tx.fromToken?.symbol}</span>
+                            </span>
+                            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="font-medium">
+                              {formatAmount(tx.toAmount)}{" "}
+                              <span className="uppercase text-muted-foreground">{tx.toToken?.symbol}</span>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                            <Badge variant="outline" className="h-5 text-xs">
+                              {tx.fromChain?.name} → {tx.toChain?.name}
+                            </Badge>
+                            {tx.bridgeName && (
+                              <Badge variant="secondary" className="h-5 text-xs">
+                                {tx.bridgeName}
+                              </Badge>
+                            )}
+                            <span>•</span>
+                            <span>{formatDistanceToNow(tx.startTime, { addSuffix: true })}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(tx.status)}
+                          {sourceExplorerUrl && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9"
+                              title="View source transaction"
+                              onClick={() => window.open(sourceExplorerUrl, '_blank')}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {destExplorerUrl && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9"
+                              title="View destination transaction"
+                              onClick={() => window.open(destExplorerUrl, '_blank')}
+                            >
+                              <ExternalLink className="w-4 h-4 text-success" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "h-9 w-9 text-muted-foreground hover:text-destructive",
+                              "opacity-0 group-hover:opacity-100 transition-opacity"
+                            )}
+                            onClick={() => removeBridgeTx(tx.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
           {/* On-Chain History Tab (from OKX v6 API) */}
           <TabsContent value="onchain" className="space-y-4">
             {!isConnected ? (
@@ -512,11 +716,11 @@ const History = () => {
         </Tabs>
 
         {/* Summary */}
-        {(transactions.length > 0 || dexTransactions.length > 0) && (
+        {(transactions.length > 0 || dexTransactions.length > 0 || bridgeTransactions.length > 0) && (
           <div className="mt-8 p-4 rounded-xl bg-secondary/30 border border-border">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Total transactions</span>
-              <span className="font-medium">{transactions.length + dexTransactions.length}</span>
+              <span className="font-medium">{transactions.length + dexTransactions.length + bridgeTransactions.length}</span>
             </div>
           </div>
         )}

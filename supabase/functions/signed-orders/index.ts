@@ -152,6 +152,47 @@ Nonce: ${nonce}
 This signature authorizes the ${action} of your DCA order.`;
 }
 
+// Generate bridge message
+function generateBridgeMessage(bridge: any, timestamp: number, nonce: string): string {
+  return `Sign this message to authorize a bridge swap on xLama.
+
+Bridge Details:
+- From: ${bridge.from_amount} ${bridge.from_token_symbol} (Chain ${bridge.from_chain_id})
+- To: ~${bridge.to_amount_expected} ${bridge.to_token_symbol} (Chain ${bridge.to_chain_id})
+${bridge.bridge_provider ? `- Provider: ${bridge.bridge_provider}` : ''}
+
+Timestamp: ${timestamp}
+Nonce: ${nonce}
+
+This signature authorizes the cross-chain bridge transaction.`;
+}
+
+// Validate bridge intent parameters
+function validateBridgeIntent(bridge: any): { valid: boolean; error?: string } {
+  if (typeof bridge.from_chain_id !== 'number') {
+    return { valid: false, error: 'Invalid from_chain_id' };
+  }
+  if (typeof bridge.to_chain_id !== 'number') {
+    return { valid: false, error: 'Invalid to_chain_id' };
+  }
+  if (!bridge.from_token_address || typeof bridge.from_token_address !== 'string') {
+    return { valid: false, error: 'Invalid from_token_address' };
+  }
+  if (!bridge.to_token_address || typeof bridge.to_token_address !== 'string') {
+    return { valid: false, error: 'Invalid to_token_address' };
+  }
+  if (!bridge.from_token_symbol || typeof bridge.from_token_symbol !== 'string') {
+    return { valid: false, error: 'Invalid from_token_symbol' };
+  }
+  if (!bridge.to_token_symbol || typeof bridge.to_token_symbol !== 'string') {
+    return { valid: false, error: 'Invalid to_token_symbol' };
+  }
+  if (!bridge.from_amount || typeof bridge.from_amount !== 'string') {
+    return { valid: false, error: 'Invalid from_amount' };
+  }
+  return { valid: true };
+}
+
 // Validate limit order parameters
 function validateLimitOrder(order: any): { valid: boolean; error?: string } {
   if (!order.chain_index || typeof order.chain_index !== 'string') {
@@ -582,6 +623,121 @@ This signature authorizes cancellation of your order.`;
         }
 
         console.log(`DCA order ${orderId} ${dcaAction}d`);
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { status: 200, headers: responseHeaders }
+        );
+      }
+
+      case 'create-bridge-intent': {
+        // Validate bridge intent
+        const validation = validateBridgeIntent(order);
+        if (!validation.valid) {
+          return new Response(
+            JSON.stringify({ error: validation.error }),
+            { status: 400, headers: responseHeaders }
+          );
+        }
+
+        // Regenerate the message that should have been signed
+        const expectedMessage = generateBridgeMessage(order, timestamp, nonce);
+
+        // Verify signature
+        const { valid, recoveredAddress } = await verifySignature(
+          expectedMessage, signature, walletAddress, chainType, payload
+        );
+
+        if (!valid || !recoveredAddress) {
+          console.error('Bridge intent signature verification failed', { 
+            walletAddress: walletAddress.slice(0, 10), 
+            chainType 
+          });
+          return new Response(
+            JSON.stringify({ error: 'Invalid signature. Please sign the message with your wallet.' }),
+            { status: 401, headers: responseHeaders }
+          );
+        }
+
+        console.log(`Bridge intent signature verified for ${recoveredAddress.slice(0, 10)}...`);
+
+        // Create the bridge intent in database
+        const { data, error } = await supabase
+          .from('bridge_intents')
+          .insert({
+            user_address: recoveredAddress,
+            from_chain_id: order.from_chain_id,
+            to_chain_id: order.to_chain_id,
+            from_token_address: order.from_token_address,
+            to_token_address: order.to_token_address,
+            from_token_symbol: order.from_token_symbol,
+            to_token_symbol: order.to_token_symbol,
+            from_amount: order.from_amount,
+            to_amount_expected: order.to_amount_expected || null,
+            bridge_provider: order.bridge_provider || null,
+            signature: signature,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Failed to create bridge intent:', error);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create bridge intent' }),
+            { status: 500, headers: responseHeaders }
+          );
+        }
+
+        console.log(`Bridge intent created: ${data.id}`);
+
+        return new Response(
+          JSON.stringify({ success: true, intent: data }),
+          { status: 200, headers: responseHeaders }
+        );
+      }
+
+      case 'update-bridge-intent': {
+        const { intentId, source_tx_hash, dest_tx_hash, status: intentStatus } = order || {};
+        
+        if (!intentId || typeof intentId !== 'string') {
+          return new Response(
+            JSON.stringify({ error: 'Intent ID is required' }),
+            { status: 400, headers: responseHeaders }
+          );
+        }
+
+        // Verify ownership
+        const { data: existingIntent } = await supabase
+          .from('bridge_intents')
+          .select('user_address')
+          .eq('id', intentId)
+          .single();
+
+        if (!existingIntent || existingIntent.user_address.toLowerCase() !== walletAddress.toLowerCase()) {
+          return new Response(
+            JSON.stringify({ error: 'Bridge intent not found or not owned by you' }),
+            { status: 404, headers: responseHeaders }
+          );
+        }
+
+        const updates: Record<string, any> = {};
+        if (source_tx_hash) updates.source_tx_hash = source_tx_hash;
+        if (dest_tx_hash) updates.dest_tx_hash = dest_tx_hash;
+        if (intentStatus) updates.status = intentStatus;
+        if (source_tx_hash && !intentStatus) updates.executed_at = new Date().toISOString();
+
+        const { error } = await supabase
+          .from('bridge_intents')
+          .update(updates)
+          .eq('id', intentId);
+
+        if (error) {
+          console.error('Failed to update bridge intent:', error);
+          return new Response(
+            JSON.stringify({ error: 'Failed to update bridge intent' }),
+            { status: 500, headers: responseHeaders }
+          );
+        }
 
         return new Response(
           JSON.stringify({ success: true }),

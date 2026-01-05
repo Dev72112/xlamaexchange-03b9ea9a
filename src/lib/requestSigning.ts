@@ -478,3 +478,99 @@ export async function createSignedDCAActionRequest(
   
   return { signature, timestamp, nonce, message, payload };
 }
+
+/**
+ * Generate the message to be signed for bridge swap authorization
+ */
+export function generateBridgeMessage(
+  bridge: {
+    from_chain_id: number;
+    to_chain_id: number;
+    from_token_symbol: string;
+    to_token_symbol: string;
+    from_amount: string;
+    to_amount_expected: string;
+    bridge_provider?: string;
+  },
+  timestamp: number,
+  nonce: string
+): string {
+  return `Sign this message to authorize a bridge swap on xLama.
+
+Bridge Details:
+- From: ${bridge.from_amount} ${bridge.from_token_symbol} (Chain ${bridge.from_chain_id})
+- To: ~${bridge.to_amount_expected} ${bridge.to_token_symbol} (Chain ${bridge.to_chain_id})
+${bridge.bridge_provider ? `- Provider: ${bridge.bridge_provider}` : ''}
+
+Timestamp: ${timestamp}
+Nonce: ${nonce}
+
+This signature authorizes the cross-chain bridge transaction.`;
+}
+
+/**
+ * Create a signed request for bridge swap authorization
+ */
+export async function createSignedBridgeRequest(
+  bridge: {
+    from_chain_id: number;
+    to_chain_id: number;
+    from_token_address: string;
+    to_token_address: string;
+    from_token_symbol: string;
+    to_token_symbol: string;
+    from_amount: string;
+    to_amount_expected: string;
+    bridge_provider?: string;
+  },
+  chainType: 'evm' | 'solana' | 'tron' | 'sui' | 'ton',
+  providers?: {
+    solanaProvider?: any;
+    tronWeb?: any;
+    signPersonalMessage?: (input: { message: Uint8Array }) => Promise<{ signature: string }>;
+    tonConnectUI?: any;
+    walletAddress?: string;
+  }
+): Promise<SignedRequest | null> {
+  const timestamp = Date.now();
+  const nonce = generateNonce();
+  const message = generateBridgeMessage(bridge, timestamp, nonce);
+  
+  let signature: string | null = null;
+  let payload: string | undefined;
+  
+  switch (chainType) {
+    case 'solana':
+      if (providers?.solanaProvider) {
+        signature = await signSolanaMessage(message, providers.solanaProvider);
+      }
+      break;
+    case 'tron':
+      if (providers?.tronWeb) {
+        signature = await signTronMessage(message, providers.tronWeb);
+      }
+      break;
+    case 'sui':
+      if (providers?.signPersonalMessage) {
+        signature = await signSuiMessage(message, providers.signPersonalMessage);
+      }
+      break;
+    case 'ton':
+      if (providers?.tonConnectUI && providers?.walletAddress) {
+        const result = await signTonMessage(message, timestamp, providers.tonConnectUI, providers.walletAddress);
+        if (result) {
+          signature = result.signature;
+          payload = result.payload;
+        }
+      }
+      break;
+    default:
+      signature = await signEvmMessage(message);
+  }
+  
+  if (!signature) {
+    return null;
+  }
+  
+  return { signature, timestamp, nonce, message, payload };
+}
