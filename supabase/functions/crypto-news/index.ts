@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -98,6 +99,15 @@ serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const clientIp = getClientIp(req);
+
+  // Check persistent rate limit (30 req/min for news)
+  const rateCheck = await checkRateLimit('crypto-news', clientIp);
+  if (!rateCheck.allowed) {
+    console.warn(`Rate limit exceeded for crypto-news from ${clientIp}`);
+    return rateLimitResponse(corsHeaders);
   }
 
   const responseHeaders = { 
