@@ -25,9 +25,10 @@ export function trackPageView(path: string) {
     console.log("[Analytics] Page view:", path);
   }
 
-  // Google Analytics integration (when GA_MEASUREMENT_ID is configured)
-  if (window.gtag) {
-    window.gtag('config', 'GA_MEASUREMENT_ID', { page_path: path });
+  // Google Analytics integration
+  const gaId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+  if (window.gtag && gaId) {
+    window.gtag('config', gaId, { page_path: path });
   }
 }
 
@@ -137,6 +138,16 @@ export function initializeTracking() {
 
 // Initialize analytics scripts
 function initializeAnalytics() {
+  const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID;
+  
+  // Skip if no GA ID configured
+  if (!GA_MEASUREMENT_ID) {
+    if (import.meta.env.DEV) {
+      console.log("[Tracking] No GA Measurement ID configured");
+    }
+    return;
+  }
+
   // Prevent duplicate script loading
   if (document.querySelector('script[src*="googletagmanager"]')) {
     return;
@@ -144,21 +155,22 @@ function initializeAnalytics() {
 
   // Log for development
   if (import.meta.env.DEV) {
-    console.log("[Tracking] Analytics initialized");
-    return; // Don't load GA in development
+    console.log("[Tracking] Analytics initialized with ID:", GA_MEASUREMENT_ID);
   }
 
-  // Uncomment and configure with your GA Measurement ID:
-  // const GA_MEASUREMENT_ID = 'G-XXXXXXXXXX';
-  // const script = document.createElement('script');
-  // script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-  // script.async = true;
-  // document.head.appendChild(script);
-  //
-  // window.dataLayer = window.dataLayer || [];
-  // window.gtag = function() { window.dataLayer.push(arguments); };
-  // window.gtag('js', new Date());
-  // window.gtag('config', GA_MEASUREMENT_ID);
+  // Load Google Analytics
+  const script = document.createElement('script');
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+  script.async = true;
+  document.head.appendChild(script);
+
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(...args: unknown[]) { window.dataLayer.push(args); };
+  window.gtag('js', new Date());
+  window.gtag('config', GA_MEASUREMENT_ID, {
+    anonymize_ip: true,
+    cookie_flags: 'SameSite=None;Secure'
+  });
 }
 
 // Initialize marketing scripts
