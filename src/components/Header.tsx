@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
-import { Star, Menu, X, Search, Clock, ArrowRightLeft, Info, BarChart3, LineChart } from "lucide-react";
+import { Star, Menu, X, Search, Clock, ArrowRightLeft, Info, BarChart3, LineChart, Link2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ export function Header() {
 
   const navLinks = [
     { path: "/", label: "Exchange", icon: ArrowRightLeft },
+    { path: "/bridge", label: "Bridge", icon: Link2 },
     { path: "/compare", label: "Compare", icon: BarChart3 },
     { path: "/analytics", label: "Analytics", icon: LineChart },
     { path: "/favorites", label: "Favorites", icon: Star },
