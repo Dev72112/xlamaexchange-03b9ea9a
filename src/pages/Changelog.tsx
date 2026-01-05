@@ -1,8 +1,10 @@
-import React from "react";
+import React, { memo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   Sparkles,
   Zap,
@@ -22,8 +24,13 @@ import {
   BarChart3,
   Coins,
   Bot,
+  ThumbsUp,
+  Check,
 } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+import { useFeatureVotes } from "@/hooks/useFeatureVotes";
+import { AnonymousFeedback } from "@/components/AnonymousFeedback";
+import { toast } from "sonner";
 
 interface ChangelogEntry {
   version: string;
@@ -35,6 +42,22 @@ interface ChangelogEntry {
     category: "feature" | "improvement" | "fix" | "security";
     text: string;
   }[];
+}
+
+interface RoadmapFeature {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  progress: number;
+}
+
+interface RoadmapQuarter {
+  quarter: string;
+  status: string;
+  color: string;
+  icon: React.ElementType;
+  features: RoadmapFeature[];
 }
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
@@ -90,6 +113,45 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
   },
 ];
 
+const ROADMAP_DATA: RoadmapQuarter[] = [
+  {
+    quarter: "Q1 2026",
+    status: "In Progress",
+    color: "green",
+    icon: Clock,
+    features: [
+      { id: "mobile-pwa", title: "Mobile App (PWA)", description: "Native-like mobile experience", icon: Smartphone, progress: 65 },
+      { id: "advanced-analytics", title: "Advanced Analytics", description: "Detailed trade history & insights", icon: BarChart3, progress: 40 },
+      { id: "tp-sl", title: "Take Profit / Stop Loss", description: "Automated exit strategies", icon: Target, progress: 25 },
+      { id: "more-chains", title: "More Chains", description: "Aptos, Sei, Injective support", icon: Globe, progress: 15 },
+    ],
+  },
+  {
+    quarter: "Q2 2026",
+    status: "Planned",
+    color: "blue",
+    icon: Target,
+    features: [
+      { id: "trading-bots", title: "Trading Bots", description: "Automated trading strategies", icon: Bot, progress: 0 },
+      { id: "yield-aggregator", title: "Yield Aggregator", description: "Find best DeFi yields across chains", icon: Coins, progress: 0 },
+      { id: "social-trading", title: "Social Trading", description: "Copy top traders' strategies", icon: Users, progress: 0 },
+      { id: "nft-bridge", title: "NFT Bridge", description: "Cross-chain NFT transfers", icon: Layers, progress: 0 },
+    ],
+  },
+  {
+    quarter: "Future",
+    status: "Exploring",
+    color: "purple",
+    icon: Rocket,
+    features: [
+      { id: "account-abstraction", title: "Account Abstraction", description: "Gasless & social recovery", icon: Shield, progress: 0 },
+      { id: "intent-trading", title: "Intent-Based Trading", description: "Express intent, we find best execution", icon: Zap, progress: 0 },
+      { id: "p2p-trading", title: "P2P Trading", description: "Direct peer-to-peer swaps", icon: ArrowLeftRight, progress: 0 },
+      { id: "multi-language", title: "Multi-language", description: "Localized for global users", icon: Globe, progress: 0 },
+    ],
+  },
+];
+
 const getCategoryIcon = (category: string) => {
   switch (category) {
     case "feature":
@@ -133,7 +195,79 @@ const getVersionBadgeVariant = (type: string) => {
   }
 };
 
+const getColorClasses = (color: string) => {
+  switch (color) {
+    case "green":
+      return { border: "border-green-500/30", badge: "border-green-500/50 text-green-500", icon: "text-green-500", progress: "bg-green-500" };
+    case "blue":
+      return { border: "border-blue-500/30", badge: "border-blue-500/50 text-blue-500", icon: "text-blue-500", progress: "bg-blue-500" };
+    case "purple":
+      return { border: "border-purple-500/30", badge: "border-purple-500/50 text-purple-500", icon: "text-purple-500", progress: "bg-purple-500" };
+    default:
+      return { border: "border-muted", badge: "", icon: "text-muted-foreground", progress: "bg-primary" };
+  }
+};
+
+interface FeatureItemProps {
+  feature: RoadmapFeature;
+  color: string;
+  vote: (id: string) => Promise<boolean>;
+  hasVoted: (id: string) => boolean;
+  getVoteCount: (id: string) => number;
+}
+
+const FeatureItem = memo(function FeatureItem({ feature, color, vote, hasVoted, getVoteCount }: FeatureItemProps) {
+  const colors = getColorClasses(color);
+  const voted = hasVoted(feature.id);
+  const voteCount = getVoteCount(feature.id);
+
+  const handleVote = async () => {
+    if (voted) {
+      toast.info("You already voted for this feature");
+      return;
+    }
+    const success = await vote(feature.id);
+    if (success) {
+      toast.success(`Voted for "${feature.title}"!`);
+    }
+  };
+
+  return (
+    <div className="space-y-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+      <div className="flex items-start gap-3">
+        <feature.icon className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">{feature.title}</p>
+          <p className="text-xs text-muted-foreground">{feature.description}</p>
+        </div>
+        <Button
+          variant={voted ? "secondary" : "outline"}
+          size="sm"
+          className="h-7 px-2 gap-1 flex-shrink-0"
+          onClick={handleVote}
+          disabled={voted}
+        >
+          {voted ? (
+            <Check className="h-3 w-3" />
+          ) : (
+            <ThumbsUp className="h-3 w-3" />
+          )}
+          <span className="text-xs">{voteCount}</span>
+        </Button>
+      </div>
+      {feature.progress > 0 && (
+        <div className="flex items-center gap-2">
+          <Progress value={feature.progress} className="h-1.5 flex-1" />
+          <span className="text-xs text-muted-foreground w-8">{feature.progress}%</span>
+        </div>
+      )}
+    </div>
+  );
+});
+
 const Changelog = () => {
+  const { vote, hasVoted, getVoteCount, isLoading } = useFeatureVotes();
+
   return (
     <Layout>
       <Helmet>
@@ -155,9 +289,10 @@ const Changelog = () => {
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             What&apos;s New
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
             Track all updates, new features, and improvements to the xLama platform.
           </p>
+          <AnonymousFeedback />
         </div>
 
         {/* Quick Stats */}
@@ -192,57 +327,8 @@ const Changelog = () => {
           </Card>
         </div>
 
-        {/* Timeline */}
-        <div className="relative">
-          {/* Timeline line */}
-          <div className="absolute left-4 md:left-8 top-0 bottom-0 w-px bg-border" />
-
-          <div className="space-y-8">
-            {CHANGELOG_DATA.map((entry, index) => (
-              <div
-                key={entry.version}
-                className={`relative pl-12 md:pl-20 ${STAGGER_ITEM_CLASS}`}
-                style={getStaggerStyle(index + 1)}
-              >
-                {/* Timeline dot */}
-                <div className="absolute left-2 md:left-6 w-4 h-4 rounded-full bg-primary border-4 border-background" />
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-wrap items-center gap-3 mb-2">
-                      <Badge variant={getVersionBadgeVariant(entry.type)}>
-                        v{entry.version}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">{entry.date}</span>
-                    </div>
-                    <h2 className="text-xl font-bold">{entry.title}</h2>
-                    <p className="text-muted-foreground">{entry.description}</p>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {entry.changes.map((change, changeIndex) => (
-                        <li key={changeIndex} className="flex items-start gap-3">
-                          <div className="mt-0.5 flex-shrink-0">
-                            {getCategoryIcon(change.category)}
-                          </div>
-                          <div className="flex-1">
-                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              {getCategoryLabel(change.category)}
-                            </span>
-                            <p className="text-sm">{change.text}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Roadmap Section */}
-        <div className="mt-16 mb-12">
+        <div className="mb-16">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
               <Rocket className="h-4 w-4" />
@@ -250,148 +336,105 @@ const Changelog = () => {
             </div>
             <h2 className="text-3xl font-bold mb-2">What&apos;s Coming Next</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Planned features and improvements on our development roadmap.
+              Vote for features you want most! Your feedback shapes our priorities.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {/* Q1 2026 */}
-            <Card className={`border-green-500/30 ${STAGGER_ITEM_CLASS}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="h-5 w-5 text-green-500" />
-                  <Badge variant="outline" className="border-green-500/50 text-green-500">
-                    Q1 2026
-                  </Badge>
-                </div>
-                <h3 className="text-lg font-bold">In Progress</h3>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <Smartphone className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Mobile App (PWA)</p>
-                    <p className="text-xs text-muted-foreground">Native-like mobile experience</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <BarChart3 className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Advanced Analytics</p>
-                    <p className="text-xs text-muted-foreground">Detailed trade history & insights</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Target className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Take Profit / Stop Loss</p>
-                    <p className="text-xs text-muted-foreground">Automated exit strategies</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Globe className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">More Chains</p>
-                    <p className="text-xs text-muted-foreground">Aptos, Sei, Injective support</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {ROADMAP_DATA.map((quarter) => {
+              const colors = getColorClasses(quarter.color);
+              const QuarterIcon = quarter.icon;
 
-            {/* Q2 2026 */}
-            <Card className={`border-blue-500/30 ${STAGGER_ITEM_CLASS}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="h-5 w-5 text-blue-500" />
-                  <Badge variant="outline" className="border-blue-500/50 text-blue-500">
-                    Q2 2026
-                  </Badge>
-                </div>
-                <h3 className="text-lg font-bold">Planned</h3>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <Bot className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Trading Bots</p>
-                    <p className="text-xs text-muted-foreground">Automated trading strategies</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Coins className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Yield Aggregator</p>
-                    <p className="text-xs text-muted-foreground">Find best DeFi yields across chains</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Users className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Social Trading</p>
-                    <p className="text-xs text-muted-foreground">Copy top traders&apos; strategies</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Layers className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">NFT Bridge</p>
-                    <p className="text-xs text-muted-foreground">Cross-chain NFT transfers</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Future */}
-            <Card className={`border-purple-500/30 ${STAGGER_ITEM_CLASS}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Rocket className="h-5 w-5 text-purple-500" />
-                  <Badge variant="outline" className="border-purple-500/50 text-purple-500">
-                    Future
-                  </Badge>
-                </div>
-                <h3 className="text-lg font-bold">Exploring</h3>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <Shield className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Account Abstraction</p>
-                    <p className="text-xs text-muted-foreground">Gasless & social recovery</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Zap className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Intent-Based Trading</p>
-                    <p className="text-xs text-muted-foreground">Express intent, we find best execution</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <ArrowLeftRight className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">P2P Trading</p>
-                    <p className="text-xs text-muted-foreground">Direct peer-to-peer swaps</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Globe className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm font-medium">Multi-language</p>
-                    <p className="text-xs text-muted-foreground">Localized for global users</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              return (
+                <Card key={quarter.quarter} className={`${colors.border} ${STAGGER_ITEM_CLASS}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <QuarterIcon className={`h-5 w-5 ${colors.icon}`} />
+                      <Badge variant="outline" className={colors.badge}>
+                        {quarter.quarter}
+                      </Badge>
+                    </div>
+                    <h3 className="text-lg font-bold">{quarter.status}</h3>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {quarter.features.map((feature) => (
+                      <FeatureItem
+                        key={feature.id}
+                        feature={feature}
+                        color={quarter.color}
+                        vote={vote}
+                        hasVoted={hasVoted}
+                        getVoteCount={getVoteCount}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Roadmap is subject to change based on community feedback and market conditions.
+            Roadmap priorities may change based on community votes and market conditions.
           </p>
         </div>
 
+        {/* Timeline */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold">Release History</h2>
+          </div>
+
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute left-4 md:left-8 top-0 bottom-0 w-px bg-border" />
+
+            <div className="space-y-8">
+              {CHANGELOG_DATA.map((entry, index) => (
+                <div
+                  key={entry.version}
+                  className={`relative pl-12 md:pl-20 ${STAGGER_ITEM_CLASS}`}
+                  style={getStaggerStyle(index + 1)}
+                >
+                  {/* Timeline dot */}
+                  <div className="absolute left-2 md:left-6 w-4 h-4 rounded-full bg-primary border-4 border-background" />
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <Badge variant={getVersionBadgeVariant(entry.type)}>
+                          v{entry.version}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">{entry.date}</span>
+                      </div>
+                      <h2 className="text-xl font-bold">{entry.title}</h2>
+                      <p className="text-muted-foreground">{entry.description}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {entry.changes.map((change, changeIndex) => (
+                          <li key={changeIndex} className="flex items-start gap-3">
+                            <div className="mt-0.5 flex-shrink-0">
+                              {getCategoryIcon(change.category)}
+                            </div>
+                            <div className="flex-1">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                {getCategoryLabel(change.category)}
+                              </span>
+                              <p className="text-sm">{change.text}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Subscribe CTA */}
-        <div className="mt-12 text-center p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border">
+        <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border">
           <Bell className="h-8 w-8 text-primary mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Stay Updated</h2>
           <p className="text-muted-foreground mb-6">
