@@ -11,12 +11,13 @@ interface LiFiBridgeProgressProps {
   onClose?: () => void;
 }
 
-const statusSteps: { status: BridgeStatus; label: string }[] = [
-  { status: 'checking-approval', label: 'Checking Approval' },
-  { status: 'approving', label: 'Approving Token' },
-  { status: 'pending-source', label: 'Submitting' },
-  { status: 'bridging', label: 'Bridging' },
-  { status: 'completed', label: 'Complete' },
+const statusSteps: { status: BridgeStatus; label: string; description?: string }[] = [
+  { status: 'checking-approval', label: 'Checking Approval', description: 'Verifying token allowance...' },
+  { status: 'awaiting-approval', label: 'Approval Required', description: 'Please approve token spending' },
+  { status: 'approving', label: 'Approving Token', description: 'Waiting for approval confirmation...' },
+  { status: 'pending-source', label: 'Submitting Bridge', description: 'Confirm transaction in wallet...' },
+  { status: 'bridging', label: 'Bridging Assets', description: 'Cross-chain transfer in progress...' },
+  { status: 'completed', label: 'Complete', description: 'Bridge successful!' },
 ];
 
 const getExplorerUrl = (chainIndex: string, txHash: string): string => {
@@ -64,11 +65,22 @@ export function LiFiBridgeProgress({ transaction, onClose }: LiFiBridgeProgressP
   };
 
   const progressPercent = () => {
-    const statusOrder: BridgeStatus[] = ['checking-approval', 'approving', 'pending-source', 'bridging', 'completed'];
+    const statusOrder: BridgeStatus[] = ['checking-approval', 'awaiting-approval', 'approving', 'pending-source', 'bridging', 'completed'];
     const index = statusOrder.indexOf(status);
     if (index === -1) return 0;
     return ((index + 1) / statusOrder.length) * 100;
   };
+
+  // Filter steps to only show relevant ones
+  const visibleSteps = statusSteps.filter(s => {
+    // Always hide awaiting-approval and approving if we're past them or never needed them
+    if (s.status === 'awaiting-approval' || s.status === 'approving') {
+      const approvalStatuses: BridgeStatus[] = ['awaiting-approval', 'approving'];
+      return approvalStatuses.includes(status) || 
+             (transaction.approvalInfo && ['checking-approval', 'awaiting-approval', 'approving'].includes(status));
+    }
+    return true;
+  });
 
   const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
   const formatTime = (seconds: number) => {
@@ -120,31 +132,49 @@ export function LiFiBridgeProgress({ transaction, onClose }: LiFiBridgeProgressP
         <Progress value={progressPercent()} className="h-2" />
 
         {/* Steps */}
-        <div className="space-y-2">
-          {statusSteps.filter(s => s.status !== 'approving' || status === 'approving').map((step) => {
+        <div className="space-y-3">
+          {visibleSteps.map((step) => {
             const stepStatus = getStepStatus(step.status);
+            const isApprovalStep = step.status === 'awaiting-approval' || step.status === 'approving';
             
             return (
-              <div key={step.status} className="flex items-center gap-3">
+              <div key={step.status} className={cn(
+                "flex items-start gap-3 p-2 rounded-lg transition-colors",
+                stepStatus === 'current' && "bg-primary/10",
+                stepStatus === 'error' && "bg-destructive/10"
+              )}>
                 {stepStatus === 'completed' && (
-                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 )}
                 {stepStatus === 'current' && (
-                  <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+                  <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0 mt-0.5" />
                 )}
                 {stepStatus === 'pending' && (
-                  <Circle className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                  <Circle className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                 )}
                 {stepStatus === 'error' && (
-                  <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+                  <XCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                 )}
-                <span className={cn(
-                  "text-sm",
-                  stepStatus === 'current' && "font-medium",
-                  stepStatus === 'pending' && "text-muted-foreground"
-                )}>
-                  {step.label}
-                </span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-sm",
+                      stepStatus === 'current' && "font-medium",
+                      stepStatus === 'pending' && "text-muted-foreground"
+                    )}>
+                      {step.label}
+                    </span>
+                    {isApprovalStep && stepStatus === 'current' && (
+                      <Badge variant="outline" className="text-[10px] py-0">Token Approval</Badge>
+                    )}
+                    {step.status === 'bridging' && stepStatus === 'current' && (
+                      <Badge variant="outline" className="text-[10px] py-0">Cross-Chain</Badge>
+                    )}
+                  </div>
+                  {stepStatus === 'current' && step.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+                  )}
+                </div>
               </div>
             );
           })}

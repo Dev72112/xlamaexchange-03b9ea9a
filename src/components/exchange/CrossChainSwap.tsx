@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowDown, Clock, Fuel, AlertTriangle, Loader2, ArrowRightLeft, Wallet, Info, Link2Off, Shield } from 'lucide-react';
+import { ArrowDown, Clock, Fuel, AlertTriangle, Loader2, ArrowRightLeft, Wallet, Info, Link2Off, Shield, Route as RouteIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +8,13 @@ import { ChainSelector } from './ChainSelector';
 import { DexTokenSelector } from './DexTokenSelector';
 import { LiFiBridgeProgress } from './LiFiBridgeProgress';
 import { BridgeApprovalModal } from './BridgeApprovalModal';
+import { RouteComparison } from './RouteComparison';
 import { Chain, getPrimaryChain, SUPPORTED_CHAINS, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { OkxToken } from '@/services/okxdex';
 import { lifiService } from '@/services/lifi';
 import { useDexTokens } from '@/hooks/useDexTokens';
 import { useLiFiQuote } from '@/hooks/useLiFiQuote';
+import { useLiFiRoutes } from '@/hooks/useLiFiRoutes';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useLiFiSwapExecution } from '@/hooks/useLiFiSwapExecution';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
@@ -23,6 +25,11 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface CrossChainSwapProps {
   className?: string;
@@ -30,6 +37,17 @@ interface CrossChainSwapProps {
 
 // Note: ChainSelector will show all chains, but Li.Fi only supports a subset
 // Quote errors will inform users when a chain isn't supported
+
+// Convert amount to smallest unit without scientific notation
+function toSmallestUnit(amount: string, decimals: number): string {
+  if (!amount || isNaN(parseFloat(amount))) return '0';
+  
+  const [whole, fraction = ''] = amount.split('.');
+  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
+  const combined = whole + paddedFraction;
+  
+  return combined.replace(/^0+/, '') || '0';
+}
 
 export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const { toast } = useToast();
@@ -51,6 +69,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const [showBridgeProgress, setShowBridgeProgress] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [showRoutes, setShowRoutes] = useState(false);
 
   // Load tokens for both chains (using OKX tokens for display, Li.Fi for quotes)
   const { tokens: fromTokens, nativeToken: fromNative, isLoading: fromTokensLoading } = useDexTokens(fromChain);
@@ -58,6 +77,11 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
 
   // Get balance for from token
   const { formatted: formattedBalance, loading: balanceLoading } = useTokenBalance(fromToken, fromChain);
+
+  // Check if chains are supported by Li.Fi (needed early for routes hook)
+  const fromChainSupported = lifiService.isChainSupported(fromChain.chainIndex);
+  const toChainSupported = lifiService.isChainSupported(toChain.chainIndex);
+  const bothChainsSupported = fromChainSupported && toChainSupported;
 
   // Li.Fi bridge execution
   const { currentTx, pendingApproval, executeSwap, handleApproval, cancelApproval, resetCurrentTx } = useLiFiSwapExecution();
@@ -127,6 +151,40 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
              lifiService.isChainSupported(toChain.chainIndex),
   });
 
+  // Get token address normalized for Li.Fi
+  const normalizeAddress = (addr: string) => {
+    const lower = addr.toLowerCase();
+    if (lower === NATIVE_TOKEN_ADDRESS.toLowerCase() || lower === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+      return '0x0000000000000000000000000000000000000000';
+    }
+    return addr;
+  };
+
+  // Li.Fi routes for comparison
+  const fromChainId = lifiService.getChainId(fromChain.chainIndex);
+  const toChainId = lifiService.getChainId(toChain.chainIndex);
+  
+  const {
+    routes,
+    isLoading: routesLoading,
+    selectedRoute,
+    selectRoute,
+  } = useLiFiRoutes({
+    fromChainId: fromChainId || 1,
+    toChainId: toChainId || 1,
+    fromToken: fromToken ? normalizeAddress(fromToken.tokenContractAddress) : '',
+    toToken: toToken ? normalizeAddress(toToken.tokenContractAddress) : '',
+    fromAmount: fromToken && fromAmount ? 
+      toSmallestUnit(fromAmount, parseInt(fromToken.decimals)) : '',
+    fromAddress: activeAddress || '0x0000000000000000000000000000000000000001',
+    slippage: parseFloat(slippage) / 100,
+    enabled: fromChain.chainIndex !== toChain.chainIndex && 
+             !!fromToken && !!toToken && 
+             parseFloat(fromAmount) > 0 &&
+             bothChainsSupported &&
+             showRoutes,
+  });
+
   const handleSwapChains = () => {
     const tempChain = fromChain;
     const tempToken = fromToken;
@@ -135,6 +193,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     setFromToken(toToken);
     setToToken(tempToken);
     setFromAmount(formattedOutputAmount || '');
+    setShowRoutes(false);
   };
 
   const handleMaxClick = () => {
@@ -261,15 +320,6 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     setShowBridgeProgress(false);
   };
 
-  // Check if user has sufficient balance
-  const hasInsufficientBalance = isConnected && formattedBalance && fromAmount && 
-    parseFloat(fromAmount) > parseFloat(formattedBalance);
-
-  // Check if chains are supported by Li.Fi
-  const fromChainSupported = lifiService.isChainSupported(fromChain.chainIndex);
-  const toChainSupported = lifiService.isChainSupported(toChain.chainIndex);
-  const bothChainsSupported = fromChainSupported && toChainSupported;
-
   // Get list of supported chain names for messaging
   const supportedChainNames = useMemo(() => {
     return SUPPORTED_CHAINS
@@ -278,9 +328,16 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
       .slice(0, 8); // Show first 8 for brevity
   }, []);
 
+  // Check if user has sufficient balance
+  const hasInsufficientBalance = isConnected && formattedBalance && fromAmount && 
+    parseFloat(fromAmount) > parseFloat(formattedBalance);
+
   const canSwap = isConnected && fromToken && toToken && 
     parseFloat(fromAmount) > 0 && quote && !quoteLoading && !hasInsufficientBalance &&
     bothChainsSupported;
+
+  // Determine if we should hide quote errors when balance is insufficient
+  const shouldShowQuoteError = quoteError && !isRetrying && !hasInsufficientBalance;
 
   const getButtonText = () => {
     if (!isConnected) {
@@ -467,11 +524,36 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
                   <span className="font-mono">${quote.estimatedGasCostUSD}</span>
                 </div>
               )}
+              
+              {/* Compare Routes Button */}
+              {bothChainsSupported && fromToken && toToken && parseFloat(fromAmount) > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRoutes(!showRoutes)}
+                  className="w-full mt-2 text-xs"
+                >
+                  <RouteIcon className="w-3 h-3 mr-1" />
+                  {showRoutes ? 'Hide Routes' : 'Compare Routes'}
+                </Button>
+              )}
             </div>
           )}
 
-          {/* Error */}
-          {quoteError && !isRetrying && (
+          {/* Route Comparison */}
+          {showRoutes && toToken && (
+            <RouteComparison
+              routes={routes}
+              selectedRoute={selectedRoute}
+              onSelectRoute={selectRoute}
+              isLoading={routesLoading}
+              toTokenSymbol={toToken.tokenSymbol}
+              toTokenDecimals={parseInt(toToken.decimals)}
+            />
+          )}
+
+          {/* Error - Only show if not insufficient balance */}
+          {shouldShowQuoteError && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-between text-sm text-destructive">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
