@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.register-referral]
 verify_jwt = false
+
+[functions.submit-claim]
+verify_jwt = false

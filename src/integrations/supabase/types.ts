@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      commission_claims: {
+        Row: {
+          claim_amount_usd: number
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payout_address: string
+          payout_chain: string
+          payout_tx_hash: string | null
+          referrer_address: string
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          claim_amount_usd: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payout_address: string
+          payout_chain: string
+          payout_tx_hash?: string | null
+          referrer_address: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          claim_amount_usd?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payout_address?: string
+          payout_chain?: string
+          payout_tx_hash?: string | null
+          referrer_address?: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       dca_orders: {
         Row: {
           amount_per_interval: string
@@ -252,36 +294,45 @@ export type Database = {
         Row: {
           amount_usd: number
           chain_index: string
+          claim_id: string | null
+          claimed_at: string | null
           commission_rate: number
           commission_usd: number
           created_at: string
           id: string
           referee_address: string
           referrer_address: string
+          status: string
           token_symbol: string
           trade_hash: string
         }
         Insert: {
           amount_usd: number
           chain_index: string
+          claim_id?: string | null
+          claimed_at?: string | null
           commission_rate?: number
           commission_usd: number
           created_at?: string
           id?: string
           referee_address: string
           referrer_address: string
+          status?: string
           token_symbol: string
           trade_hash: string
         }
         Update: {
           amount_usd?: number
           chain_index?: string
+          claim_id?: string | null
+          claimed_at?: string | null
           commission_rate?: number
           commission_usd?: number
           created_at?: string
           id?: string
           referee_address?: string
           referrer_address?: string
+          status?: string
           token_symbol?: string
           trade_hash?: string
         }

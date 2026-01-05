@@ -35,6 +35,7 @@ import { AdvancedPriceChart } from "./AdvancedPriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
 import { useTradePreFill } from "@/contexts/TradePreFillContext";
+import { useReferral } from "@/hooks/useReferral";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LimitOrderForm } from "@/components/LimitOrderForm";
 import { DCAOrderForm } from "@/components/DCAOrderForm";
@@ -84,6 +85,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { isConnected, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain } = useMultiWallet();
   const { triggerFeedback } = useFeedback();
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
+  const { recordTradeCommission } = useReferral(address);
   
   // Exchange mode state
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
@@ -568,7 +570,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       toToken: toDexToken!,
       amount: fromAmount,
       slippage,
-      onSuccess: (hash) => {
+      onSuccess: async (hash) => {
         // Trigger success feedback
         triggerFeedback('success', 'heavy');
         
@@ -583,6 +585,17 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           description: `Successfully swapped ${fromAmount} ${fromDexToken!.tokenSymbol} for ${toDexToken!.tokenSymbol}`,
         });
         refetchBalance();
+        
+        // Record trade for referral commission tracking
+        const tradeAmountUsd = fromUsdValue ? parseFloat(fromUsdValue.replace(/[,$]/g, '')) : 0;
+        if (tradeAmountUsd > 0) {
+          await recordTradeCommission(
+            hash,
+            selectedChain.chainIndex,
+            fromDexToken!.tokenSymbol,
+            tradeAmountUsd
+          );
+        }
       },
       onError: (err) => {
         // Update transaction as failed

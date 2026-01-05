@@ -15,6 +15,7 @@ import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useCrossChainSwapExecution, BridgeTransaction } from '@/hooks/useCrossChainSwapExecution';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
+import { useReferral } from '@/hooks/useReferral';
 import { cn } from '@/lib/utils';
 import { SlippageSettings } from './SlippageSettings';
 import {
@@ -29,6 +30,7 @@ interface CrossChainSwapProps {
 export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const { toast } = useToast();
   const { isConnected, activeAddress, getEvmProvider } = useMultiWallet();
+  const { recordTradeCommission } = useReferral(activeAddress);
 
   // Chain states
   const [fromChain, setFromChain] = useState<Chain>(getPrimaryChain());
@@ -143,6 +145,21 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             params: [txData],
           });
           if (!hash) throw new Error('Transaction rejected');
+          
+          // Record trade for referral commission tracking
+          // Estimate USD value from the quote if available
+          const amountUsd = quote?.toTokenAmount 
+            ? parseFloat(fromAmount) * (quote.toTokenAmount ? parseFloat(quote.toTokenAmount) / parseFloat(fromAmount) : 1)
+            : parseFloat(fromAmount);
+          if (amountUsd > 0) {
+            await recordTradeCommission(
+              hash,
+              fromChain.chainIndex,
+              fromToken.tokenSymbol,
+              amountUsd
+            );
+          }
+          
           return hash;
         }
       );
