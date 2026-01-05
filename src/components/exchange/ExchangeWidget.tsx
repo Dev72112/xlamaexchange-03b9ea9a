@@ -586,16 +586,17 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         });
         refetchBalance();
         
+        // TODO: Re-enable when referral program resumes with Li.Fi fee collection
         // Record trade for referral commission tracking
-        const tradeAmountUsd = fromUsdValue ? parseFloat(fromUsdValue.replace(/[,$]/g, '')) : 0;
-        if (tradeAmountUsd > 0) {
-          await recordTradeCommission(
-            hash,
-            selectedChain.chainIndex,
-            fromDexToken!.tokenSymbol,
-            tradeAmountUsd
-          );
-        }
+        // const tradeAmountUsd = fromUsdValue ? parseFloat(fromUsdValue.replace(/[,$]/g, '')) : 0;
+        // if (tradeAmountUsd > 0) {
+        //   await recordTradeCommission(
+        //     hash,
+        //     selectedChain.chainIndex,
+        //     fromDexToken!.tokenSymbol,
+        //     tradeAmountUsd
+        //   );
+        // }
       },
       onError: (err) => {
         // Update transaction as failed

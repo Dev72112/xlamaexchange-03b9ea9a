@@ -146,19 +146,20 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           });
           if (!hash) throw new Error('Transaction rejected');
           
+          // TODO: Re-enable when referral program resumes with Li.Fi fee collection
           // Record trade for referral commission tracking
           // Estimate USD value from the quote if available
-          const amountUsd = quote?.toTokenAmount 
-            ? parseFloat(fromAmount) * (quote.toTokenAmount ? parseFloat(quote.toTokenAmount) / parseFloat(fromAmount) : 1)
-            : parseFloat(fromAmount);
-          if (amountUsd > 0) {
-            await recordTradeCommission(
-              hash,
-              fromChain.chainIndex,
-              fromToken.tokenSymbol,
-              amountUsd
-            );
-          }
+          // const amountUsd = quote?.toTokenAmount 
+          //   ? parseFloat(fromAmount) * (quote.toTokenAmount ? parseFloat(quote.toTokenAmount) / parseFloat(fromAmount) : 1)
+          //   : parseFloat(fromAmount);
+          // if (amountUsd > 0) {
+          //   await recordTradeCommission(
+          //     hash,
+          //     fromChain.chainIndex,
+          //     fromToken.tokenSymbol,
+          //     amountUsd
+          //   );
+          // }
           
           return hash;
         }
