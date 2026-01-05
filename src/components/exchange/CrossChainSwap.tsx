@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowDown, Clock, Fuel, AlertTriangle, Loader2, ArrowRightLeft, Wallet, Info, Link2Off } from 'lucide-react';
+import { ArrowDown, Clock, Fuel, AlertTriangle, Loader2, ArrowRightLeft, Wallet, Info, Link2Off, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChainSelector } from './ChainSelector';
 import { DexTokenSelector } from './DexTokenSelector';
 import { LiFiBridgeProgress } from './LiFiBridgeProgress';
+import { BridgeApprovalModal } from './BridgeApprovalModal';
 import { Chain, getPrimaryChain, SUPPORTED_CHAINS, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { OkxToken } from '@/services/okxdex';
 import { lifiService } from '@/services/lifi';
@@ -48,6 +49,8 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const [fromAmount, setFromAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<string>('1.0');
   const [showBridgeProgress, setShowBridgeProgress] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   // Load tokens for both chains (using OKX tokens for display, Li.Fi for quotes)
   const { tokens: fromTokens, nativeToken: fromNative, isLoading: fromTokensLoading } = useDexTokens(fromChain);
@@ -57,7 +60,14 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const { formatted: formattedBalance, loading: balanceLoading } = useTokenBalance(fromToken, fromChain);
 
   // Li.Fi bridge execution
-  const { currentTx, executeSwap, resetCurrentTx } = useLiFiSwapExecution();
+  const { currentTx, pendingApproval, executeSwap, handleApproval, cancelApproval, resetCurrentTx } = useLiFiSwapExecution();
+
+  // Show approval modal when there's a pending approval
+  useEffect(() => {
+    if (pendingApproval) {
+      setShowApprovalModal(true);
+    }
+  }, [pendingApproval]);
 
   // Set default tokens when loaded
   useEffect(() => {
@@ -147,7 +157,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
       // Get EVM provider for sending transactions
       const provider = await getEvmProvider();
       
-      await executeSwap(
+      const result = await executeSwap(
         {
           fromChain,
           toChain,
@@ -165,6 +175,12 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
         }
       );
 
+      // Check if approval is needed
+      if (result?.status === 'AWAITING_APPROVAL') {
+        // Approval modal will be shown via useEffect
+        return;
+      }
+
       toast({
         title: "Bridge Initiated! 🌉",
         description: `Bridging ${fromAmount} ${fromToken.tokenSymbol} to ${toChain.name}`,
@@ -177,6 +193,72 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
         variant: "destructive",
       });
     }
+  };
+
+  const handleApprovalConfirm = async (amount: string) => {
+    try {
+      setIsApproving(true);
+      const provider = await getEvmProvider();
+      
+      await handleApproval(amount, async (txData) => {
+        if (!provider) throw new Error('No wallet provider');
+        const hash = await provider.request({
+          method: 'eth_sendTransaction',
+          params: [txData],
+        });
+        if (!hash) throw new Error('Approval rejected');
+        return hash;
+      });
+
+      setShowApprovalModal(false);
+      setIsApproving(false);
+
+      toast({
+        title: "Approval Successful! ✅",
+        description: `${fromToken?.tokenSymbol} approved. Now initiating bridge...`,
+      });
+
+      // Re-execute the swap after approval
+      if (fromToken && toToken && activeAddress && quote) {
+        const provider = await getEvmProvider();
+        await executeSwap(
+          {
+            fromChain,
+            toChain,
+            quote,
+            userAddress: activeAddress,
+          },
+          async (txData) => {
+            if (!provider) throw new Error('No wallet provider');
+            const hash = await provider.request({
+              method: 'eth_sendTransaction',
+              params: [txData],
+            });
+            if (!hash) throw new Error('Transaction rejected');
+            return hash;
+          }
+        );
+
+        toast({
+          title: "Bridge Initiated! 🌉",
+          description: `Bridging ${fromAmount} ${fromToken.tokenSymbol} to ${toChain.name}`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Approval error:', error);
+      setIsApproving(false);
+      toast({
+        title: "Approval Failed",
+        description: error?.message || "Failed to approve token",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApprovalCancel = () => {
+    cancelApproval();
+    setShowApprovalModal(false);
+    setShowBridgeProgress(false);
   };
 
   // Check if user has sufficient balance
@@ -474,7 +556,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
       </Card>
 
       {/* Bridge Progress Dialog */}
-      <Dialog open={showBridgeProgress && !!currentTx} onOpenChange={(open) => {
+      <Dialog open={showBridgeProgress && !!currentTx && !pendingApproval} onOpenChange={(open) => {
         setShowBridgeProgress(open);
         if (!open) resetCurrentTx();
       }}>
@@ -489,6 +571,22 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
                   setFromAmount('');
                 }
               }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Token Approval Dialog */}
+      <Dialog open={showApprovalModal && !!pendingApproval} onOpenChange={(open) => {
+        if (!open) handleApprovalCancel();
+      }}>
+        <DialogContent className="sm:max-w-md">
+          {pendingApproval && (
+            <BridgeApprovalModal
+              approvalInfo={pendingApproval}
+              onConfirm={handleApprovalConfirm}
+              onCancel={handleApprovalCancel}
+              isLoading={isApproving}
             />
           )}
         </DialogContent>

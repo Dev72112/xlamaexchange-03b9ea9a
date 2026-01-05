@@ -1,4 +1,5 @@
 import { createConfig, getQuote, getChains, getTokens, getStatus, getStepTransaction, convertQuoteToRoute, type Route, type LiFiStep, type Token, type QuoteRequest, type ExtendedChain, type FullStatusData, type StatusResponse } from '@lifi/sdk';
+import { encodeFunctionData, parseAbi } from 'viem';
 
 // Initialize Li.Fi SDK with integrator ID
 const INTEGRATOR_ID = 'Xlama';
@@ -87,6 +88,30 @@ const liFiIdToChainIndex: Record<number, string> = Object.entries(chainIndexToLi
   (acc, [idx, id]) => ({ ...acc, [id]: idx }),
   {}
 );
+
+// RPC endpoints for chains
+const chainRpcUrls: Record<number, string> = {
+  1: 'https://eth.llamarpc.com',
+  56: 'https://bsc-dataseed.binance.org',
+  137: 'https://polygon-rpc.com',
+  42161: 'https://arb1.arbitrum.io/rpc',
+  10: 'https://mainnet.optimism.io',
+  8453: 'https://mainnet.base.org',
+  43114: 'https://api.avax.network/ext/bc/C/rpc',
+  250: 'https://rpc.ftm.tools',
+  100: 'https://rpc.gnosischain.com',
+  324: 'https://mainnet.era.zksync.io',
+  59144: 'https://rpc.linea.build',
+  534352: 'https://rpc.scroll.io',
+  5000: 'https://rpc.mantle.xyz',
+  81457: 'https://rpc.blast.io',
+};
+
+// ERC-20 ABI for allowance and approve
+const ERC20_ABI = parseAbi([
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
+]);
 
 export const lifiService = {
   /**
@@ -313,6 +338,95 @@ export const lifiService = {
       console.error('Li.Fi status error:', error);
       return { status: 'NOT_FOUND' };
     }
+  },
+
+  /**
+   * Check token allowance for a spender using eth_call
+   */
+  async checkAllowance(params: {
+    tokenAddress: string;
+    ownerAddress: string;
+    spenderAddress: string;
+    chainId: number;
+  }): Promise<string> {
+    try {
+      const rpcUrl = chainRpcUrls[params.chainId];
+      if (!rpcUrl) {
+        console.warn('Chain not supported for allowance check:', params.chainId);
+        return '0';
+      }
+
+      // Encode the allowance function call
+      const data = encodeFunctionData({
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [params.ownerAddress as `0x${string}`, params.spenderAddress as `0x${string}`],
+      });
+
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_call',
+          params: [
+            { to: params.tokenAddress, data },
+            'latest'
+          ],
+        }),
+      });
+
+      const result = await response.json();
+      if (result.result && result.result !== '0x') {
+        return BigInt(result.result).toString();
+      }
+      return '0';
+    } catch (error) {
+      console.error('Allowance check error:', error);
+      return '0';
+    }
+  },
+
+  /**
+   * Build approval transaction for ERC-20 token
+   */
+  buildApprovalTx(params: {
+    tokenAddress: string;
+    spenderAddress: string;
+    amount: string;
+    chainId: number;
+  }): { to: string; data: string; value: string; chainId: number } {
+    const data = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: 'approve',
+      args: [params.spenderAddress as `0x${string}`, BigInt(params.amount)],
+    });
+
+    return {
+      to: params.tokenAddress,
+      data,
+      value: '0',
+      chainId: params.chainId,
+    };
+  },
+
+  /**
+   * Check if token needs approval (returns required spender if approval needed)
+   */
+  getApprovalAddress(step: LiFiStep): string | null {
+    // Check if this step requires approval
+    const action = step.action;
+    const fromToken = action.fromToken;
+    
+    // Native tokens don't need approval
+    if (fromToken.address === '0x0000000000000000000000000000000000000000' ||
+        fromToken.address.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+      return null;
+    }
+    
+    // Get the spender from the estimate
+    return step.estimate?.approvalAddress || null;
   },
 
   /**
