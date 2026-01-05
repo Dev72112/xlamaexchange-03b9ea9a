@@ -87,8 +87,7 @@ export const HeroSection = memo(function HeroSection() {
 
           {/* Description */}
           <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 leading-relaxed px-2">
-            Swap 900+ cryptocurrencies instantly or trade on-chain across 400+ DEXs. 
-            Best rates, no registration, maximum security.
+            Swap 900+ cryptocurrencies instantly, trade on-chain across 400+ DEXs, or bridge assets across 20+ chains. Best rates, no registration.
           </p>
 
           {/* CTA Buttons */}

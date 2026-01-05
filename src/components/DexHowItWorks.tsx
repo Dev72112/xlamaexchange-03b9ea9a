@@ -39,7 +39,7 @@ export const DexHowItWorks = memo(function DexHowItWorks() {
             How DEX Aggregator Works
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Swap tokens directly on-chain with the best rates from 400+ decentralized exchanges across Solana, Ethereum, Base, Sui, TON, Tron and more.
+            Swap tokens directly on-chain with the best rates from 400+ DEXs, or bridge assets across 20+ chains with Li.Fi integration.
           </p>
         </div>
 

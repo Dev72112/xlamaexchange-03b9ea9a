@@ -103,7 +103,7 @@ export const Footer = memo(function Footer() {
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <FeedbackSettings />
-            <span>Powered by ChangeNow & OKX DEX</span>
+            <span>Powered by ChangeNow, OKX DEX & Li.Fi</span>
           </div>
         </div>
       </div>
