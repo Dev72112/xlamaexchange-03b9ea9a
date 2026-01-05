@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { useTransactionHistory } from "@/hooks/useTransactionHistory";
@@ -7,15 +7,19 @@ import { useBridgeTransactions, BridgeStatus, BridgeTransaction } from "@/contex
 import { useBridgeStatusPolling } from "@/hooks/useBridgeStatusPolling";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";
-import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList } from "lucide-react";
+import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList, Search, Filter, X, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
 import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
@@ -50,6 +54,12 @@ const History = () => {
   
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'instant' | 'dex' | 'bridge' | 'onchain'>('all');
+  
+  // Filtering state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'instant' | 'dex' | 'bridge'>('all');
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [showFilters, setShowFilters] = useState(false);
   
   // On-chain history state
   const [onchainHistory, setOnchainHistory] = useState<TransactionHistoryItem[]>([]);
@@ -234,6 +244,39 @@ const History = () => {
     return unified.sort((a, b) => b.timestamp - a.timestamp);
   }, [transactions, dexTransactions, bridgeTransactions]);
 
+  // Filtered transactions based on search and filters
+  const filteredTransactions = useMemo(() => {
+    return unifiedTransactions.filter(tx => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSymbol = tx.fromSymbol.toLowerCase().includes(query) || 
+                              tx.toSymbol.toLowerCase().includes(query);
+        const matchesChain = tx.chainName?.toLowerCase().includes(query) ||
+                             tx.bridgeFromChain?.toLowerCase().includes(query) ||
+                             tx.bridgeToChain?.toLowerCase().includes(query);
+        if (!matchesSymbol && !matchesChain) return false;
+      }
+      
+      // Type filter
+      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+      
+      // Date range filter
+      if (dateRange.from && isBefore(tx.timestamp, startOfDay(dateRange.from))) return false;
+      if (dateRange.to && isAfter(tx.timestamp, endOfDay(dateRange.to))) return false;
+      
+      return true;
+    });
+  }, [unifiedTransactions, searchQuery, typeFilter, dateRange]);
+
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setTypeFilter('all');
+    setDateRange({});
+  }, []);
+
+  const hasActiveFilters = searchQuery || typeFilter !== 'all' || dateRange.from || dateRange.to;
+
   const totalTransactionCount = transactions.length + dexTransactions.length + bridgeTransactions.length;
 
   return (
@@ -309,6 +352,92 @@ const History = () => {
 
           {/* Unified Timeline Tab */}
           <TabsContent value="all" className="space-y-4">
+            {/* Search and Filters */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by token or chain..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setSearchQuery('')}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant={showFilters ? "secondary" : "outline"}
+                  size="icon"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="shrink-0"
+                >
+                  <Filter className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {showFilters && (
+                <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
+                  <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="instant">Instant</SelectItem>
+                      <SelectItem value="dex">DEX</SelectItem>
+                      <SelectItem value="bridge">Bridge</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Calendar className="w-4 h-4" />
+                        {dateRange.from ? (
+                          dateRange.to ? (
+                            `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d')}`
+                          ) : (
+                            format(dateRange.from, 'MMM d, yyyy')
+                          )
+                        ) : (
+                          'Date Range'
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="range"
+                        selected={{ from: dateRange.from, to: dateRange.to }}
+                        onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+                        numberOfMonths={1}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
+              )}
+              
+              {hasActiveFilters && (
+                <p className="text-sm text-muted-foreground">
+                  Showing {filteredTransactions.length} of {unifiedTransactions.length} transactions
+                </p>
+              )}
+            </div>
+
             {unifiedTransactions.length === 0 ? (
               <Card className="p-12 text-center border-dashed">
                 <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
@@ -320,9 +449,20 @@ const History = () => {
                   Start Trading
                 </Button>
               </Card>
+            ) : filteredTransactions.length === 0 ? (
+              <Card className="p-12 text-center border-dashed">
+                <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
+                <h3 className="text-lg font-semibold mb-2">No matching transactions</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                  Try adjusting your search or filters.
+                </p>
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              </Card>
             ) : (
               <div className="grid gap-3">
-                {unifiedTransactions.map((tx, i) => (
+                {filteredTransactions.map((tx, i) => (
                   <Card
                     key={tx.id}
                     className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}

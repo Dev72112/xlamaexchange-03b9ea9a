@@ -1,7 +1,7 @@
 import { memo, Suspense, lazy } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
