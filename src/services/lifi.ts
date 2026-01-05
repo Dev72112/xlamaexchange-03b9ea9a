@@ -1,4 +1,4 @@
-import { createConfig, getQuote, getChains, getTokens, executeRoute, getStatus, type Route, type LiFiStep, type Token, type QuoteRequest, type ExtendedChain, type FullStatusData, type StatusResponse } from '@lifi/sdk';
+import { createConfig, getQuote, getChains, getTokens, getStatus, getStepTransaction, convertQuoteToRoute, type Route, type LiFiStep, type Token, type QuoteRequest, type ExtendedChain, type FullStatusData, type StatusResponse } from '@lifi/sdk';
 
 // Initialize Li.Fi SDK with integrator ID
 const INTEGRATOR_ID = 'Xlama';
@@ -239,33 +239,38 @@ export const lifiService = {
   },
 
   /**
-   * Execute a cross-chain swap route
+   * Get transaction data for a route step
+   * Returns the transaction request that can be sent by the user's wallet
    */
-  async executeSwap(
-    route: Route,
-    updateCallback?: (updatedRoute: Route) => void
-  ): Promise<{ txHash: string; status: string }> {
+  async getStepTransactionData(
+    step: LiFiStep
+  ): Promise<{ to: string; data: string; value: string; gasLimit?: string; chainId: number }> {
     try {
-      const result = await executeRoute(route, {
-        updateRouteHook: (updatedRoute) => {
-          if (updateCallback) {
-            updateCallback(updatedRoute);
-          }
-        },
-      });
-
-      // Get the first step's transaction hash from transactionRequest or id
-      const firstStep = result.steps[0];
-      const txHash = firstStep?.transactionId || '';
+      const stepWithTx = await getStepTransaction(step);
+      const txRequest = stepWithTx.transactionRequest;
       
+      if (!txRequest) {
+        throw new Error('No transaction request in step');
+      }
+
       return {
-        txHash,
-        status: 'PENDING',
+        to: txRequest.to || '',
+        data: txRequest.data?.toString() || '0x',
+        value: txRequest.value?.toString() || '0',
+        gasLimit: txRequest.gasLimit?.toString(),
+        chainId: step.action.fromChainId,
       };
     } catch (error) {
-      console.error('Li.Fi execution error:', error);
+      console.error('Li.Fi getStepTransaction error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Convert a quote result to a route for execution
+   */
+  getRouteFromQuote(quoteResult: LiFiQuoteResult): Route {
+    return quoteResult.route;
   },
 
   /**

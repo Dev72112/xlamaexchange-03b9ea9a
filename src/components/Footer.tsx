@@ -61,6 +61,7 @@ export const Footer = memo(function Footer() {
               <li><Link to="/bridge" onMouseEnter={() => handleLinkHover('/bridge')} className="text-foreground/80 hover:text-foreground transition-colors">Cross-Chain Bridge</Link></li>
               <li><Link to="/orders" onMouseEnter={() => handleLinkHover('/orders')} className="text-foreground/80 hover:text-foreground transition-colors">Orders</Link></li>
               <li><Link to="/tools" onMouseEnter={() => handleLinkHover('/tools')} className="text-foreground/80 hover:text-foreground transition-colors">Trading Tools</Link></li>
+              <li><Link to="/portfolio" onMouseEnter={() => handleLinkHover('/portfolio')} className="text-foreground/80 hover:text-foreground transition-colors">Portfolio</Link></li>
               <li><Link to="/compare" onMouseEnter={() => handleLinkHover('/compare')} className="text-foreground/80 hover:text-foreground transition-colors">Token Compare</Link></li>
             </ul>
           </nav>

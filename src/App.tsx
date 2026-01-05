@@ -33,6 +33,7 @@ const TokenCompare = lazy(() => import("./pages/TokenCompare"));
 const Bridge = lazy(() => import("./pages/Bridge"));
 const Tools = lazy(() => import("./pages/Tools"));
 const Orders = lazy(() => import("./pages/Orders"));
+const Portfolio = lazy(() => import("./pages/Portfolio"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const App = () => (
@@ -58,6 +59,7 @@ const App = () => (
                                 <Route path="/bridge" element={<Bridge />} />
                                 <Route path="/orders" element={<Orders />} />
                                 <Route path="/tools" element={<Tools />} />
+                                <Route path="/portfolio" element={<Portfolio />} />
                                 <Route path="/compare" element={<TokenCompare />} />
                                 <Route path="/analytics" element={<Analytics />} />
                                 <Route path="/favorites" element={<Favorites />} />

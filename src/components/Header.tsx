@@ -24,7 +24,7 @@ export function Header() {
     { path: "/bridge", label: "Bridge", icon: Link2 },
     { path: "/orders", label: "Orders", icon: ListOrdered },
     { path: "/tools", label: "Tools", icon: Wrench },
-    { path: "/compare", label: "Compare", icon: BarChart3 },
+    { path: "/portfolio", label: "Portfolio", icon: BarChart3 },
     { path: "/analytics", label: "Analytics", icon: LineChart },
     { path: "/history", label: "History", icon: Clock },
   ];
