@@ -29,6 +29,7 @@ const History = lazy(() => import("./pages/History"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
 const TokenCompare = lazy(() => import("./pages/TokenCompare"));
+const Bridge = lazy(() => import("./pages/Bridge"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const App = () => (
@@ -59,6 +60,7 @@ const App = () => (
                               <Route path="/privacy" element={<Privacy />} />
                               <Route path="/cookies" element={<CookiesPolicy />} />
                               <Route path="/compare" element={<TokenCompare />} />
+                              <Route path="/bridge" element={<Bridge />} />
                               <Route path="*" element={<NotFound />} />
                             </Routes>
                           </PageTransition>
