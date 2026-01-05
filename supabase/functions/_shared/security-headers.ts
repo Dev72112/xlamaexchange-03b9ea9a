@@ -20,7 +20,7 @@ export const securityHeaders = {
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-wallet-address',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-wallet-address, x-referrer-address',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 

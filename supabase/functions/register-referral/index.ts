@@ -76,20 +76,29 @@ Deno.serve(async (req) => {
 
     let referrerAddress: string | null = referrerData?.referrer_address || null;
 
-    // If no existing referral with this code, try to derive the referrer
-    // For new referrers who haven't referred anyone yet, we need to accept the code
+    // If no existing referral with this code, we need the referrer to self-register
     // The code format is: XLAMA + address.slice(2, 10).toUpperCase()
-    // We can't reverse this, but we can verify if a known address matches
+    // We cannot reverse this to get the full address, so we need referrer registration
     if (!referrerAddress) {
-      // For the first referral, we need to trust the code format
-      // The referrer will be set when they claim by connecting their wallet
-      // For now, we'll store the code and use it for commission tracking
-      console.log('First referral with this code - storing with code as referrer marker');
+      // Check if the client provided the referrer address for first-time registration
+      const providedReferrer = req.headers.get('x-referrer-address');
       
-      // We can't know the referrer address from just the code for the first referral
-      // The client should provide additional context or we need a registration step
-      // For security, we reject codes that don't have an existing referrer
-      return secureErrorResponse('Referral code not registered. The referrer must make at least one referral first.', 400, 'CODE_NOT_FOUND');
+      if (providedReferrer && isValidWalletAddress(providedReferrer)) {
+        // Verify the provided address matches the code
+        const expectedCode = 'XLAMA' + providedReferrer.slice(2, 10).toUpperCase();
+        if (expectedCode === referralCode) {
+          referrerAddress = providedReferrer.toLowerCase();
+          console.log('First referral - verified referrer from header:', referrerAddress.slice(0, 10));
+        } else {
+          console.log('Referrer address does not match code:', { expectedCode, referralCode });
+          return secureErrorResponse('Referrer address does not match code', 400, 'CODE_MISMATCH');
+        }
+      } else {
+        // For security, we need to know who the referrer is
+        // The referrer can share their link with their full address
+        console.log('Referral code not found and no referrer address provided');
+        return secureErrorResponse('Referral code not yet activated. Ask your referrer to share their full link.', 400, 'CODE_NOT_ACTIVATED');
+      }
     }
 
     // Prevent self-referral
