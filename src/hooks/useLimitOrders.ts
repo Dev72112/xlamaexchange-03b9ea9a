@@ -189,6 +189,7 @@ export function useLimitOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
+          tonProof: signedRequest.tonProof, // Include tonProof for TON verification
         },
       });
       
@@ -253,6 +254,7 @@ export function useLimitOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
+          tonProof: signedRequest.tonProof, // Include tonProof for TON verification
         },
       });
       

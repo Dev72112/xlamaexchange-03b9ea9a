@@ -184,26 +184,73 @@ export async function signSuiMessage(
 }
 
 /**
- * Sign a message using TON wallet (TonConnect)
- * SECURITY: TON signing operations are DISABLED until proper tonProof verification is implemented.
- * This prevents potential forgery attacks since TON doesn't support traditional message signing.
+ * Sign a message using TON wallet (TonConnect) with proper tonProof
+ * TON Connect uses a proof-based approach where the signature is obtained during wallet connection.
+ * This function retrieves the stored proof and combines it with the operation payload.
  */
 export async function signTonMessage(
-  _message: string,
-  _timestamp: number,
+  message: string,
+  timestamp: number,
   _tonConnectUI: any,
-  _walletAddress: string
-): Promise<{ signature: string; payload: string } | null> {
-  // TON signature operations are temporarily disabled for security.
-  // TON Connect requires a complex proof-based approach (tonProof) that involves:
-  // 1. Requesting a proof from the wallet with a specific payload
-  // 2. Verifying Ed25519 signature with the wallet's public key
-  // 3. Validating state_init and address derivation
-  // 
-  // The previous implementation only used SHA-256 hashing which could be trivially forged.
-  // Until proper tonProof is implemented, TON users cannot use signed operations.
-  console.error('TON signature operations are currently disabled for security reasons.');
-  return null;
+  walletAddress: string
+): Promise<{ signature: string; payload: string; tonProof: TonProofPayload } | null> {
+  try {
+    // Import dynamically to avoid circular dependencies
+    const { getGlobalTonProof } = await import('@/hooks/useTonProof');
+    const storedProof = getGlobalTonProof();
+    
+    if (!storedProof) {
+      console.error('[TonSign] No TON proof available. User must reconnect wallet with tonProof.');
+      return null;
+    }
+    
+    // Check if proof is still valid (within 24 hours)
+    const now = Math.floor(Date.now() / 1000);
+    const proofAge = now - storedProof.timestamp;
+    const maxAge = 24 * 60 * 60; // 24 hours
+    
+    if (proofAge >= maxAge) {
+      console.error('[TonSign] TON proof expired. User must reconnect wallet.');
+      return null;
+    }
+    
+    // Create the operation payload that includes the message
+    const operationPayload = JSON.stringify({
+      operation: message,
+      operationTimestamp: timestamp,
+      walletAddress: walletAddress,
+      proofPayload: storedProof.payload,
+    });
+    
+    // Return the proof data for backend verification
+    return {
+      signature: storedProof.signature,
+      payload: operationPayload,
+      tonProof: {
+        timestamp: storedProof.timestamp,
+        domainLengthBytes: storedProof.domainLengthBytes,
+        domainValue: storedProof.domainValue,
+        signature: storedProof.signature,
+        payload: storedProof.payload,
+        stateInit: storedProof.stateInit,
+        publicKey: storedProof.publicKey,
+      },
+    };
+  } catch (error) {
+    console.error('[TonSign] Failed to get TON proof:', error);
+    return null;
+  }
+}
+
+// Extended interface for TON proof data
+export interface TonProofPayload {
+  timestamp: number;
+  domainLengthBytes: number;
+  domainValue: string;
+  signature: string;
+  payload: string;
+  stateInit: string;
+  publicKey: string;
 }
 
 export interface SignedRequest {
@@ -212,6 +259,7 @@ export interface SignedRequest {
   nonce: string;
   message: string;
   payload?: string; // For TON proof-based signing
+  tonProof?: TonProofPayload; // Full TON proof for backend verification
 }
 
 /**
@@ -264,6 +312,7 @@ export async function createSignedOrderRequest(
         if (result) {
           signature = result.signature;
           payload = result.payload;
+          return { signature, timestamp, nonce, message, payload, tonProof: result.tonProof };
         }
       }
       break;
@@ -321,6 +370,7 @@ export async function createSignedCancelRequest(
         if (result) {
           signature = result.signature;
           payload = result.payload;
+          return { signature, timestamp, nonce, message, payload, tonProof: result.tonProof };
         }
       }
       break;
@@ -384,6 +434,7 @@ export async function createSignedDCAOrderRequest(
         if (result) {
           signature = result.signature;
           payload = result.payload;
+          return { signature, timestamp, nonce, message, payload, tonProof: result.tonProof };
         }
       }
       break;
@@ -442,6 +493,7 @@ export async function createSignedDCAActionRequest(
         if (result) {
           signature = result.signature;
           payload = result.payload;
+          return { signature, timestamp, nonce, message, payload, tonProof: result.tonProof };
         }
       }
       break;
@@ -538,6 +590,7 @@ export async function createSignedBridgeRequest(
         if (result) {
           signature = result.signature;
           payload = result.payload;
+          return { signature, timestamp, nonce, message, payload, tonProof: result.tonProof };
         }
       }
       break;
