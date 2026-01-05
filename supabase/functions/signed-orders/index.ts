@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -479,7 +480,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIp = getClientIp(req);
   const responseHeaders = { ...corsHeaders, ...securityHeaders, 'Content-Type': 'application/json' };
+
+  // Check persistent rate limit (30 req/min for signed orders)
+  const rateCheck = await checkRateLimit('signed-orders', clientIp);
+  if (!rateCheck.allowed) {
+    console.warn(`Rate limit exceeded for signed-orders from ${clientIp}`);
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     if (req.method !== 'POST') {

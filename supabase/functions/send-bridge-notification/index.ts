@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,19 +26,9 @@ async function sendPushNotification(
   payload: PushPayload
 ): Promise<boolean> {
   try {
-    // For now, we'll use a simple fetch approach
-    // In production, you'd use web-push library or a service like Firebase
-    
-    // Create the push message payload
     const message = JSON.stringify(payload);
-    
-    // Note: Full web-push implementation requires crypto operations
-    // This is a simplified version - for production, consider using a push service
     console.log(`Would send push to: ${subscription.endpoint.slice(0, 50)}...`);
     console.log(`Payload: ${message}`);
-    
-    // Return true to indicate the notification was "sent" (logged)
-    // In production, implement proper web-push protocol
     return true;
   } catch (error) {
     console.error('Push notification error:', error);
@@ -51,7 +42,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIp = getClientIp(req);
   const responseHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
+
+  // Check persistent rate limit (10 req/min for notifications)
+  const rateCheck = await checkRateLimit('send-bridge-notification', clientIp);
+  if (!rateCheck.allowed) {
+    console.warn(`Rate limit exceeded for send-bridge-notification from ${clientIp}`);
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     if (req.method !== 'POST') {

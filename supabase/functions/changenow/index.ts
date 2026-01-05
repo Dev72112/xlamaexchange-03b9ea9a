@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, securityHeaders } from "../_shared/security-headers.ts";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // Combined headers for responses
 const responseHeaders = {
@@ -68,45 +69,6 @@ function sanitizeTicker(ticker: string): string {
   return ticker.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-// --- Rate Limiting (Simple in-memory, per-action) ---
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMITS: Record<string, number> = {
-  'currencies': 30,
-  'min-amount': 60,
-  'exchange-amount': 60,
-  'exchange-amount-fixed': 60,
-  'create-transaction': 10,
-  'create-transaction-fixed': 10,
-  'transaction-status': 30,
-};
-
-function checkRateLimit(action: string, clientIp: string): boolean {
-  const key = `${action}:${clientIp}`;
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  const limit = RATE_LIMITS[action] || 30;
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-
-  if (entry.count >= limit) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
-
-// Get client IP from request
-function getClientIp(req: Request): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-         req.headers.get('x-real-ip') || 
-         'unknown';
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -114,6 +76,13 @@ serve(async (req) => {
   }
 
   const clientIp = getClientIp(req);
+
+  // Check persistent rate limit
+  const rateCheck = await checkRateLimit('changenow', clientIp);
+  if (!rateCheck.allowed) {
+    console.warn(`Rate limit exceeded for changenow from ${clientIp}`);
+    return rateLimitResponse(corsHeaders);
+  }
 
   try {
     const body = await req.json();
@@ -125,15 +94,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Invalid action' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check rate limit
-    if (!checkRateLimit(action, clientIp)) {
-      console.warn(`Rate limit exceeded for action: ${action} from ${clientIp}`);
-      return new Response(
-        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

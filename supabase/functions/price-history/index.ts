@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,35 +16,6 @@ function isValidTicker(ticker: unknown): ticker is string {
 // Sanitize ticker for safe usage
 function sanitizeTicker(ticker: string): string {
   return ticker.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-// --- Rate Limiting ---
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 60; // 60 requests per minute
-
-function checkRateLimit(clientIp: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(clientIp);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(clientIp, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
-
-// Get client IP from request
-function getClientIp(req: Request): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-         req.headers.get('x-real-ip') || 
-         'unknown';
 }
 
 // Map common tickers to CoinGecko IDs
@@ -129,13 +101,11 @@ serve(async (req) => {
 
   const clientIp = getClientIp(req);
 
-  // Check rate limit
-  if (!checkRateLimit(clientIp)) {
+  // Check persistent rate limit
+  const rateCheck = await checkRateLimit('price-history', clientIp);
+  if (!rateCheck.allowed) {
     console.warn(`Rate limit exceeded for price-history from ${clientIp}`);
-    return new Response(
-      JSON.stringify({ error: 'Too many requests. Please try again later.', prices: [] }),
-      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return rateLimitResponse(corsHeaders);
   }
 
   try {

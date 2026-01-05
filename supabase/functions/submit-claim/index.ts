@@ -1,10 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { 
   corsPreflightResponse, 
+  corsHeaders,
   secureJsonResponse, 
   secureErrorResponse,
   isValidWalletAddress,
 } from '../_shared/security-headers.ts';
+import { checkRateLimit, getClientIp, rateLimitResponse } from '../_shared/rate-limit.ts';
 
 const MINIMUM_CLAIM_USD = 150; // $150 minimum
 const SUPPORT_EMAIL = 'support@xlama.io'; // Update with your actual support email
@@ -20,6 +22,15 @@ Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return corsPreflightResponse();
+  }
+
+  const clientIp = getClientIp(req);
+
+  // Check persistent rate limit (strict: 5 req/min for claims)
+  const rateCheck = await checkRateLimit('submit-claim', clientIp);
+  if (!rateCheck.allowed) {
+    console.warn(`Rate limit exceeded for submit-claim from ${clientIp}`);
+    return rateLimitResponse(corsHeaders);
   }
 
   if (req.method !== 'POST') {

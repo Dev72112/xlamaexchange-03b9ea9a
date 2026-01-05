@@ -1,11 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   corsPreflightResponse,
+  corsHeaders,
   secureJsonResponse,
   secureErrorResponse,
   sanitizeInput,
   isValidWalletAddress,
 } from '../_shared/security-headers.ts';
+import { checkRateLimit, getClientIp, rateLimitResponse } from '../_shared/rate-limit.ts';
 
 interface RegisterReferralRequest {
   referralCode: string;
@@ -22,6 +24,15 @@ Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return corsPreflightResponse();
+  }
+
+  const clientIp = getClientIp(req);
+
+  // Check persistent rate limit (10 req/min for referral registration)
+  const rateCheck = await checkRateLimit('register-referral', clientIp);
+  if (!rateCheck.allowed) {
+    console.warn(`Rate limit exceeded for register-referral from ${clientIp}`);
+    return rateLimitResponse(corsHeaders);
   }
 
   if (req.method !== 'POST') {
