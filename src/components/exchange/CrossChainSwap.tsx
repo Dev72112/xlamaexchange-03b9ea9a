@@ -231,9 +231,17 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
         },
         async (txData) => {
           if (!provider) throw new Error('No wallet provider');
+          // Format transaction for eth_sendTransaction - must have from, hex values
+          const formattedTx = {
+            from: activeAddress,
+            to: txData.to,
+            data: txData.data,
+            value: txData.value.startsWith('0x') ? txData.value : `0x${BigInt(txData.value || 0).toString(16)}`,
+            chainId: `0x${txData.chainId.toString(16)}`,
+          };
           const hash = await provider.request({
             method: 'eth_sendTransaction',
-            params: [txData],
+            params: [formattedTx],
           });
           if (!hash) throw new Error('Transaction rejected');
           return hash;
@@ -268,9 +276,16 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
       
       await handleApproval(amount, async (txData) => {
         if (!provider) throw new Error('No wallet provider');
+        const formattedTx = {
+          from: activeAddress,
+          to: txData.to,
+          data: txData.data,
+          value: txData.value.startsWith('0x') ? txData.value : `0x${BigInt(txData.value || 0).toString(16)}`,
+          chainId: `0x${txData.chainId.toString(16)}`,
+        };
         const hash = await provider.request({
           method: 'eth_sendTransaction',
-          params: [txData],
+          params: [formattedTx],
         });
         if (!hash) throw new Error('Approval rejected');
         return hash;
@@ -296,9 +311,16 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           },
           async (txData) => {
             if (!provider) throw new Error('No wallet provider');
+            const formattedTx = {
+              from: activeAddress,
+              to: txData.to,
+              data: txData.data,
+              value: txData.value.startsWith('0x') ? txData.value : `0x${BigInt(txData.value || 0).toString(16)}`,
+              chainId: `0x${txData.chainId.toString(16)}`,
+            };
             const hash = await provider.request({
               method: 'eth_sendTransaction',
-              params: [txData],
+              params: [formattedTx],
             });
             if (!hash) throw new Error('Transaction rejected');
             return hash;
