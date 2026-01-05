@@ -3,6 +3,7 @@ import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
+import { trackSwapInitiated, trackSwapCompleted } from '@/lib/tracking';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
@@ -172,6 +173,9 @@ export function useDexSwap() {
 
       setStep('swapping');
       
+      // Track swap initiated
+      trackSwapInitiated('dex', chain.name, fromToken.tokenSymbol, toToken.tokenSymbol);
+      
       toast({
         title: "Preparing Swap",
         description: "Getting best route...",
@@ -236,6 +240,9 @@ export function useDexSwap() {
       await waitForTransaction(provider, hash as string);
 
       setStep('complete');
+      
+      // Track swap completed
+      trackSwapCompleted('dex', chain.name, fromToken.tokenSymbol, toToken.tokenSymbol);
       
       toast({
         title: "Swap Complete! 🎉",
