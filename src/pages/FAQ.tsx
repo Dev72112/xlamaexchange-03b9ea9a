@@ -10,7 +10,7 @@ import {
 const faqs = [
   {
     question: "What is xlama?",
-    answer: "xlama is a multi-chain cryptocurrency exchange aggregator that supports 25+ blockchain networks. We offer two modes: Instant Mode (via ChangeNOW) for cross-chain swaps with 900+ tokens, and DEX Mode (via OKX DEX) for on-chain swaps aggregated from 400+ decentralized exchanges.",
+    answer: "xlama is a multi-chain cryptocurrency exchange aggregator that supports 25+ blockchain networks. We offer three core features: Instant Mode (via ChangeNOW) for cross-chain swaps with 900+ tokens, DEX Mode (via OKX DEX) for on-chain swaps aggregated from 400+ decentralized exchanges, and Cross-Chain Bridge (via Li.Fi) for bridging assets across 20+ networks.",
   },
   {
     question: "How many wallets do you support?",
@@ -18,23 +18,35 @@ const faqs = [
   },
   {
     question: "Which blockchain networks are supported?",
-    answer: "We support 25+ networks including EVM chains (Ethereum, Polygon, Arbitrum, Optimism, Base, BNB Chain, Avalanche, Fantom, zkSync, Linea, Scroll, X Layer, Mantle, Blast) and non-EVM chains (Solana, Sui, TON, and Tron).",
+    answer: "We support 25+ networks including EVM chains (Ethereum, Polygon, Arbitrum, Optimism, Base, BNB Chain, Avalanche, Fantom, zkSync, Linea, Scroll, X Layer, Mantle, Blast) and non-EVM chains (Solana, Sui, TON, and Tron). For bridging via Li.Fi, we support 20+ EVM chains plus Solana.",
   },
   {
     question: "Do I need to create an account?",
-    answer: "No registration required. For DEX Mode, simply connect your wallet - we support 526+ wallets via WalletConnect plus native integrations for Solana, Sui, TON, and Tron wallets. For Instant Mode, no wallet connection is needed.",
+    answer: "No registration required. For DEX Mode and Bridge, simply connect your wallet - we support 526+ wallets via WalletConnect plus native integrations for Solana, Sui, TON, and Tron wallets. For Instant Mode, no wallet connection is needed.",
   },
   {
-    question: "What's the difference between Instant and DEX mode?",
-    answer: "Instant Mode (ChangeNOW) is ideal for cross-chain swaps - send crypto and receive different crypto on another blockchain. DEX Mode (OKX DEX) is for same-chain swaps directly on the blockchain, aggregating rates from 400+ DEXs for the best prices.",
+    question: "What's the difference between Instant, DEX, and Bridge modes?",
+    answer: "Instant Mode (ChangeNOW) is ideal for cross-chain swaps - send crypto and receive different crypto on another blockchain. DEX Mode (OKX DEX) is for same-chain swaps directly on the blockchain, aggregating rates from 400+ DEXs. Bridge Mode (Li.Fi) is for moving the same token or stablecoins between different blockchains with optimized routes.",
+  },
+  {
+    question: "What is the Cross-Chain Bridge?",
+    answer: "Our Bridge page (/bridge) uses Li.Fi to find the best routes for moving assets between blockchains. Li.Fi aggregates 20+ bridge protocols (like Stargate, Hop, Across) to find you the optimal path based on speed, fees, and output amount. Perfect for moving ETH, USDC, or other assets between networks.",
+  },
+  {
+    question: "How do I use the Bridge page?",
+    answer: "1) Go to /bridge or click 'Bridge' in the navigation. 2) Connect your wallet. 3) Select source chain and token. 4) Select destination chain and token. 5) Enter the amount to bridge. 6) Review the route (bridge used, fees, estimated time). 7) Click Bridge and confirm in your wallet. Track progress in the Bridge History section.",
+  },
+  {
+    question: "What bridges does Li.Fi use?",
+    answer: "Li.Fi aggregates 20+ bridge protocols including Stargate, Hop Protocol, Across, Connext, Celer, Multichain, Synapse, and many more. The system automatically selects the best bridge based on your transfer size, destination, and preferences for speed vs. cost.",
   },
   {
     question: "What are Limit Orders?",
-    answer: "Limit Orders let you set a target price for your swap. When the market reaches your target, you'll receive a notification and can execute the swap. Create limit orders from the DEX swap form - set your tokens, amount, and target price. Orders are monitored 24/7 and you'll get browser notifications when triggered.",
+    answer: "Limit Orders let you set a target price for your swap. When the market reaches your target, you'll receive a notification and can execute the swap. Create limit orders from the DEX swap form - set your tokens, amount, and target price. Manage all orders from the /orders page.",
   },
   {
     question: "How do Cross-Chain Swaps work?",
-    answer: "Cross-chain swaps allow you to swap tokens between different blockchains (e.g., ETH on Ethereum to SOL on Solana). In DEX Mode, we use secure bridges to transfer your assets. You'll see the bridge fees and estimated arrival time before confirming. Track your swap progress through our real-time status tracker.",
+    answer: "Cross-chain swaps allow you to swap tokens between different blockchains (e.g., ETH on Ethereum to USDC on Polygon). We use Li.Fi for bridging, which finds the optimal route across 20+ bridge protocols. You'll see the bridge used, fees, and estimated arrival time before confirming.",
   },
   {
     question: "What is Portfolio P&L Tracking?",
@@ -42,27 +54,19 @@ const faqs = [
   },
   {
     question: "How do Price Alerts work?",
-    answer: "Set price alerts for any trading pair or token. Choose 'Above' or 'Below' conditions and your target price. When the condition is met, you'll receive browser push notifications and optional sound alerts. Manage alerts from the Token Watchlist or Price Alerts section.",
+    answer: "Set price alerts for any trading pair or token from the /tools page. Choose 'Above' or 'Below' conditions and your target price. When the condition is met, you'll receive browser push notifications and optional sound alerts. Manage alerts from the Token Watchlist or Tools page.",
   },
   {
     question: "What is the Token Comparison tool?",
     answer: "The Token Compare page (/compare) lets you select up to 5 tokens for side-by-side comparison. View current prices, 24h/7d changes, market cap, trading volume, liquidity, and holder counts. Great for research before making swap decisions.",
   },
   {
+    question: "What tools are available?",
+    answer: "Visit /tools for our full suite: Token Watchlist (price monitoring), Gas Estimator (multi-chain gas prices), Price Prediction (AI technical analysis), Portfolio Rebalancer (target allocations), and Price Alerts (notifications). Visit /orders to manage Limit and DCA orders.",
+  },
+  {
     question: "How do Solana swaps work?",
     answer: "Connect Phantom or Solflare wallet, select Solana network, and swap any SPL token. We aggregate rates from Jupiter, Raydium, Orca, and other Solana DEXs. Transactions confirm in ~400ms with minimal gas fees (usually under $0.01).",
-  },
-  {
-    question: "How do Sui swaps work?",
-    answer: "Connect Sui Wallet or Suiet, select SUI network, then swap SUI or any Sui tokens. Our DEX aggregator finds the best rates across Sui DEXs. Transactions are extremely fast (~2 seconds) with minimal fees.",
-  },
-  {
-    question: "How do TON swaps work?",
-    answer: "Connect Tonkeeper wallet to swap on TON network. We aggregate rates from TON DEXs like STON.fi and DeDust. TON transactions typically confirm in about 5 seconds with low fees.",
-  },
-  {
-    question: "How do Tron swaps work?",
-    answer: "Install TronLink extension or app, connect to swap TRX and TRC-20 tokens. We aggregate rates from SunSwap and other Tron DEXs. Transactions confirm in about 3 seconds.",
   },
   {
     question: "Why do I need to approve tokens before swapping?",
@@ -73,28 +77,20 @@ const faqs = [
     answer: "Slippage is the maximum price difference you'll accept between the quote and execution. We recommend 0.5-1% for stablecoins and 1-3% for volatile tokens. Adjust in the settings gear icon before swapping.",
   },
   {
-    question: "What is price impact?",
-    answer: "Price impact shows how your trade affects the token's price due to available liquidity. Large trades in low-liquidity pools can cause significant impact. We show warnings for impact over 5% - consider splitting large trades.",
-  },
-  {
     question: "What fees do you charge?",
-    answer: "For DEX swaps, we include a small 1.5% commission in the quote. For Instant swaps via ChangeNOW, fees are included in the exchange rate. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
+    answer: "For DEX swaps (OKX DEX), we include a 1.5% commission in the quote. For Bridge transactions (Li.Fi), we include a 1.5% platform fee. For Instant swaps (ChangeNOW), fees are included in the exchange rate. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
   },
   {
     question: "How can I track my transaction?",
-    answer: "For DEX swaps, we show real-time progress with estimated confirmation times. Once submitted, you can view your transaction on the blockchain explorer (Etherscan, Solscan, SuiScan, TONScan, TronScan, etc.) using the provided link. For Instant swaps, use the Transaction Tracker on our homepage.",
+    answer: "For DEX swaps, we show real-time progress with estimated confirmation times. For bridge transactions, track progress on the Bridge page with live status updates. Once submitted, view your transaction on the blockchain explorer (Etherscan, Solscan, etc.) using the provided link.",
   },
   {
     question: "Is xlama safe to use?",
-    answer: "Yes! xlama is completely non-custodial - we never hold your funds or access your private keys. DEX swaps interact directly with audited smart contracts. Instant swaps are processed by ChangeNOW, a trusted exchange partner since 2017.",
+    answer: "Yes! xlama is completely non-custodial - we never hold your funds or access your private keys. DEX swaps interact directly with audited smart contracts. Bridge transactions use audited protocols via Li.Fi. Instant swaps are processed by ChangeNOW, a trusted exchange partner since 2017.",
   },
   {
     question: "What is DCA (Dollar Cost Averaging)?",
-    answer: "DCA is an investment strategy where you buy a fixed amount of crypto at regular intervals (daily, weekly, monthly) regardless of price. This reduces the impact of volatility and removes emotional decision-making. Create DCA orders from the DEX swap interface.",
-  },
-  {
-    question: "How do I set up a DCA order?",
-    answer: "In DEX mode, click the DCA button next to the swap button. Choose your token pair, amount per purchase, frequency (daily/weekly/monthly), and optionally set a total number of purchases. Sign the message with your wallet to create the order.",
+    answer: "DCA is an investment strategy where you buy a fixed amount of crypto at regular intervals (daily, weekly, monthly) regardless of price. This reduces the impact of volatility and removes emotional decision-making. Manage DCA orders from the /orders page.",
   },
 ];
 

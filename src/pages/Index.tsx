@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState, Suspense, lazy, memo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
@@ -11,12 +11,8 @@ import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
 import { PortfolioOverview } from "@/components/PortfolioOverview";
 import { TokenWatchlist } from "@/components/TokenWatchlist";
-import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
-import { GasEstimator } from "@/components/GasEstimator";
-import { PortfolioRebalancer } from "@/components/PortfolioRebalancer";
-import { PricePrediction } from "@/components/PricePrediction";
 import { Helmet } from "react-helmet-async";
-import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe } from "lucide-react";
+import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe, Wrench, ListOrdered, Link2, ArrowRight } from "lucide-react";
 import { 
   TrendingPairsSkeleton, 
   TransactionTrackerSkeleton 
@@ -27,8 +23,6 @@ import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
 const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
-const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
-const ActiveDCAOrders = lazy(() => import("@/components/ActiveDCAOrders").then(m => ({ default: m.ActiveDCAOrders })));
 const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
 
 type ExchangeMode = 'instant' | 'dex';
@@ -191,63 +185,70 @@ const Index = () => {
         </>
       ) : (
         <>
-          {/* Token Watchlist for DEX mode */}
-          <section className="py-8">
+          {/* Quick Links for DEX Mode */}
+          <section className="py-6">
             <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
-              <TokenWatchlist />
-            </div>
-          </section>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <Link 
+                  to="/bridge"
+                  className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-card/80 transition-all ${STAGGER_ITEM_CLASS}`}
+                  style={getStaggerStyle(0, 80)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Link2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Bridge</p>
+                      <p className="text-xs text-muted-foreground">Cross-chain transfers</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </Link>
 
-          {/* Gas Estimator & Price Prediction Side by Side */}
-          <section className="py-4">
-            <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
-              <div className="grid md:grid-cols-2 gap-4">
-                <GasEstimator />
-                <PricePrediction />
+                <Link 
+                  to="/orders"
+                  className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-card/80 transition-all ${STAGGER_ITEM_CLASS}`}
+                  style={getStaggerStyle(1, 80)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <ListOrdered className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Orders</p>
+                      <p className="text-xs text-muted-foreground">Limit & DCA orders</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </Link>
+
+                <Link 
+                  to="/tools"
+                  className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-card/80 transition-all ${STAGGER_ITEM_CLASS}`}
+                  style={getStaggerStyle(2, 80)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Wrench className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Tools</p>
+                      <p className="text-xs text-muted-foreground">Gas, predictions, alerts</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </Link>
               </div>
             </div>
           </section>
 
-          {/* Portfolio Rebalancer */}
-          <section className="py-4">
-            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
-              <PortfolioRebalancer />
+          {/* Token Watchlist for DEX mode */}
+          <section className="py-6">
+            <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
+              <TokenWatchlist />
             </div>
           </section>
-
-          {/* Cross-Chain Bridge Section (Li.Fi) */}
-          <section className="py-8">
-            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
-              <CrossChainSwap />
-            </div>
-          </section>
-
-          {/* Limit Orders Section */}
-          <section className="py-4">
-            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
-              <Suspense fallback={<div className="h-16 skeleton-shimmer rounded-lg" />}>
-                <ActiveLimitOrders />
-              </Suspense>
-            </div>
-          </section>
-
-          {/* DCA Orders Section */}
-          <section className="py-4">
-            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
-              <Suspense fallback={<div className="h-16 skeleton-shimmer rounded-lg" />}>
-                <ActiveDCAOrders />
-              </Suspense>
-            </div>
-          </section>
-
-          {/* Referral Dashboard - Paused pending sustainable payout solution */}
-          {/* TODO: Re-enable when Li.Fi fee collection is set up
-          <section className="py-4">
-            <div className="container px-4 sm:px-6 max-w-xl mx-auto">
-              <ReferralDashboard />
-            </div>
-          </section>
-          */}
 
           <Suspense fallback={<TransactionTrackerSkeleton />}>
             <DexTransactionHistory />

@@ -9,6 +9,7 @@ import { MultiWalletProvider } from "@/contexts/MultiWalletContext";
 import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import { ExchangeModeProvider } from "@/contexts/ExchangeModeContext";
 import { TradePreFillProvider } from "@/contexts/TradePreFillContext";
+import { BridgeTransactionProvider } from "@/contexts/BridgeTransactionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CookieConsent } from "@/components/CookieConsent";
 import { TrackingProvider } from "@/components/TrackingProvider";
@@ -30,6 +31,8 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const CookiesPolicy = lazy(() => import("./pages/CookiesPolicy"));
 const TokenCompare = lazy(() => import("./pages/TokenCompare"));
 const Bridge = lazy(() => import("./pages/Bridge"));
+const Tools = lazy(() => import("./pages/Tools"));
+const Orders = lazy(() => import("./pages/Orders"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const App = () => (
@@ -38,41 +41,45 @@ const App = () => (
       <ErrorBoundary>
         <MultiWalletProvider>
           <DexTransactionProvider>
-            <ExchangeModeProvider>
-              <TradePreFillProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
-                    <RouteLoadingProvider>
-                      <ScrollToTop />
-                      <TrackingProvider>
-                        <Suspense fallback={<PageLoadingSkeleton />}>
-                          <PageTransition>
-                            <Routes>
-                              <Route path="/" element={<Index />} />
-                              <Route path="/favorites" element={<Favorites />} />
-                              <Route path="/history" element={<History />} />
-                              <Route path="/analytics" element={<Analytics />} />
-                              <Route path="/about" element={<About />} />
-                              <Route path="/faq" element={<FAQ />} />
-                              <Route path="/terms" element={<Terms />} />
-                              <Route path="/privacy" element={<Privacy />} />
-                              <Route path="/cookies" element={<CookiesPolicy />} />
-                              <Route path="/compare" element={<TokenCompare />} />
-                              <Route path="/bridge" element={<Bridge />} />
-                              <Route path="*" element={<NotFound />} />
-                            </Routes>
-                          </PageTransition>
-                        </Suspense>
-                        <KeyboardShortcuts />
-                        <CookieConsent />
-                      </TrackingProvider>
-                    </RouteLoadingProvider>
-                  </BrowserRouter>
-                </TooltipProvider>
-              </TradePreFillProvider>
-            </ExchangeModeProvider>
+            <BridgeTransactionProvider>
+              <ExchangeModeProvider>
+                <TradePreFillProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Sonner />
+                    <BrowserRouter>
+                      <RouteLoadingProvider>
+                        <ScrollToTop />
+                        <TrackingProvider>
+                          <Suspense fallback={<PageLoadingSkeleton />}>
+                            <PageTransition>
+                              <Routes>
+                                <Route path="/" element={<Index />} />
+                                <Route path="/bridge" element={<Bridge />} />
+                                <Route path="/orders" element={<Orders />} />
+                                <Route path="/tools" element={<Tools />} />
+                                <Route path="/compare" element={<TokenCompare />} />
+                                <Route path="/analytics" element={<Analytics />} />
+                                <Route path="/favorites" element={<Favorites />} />
+                                <Route path="/history" element={<History />} />
+                                <Route path="/about" element={<About />} />
+                                <Route path="/faq" element={<FAQ />} />
+                                <Route path="/terms" element={<Terms />} />
+                                <Route path="/privacy" element={<Privacy />} />
+                                <Route path="/cookies" element={<CookiesPolicy />} />
+                                <Route path="*" element={<NotFound />} />
+                              </Routes>
+                            </PageTransition>
+                          </Suspense>
+                          <KeyboardShortcuts />
+                          <CookieConsent />
+                        </TrackingProvider>
+                      </RouteLoadingProvider>
+                    </BrowserRouter>
+                  </TooltipProvider>
+                </TradePreFillProvider>
+              </ExchangeModeProvider>
+            </BridgeTransactionProvider>
           </DexTransactionProvider>
         </MultiWalletProvider>
       </ErrorBoundary>

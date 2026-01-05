@@ -1,9 +1,8 @@
-import { memo, useState, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { 
   ArrowRightLeft, 
   Wallet, 
@@ -13,9 +12,9 @@ import {
   Shield, 
   Zap,
   ExternalLink,
-  ArrowRight
 } from "lucide-react";
 import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
+import { BridgeTransactionHistory } from "@/components/BridgeTransactionHistory";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { lifiService } from "@/services/lifi";
 import { SUPPORTED_CHAINS } from "@/data/chains";
@@ -87,8 +86,13 @@ const Bridge = memo(function Bridge() {
         </div>
 
         {/* Main Bridge Widget */}
-        <div className="max-w-xl mx-auto mb-12 sm:mb-16">
+        <div className="max-w-xl mx-auto mb-8">
           <CrossChainSwap />
+        </div>
+
+        {/* Bridge Transaction History */}
+        <div className="max-w-xl mx-auto mb-12 sm:mb-16">
+          <BridgeTransactionHistory />
         </div>
 
         {/* Supported Chains Grid */}
