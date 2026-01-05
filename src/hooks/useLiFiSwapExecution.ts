@@ -7,6 +7,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { createSignedBridgeRequest } from '@/lib/requestSigning';
 import { supabase } from '@/integrations/supabase/client';
+import { trackBridgeInitiated, trackBridgeCompleted } from '@/lib/tracking';
 import type { Route } from '@lifi/sdk';
 
 export type BridgeStatus = 
@@ -153,6 +154,14 @@ export function useLiFiSwapExecution() {
             destTxHash: status.receiving?.txHash,
             completedTime: Date.now(),
           });
+          
+          // Track bridge completed
+          trackBridgeCompleted(
+            txRef.fromChain.name, 
+            txRef.toChain.name, 
+            txRef.fromToken.symbol, 
+            txRef.toToken.symbol
+          );
           
           // Send push notification
           sendBridgeNotification('bridge_completed', txRef, status.receiving?.txHash);
@@ -312,6 +321,9 @@ export function useLiFiSwapExecution() {
 
     setTransactions(prev => [newTx, ...prev]);
     setCurrentTx(newTx);
+    
+    // Track bridge initiated
+    trackBridgeInitiated(fromChain.name, toChain.name, quote.fromToken.symbol, quote.toToken.symbol);
 
     // Add to global bridge transaction history and get the ID
     const globalTxId = addTransaction({

@@ -50,7 +50,20 @@ export function trackEvent(event: AnalyticsEvent) {
 }
 
 // Specific tracking functions for common events
-export function trackSwapCompleted(mode: 'instant' | 'dex', chain: string, fromToken: string, toToken: string, amount?: number) {
+export function trackSwapInitiated(mode: 'instant' | 'dex' | 'bridge', chain: string, fromToken: string, toToken: string, amountUsd?: number) {
+  trackEvent({
+    name: 'swap_initiated',
+    properties: {
+      mode,
+      chain,
+      from_token: fromToken,
+      to_token: toToken,
+      ...(amountUsd !== undefined && { value: amountUsd }),
+    },
+  });
+}
+
+export function trackSwapCompleted(mode: 'instant' | 'dex' | 'bridge', chain: string, fromToken: string, toToken: string, amountUsd?: number) {
   trackEvent({
     name: 'swap_completed',
     properties: {
@@ -58,9 +71,45 @@ export function trackSwapCompleted(mode: 'instant' | 'dex', chain: string, fromT
       chain,
       from_token: fromToken,
       to_token: toToken,
-      ...(amount !== undefined && { amount }),
+      ...(amountUsd !== undefined && { value: amountUsd }),
     },
   });
+  
+  // Track as conversion for revenue attribution
+  if (amountUsd !== undefined) {
+    trackConversion('swap_revenue', amountUsd * 0.015); // 1.5% commission
+  }
+}
+
+export function trackBridgeInitiated(fromChain: string, toChain: string, fromToken: string, toToken: string, amountUsd?: number) {
+  trackEvent({
+    name: 'bridge_initiated',
+    properties: {
+      from_chain: fromChain,
+      to_chain: toChain,
+      from_token: fromToken,
+      to_token: toToken,
+      ...(amountUsd !== undefined && { value: amountUsd }),
+    },
+  });
+}
+
+export function trackBridgeCompleted(fromChain: string, toChain: string, fromToken: string, toToken: string, amountUsd?: number) {
+  trackEvent({
+    name: 'bridge_completed',
+    properties: {
+      from_chain: fromChain,
+      to_chain: toChain,
+      from_token: fromToken,
+      to_token: toToken,
+      ...(amountUsd !== undefined && { value: amountUsd }),
+    },
+  });
+  
+  // Track as conversion for revenue attribution
+  if (amountUsd !== undefined) {
+    trackConversion('bridge_revenue', amountUsd * 0.015); // 1.5% commission
+  }
 }
 
 export function trackWalletConnected(walletType: string, chain: string) {
@@ -69,6 +118,16 @@ export function trackWalletConnected(walletType: string, chain: string) {
     properties: {
       wallet_type: walletType,
       chain,
+    },
+  });
+}
+
+export function trackChainSwitched(fromChain: string, toChain: string) {
+  trackEvent({
+    name: 'chain_switched',
+    properties: {
+      from_chain: fromChain,
+      to_chain: toChain,
     },
   });
 }
@@ -97,6 +156,18 @@ export function trackPriceAlertCreated(fromTicker: string, toTicker: string, con
       from_ticker: fromTicker,
       to_ticker: toTicker,
       condition,
+    },
+  });
+}
+
+export function trackOrderCreated(orderType: 'limit' | 'dca', chain: string, fromToken: string, toToken: string) {
+  trackEvent({
+    name: 'order_created',
+    properties: {
+      order_type: orderType,
+      chain,
+      from_token: fromToken,
+      to_token: toToken,
     },
   });
 }
