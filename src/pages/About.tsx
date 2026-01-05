@@ -1,7 +1,8 @@
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
-import { Users, Zap, Heart, Code, Target, Rocket } from "lucide-react";
+import { Users, Zap, Heart, Code, Target, Rocket, ArrowRightLeft, Link2, Shield, ExternalLink } from "lucide-react";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "@/components/SocialIcons";
+import { Card, CardContent } from "@/components/ui/card";
 
 const About = () => {
   const values = [
@@ -32,6 +33,30 @@ const About = () => {
     { icon: Heart, text: "Culture before hype" },
     { icon: Rocket, text: "Progress over perfection" },
     { icon: Zap, text: "Memes with meaning" },
+  ];
+
+  const techPartners = [
+    {
+      name: "OKX DEX",
+      description: "DEX aggregation across 400+ exchanges on 25+ chains",
+      logo: "https://static.okx.com/cdn/assets/imgs/2112/1C734C18B89E3B51.png",
+      url: "https://www.okx.com/web3/dex",
+      icon: ArrowRightLeft,
+    },
+    {
+      name: "Li.Fi",
+      description: "Cross-chain bridging via 20+ bridge protocols",
+      logo: "https://li.fi/logo192.png",
+      url: "https://li.fi",
+      icon: Link2,
+    },
+    {
+      name: "ChangeNOW",
+      description: "Instant crypto exchange for 900+ tokens",
+      logo: "https://changenow.io/images/changenow-logo.svg",
+      url: "https://changenow.io",
+      icon: Shield,
+    },
   ];
 
   return (
@@ -129,6 +154,47 @@ const About = () => {
                 <principle.icon className="w-5 h-5 text-primary flex-shrink-0" aria-hidden="true" />
                 <span className="font-medium">{principle.text}</span>
               </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Technology Partners */}
+        <section className="mb-20" aria-labelledby="partners-heading">
+          <h2 id="partners-heading" className="text-2xl sm:text-3xl font-bold text-center mb-10">Technology Partners</h2>
+          <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+            We integrate with industry-leading protocols to provide the best trading experience across 25+ chains.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {techPartners.map((partner) => (
+              <a
+                key={partner.name}
+                href={partner.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group"
+              >
+                <Card className="h-full bg-card/50 border-border hover:border-primary/30 transition-all group-hover:shadow-lg">
+                  <CardContent className="pt-6 text-center">
+                    <div className="w-16 h-16 rounded-xl bg-secondary/50 flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform">
+                      <img 
+                        src={partner.logo} 
+                        alt={partner.name} 
+                        className="w-10 h-10 rounded-lg object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <partner.icon className="w-6 h-6 text-primary hidden" />
+                    </div>
+                    <h3 className="font-semibold text-lg mb-2 flex items-center justify-center gap-1">
+                      {partner.name}
+                      <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{partner.description}</p>
+                  </CardContent>
+                </Card>
+              </a>
             ))}
           </div>
         </section>
