@@ -185,48 +185,25 @@ export async function signSuiMessage(
 
 /**
  * Sign a message using TON wallet (TonConnect)
- * Note: TON uses a proof-based approach with wallet address verification
+ * SECURITY: TON signing operations are DISABLED until proper tonProof verification is implemented.
+ * This prevents potential forgery attacks since TON doesn't support traditional message signing.
  */
 export async function signTonMessage(
-  message: string,
-  timestamp: number,
-  tonConnectUI: any,
-  walletAddress: string
+  _message: string,
+  _timestamp: number,
+  _tonConnectUI: any,
+  _walletAddress: string
 ): Promise<{ signature: string; payload: string } | null> {
-  try {
-    // TON doesn't have traditional message signing like EVM
-    // We use a proof-of-ownership approach by creating a signed payload
-    // that includes the message hash and timestamp
-    
-    // Create a unique payload for verification
-    const payload = JSON.stringify({
-      message: message,
-      timestamp: timestamp,
-      wallet: walletAddress,
-    });
-    
-    // Hash the payload for compact signature
-    const encoder = new TextEncoder();
-    const data = encoder.encode(payload);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', new Uint8Array(data));
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    // For TON, we use the connected wallet proof as signature verification
-    // The wallet being connected proves ownership
-    if (!tonConnectUI?.connected || !tonConnectUI?.wallet) {
-      throw new Error('TON wallet not connected');
-    }
-    
-    // Return the hash as signature with wallet proof
-    return { 
-      signature: hashHex,
-      payload: payload,
-    };
-  } catch (error) {
-    console.error('Failed to sign TON message:', error);
-    return null;
-  }
+  // TON signature operations are temporarily disabled for security.
+  // TON Connect requires a complex proof-based approach (tonProof) that involves:
+  // 1. Requesting a proof from the wallet with a specific payload
+  // 2. Verifying Ed25519 signature with the wallet's public key
+  // 3. Validating state_init and address derivation
+  // 
+  // The previous implementation only used SHA-256 hashing which could be trivially forged.
+  // Until proper tonProof is implemented, TON users cannot use signed operations.
+  console.error('TON signature operations are currently disabled for security reasons.');
+  return null;
 }
 
 export interface SignedRequest {
