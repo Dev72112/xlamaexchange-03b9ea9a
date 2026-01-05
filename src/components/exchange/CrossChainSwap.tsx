@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ArrowDown, Clock, Fuel, AlertTriangle, Loader2, ArrowRightLeft, Wallet, Info } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ArrowDown, Clock, Fuel, AlertTriangle, Loader2, ArrowRightLeft, Wallet, Info, Link2Off } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -186,10 +186,19 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
   // Check if chains are supported by Li.Fi
   const fromChainSupported = lifiService.isChainSupported(fromChain.chainIndex);
   const toChainSupported = lifiService.isChainSupported(toChain.chainIndex);
+  const bothChainsSupported = fromChainSupported && toChainSupported;
+
+  // Get list of supported chain names for messaging
+  const supportedChainNames = useMemo(() => {
+    return SUPPORTED_CHAINS
+      .filter(c => lifiService.isChainSupported(c.chainIndex))
+      .map(c => c.name)
+      .slice(0, 8); // Show first 8 for brevity
+  }, []);
 
   const canSwap = isConnected && fromToken && toToken && 
     parseFloat(fromAmount) > 0 && quote && !quoteLoading && !hasInsufficientBalance &&
-    fromChainSupported && toChainSupported;
+    bothChainsSupported;
 
   const getButtonText = () => {
     if (!isConnected) {
@@ -413,11 +422,42 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             </div>
           )}
 
-          {/* Info when not connected */}
-          {!isConnected && fromAmount && parseFloat(fromAmount) > 0 && (
+          {/* Unsupported chain warning */}
+          {!bothChainsSupported && fromChain.chainIndex !== toChain.chainIndex && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <Link2Off className="w-4 h-4 flex-shrink-0" />
+                <span>
+                  {!fromChainSupported && !toChainSupported 
+                    ? `${fromChain.name} and ${toChain.name} are not supported`
+                    : !fromChainSupported 
+                      ? `${fromChain.name} is not supported for bridging`
+                      : `${toChain.name} is not supported for bridging`
+                  }
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Supported chains: {supportedChainNames.join(', ')}
+                {supportedChainNames.length < SUPPORTED_CHAINS.filter(c => lifiService.isChainSupported(c.chainIndex)).length && ' and more'}
+              </p>
+            </div>
+          )}
+
+          {/* Insufficient balance warning */}
+          {hasInsufficientBalance && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>
+                Insufficient {fromToken?.tokenSymbol} balance. You have {formattedBalance ? parseFloat(formattedBalance).toFixed(4) : '0'} but need {fromAmount}.
+              </span>
+            </div>
+          )}
+
+          {/* Quote preview when not connected */}
+          {!isConnected && quote && (
             <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex items-center gap-2 text-sm text-muted-foreground">
-              <Info className="w-4 h-4 flex-shrink-0" />
-              <span>Connect your wallet to get quotes and execute bridges</span>
+              <Wallet className="w-4 h-4 flex-shrink-0" />
+              <span>Connect wallet to execute this bridge</span>
             </div>
           )}
 

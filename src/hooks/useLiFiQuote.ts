@@ -90,19 +90,15 @@ export function useLiFiQuote({
       return;
     }
 
-    // Check if chains are supported by Li.Fi
-    if (!lifiService.isChainSupported(fromChain.chainIndex) || !lifiService.isChainSupported(toChain.chainIndex)) {
-      setQuote(null);
-      setError('Chain not supported for cross-chain swap');
-      return;
-    }
+  // Check if chains are supported by Li.Fi
+  if (!lifiService.isChainSupported(fromChain.chainIndex) || !lifiService.isChainSupported(toChain.chainIndex)) {
+    setQuote(null);
+    setError('Chain not supported for cross-chain swap');
+    return;
+  }
 
-    // Need user address for Li.Fi quotes
-    if (!userAddress) {
-      setQuote(null);
-      setError(null);
-      return;
-    }
+  // Use placeholder address for quote preview when wallet not connected
+  const quoteAddress = userAddress || '0x0000000000000000000000000000000000000001';
 
     if (!isRetry) {
       setIsLoading(true);
@@ -138,7 +134,7 @@ export function useLiFiQuote({
             fromToken: normalizeAddress(fromToken.tokenContractAddress),
             toToken: normalizeAddress(toToken.tokenContractAddress),
             fromAmount: amountInSmallestUnit,
-            fromAddress: userAddress,
+            fromAddress: quoteAddress,
             slippage: parseFloat(slippage) / 100,
           });
         },
