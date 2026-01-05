@@ -3,8 +3,8 @@ import { createConfig, getQuote, getChains, getTokens, executeRoute, getStatus, 
 // Initialize Li.Fi SDK with integrator ID
 const INTEGRATOR_ID = 'xlama';
 
-// Note: Platform fees require registering at https://portal.li.fi/
-// For now, we operate without fees until integrator is configured
+// Platform fee: 1.5% (0.015) - configured in Li.Fi Portal (portal.li.fi)
+const PLATFORM_FEE = 0.015;
 
 // Initialize the SDK configuration
 createConfig({
@@ -163,7 +163,7 @@ export const lifiService = {
       fromAddress: params.fromAddress,
       toAddress: params.toAddress || params.fromAddress,
       slippage: params.slippage || 0.01, // Default 1%
-      // Note: fee requires registered integrator at portal.li.fi
+      fee: PLATFORM_FEE, // 1.5% platform fee - routed to wallets configured in portal.li.fi
     };
 
     try {
