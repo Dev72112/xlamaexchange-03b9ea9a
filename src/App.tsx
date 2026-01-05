@@ -38,6 +38,7 @@ const Orders = lazy(() => import("./pages/Orders"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Docs = lazy(() => import("./pages/Docs"));
 const Changelog = lazy(() => import("./pages/Changelog"));
+const Feedback = lazy(() => import("./pages/Feedback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const App = () => (
@@ -75,6 +76,7 @@ const App = () => (
                                 <Route path="/cookies" element={<CookiesPolicy />} />
                                 <Route path="/docs" element={<Docs />} />
                                 <Route path="/changelog" element={<Changelog />} />
+                                <Route path="/feedback" element={<Feedback />} />
                                 <Route path="*" element={<NotFound />} />
                               </Routes>
                             </PageTransition>
