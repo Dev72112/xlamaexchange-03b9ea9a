@@ -3,6 +3,9 @@ project_id = "mnziekrimlmvnrcwgmbk"
 [functions.cleanup-nonces]
 verify_jwt = false
 
+[functions.cleanup-rate-limits]
+verify_jwt = false
+
 [functions.changenow]
 verify_jwt = false
 
