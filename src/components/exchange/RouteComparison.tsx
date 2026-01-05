@@ -13,10 +13,16 @@ import {
   Loader2,
   Route as RouteIcon,
   TrendingUp,
-  Coins
+  Coins,
+  Sparkles,
+  DollarSign
 } from "lucide-react";
-import { RouteOption } from "@/hooks/useLiFiRoutes";
+import { RouteOption, RoutePreference } from "@/hooks/useLiFiRoutes";
 import { cn } from "@/lib/utils";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
 
 interface RouteComparisonProps {
   routes: RouteOption[];
@@ -25,6 +31,8 @@ interface RouteComparisonProps {
   isLoading?: boolean;
   toTokenSymbol: string;
   toTokenDecimals: number;
+  routePreference?: RoutePreference;
+  onRoutePreferenceChange?: (pref: RoutePreference) => void;
 }
 
 function formatAmount(amount: string, decimals: number): string {
@@ -248,17 +256,46 @@ export const RouteComparison = memo(function RouteComparison({
   isLoading,
   toTokenSymbol,
   toTokenDecimals,
+  routePreference = 'best',
+  onRoutePreferenceChange,
 }: RouteComparisonProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Calculate savings vs default (first/best) route
+  const savingsSummary = useMemo(() => {
+    if (!selectedRoute || routes.length < 2) return null;
+    
+    const defaultRoute = routes[0];
+    if (selectedRoute.id === defaultRoute.id) return null;
+    
+    const outputDiff = parseFloat(selectedRoute.toAmount) - parseFloat(defaultRoute.toAmount);
+    const outputDiffFormatted = outputDiff / Math.pow(10, toTokenDecimals);
+    const feesDiff = parseFloat(defaultRoute.totalFeesUSD) - parseFloat(selectedRoute.totalFeesUSD);
+    const timeDiff = defaultRoute.estimatedTimeSeconds - selectedRoute.estimatedTimeSeconds;
+    
+    // Only show if there are meaningful savings
+    const hasOutputSavings = outputDiffFormatted > 0.0001;
+    const hasFeeSavings = feesDiff > 0.01;
+    const hasFaster = timeDiff > 30;
+    
+    if (!hasOutputSavings && !hasFeeSavings && !hasFaster) return null;
+    
+    return {
+      outputDiff: hasOutputSavings ? outputDiffFormatted : null,
+      outputDiffPercent: hasOutputSavings ? ((outputDiff / parseFloat(defaultRoute.toAmount)) * 100).toFixed(2) : null,
+      feesSaved: hasFeeSavings ? feesDiff.toFixed(2) : null,
+      timeSaved: hasFaster ? Math.floor(timeDiff / 60) : null,
+    };
+  }, [selectedRoute, routes, toTokenDecimals]);
 
   if (routes.length === 0 && !isLoading) {
     return null;
   }
 
   return (
-    <Card className="bg-card/50 border-border">
+    <Card className="bg-card/50 border-border overflow-hidden">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <RouteIcon className="w-4 h-4 text-primary" />
             Route Options
@@ -268,29 +305,95 @@ export const RouteComparison = memo(function RouteComparison({
               </Badge>
             )}
           </CardTitle>
-          {routes.length > 3 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-xs"
-            >
-              {isExpanded ? (
-                <>
-                  <ChevronUp className="w-3 h-3 mr-1" />
-                  Show less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-3 h-3 mr-1" />
-                  Show all ({routes.length})
-                </>
-              )}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {routes.length > 3 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-xs h-7"
+              >
+                {isExpanded ? (
+                  <>
+                    <ChevronUp className="w-3 h-3 mr-1" />
+                    Less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3 h-3 mr-1" />
+                    All ({routes.length})
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
+        
+        {/* Route Preference Toggle */}
+        {onRoutePreferenceChange && routes.length > 1 && (
+          <ToggleGroup 
+            type="single" 
+            value={routePreference}
+            onValueChange={(value) => value && onRoutePreferenceChange(value as RoutePreference)}
+            className="justify-start mt-2"
+          >
+            <ToggleGroupItem value="best" size="sm" className="text-xs h-7 px-2.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+              <Award className="w-3 h-3 mr-1" />
+              Best
+            </ToggleGroupItem>
+            <ToggleGroupItem value="fastest" size="sm" className="text-xs h-7 px-2.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+              <Zap className="w-3 h-3 mr-1" />
+              Fastest
+            </ToggleGroupItem>
+            <ToggleGroupItem value="cheapest" size="sm" className="text-xs h-7 px-2.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+              <DollarSign className="w-3 h-3 mr-1" />
+              Best Rate
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
       </CardHeader>
+      
       <CardContent className="space-y-3">
+        {/* Savings Summary Panel */}
+        {savingsSummary && selectedRoute && (
+          <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Your Selected Route Saves</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {savingsSummary.outputDiff && (
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                    +{savingsSummary.outputDiff.toFixed(4)} {toTokenSymbol}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({savingsSummary.outputDiffPercent}% more)
+                  </span>
+                </div>
+              )}
+              {savingsSummary.feesSaved && (
+                <div className="flex items-center gap-1.5">
+                  <Coins className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                    ${savingsSummary.feesSaved} saved
+                  </span>
+                  <span className="text-xs text-muted-foreground">on fees</span>
+                </div>
+              )}
+              {savingsSummary.timeSaved && (
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-bold text-primary">
+                    {savingsSummary.timeSaved}m faster
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
