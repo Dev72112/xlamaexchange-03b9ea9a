@@ -129,8 +129,8 @@ export function useCrossChainSwapExecution() {
           description: "Waiting for approval confirmation...",
         });
 
-        // Wait for approval (simplified - in production, poll for confirmation)
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        // Poll for approval transaction confirmation
+        await waitForTransactionConfirmation(fromChain.chainIndex, approveTxHash);
       }
 
       // Step 3: Execute bridge transaction
@@ -256,4 +256,35 @@ function toSmallestUnit(amount: string, decimals: number): string {
   const combined = whole + paddedFraction;
   
   return combined.replace(/^0+/, '') || '0';
+}
+
+// Poll for transaction confirmation instead of hardcoded wait
+async function waitForTransactionConfirmation(
+  chainIndex: string, 
+  txHash: string,
+  maxAttempts = 30,
+  intervalMs = 2000
+): Promise<boolean> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const txDetail = await okxDexService.getTransactionDetail(chainIndex, txHash);
+      
+      if (txDetail?.txStatus === 'success') {
+        return true;
+      }
+      
+      if (txDetail?.txStatus === 'fail') {
+        throw new Error('Approval transaction failed');
+      }
+    } catch (err) {
+      // Ignore polling errors, continue trying
+      console.warn('Approval polling attempt failed:', err);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  
+  // Timeout - assume it went through (worst case, bridge tx will fail)
+  console.warn('Approval confirmation timed out, proceeding with bridge');
+  return true;
 }
