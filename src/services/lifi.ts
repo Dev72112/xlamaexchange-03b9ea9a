@@ -1,12 +1,11 @@
 import { createConfig, getQuote, getChains, getTokens, executeRoute, getStatus, type Route, type LiFiStep, type Token, type QuoteRequest, type ExtendedChain, type FullStatusData, type StatusResponse } from '@lifi/sdk';
 
 // Initialize Li.Fi SDK with integrator ID
-const INTEGRATOR_ID = 'xlama';
+const INTEGRATOR_ID = 'Xlama';
 
 // Platform fee: 1.5% (0.015) - configured in Li.Fi Portal (portal.li.fi)
-// NOTE: Fee collection requires completing portal.li.fi setup - disabled until confirmed
 const PLATFORM_FEE = 0.015;
-const FEES_ENABLED = false; // Set to true once portal.li.fi integration is confirmed
+const FEES_ENABLED = true; // Enabled - Xlama integrator is active in portal.li.fi
 
 // Initialize the SDK configuration
 createConfig({
