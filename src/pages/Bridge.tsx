@@ -1,8 +1,9 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   ArrowRightLeft, 
   Wallet, 
@@ -12,12 +13,21 @@ import {
   Shield, 
   Zap,
   ExternalLink,
+  Settings,
 } from "lucide-react";
 import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
 import { BridgeTransactionHistory } from "@/components/BridgeTransactionHistory";
+import { BridgeSettingsPanel } from "@/components/BridgeSettingsPanel";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { lifiService } from "@/services/lifi";
 import { SUPPORTED_CHAINS } from "@/data/chains";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const bridgeSteps = [
   {
@@ -49,6 +59,8 @@ const bridgeFeatures = [
 ];
 
 const Bridge = memo(function Bridge() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  
   // Get supported chains for Li.Fi
   const supportedChains = useMemo(() => {
     return SUPPORTED_CHAINS.filter(chain => 
@@ -72,9 +84,26 @@ const Bridge = memo(function Bridge() {
       <main className="container px-4 sm:px-6 py-8 sm:py-12">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-4">
-            <ArrowRightLeft className="w-4 h-4" />
-            <span>Powered by Li.Fi</span>
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary">
+              <ArrowRightLeft className="w-4 h-4" />
+              <span>Powered by Li.Fi</span>
+            </div>
+            <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-full">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Bridge Settings</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6">
+                  <BridgeSettingsPanel />
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
             Cross-Chain Bridge

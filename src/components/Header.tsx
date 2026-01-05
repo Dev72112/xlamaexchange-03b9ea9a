@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useRouteLoading } from "@/contexts/RouteLoadingContext";
 import { prefetchRoute } from "@/lib/routePrefetch";
 import xlamaMascot from "@/assets/xlama-mascot.png";
+import { MultiWalletButton } from "./wallet/MultiWalletButton";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -74,8 +75,13 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+            {/* Wallet Button */}
+            <div className="hidden sm:block">
+              <MultiWalletButton />
+            </div>
+
             {/* Social Links */}
-            <div className="hidden sm:flex items-center gap-1">
+            <div className="hidden lg:flex items-center gap-1">
               <a
                 href={SOCIAL_LINKS.x.url}
                 target="_blank"
@@ -177,6 +183,11 @@ export function Header() {
                   {link.label}
                 </Link>
               ))}
+              
+              {/* Mobile Wallet Button */}
+              <div className="pt-2 mt-2 border-t border-border">
+                <MultiWalletButton />
+              </div>
             </div>
           </nav>
         )}
