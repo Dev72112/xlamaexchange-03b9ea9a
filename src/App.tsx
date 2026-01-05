@@ -19,6 +19,7 @@ import { RouteLoadingProvider } from "@/contexts/RouteLoadingContext";
 import { PageTransition } from "@/components/PageTransition";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { BridgeNotificationWatcher } from "@/components/BridgeNotificationWatcher";
+import { FloatingFeedback } from "@/components/FloatingFeedback";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -80,6 +81,7 @@ const App = () => (
                           </Suspense>
                           <KeyboardShortcuts />
                           <BridgeNotificationWatcher />
+                          <FloatingFeedback />
                           <CookieConsent />
                         </TrackingProvider>
                       </RouteLoadingProvider>
