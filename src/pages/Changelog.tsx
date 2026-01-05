@@ -14,6 +14,14 @@ import {
   Layers,
   Bell,
   TrendingUp,
+  Rocket,
+  Clock,
+  Target,
+  Users,
+  Smartphone,
+  BarChart3,
+  Coins,
+  Bot,
 } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
@@ -231,6 +239,155 @@ const Changelog = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Roadmap Section */}
+        <div className="mt-16 mb-12">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
+              <Rocket className="h-4 w-4" />
+              <span className="text-sm font-medium">Roadmap</span>
+            </div>
+            <h2 className="text-3xl font-bold mb-2">What&apos;s Coming Next</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Planned features and improvements on our development roadmap.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Q1 2026 */}
+            <Card className={`border-green-500/30 ${STAGGER_ITEM_CLASS}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-5 w-5 text-green-500" />
+                  <Badge variant="outline" className="border-green-500/50 text-green-500">
+                    Q1 2026
+                  </Badge>
+                </div>
+                <h3 className="text-lg font-bold">In Progress</h3>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Smartphone className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Mobile App (PWA)</p>
+                    <p className="text-xs text-muted-foreground">Native-like mobile experience</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Advanced Analytics</p>
+                    <p className="text-xs text-muted-foreground">Detailed trade history & insights</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Target className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Take Profit / Stop Loss</p>
+                    <p className="text-xs text-muted-foreground">Automated exit strategies</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Globe className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">More Chains</p>
+                    <p className="text-xs text-muted-foreground">Aptos, Sei, Injective support</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Q2 2026 */}
+            <Card className={`border-blue-500/30 ${STAGGER_ITEM_CLASS}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="h-5 w-5 text-blue-500" />
+                  <Badge variant="outline" className="border-blue-500/50 text-blue-500">
+                    Q2 2026
+                  </Badge>
+                </div>
+                <h3 className="text-lg font-bold">Planned</h3>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Bot className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Trading Bots</p>
+                    <p className="text-xs text-muted-foreground">Automated trading strategies</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Coins className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Yield Aggregator</p>
+                    <p className="text-xs text-muted-foreground">Find best DeFi yields across chains</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Users className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Social Trading</p>
+                    <p className="text-xs text-muted-foreground">Copy top traders&apos; strategies</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Layers className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">NFT Bridge</p>
+                    <p className="text-xs text-muted-foreground">Cross-chain NFT transfers</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Future */}
+            <Card className={`border-purple-500/30 ${STAGGER_ITEM_CLASS}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Rocket className="h-5 w-5 text-purple-500" />
+                  <Badge variant="outline" className="border-purple-500/50 text-purple-500">
+                    Future
+                  </Badge>
+                </div>
+                <h3 className="text-lg font-bold">Exploring</h3>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Account Abstraction</p>
+                    <p className="text-xs text-muted-foreground">Gasless & social recovery</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Zap className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Intent-Based Trading</p>
+                    <p className="text-xs text-muted-foreground">Express intent, we find best execution</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <ArrowLeftRight className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">P2P Trading</p>
+                    <p className="text-xs text-muted-foreground">Direct peer-to-peer swaps</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Globe className="h-4 w-4 text-muted-foreground mt-1" />
+                  <div>
+                    <p className="text-sm font-medium">Multi-language</p>
+                    <p className="text-xs text-muted-foreground">Localized for global users</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            Roadmap is subject to change based on community feedback and market conditions.
+          </p>
         </div>
 
         {/* Subscribe CTA */}
