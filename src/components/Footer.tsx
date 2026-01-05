@@ -72,6 +72,7 @@ export const Footer = memo(function Footer() {
             <ul className="space-y-2.5 text-sm">
               <li><Link to="/docs" onMouseEnter={() => handleLinkHover('/docs')} className="text-foreground/80 hover:text-foreground transition-colors">Documentation</Link></li>
               <li><Link to="/changelog" onMouseEnter={() => handleLinkHover('/changelog')} className="text-foreground/80 hover:text-foreground transition-colors">Changelog</Link></li>
+              <li><Link to="/feedback" onMouseEnter={() => handleLinkHover('/feedback')} className="text-foreground/80 hover:text-foreground transition-colors">Community Feedback</Link></li>
               <li><Link to="/faq" onMouseEnter={() => handleLinkHover('/faq')} className="text-foreground/80 hover:text-foreground transition-colors">FAQ</Link></li>
               <li><Link to="/about" onMouseEnter={() => handleLinkHover('/about')} className="text-foreground/80 hover:text-foreground transition-colors">About Us</Link></li>
               <li>
