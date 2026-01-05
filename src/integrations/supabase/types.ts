@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      bridge_intents: {
+        Row: {
+          bridge_provider: string | null
+          created_at: string
+          dest_tx_hash: string | null
+          executed_at: string | null
+          from_amount: string
+          from_chain_id: number
+          from_token_address: string
+          from_token_symbol: string
+          id: string
+          signature: string
+          signed_at: string
+          source_tx_hash: string | null
+          status: string
+          to_amount_expected: string | null
+          to_chain_id: number
+          to_token_address: string
+          to_token_symbol: string
+          updated_at: string
+          user_address: string
+        }
+        Insert: {
+          bridge_provider?: string | null
+          created_at?: string
+          dest_tx_hash?: string | null
+          executed_at?: string | null
+          from_amount: string
+          from_chain_id: number
+          from_token_address: string
+          from_token_symbol: string
+          id?: string
+          signature: string
+          signed_at?: string
+          source_tx_hash?: string | null
+          status?: string
+          to_amount_expected?: string | null
+          to_chain_id: number
+          to_token_address: string
+          to_token_symbol: string
+          updated_at?: string
+          user_address: string
+        }
+        Update: {
+          bridge_provider?: string | null
+          created_at?: string
+          dest_tx_hash?: string | null
+          executed_at?: string | null
+          from_amount?: string
+          from_chain_id?: number
+          from_token_address?: string
+          from_token_symbol?: string
+          id?: string
+          signature?: string
+          signed_at?: string
+          source_tx_hash?: string | null
+          status?: string
+          to_amount_expected?: string | null
+          to_chain_id?: number
+          to_token_address?: string
+          to_token_symbol?: string
+          updated_at?: string
+          user_address?: string
+        }
+        Relationships: []
+      }
       commission_claims: {
         Row: {
           claim_amount_usd: number
