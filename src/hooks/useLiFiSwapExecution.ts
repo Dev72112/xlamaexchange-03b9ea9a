@@ -75,6 +75,51 @@ export function useLiFiSwapExecution() {
     setCurrentTx(prev => prev?.id === id ? { ...prev, ...updates } : prev);
   }, []);
 
+  const startStatusPolling = useCallback((
+    txId: string, 
+    globalTxId: string,
+    params: { txHash: string; fromChainId: number; toChainId: number; bridge?: string }
+  ) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await lifiService.getStatus({
+          txHash: params.txHash,
+          fromChain: params.fromChainId,
+          toChain: params.toChainId,
+          bridge: params.bridge,
+        });
+
+        if (status.status === 'DONE') {
+          updateTransaction(txId, { 
+            status: 'completed',
+            destTxHash: status.receiving?.txHash,
+          });
+          updateGlobalTx(globalTxId, {
+            status: 'completed',
+            destTxHash: status.receiving?.txHash,
+            completedTime: Date.now(),
+          });
+          clearInterval(pollInterval);
+        } else if (status.status === 'FAILED') {
+          updateTransaction(txId, { 
+            status: 'failed',
+            error: status.substatus || 'Bridge transaction failed',
+          });
+          updateGlobalTx(globalTxId, {
+            status: 'failed',
+            error: status.substatus || 'Bridge transaction failed',
+          });
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        console.error('Status polling error:', error);
+      }
+    }, 10000);
+
+    setTimeout(() => clearInterval(pollInterval), 30 * 60 * 1000);
+    return pollInterval;
+  }, [updateTransaction, updateGlobalTx]);
+
   const executeSwap = useCallback(async (
     options: UseLiFiSwapExecutionOptions,
     sendTransaction: (txData: { to: string; data: string; value: string; chainId: number }) => Promise<string>
@@ -115,8 +160,8 @@ export function useLiFiSwapExecution() {
     setTransactions(prev => [newTx, ...prev]);
     setCurrentTx(newTx);
 
-    // Add to global bridge transaction history
-    addTransaction({
+    // Add to global bridge transaction history and get the ID
+    const globalTxId = addTransaction({
       status: 'checking-approval',
       fromChain: { chainId: lifiService.getChainId(fromChain.chainIndex) || 1, name: fromChain.name, icon: fromChain.icon },
       toChain: { chainId: lifiService.getChainId(toChain.chainIndex) || 1, name: toChain.name, icon: toChain.icon },
@@ -127,6 +172,9 @@ export function useLiFiSwapExecution() {
       bridgeName: quote.bridgeName,
       estimatedTime: quote.estimatedDurationSeconds,
     });
+    
+    // Store globalTxId for later reference
+    const globalIdRef = globalTxId;
 
     try {
       // Get the step from the route (use selected route if provided)
@@ -176,19 +224,24 @@ export function useLiFiSwapExecution() {
       }
 
       // No approval needed or already approved, proceed with swap
-      return await executeSwapTransaction(txId, step, fromChain, toChain, quote, sendTransaction);
+      return await executeSwapTransaction(txId, globalIdRef, step, fromChain, toChain, quote, sendTransaction);
     } catch (error: any) {
       console.error('Li.Fi swap execution error:', error);
       updateTransaction(txId, { 
         status: 'failed', 
         error: error?.message || 'Bridge transaction failed' 
       });
+      updateGlobalTx(globalIdRef, {
+        status: 'failed',
+        error: error?.message || 'Bridge transaction failed',
+      });
       throw error;
     }
-  }, [updateTransaction, addTransaction]);
+  }, [updateTransaction, addTransaction, updateGlobalTx]);
 
   const executeSwapTransaction = useCallback(async (
     txId: string,
+    globalTxId: string,
     step: any,
     fromChain: Chain,
     toChain: Chain,
@@ -196,6 +249,7 @@ export function useLiFiSwapExecution() {
     sendTransaction: (txData: { to: string; data: string; value: string; chainId: number }) => Promise<string>
   ) => {
     updateTransaction(txId, { status: 'pending-source' });
+    updateGlobalTx(globalTxId, { status: 'pending-source' });
 
     // Get the transaction data for this step
     const txData = await lifiService.getStepTransactionData(step);
@@ -216,9 +270,14 @@ export function useLiFiSwapExecution() {
       sourceTxHash: txHash,
       status: 'bridging'
     });
+    
+    updateGlobalTx(globalTxId, {
+      sourceTxHash: txHash,
+      status: 'bridging',
+    });
 
     // Start polling for completion
-    startStatusPolling(txId, {
+    startStatusPolling(txId, globalTxId, {
       txHash,
       fromChainId: lifiService.getChainId(fromChain.chainIndex) || 1,
       toChainId: lifiService.getChainId(toChain.chainIndex) || 1,
@@ -226,7 +285,7 @@ export function useLiFiSwapExecution() {
     });
 
     return { txHash, status: 'PENDING' };
-  }, [updateTransaction]);
+  }, [updateTransaction, updateGlobalTx, startStatusPolling]);
 
   const handleApproval = useCallback(async (
     approvalAmount: string, // 'exact', 'unlimited', or specific amount
@@ -306,41 +365,6 @@ export function useLiFiSwapExecution() {
       throw error;
     }
   }, [currentTx, pendingApproval, updateTransaction]);
-
-  const startStatusPolling = useCallback((
-    txId: string, 
-    params: { txHash: string; fromChainId: number; toChainId: number; bridge?: string }
-  ) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const status = await lifiService.getStatus({
-          txHash: params.txHash,
-          fromChain: params.fromChainId,
-          toChain: params.toChainId,
-          bridge: params.bridge,
-        });
-
-        if (status.status === 'DONE') {
-          updateTransaction(txId, { 
-            status: 'completed',
-            destTxHash: status.receiving?.txHash,
-          });
-          clearInterval(pollInterval);
-        } else if (status.status === 'FAILED') {
-          updateTransaction(txId, { 
-            status: 'failed',
-            error: status.substatus || 'Bridge transaction failed',
-          });
-          clearInterval(pollInterval);
-        }
-      } catch (error) {
-        console.error('Status polling error:', error);
-      }
-    }, 10000); // Poll every 10 seconds
-
-    // Clear after 30 minutes
-    setTimeout(() => clearInterval(pollInterval), 30 * 60 * 1000);
-  }, [updateTransaction]);
 
   const resetCurrentTx = useCallback(() => {
     setCurrentTx(null);
