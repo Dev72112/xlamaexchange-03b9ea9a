@@ -2,6 +2,31 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { getRoutes, type Route, type RoutesRequest, type LiFiStep } from '@lifi/sdk';
 import { apiCoordinator } from '@/lib/apiCoordinator';
 
+// Route preference types
+export type RoutePreference = 'best' | 'fastest' | 'cheapest';
+
+const ROUTE_PREFERENCE_KEY = 'lifi-route-preference';
+
+export function getStoredRoutePreference(): RoutePreference {
+  try {
+    const stored = localStorage.getItem(ROUTE_PREFERENCE_KEY);
+    if (stored === 'best' || stored === 'fastest' || stored === 'cheapest') {
+      return stored;
+    }
+  } catch (e) {
+    // localStorage not available
+  }
+  return 'best';
+}
+
+export function setStoredRoutePreference(preference: RoutePreference): void {
+  try {
+    localStorage.setItem(ROUTE_PREFERENCE_KEY, preference);
+  } catch (e) {
+    // localStorage not available
+  }
+}
+
 export interface RouteOption {
   id: string;
   route: Route;
@@ -46,6 +71,8 @@ interface UseLiFiRoutesReturn {
   refetch: () => void;
   selectedRoute: RouteOption | null;
   selectRoute: (routeId: string) => void;
+  routePreference: RoutePreference;
+  setRoutePreference: (pref: RoutePreference) => void;
 }
 
 const PLATFORM_FEE = 0.015;
@@ -100,6 +127,12 @@ export function useLiFiRoutes(options: UseLiFiRoutesOptions): UseLiFiRoutesRetur
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [routePreference, setRoutePreferenceState] = useState<RoutePreference>(getStoredRoutePreference);
+
+  const setRoutePreference = useCallback((pref: RoutePreference) => {
+    setRoutePreferenceState(pref);
+    setStoredRoutePreference(pref);
+  }, []);
 
   const fetchRoutes = useCallback(async () => {
     if (!enabled || !fromChainId || !toChainId || !fromToken || !toToken || !fromAmount || !fromAddress) {
@@ -187,9 +220,19 @@ export function useLiFiRoutes(options: UseLiFiRoutesOptions): UseLiFiRoutesRetur
 
       setRoutes(processedRoutes);
       
-      // Auto-select best route
-      if (processedRoutes.length > 0 && !selectedRouteId) {
-        setSelectedRouteId(processedRoutes[0].id);
+      // Auto-select based on preference
+      if (processedRoutes.length > 0) {
+        let preferredRoute = processedRoutes[0];
+        
+        if (routePreference === 'fastest') {
+          const fastest = processedRoutes.find(r => r.tags.isFastest);
+          if (fastest) preferredRoute = fastest;
+        } else if (routePreference === 'cheapest') {
+          const cheapest = processedRoutes.find(r => r.tags.isCheapest);
+          if (cheapest) preferredRoute = cheapest;
+        }
+        
+        setSelectedRouteId(preferredRoute.id);
       }
     } catch (err) {
       console.error('Li.Fi routes error:', err);
@@ -198,7 +241,7 @@ export function useLiFiRoutes(options: UseLiFiRoutesOptions): UseLiFiRoutesRetur
     } finally {
       setIsLoading(false);
     }
-  }, [fromChainId, toChainId, fromToken, toToken, fromAmount, fromAddress, slippage, enabled, selectedRouteId]);
+  }, [fromChainId, toChainId, fromToken, toToken, fromAmount, fromAddress, slippage, enabled, routePreference]);
 
   // Debounced fetch
   useEffect(() => {
@@ -226,5 +269,7 @@ export function useLiFiRoutes(options: UseLiFiRoutesOptions): UseLiFiRoutesRetur
     refetch: fetchRoutes,
     selectedRoute,
     selectRoute,
+    routePreference,
+    setRoutePreference,
   };
 }

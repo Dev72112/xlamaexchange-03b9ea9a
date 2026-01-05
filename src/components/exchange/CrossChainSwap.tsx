@@ -169,6 +169,8 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     isLoading: routesLoading,
     selectedRoute,
     selectRoute,
+    routePreference,
+    setRoutePreference,
   } = useLiFiRoutes({
     fromChainId: fromChainId || 1,
     toChainId: toChainId || 1,
@@ -568,6 +570,8 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
               isLoading={routesLoading}
               toTokenSymbol={toToken.tokenSymbol}
               toTokenDecimals={parseInt(toToken.decimals)}
+              routePreference={routePreference}
+              onRoutePreferenceChange={setRoutePreference}
             />
           )}
 

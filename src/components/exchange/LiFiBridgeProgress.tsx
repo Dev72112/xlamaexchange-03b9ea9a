@@ -90,46 +90,65 @@ export function LiFiBridgeProgress({ transaction, onClose }: LiFiBridgeProgressP
   };
 
   return (
-    <Card className="bg-card/95 backdrop-blur-sm border-border">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+    <Card className="bg-card/95 backdrop-blur-sm border-border overflow-hidden">
+      <CardHeader className="pb-3 relative">
+        {/* Subtle gradient overlay for completed state */}
+        {status === 'completed' && (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent pointer-events-none" />
+        )}
+        <div className="flex items-center justify-between relative">
           <CardTitle className="text-lg font-bold flex items-center gap-2">
             Bridge Progress
             {bridgeName && (
               <Badge variant="secondary" className="text-xs">{bridgeName}</Badge>
             )}
           </CardTitle>
-          <Badge variant={status === 'completed' ? 'default' : status === 'failed' ? 'destructive' : 'secondary'}>
-            {status === 'completed' ? 'Complete' : status === 'failed' ? 'Failed' : 'In Progress'}
+          <Badge 
+            variant={status === 'completed' ? 'default' : status === 'failed' ? 'destructive' : 'secondary'}
+            className={cn(
+              "transition-all",
+              status === 'completed' && "bg-primary animate-pulse"
+            )}
+          >
+            {status === 'completed' ? '✓ Complete' : status === 'failed' ? '✕ Failed' : 'In Progress'}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Token Flow */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
           <div className="flex items-center gap-2">
             {fromToken.logoURI && (
-              <img src={fromToken.logoURI} alt={fromToken.symbol} className="w-6 h-6 rounded-full" />
+              <img src={fromToken.logoURI} alt={fromToken.symbol} className="w-7 h-7 rounded-full ring-2 ring-border" />
             )}
             <div>
-              <div className="font-mono text-sm">{parseFloat(fromAmount).toFixed(4)}</div>
+              <div className="font-mono text-sm font-medium">{parseFloat(fromAmount).toFixed(4)}</div>
               <div className="text-xs text-muted-foreground">{fromToken.symbol} on {fromChain.name}</div>
             </div>
           </div>
-          <div className="text-muted-foreground">→</div>
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="w-6 h-0.5 bg-border rounded" />
+            <div className="w-2 h-2 border-t-2 border-r-2 border-muted-foreground rotate-45 -ml-1" />
+          </div>
           <div className="flex items-center gap-2">
             {toToken.logoURI && (
-              <img src={toToken.logoURI} alt={toToken.symbol} className="w-6 h-6 rounded-full" />
+              <img src={toToken.logoURI} alt={toToken.symbol} className="w-7 h-7 rounded-full ring-2 ring-border" />
             )}
             <div className="text-right">
-              <div className="font-mono text-sm">{toAmount ? parseFloat(toAmount).toFixed(4) : '...'}</div>
+              <div className="font-mono text-sm font-medium">{toAmount ? parseFloat(toAmount).toFixed(4) : '...'}</div>
               <div className="text-xs text-muted-foreground">{toToken.symbol} on {toChain.name}</div>
             </div>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <Progress value={progressPercent()} className="h-2" />
+        <div className="space-y-1">
+          <Progress value={progressPercent()} className="h-2" />
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>Start</span>
+            <span>Complete</span>
+          </div>
+        </div>
 
         {/* Steps */}
         <div className="space-y-3">
