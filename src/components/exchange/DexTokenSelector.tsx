@@ -289,8 +289,8 @@ export function DexTokenSelector({
         key={`${keyPrefix}${token.tokenContractAddress}`}
         onClick={() => handleSelect(token, isCustom)}
         className={cn(
-          "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors group",
-          "hover:bg-accent/50",
+          "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 min-h-[44px] cursor-pointer rounded-lg transition-colors group",
+          "hover:bg-accent/50 active:bg-accent/70",
           value?.tokenContractAddress === token.tokenContractAddress && "bg-accent",
           isCustom && "border border-warning/30 bg-warning/5"
         )}
@@ -375,8 +375,8 @@ export function DexTokenSelector({
           handleSelect(token, false);
         }}
         className={cn(
-          "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 cursor-pointer rounded-lg transition-colors",
-          "hover:bg-accent/50",
+          "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 min-h-[44px] cursor-pointer rounded-lg transition-colors",
+          "hover:bg-accent/50 active:bg-accent/70",
           value?.tokenContractAddress === result.tokenContractAddress && "bg-accent"
         )}
       >

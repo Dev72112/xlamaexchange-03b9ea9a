@@ -172,7 +172,7 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   onMouseEnter={() => handleLinkHover(link.path)}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-2 px-4 py-3 min-h-[44px] rounded-lg text-sm font-medium transition-colors",
                     isActive(link.path)
                       ? "bg-secondary text-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"

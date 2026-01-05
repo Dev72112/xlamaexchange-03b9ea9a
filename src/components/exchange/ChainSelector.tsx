@@ -72,8 +72,8 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
       onClick={() => handleChainSelect(chain)}
       onMouseEnter={() => handleChainHover(chain)}
       className={cn(
-        "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-left transition-colors",
-        "hover:bg-accent/50",
+        "flex items-center gap-3 w-full px-3 py-2.5 min-h-[44px] rounded-md text-left transition-colors",
+        "hover:bg-accent/50 active:bg-accent/70",
         selectedChain.chainIndex === chain.chainIndex && "bg-accent"
       )}
     >
