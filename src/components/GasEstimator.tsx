@@ -65,8 +65,8 @@ export const GasEstimator = memo(function GasEstimator() {
         
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4">
-            <ScrollArea className="max-h-[400px]">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-2">
+            <ScrollArea className="h-[350px] [&>[data-radix-scroll-area-viewport]]:!overflow-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-4">
                 {gasData.map((chain) => (
                   <div
                     key={chain.chainIndex}
@@ -105,8 +105,8 @@ export const GasEstimator = memo(function GasEstimator() {
             </ScrollArea>
 
             {gasData.length > 0 && (
-              <p className="text-[10px] text-muted-foreground text-center mt-3">
-                Tracking {gasData.length} chains • Updated {gasData[0]?.lastUpdated?.toLocaleTimeString()} • Auto-refreshes every 15s
+              <p className="text-[11px] text-muted-foreground text-center mt-3 pt-2 border-t border-border/30">
+                Showing {gasData.length} EVM chains • Updated {gasData[0]?.lastUpdated?.toLocaleTimeString()} • Auto-refreshes every 15s
               </p>
             )}
           </CardContent>

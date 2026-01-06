@@ -28,6 +28,10 @@ import {
   Info,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getChainByIndex } from '@/data/chains';
+
+// Non-EVM chains don't support signed DCA orders yet
+const NON_EVM_CHAIN_INDEXES = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
 
 interface DCAOrderFormProps {
   fromToken?: {
@@ -97,6 +101,26 @@ export const DCAOrderForm = memo(function DCAOrderForm({
 
   if (!isConnected || !fromToken || !toToken) {
     return null;
+  }
+
+  const isNonEvmChain = chainIndex ? NON_EVM_CHAIN_INDEXES.includes(chainIndex) : false;
+  const chain = chainIndex ? getChainByIndex(chainIndex) : null;
+  const chainName = chain?.name || 'this chain';
+
+  // Show disabled state for non-EVM chains
+  if (isNonEvmChain) {
+    return (
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="gap-2 opacity-60 cursor-not-allowed"
+        disabled
+        title={`DCA orders for ${chainName} coming soon`}
+      >
+        <CalendarClock className="w-4 h-4" />
+        <span className="hidden sm:inline">DCA</span>
+      </Button>
+    );
   }
 
   return (

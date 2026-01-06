@@ -10,6 +10,15 @@ const routeComponents: Record<string, () => Promise<{ default: ComponentType<unk
   '/terms': () => import('@/pages/Terms'),
   '/privacy': () => import('@/pages/Privacy'),
   '/cookies': () => import('@/pages/CookiesPolicy'),
+  '/bridge': () => import('@/pages/Bridge'),
+  '/portfolio': () => import('@/pages/Portfolio'),
+  '/analytics': () => import('@/pages/Analytics'),
+  '/orders': () => import('@/pages/Orders'),
+  '/tools': () => import('@/pages/Tools'),
+  '/compare': () => import('@/pages/TokenCompare'),
+  '/docs': () => import('@/pages/Docs'),
+  '/changelog': () => import('@/pages/Changelog'),
+  '/feedback': () => import('@/pages/Feedback'),
 };
 
 // Track which routes have been prefetched to avoid duplicate requests

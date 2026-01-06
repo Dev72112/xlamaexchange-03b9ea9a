@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Target, Clock, AlertTriangle, Loader2, Shield } from 'lucide-react';
+import { Target, Clock, AlertTriangle, Loader2, Shield, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,8 +20,11 @@ import {
 import { useLimitOrders } from '@/hooks/useLimitOrders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { OkxToken } from '@/services/okxdex';
-import { Chain } from '@/data/chains';
+import { Chain, getChainByIndex } from '@/data/chains';
 import { cn } from '@/lib/utils';
+
+// Non-EVM chains don't support signed limit orders yet
+const NON_EVM_CHAIN_INDEXES = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
 
 interface LimitOrderFormProps {
   fromToken?: OkxToken | null;
@@ -90,6 +93,25 @@ export function LimitOrderForm({
 
   if (!isConnected || !fromToken || !toToken || !chain) {
     return null;
+  }
+
+  const isNonEvmChain = NON_EVM_CHAIN_INDEXES.includes(chain.chainIndex);
+  const chainName = chain.name;
+
+  // Show disabled state for non-EVM chains
+  if (isNonEvmChain) {
+    return (
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className={cn("gap-1.5 opacity-60 cursor-not-allowed", className)}
+        disabled
+        title={`Limit orders for ${chainName} coming soon`}
+      >
+        <Target className="w-3.5 h-3.5" />
+        Limit Order
+      </Button>
+    );
   }
 
   return (
