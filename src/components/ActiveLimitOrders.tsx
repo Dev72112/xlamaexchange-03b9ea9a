@@ -41,6 +41,8 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
         return <Badge variant="secondary" className="gap-1"><Clock className="w-3 h-3" />Monitoring</Badge>;
       case 'triggered':
         return <Badge className="gap-1 bg-success text-success-foreground"><Check className="w-3 h-3" />Triggered</Badge>;
+      case 'executed':
+        return <Badge className="gap-1 bg-primary text-primary-foreground"><Check className="w-3 h-3" />Executed</Badge>;
       case 'cancelled':
         return <Badge variant="outline" className="gap-1"><X className="w-3 h-3" />Cancelled</Badge>;
       case 'expired':
@@ -161,6 +163,11 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                           )}
                           {order.status === 'active' && order.expires_at && (
                             <p className="truncate">Expires: {formatDate(order.expires_at)}</p>
+                          )}
+                          {order.status === 'executed' && order.execution_tx_hash && (
+                            <p className="truncate text-primary">
+                              Tx: {order.execution_tx_hash.slice(0, 8)}...{order.execution_tx_hash.slice(-6)}
+                            </p>
                           )}
                         </div>
                       </div>

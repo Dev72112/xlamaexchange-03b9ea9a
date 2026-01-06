@@ -34,6 +34,7 @@ import { useFeedback } from "@/hooks/useFeedback";
 import { useTradePreFill } from "@/contexts/TradePreFillContext";
 import { useReferral } from "@/hooks/useReferral";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useLimitOrders } from "@/hooks/useLimitOrders";
 import {
   Dialog,
   DialogContent,
@@ -88,6 +89,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { triggerFeedback } = useFeedback();
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   const { recordTradeCommission } = useReferral(address);
+  const { markExecuted } = useLimitOrders();
   
   // Exchange mode state
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
@@ -120,6 +122,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showHighImpactModal, setShowHighImpactModal] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  const [executingLimitOrderId, setExecutingLimitOrderId] = useState<string | null>(null);
 
   // Track if update came from prediction to avoid loops
   const lastPredictionTokenRef = useRef<string | null>(null);
@@ -588,6 +591,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         });
         refetchBalance();
         
+        // Mark limit order as executed if this was a limit order execution
+        if (executingLimitOrderId) {
+          await markExecuted(executingLimitOrderId, hash);
+          setExecutingLimitOrderId(null);
+        }
+        
         // TODO: Re-enable when referral program resumes with Li.Fi fee collection
         // Record trade for referral commission tracking
         // const tradeAmountUsd = fromUsdValue ? parseFloat(fromUsdValue.replace(/[,$]/g, '')) : 0;
@@ -605,6 +614,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         updateTransaction(pendingTx.hash, {
           status: 'failed',
         });
+        // Clear executing order on error
+        setExecutingLimitOrderId(null);
         toast({
           title: "Swap Failed",
           description: err,
@@ -1167,11 +1178,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               <Suspense fallback={<Skeleton className="h-20 w-full rounded-lg" />}>
                 <ActiveLimitOrders 
                   onExecuteOrder={(order) => {
+                    // Track that we're executing this limit order
+                    setExecutingLimitOrderId(order.id);
                     // Pre-fill swap with limit order details
                     setFromAmount(order.amount);
                     toast({
                       title: "Limit Order Ready",
-                      description: `Execute your ${order.from_token_symbol} → ${order.to_token_symbol} swap now.`,
+                      description: `Execute your ${order.from_token_symbol} → ${order.to_token_symbol} swap now. The order will be marked as executed after the swap completes.`,
                     });
                   }}
                 />
