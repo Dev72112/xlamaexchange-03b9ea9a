@@ -2,6 +2,7 @@ import { memo, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Clock, 
   CheckCircle2, 
@@ -202,27 +203,25 @@ export const BridgeTransactionHistory = memo(function BridgeTransactionHistory()
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {/* Pending transactions first */}
-        {pending.map(tx => (
-          <TransactionRow key={tx.id} tx={tx} onRemove={removeTransaction} onRefresh={handleRefresh} />
-        ))}
-        
-        {/* Separator if both exist */}
-        {pending.length > 0 && completed.length > 0 && (
-          <div className="border-t border-border my-3" />
-        )}
-        
-        {/* Completed transactions */}
-        {completed.slice(0, 10).map(tx => (
-          <TransactionRow key={tx.id} tx={tx} onRemove={removeTransaction} />
-        ))}
-        
-        {completed.length > 10 && (
-          <p className="text-xs text-muted-foreground text-center pt-2">
-            + {completed.length - 10} more transactions
-          </p>
-        )}
+      <CardContent>
+        <ScrollArea className="h-[350px] pr-2">
+          <div className="space-y-2">
+            {/* Pending transactions first */}
+            {pending.map(tx => (
+              <TransactionRow key={tx.id} tx={tx} onRemove={removeTransaction} onRefresh={handleRefresh} />
+            ))}
+            
+            {/* Separator if both exist */}
+            {pending.length > 0 && completed.length > 0 && (
+              <div className="border-t border-border my-3" />
+            )}
+            
+            {/* Completed transactions */}
+            {completed.map(tx => (
+              <TransactionRow key={tx.id} tx={tx} onRemove={removeTransaction} />
+            ))}
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );

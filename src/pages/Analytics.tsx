@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -23,17 +25,17 @@ import {
   Download,
   DollarSign,
   Zap,
-  TrendingDown,
   AlertCircle,
-  CheckCircle2,
-  Timer,
   Scale,
   Trophy,
-  Frown
+  Frown,
+  Layers,
+  ArrowRightLeft
 } from 'lucide-react';
 import { useTradeAnalytics } from '@/hooks/useTradeAnalytics';
 import { useTradeVsHodl } from '@/hooks/useTradeVsHodl';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 import { 
   BarChart, 
   Bar, 
@@ -198,11 +200,22 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const Analytics = () => {
-  const analytics = useTradeAnalytics();
-  const tradeVsHodl = useTradeVsHodl();
   const { isConnected } = useMultiWallet();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('30d');
+  const [chainFilter, setChainFilter] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const analytics = useTradeAnalytics(chainFilter);
+  const tradeVsHodl = useTradeVsHodl();
+
+  // Get unique chains from transactions for the filter
+  const availableChains = useMemo(() => {
+    const chains = analytics.chainDistribution.map(c => ({
+      chainIndex: c.chainIndex,
+      name: c.chain,
+    }));
+    return chains;
+  }, [analytics.chainDistribution]);
 
   // Filter data based on time period
   const filteredData = useMemo(() => {
@@ -251,7 +264,7 @@ const Analytics = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `trading-analytics-${timePeriod}.csv`;
+    a.download = `trading-analytics-${chainFilter === 'all' ? 'all-chains' : chainFilter}-${timePeriod}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -267,43 +280,98 @@ const Analytics = () => {
 
       <div className="container px-4 py-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Trading Analytics</h1>
-            <p className="text-muted-foreground">
-              Track your trading performance and patterns
-            </p>
+        <div className="flex flex-col gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Trading Analytics</h1>
+              <p className="text-muted-foreground">
+                Track your trading performance and patterns
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="h-9 w-9"
+              >
+                <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={handleExport}
+                className="h-9 w-9"
+                disabled={filteredData.dailyVolume.length === 0}
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2 flex-wrap">
+
+          {/* Filters Row */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {/* Chain Filter */}
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-muted-foreground" />
+              <Select value={chainFilter} onValueChange={setChainFilter}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="All Chains" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-gradient-to-r from-primary to-chart-2" />
+                      All Chains
+                    </div>
+                  </SelectItem>
+                  {availableChains.map((chain) => {
+                    const chainData = SUPPORTED_CHAINS.find(c => c.chainIndex === chain.chainIndex);
+                    return (
+                      <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
+                        <div className="flex items-center gap-2">
+                          {chainData && (
+                            <img 
+                              src={getChainIcon(chainData)} 
+                              alt={chain.name}
+                              className="w-4 h-4 rounded-full"
+                            />
+                          )}
+                          {chain.name}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Time Period */}
             <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
-              <TabsList className="bg-secondary/50">
-                <TabsTrigger value="7d" className="text-xs">7D</TabsTrigger>
-                <TabsTrigger value="30d" className="text-xs">30D</TabsTrigger>
-                <TabsTrigger value="90d" className="text-xs">90D</TabsTrigger>
-                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+              <TabsList className="bg-secondary/50 h-9">
+                <TabsTrigger value="7d" className="text-xs min-h-[36px]">7D</TabsTrigger>
+                <TabsTrigger value="30d" className="text-xs min-h-[36px]">30D</TabsTrigger>
+                <TabsTrigger value="90d" className="text-xs min-h-[36px]">90D</TabsTrigger>
+                <TabsTrigger value="all" className="text-xs min-h-[36px]">All</TabsTrigger>
               </TabsList>
             </Tabs>
-            
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="h-9 w-9"
-            >
-              <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleExport}
-              className="h-9 w-9"
-              disabled={filteredData.dailyVolume.length === 0}
-            >
-              <Download className="w-4 h-4" />
-            </Button>
+
+            {/* Trade Source Badge */}
+            <div className="flex items-center gap-2 ml-auto">
+              <Badge variant="outline" className="text-xs gap-1">
+                <ArrowRightLeft className="w-3 h-3" />
+                DEX: {analytics.dexTradesCount}
+              </Badge>
+              {analytics.instantTradesCount > 0 && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Zap className="w-3 h-3" />
+                  Instant: {analytics.instantTradesCount}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
@@ -377,7 +445,7 @@ const Analytics = () => {
             subValue="trades"
           />
           <StatCard 
-            icon={Timer} 
+            icon={Clock} 
             label="Pending" 
             value={analytics.pendingTrades}
             variant={analytics.pendingTrades > 0 ? 'warning' : 'default'}
@@ -497,27 +565,24 @@ const Analytics = () => {
                       <Tooltip content={<CustomTooltip />} />
                     </RechartsPie>
                   </ResponsiveContainer>
-                  <div className="space-y-2 flex-1 min-w-0">
-                    {analytics.chainDistribution.slice(0, 6).map((chain, index) => (
-                      <div key={chain.chain} className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full flex-shrink-0" 
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span className="text-xs truncate flex-1">{chain.chain}</span>
-                        <div className="text-right flex-shrink-0">
-                          <Badge variant="outline" className="text-[10px]">
-                            {formatUsd(chain.volumeUsd)}
-                          </Badge>
+                  <ScrollArea className="h-[180px] sm:h-[220px] flex-1 min-w-0 pr-2">
+                    <div className="space-y-2">
+                      {analytics.chainDistribution.map((chain, index) => (
+                        <div key={chain.chain} className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="text-xs truncate flex-1">{chain.chain}</span>
+                          <div className="text-right flex-shrink-0">
+                            <Badge variant="outline" className="text-[10px]">
+                              {formatUsd(chain.volumeUsd)}
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    {analytics.chainDistribution.length > 6 && (
-                      <p className="text-xs text-muted-foreground">
-                        +{analytics.chainDistribution.length - 6} more chains
-                      </p>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               ) : (
                 <EmptyState 
@@ -588,35 +653,37 @@ const Analytics = () => {
             </CardHeader>
             <CardContent>
               {analytics.topPairs.length > 0 ? (
-                <div className="space-y-2">
-                  {analytics.topPairs.slice(0, 6).map((pair, index) => (
-                    <div 
-                      key={pair.pair}
-                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-sm font-semibold text-muted-foreground w-5 flex-shrink-0">
-                          #{index + 1}
-                        </span>
-                        <span className="font-medium text-sm truncate">{pair.pair}</span>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{formatUsd(pair.volumeUsd)}</p>
-                          <p className="text-xs text-muted-foreground">{pair.count} trades</p>
+                <ScrollArea className="h-[300px] pr-2">
+                  <div className="space-y-2">
+                    {analytics.topPairs.map((pair, index) => (
+                      <div 
+                        key={pair.pair}
+                        className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-sm font-semibold text-muted-foreground w-5 flex-shrink-0">
+                            #{index + 1}
+                          </span>
+                          <span className="font-medium text-sm truncate">{pair.pair}</span>
                         </div>
-                        <div className="w-12 h-1.5 rounded-full bg-secondary overflow-hidden">
-                          <div 
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ 
-                              width: `${(pair.volumeUsd / (analytics.topPairs[0]?.volumeUsd || 1)) * 100}%` 
-                            }}
-                          />
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{formatUsd(pair.volumeUsd)}</p>
+                            <p className="text-xs text-muted-foreground">{pair.count} trades</p>
+                          </div>
+                          <div className="w-12 h-1.5 rounded-full bg-secondary overflow-hidden">
+                            <div 
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ 
+                                width: `${(pair.volumeUsd / (analytics.topPairs[0]?.volumeUsd || 1)) * 100}%` 
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               ) : (
                 <EmptyState 
                   icon={Coins}
@@ -638,35 +705,37 @@ const Analytics = () => {
             </CardHeader>
             <CardContent>
               {analytics.topTokens.length > 0 ? (
-                <div className="space-y-2">
-                  {analytics.topTokens.slice(0, 6).map((token, index) => (
-                    <div 
-                      key={token.symbol}
-                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-sm font-semibold text-muted-foreground w-5 flex-shrink-0">
-                          #{index + 1}
-                        </span>
-                        <span className="font-medium text-sm">{token.symbol}</span>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{formatUsd(token.volumeUsd)}</p>
-                          <p className="text-xs text-muted-foreground">{token.trades} trades</p>
+                <ScrollArea className="h-[300px] pr-2">
+                  <div className="space-y-2">
+                    {analytics.topTokens.map((token, index) => (
+                      <div 
+                        key={token.symbol}
+                        className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-sm font-semibold text-muted-foreground w-5 flex-shrink-0">
+                            #{index + 1}
+                          </span>
+                          <span className="font-medium text-sm">{token.symbol}</span>
                         </div>
-                        <div className="w-12 h-1.5 rounded-full bg-secondary overflow-hidden">
-                          <div 
-                            className="h-full rounded-full bg-chart-2 transition-all"
-                            style={{ 
-                              width: `${(token.volumeUsd / (analytics.topTokens[0]?.volumeUsd || 1)) * 100}%` 
-                            }}
-                          />
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{formatUsd(token.volumeUsd)}</p>
+                            <p className="text-xs text-muted-foreground">{token.trades} trades</p>
+                          </div>
+                          <div className="w-12 h-1.5 rounded-full bg-secondary overflow-hidden">
+                            <div 
+                              className="h-full rounded-full bg-chart-2 transition-all"
+                              style={{ 
+                                width: `${(token.volumeUsd / (analytics.topTokens[0]?.volumeUsd || 1)) * 100}%` 
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               ) : (
                 <EmptyState 
                   icon={Coins}
@@ -868,40 +937,42 @@ const Analytics = () => {
                 {tradeVsHodl.trades.length > 0 && (
                   <div>
                     <h4 className="text-sm font-medium mb-3">Recent Trade Performance</h4>
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {tradeVsHodl.trades.slice(0, 10).map((trade) => (
-                        <div 
-                          key={trade.id}
-                          className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full flex-shrink-0",
-                              trade.tradePnl >= 0 ? "bg-green-500" : "bg-red-500"
-                            )} />
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm truncate">
-                                {trade.fromSymbol} → {trade.toSymbol}
+                    <ScrollArea className="h-[250px] pr-2">
+                      <div className="space-y-2">
+                        {tradeVsHodl.trades.map((trade) => (
+                          <div 
+                            key={trade.id}
+                            className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full flex-shrink-0",
+                                trade.tradePnl >= 0 ? "bg-green-500" : "bg-red-500"
+                              )} />
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">
+                                  {trade.fromSymbol} → {trade.toSymbol}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(trade.date).toLocaleDateString()} • {trade.chainName}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className={cn(
+                                "text-sm font-medium font-mono",
+                                trade.tradePnl >= 0 ? "text-green-500" : "text-red-500"
+                              )}>
+                                {trade.tradePnl >= 0 ? '+' : ''}{formatUsd(trade.tradePnl)}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(trade.date).toLocaleDateString()} • {trade.chainName}
+                                {trade.tradePnlPercent >= 0 ? '+' : ''}{trade.tradePnlPercent.toFixed(1)}%
                               </p>
                             </div>
                           </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className={cn(
-                              "text-sm font-medium font-mono",
-                              trade.tradePnl >= 0 ? "text-green-500" : "text-red-500"
-                            )}>
-                              {trade.tradePnl >= 0 ? '+' : ''}{formatUsd(trade.tradePnl)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {trade.tradePnlPercent >= 0 ? '+' : ''}{trade.tradePnlPercent.toFixed(1)}%
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </div>
                 )}
 

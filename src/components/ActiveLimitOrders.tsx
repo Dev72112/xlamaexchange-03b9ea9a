@@ -130,8 +130,8 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
         
         <CollapsibleContent>
           <CardContent className="pt-0 pb-3">
-            <ScrollArea className="max-h-[400px]">
-              <div className="space-y-2 pr-2">
+            <ScrollArea className="h-[350px] pr-2">
+              <div className="space-y-2">
                 {orders.slice(0, 10).map(order => (
                   <div 
                     key={order.id}

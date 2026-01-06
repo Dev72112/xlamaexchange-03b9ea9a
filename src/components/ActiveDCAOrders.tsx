@@ -274,8 +274,8 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
                 </p>
               </div>
             ) : (
-              <ScrollArea className="max-h-[400px]">
-                <div className="space-y-2 sm:space-y-3 pr-2">
+              <ScrollArea className="h-[350px] pr-2">
+                <div className="space-y-2 sm:space-y-3">
                   {visibleOrders.map((order, index) => (
                     <DCAOrderCard
                       key={order.id}
