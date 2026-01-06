@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, Minus, Activity, Target, Shield, Clock, ChevronDown, Loader2, BarChart2, Layers, Search, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Activity, Target, Shield, Clock, ChevronDown, Loader2, BarChart2, Layers, Search, X, BadgeCheck, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { usePricePrediction, PricePrediction as PricePredictionType } from '@/ho
 import { useTokenWatchlist } from '@/hooks/useTokenWatchlist';
 import { useTradePreFill } from '@/contexts/TradePreFillContext';
 import { SUPPORTED_CHAINS } from '@/data/chains';
+import { okxDexService, TokenSearchResult } from '@/services/okxdex';
 import { cn } from '@/lib/utils';
 import { FibonacciLevels, VolumeProfileBin } from '@/lib/technicalIndicators';
 
@@ -61,6 +62,9 @@ export function PricePrediction({
   const [showVolumeProfile, setShowVolumeProfile] = useState(false);
   const [tokenSelectorOpen, setTokenSelectorOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedChainIndex, setSelectedChainIndex] = useState('1');
+  const [searchResults, setSearchResults] = useState<TokenSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Track if update came from swap widget to avoid loops
   const lastSwapTokenRef = useRef<string | null>(null);
@@ -87,10 +91,41 @@ export function PricePrediction({
     }
   }, [selectedToken, timeframe, predict]);
 
-  const handleSelectToken = (token: { chainIndex: string; address: string; symbol: string }) => {
-    setSelectedToken(token);
+  // Search tokens using OKX v6 API when query is 3+ chars
+  useEffect(() => {
+    const query = searchQuery.trim();
+    
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const searchTokens = async () => {
+      setIsSearching(true);
+      try {
+        const results = await okxDexService.searchTokens(selectedChainIndex, query);
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Token search failed:', err);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounce = setTimeout(searchTokens, 400);
+    return () => clearTimeout(debounce);
+  }, [searchQuery, selectedChainIndex]);
+
+  const handleSelectToken = (token: { chainIndex: string; address: string; symbol: string; name?: string; logoUrl?: string }) => {
+    setSelectedToken({
+      chainIndex: token.chainIndex,
+      address: token.address,
+      symbol: token.symbol,
+    });
     setTokenSelectorOpen(false);
     setSearchQuery('');
+    setSearchResults([]);
     // Notify swap widget of selection
     setSelectedPredictionToken({
       chainIndex: token.chainIndex,
@@ -114,18 +149,37 @@ export function PricePrediction({
     return chain?.icon;
   };
 
-  // Filter popular tokens by search
+  // Filter popular tokens by search and selected chain
   const filteredPopularTokens = POPULAR_TOKENS.filter(t => 
-    searchQuery === '' || 
-    t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.name.toLowerCase().includes(searchQuery.toLowerCase())
+    t.chainIndex === selectedChainIndex && (
+      searchQuery === '' || 
+      t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
-  // Filter watchlist tokens by search
+  // Filter watchlist tokens by search and selected chain
   const filteredWatchlist = watchlist.filter(t =>
-    searchQuery === '' ||
-    t.tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase())
+    t.chainIndex === selectedChainIndex && (
+      searchQuery === '' ||
+      t.tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
+
+  // Format price for display
+  const formatTokenPrice = (price: number | string) => {
+    const num = typeof price === 'string' ? parseFloat(price) : price;
+    if (isNaN(num) || num === 0) return '';
+    if (num < 0.0001) return `$${num.toExponential(2)}`;
+    if (num < 1) return `$${num.toFixed(6)}`;
+    return `$${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  };
+
+  const formatPriceChange = (change: number | string) => {
+    const num = typeof change === 'string' ? parseFloat(change) : change;
+    if (isNaN(num)) return null;
+    return num;
+  };
 
   const getTrendIcon = (trend: PricePredictionType['trend']) => {
     switch (trend) {
@@ -218,23 +272,102 @@ export function PricePrediction({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="start">
-              <div className="p-2 border-b border-border">
+          <PopoverContent className="w-[360px] p-0" align="start">
+              <div className="p-2 border-b border-border space-y-2">
+                {/* Chain Selector */}
+                <Select value={selectedChainIndex} onValueChange={setSelectedChainIndex}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select chain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CHAINS.map(chain => (
+                      <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
+                        <div className="flex items-center gap-2">
+                          <img src={chain.icon} alt={chain.name} className="w-4 h-4 rounded-full" />
+                          <span>{chain.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {/* Search Input */}
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search tokens..."
+                    placeholder="Search by name, symbol, or address..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-8 h-9"
                   />
+                  {isSearching && (
+                    <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground animate-spin" />
+                  )}
                 </div>
               </div>
-              <ScrollArea className="h-[300px]">
-                {/* Watchlist Section */}
-                {filteredWatchlist.length > 0 && (
+              <ScrollArea className="h-[350px]">
+                {/* API Search Results */}
+                {searchResults.length > 0 && (
                   <div className="p-2">
-                    <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Your Watchlist</p>
+                    <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Search Results</p>
+                    {searchResults.map((token) => {
+                      const priceChange = formatPriceChange(token.change24H);
+                      const isVerified = token.tagList?.communityRecognized;
+                      return (
+                        <button
+                          key={`${token.chainIndex}-${token.tokenContractAddress}`}
+                          onClick={() => handleSelectToken({
+                            chainIndex: token.chainIndex,
+                            address: token.tokenContractAddress,
+                            symbol: token.tokenSymbol,
+                            name: token.tokenName,
+                            logoUrl: token.tokenLogoUrl,
+                          })}
+                          className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors"
+                        >
+                          <img 
+                            src={token.tokenLogoUrl || `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`}
+                            alt={token.tokenSymbol}
+                            className="w-8 h-8 rounded-full"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`;
+                            }}
+                          />
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-sm truncate">{token.tokenSymbol}</p>
+                              {isVerified && (
+                                <BadgeCheck className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{token.tokenName}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {token.price && (
+                              <p className="text-xs font-mono">{formatTokenPrice(parseFloat(token.price))}</p>
+                            )}
+                            {priceChange !== null && (
+                              <p className={cn(
+                                "text-[10px] flex items-center justify-end gap-0.5",
+                                priceChange > 0 ? "text-primary" : priceChange < 0 ? "text-destructive" : "text-muted-foreground"
+                              )}>
+                                {priceChange > 0 ? <TrendingUp className="w-3 h-3" /> : priceChange < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                                {priceChange > 0 ? '+' : ''}{priceChange.toFixed(2)}%
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Watchlist Section */}
+                {filteredWatchlist.length > 0 && searchResults.length === 0 && (
+                  <div className="p-2">
+                    <p className="text-xs font-medium text-muted-foreground px-2 mb-2 flex items-center gap-1">
+                      <Star className="w-3 h-3" /> Your Watchlist
+                    </p>
                     {filteredWatchlist.map((token) => (
                       <button
                         key={`${token.chainIndex}-${token.tokenContractAddress}`}
@@ -260,26 +393,42 @@ export function PricePrediction({
                 )}
 
                 {/* Popular Tokens Section */}
-                <div className="p-2">
-                  <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Popular Tokens</p>
-                  {filteredPopularTokens.map((token, i) => (
-                    <button
-                      key={`${token.chainIndex}-${token.address}-${i}`}
-                      onClick={() => handleSelectToken(token)}
-                      className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors"
-                    >
-                      <img 
-                        src={getChainIcon(token.chainIndex)} 
-                        alt="" 
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <div className="flex-1 text-left">
-                        <p className="font-medium text-sm">{token.symbol}</p>
-                        <p className="text-xs text-muted-foreground">{token.name}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                {searchResults.length === 0 && (
+                  <div className="p-2">
+                    <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Popular Tokens</p>
+                    {filteredPopularTokens.length > 0 ? (
+                      filteredPopularTokens.map((token, i) => (
+                        <button
+                          key={`${token.chainIndex}-${token.address}-${i}`}
+                          onClick={() => handleSelectToken(token)}
+                          className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors"
+                        >
+                          <img 
+                            src={getChainIcon(token.chainIndex)} 
+                            alt="" 
+                            className="w-6 h-6 rounded-full"
+                          />
+                          <div className="flex-1 text-left">
+                            <p className="font-medium text-sm">{token.symbol}</p>
+                            <p className="text-xs text-muted-foreground">{token.name}</p>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        {searchQuery ? 'No tokens found. Try searching by name or contract address.' : 'Select a chain to see popular tokens'}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* No Results Message */}
+                {searchQuery && searchResults.length === 0 && !isSearching && filteredPopularTokens.length === 0 && filteredWatchlist.length === 0 && (
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground">No tokens found</p>
+                    <p className="text-xs text-muted-foreground mt-1">Try a different search term or paste a contract address</p>
+                  </div>
+                )}
               </ScrollArea>
             </PopoverContent>
           </Popover>
