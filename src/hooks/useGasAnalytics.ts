@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useDexTransactionHistory } from './useDexTransactionHistory';
+import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 
 export interface GasDataPoint {
@@ -26,7 +26,7 @@ export interface GasAnalytics {
 }
 
 export function useGasAnalytics(chainFilter?: string): GasAnalytics {
-  const { transactions } = useDexTransactionHistory();
+  const { transactions } = useDexTransactions();
 
   const analytics = useMemo((): GasAnalytics => {
     // Filter to swaps only
