@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useDexTransactionHistory } from './useDexTransactionHistory';
-import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { usePortfolioPnL } from './usePortfolioPnL';
 import { okxDexService } from '@/services/okxdex';
 
@@ -79,18 +78,16 @@ async function getTokenPrice(chainIndex: string, tokenAddress: string, symbol: s
 }
 
 export function useTradeVsHodl(): TradeVsHodlSummary {
-  const { transactions: dexTransactions } = useDexTransactionHistory();
+  const { transactions: dexTransactions } = useDexTransactions();
   const { dailyData: hodlData, getPnLMetrics } = usePortfolioPnL();
   const [performances, setPerformances] = useState<TradePerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get only confirmed DEX swaps that have addresses and USD values
+  // Get all confirmed DEX swaps - don't require USD values (we'll calculate them)
   const confirmedSwaps = useMemo(() => {
     return dexTransactions.filter(
       tx => tx.type === 'swap' && 
-            tx.status === 'confirmed' && 
-            tx.fromAmountUsd && 
-            tx.fromAmountUsd > 0 &&
+            tx.status === 'confirmed' &&
             tx.toTokenAddress
     );
   }, [dexTransactions]);
@@ -113,14 +110,29 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       for (const tx of confirmedSwaps.slice(0, 20)) {
         if (cancelled) break;
 
-        try {
+      try {
           // Get current price for received token
           const toPrice = await getTokenPrice(tx.chainId, tx.toTokenAddress!, tx.toTokenSymbol);
+          
+          // Also get current price for from token if we need to calculate USD value
+          let fromPrice = 0;
+          if ((!tx.fromAmountUsd || tx.fromAmountUsd === 0) && tx.fromTokenAddress) {
+            fromPrice = await getTokenPrice(tx.chainId, tx.fromTokenAddress, tx.fromTokenSymbol);
+          }
 
           const fromAmount = parseFloat(tx.fromTokenAmount) || 0;
           const toAmount = parseFloat(tx.toTokenAmount) || 0;
-          const tradeValueUsd = tx.fromAmountUsd || 0;
+          
+          // Use stored USD value or calculate from current price
+          const tradeValueUsd = tx.fromAmountUsd && tx.fromAmountUsd > 0 
+            ? tx.fromAmountUsd 
+            : fromAmount * fromPrice;
           const currentToValueUsd = toAmount * toPrice;
+          
+          // Skip if we couldn't get any USD values
+          if (tradeValueUsd === 0 && currentToValueUsd === 0) {
+            continue;
+          }
           
           const tradePnl = currentToValueUsd - tradeValueUsd;
           const tradePnlPercent = tradeValueUsd > 0 ? (tradePnl / tradeValueUsd) * 100 : 0;
