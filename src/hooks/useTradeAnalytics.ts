@@ -48,7 +48,7 @@ export interface TradeAnalytics {
   topTokens: TokenStats[];
   
   // Chain analysis
-  chainDistribution: { chain: string; count: number; percentage: number; volumeUsd: number }[];
+  chainDistribution: { chain: string; chainIndex: string; count: number; percentage: number; volumeUsd: number }[];
   
   // Performance
   bestTradingDay: { date: string; volumeUsd: number; count: number } | null;
@@ -60,32 +60,42 @@ export interface TradeAnalytics {
   last7DaysTrades: number;
   last30DaysTrades: number;
   weekOverWeekChange: number;
+  
+  // Source breakdown
+  dexTradesCount: number;
+  instantTradesCount: number;
 }
 
-export function useTradeAnalytics(): TradeAnalytics {
+export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
   const { transactions: dexTransactions } = useDexTransactionHistory();
   const { transactions: instantTransactions } = useTransactionHistory();
 
   const analytics = useMemo((): TradeAnalytics => {
-    // Return empty analytics if no transactions (wallet not connected or no data)
-    const hasData = dexTransactions.length > 0 || instantTransactions.length > 0;
-    // Combine all swap transactions
-    const dexSwaps = dexTransactions.filter(tx => tx.type === 'swap');
-    const allSwaps = [
-      ...dexSwaps,
-      ...instantTransactions,
-    ];
+    // Filter DEX swaps only (exclude approvals)
+    let dexSwaps = dexTransactions.filter(tx => tx.type === 'swap');
+    
+    // Apply chain filter if specified
+    if (chainFilter && chainFilter !== 'all') {
+      dexSwaps = dexSwaps.filter(tx => tx.chainId === chainFilter);
+    }
+    
+    // For instant swaps, we don't have chain info, so only include if filter is 'all' or not set
+    const instantSwaps = (!chainFilter || chainFilter === 'all') ? instantTransactions : [];
+    
+    const allSwaps = [...dexSwaps, ...instantSwaps];
 
     const totalTrades = allSwaps.length;
+    const dexTradesCount = dexSwaps.length;
+    const instantTradesCount = instantSwaps.length;
 
     // Calculate success/fail/pending rates
     const successfulDexSwaps = dexSwaps.filter(tx => tx.status === 'confirmed').length;
     const failedDexSwaps = dexSwaps.filter(tx => tx.status === 'failed').length;
     const pendingDexSwaps = dexSwaps.filter(tx => tx.status === 'pending').length;
     
-    const successfulInstant = instantTransactions.filter(tx => tx.status === 'completed').length;
-    const failedInstant = instantTransactions.filter(tx => tx.status === 'failed').length;
-    const pendingInstant = instantTransactions.filter(tx => tx.status === 'pending').length;
+    const successfulInstant = instantSwaps.filter(tx => tx.status === 'completed').length;
+    const failedInstant = instantSwaps.filter(tx => tx.status === 'failed').length;
+    const pendingInstant = instantSwaps.filter(tx => tx.status === 'pending').length;
     
     const successfulTotal = successfulDexSwaps + successfulInstant;
     const failedTrades = failedDexSwaps + failedInstant;
@@ -100,8 +110,6 @@ export function useTradeAnalytics(): TradeAnalytics {
     allSwaps.forEach(tx => {
       if ('fromAmountUsd' in tx && typeof tx.fromAmountUsd === 'number') {
         totalVolumeUsd += tx.fromAmountUsd;
-      } else if ('fromAmountUsd' in tx && typeof (tx as any).fromAmountUsd === 'number') {
-        totalVolumeUsd += (tx as any).fromAmountUsd;
       }
     });
 
@@ -213,11 +221,12 @@ export function useTradeAnalytics(): TradeAnalytics {
       .sort((a, b) => b.volumeUsd - a.volumeUsd)
       .slice(0, 10);
 
-    // Chain distribution with USD (DEX only)
-    const chainStats = new Map<string, { count: number; volumeUsd: number }>();
+    // Chain distribution (DEX only since instant swaps don't have chain info)
+    const chainStats = new Map<string, { chainIndex: string; count: number; volumeUsd: number }>();
     dexSwaps.forEach(tx => {
-      const current = chainStats.get(tx.chainName) || { count: 0, volumeUsd: 0 };
+      const current = chainStats.get(tx.chainName) || { chainIndex: tx.chainId, count: 0, volumeUsd: 0 };
       chainStats.set(tx.chainName, {
+        chainIndex: tx.chainId,
         count: current.count + 1,
         volumeUsd: current.volumeUsd + (tx.fromAmountUsd || 0),
       });
@@ -226,6 +235,7 @@ export function useTradeAnalytics(): TradeAnalytics {
     const chainDistribution = Array.from(chainStats.entries())
       .map(([chain, data]) => ({
         chain,
+        chainIndex: data.chainIndex,
         count: data.count,
         volumeUsd: data.volumeUsd,
         percentage: dexSwaps.length > 0 ? (data.count / dexSwaps.length) * 100 : 0,
@@ -303,8 +313,10 @@ export function useTradeAnalytics(): TradeAnalytics {
       last7DaysTrades: last7Days,
       last30DaysTrades: last30Days,
       weekOverWeekChange,
+      dexTradesCount,
+      instantTradesCount,
     };
-  }, [dexTransactions, instantTransactions]);
+  }, [dexTransactions, instantTransactions, chainFilter]);
 
   return analytics;
 }

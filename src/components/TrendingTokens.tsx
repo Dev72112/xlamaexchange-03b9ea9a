@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Chain, getEvmChains, getPrimaryChain, getChainIcon } from "@/data/chains";
 import { okxDexService, TrendingTokenData } from "@/services/okxdex";
 import { cn } from "@/lib/utils";
@@ -165,7 +166,8 @@ export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
+            <ScrollArea className="h-[400px] pr-2">
+              <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
               {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <div
@@ -240,7 +242,8 @@ export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
                   );
                 })
               )}
-            </div>
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>

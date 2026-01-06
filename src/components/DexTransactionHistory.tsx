@@ -2,6 +2,7 @@ import { History, ExternalLink, Wallet, ArrowRight, Clock, Trash2 } from "lucide
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { cn } from "@/lib/utils";
@@ -66,7 +67,7 @@ export function DexTransactionHistory() {
               Your recent on-chain swaps made on this site
             </p>
           </CardHeader>
-          <CardContent className="space-y-3 overflow-x-hidden">
+          <CardContent className="overflow-x-hidden">
             {transactions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <img src={xlamaMascot} alt="xLama mascot" className="w-16 h-16 mx-auto mb-4 opacity-60 rounded-full" />
@@ -74,7 +75,9 @@ export function DexTransactionHistory() {
                 <p className="text-xs">Your swap history will appear here after you make swaps</p>
               </div>
             ) : (
-              transactions.slice(0, 10).map((tx) => (
+              <ScrollArea className="h-[350px] pr-2">
+                <div className="space-y-3">
+                  {transactions.slice(0, 20).map((tx) => (
                 <div
                   key={tx.id}
                   className="flex items-center justify-between gap-2 p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-border/80 transition-colors overflow-hidden"
@@ -156,7 +159,9 @@ export function DexTransactionHistory() {
                     </Button>
                   </div>
                 </div>
-              ))
+              ))}
+                </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
