@@ -2,6 +2,16 @@ import { useMemo } from 'react';
 import { useDexTransactions, DexTransaction } from '@/contexts/DexTransactionContext';
 import { useTransactionHistory, TransactionRecord } from './useTransactionHistory';
 
+// Helper to parse USD values that might be stored as strings like "$1,234.56" or numbers
+const parseUsdValue = (value: string | number | undefined): number => {
+  if (typeof value === 'number') return isNaN(value) ? 0 : value;
+  if (!value) return 0;
+  // Remove $ and commas before parsing
+  const cleaned = value.toString().replace(/[$,]/g, '').trim();
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
 interface TradePairStats {
   pair: string;
   count: number;
@@ -105,11 +115,11 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       ? (successfulTotal / totalTrades) * 100 
       : 100;
 
-    // Calculate total volume in USD
+    // Calculate total volume in USD with proper parsing
     let totalVolumeUsd = 0;
     allSwaps.forEach(tx => {
-      if ('fromAmountUsd' in tx && typeof tx.fromAmountUsd === 'number') {
-        totalVolumeUsd += tx.fromAmountUsd;
+      if ('fromAmountUsd' in tx) {
+        totalVolumeUsd += parseUsdValue(tx.fromAmountUsd);
       }
     });
 
@@ -126,7 +136,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
         ? parseFloat(tx.fromAmount || '0') 
         : parseFloat((tx as DexTransaction).fromTokenAmount || '0');
       
-      const amountUsd = 'fromAmountUsd' in tx ? (tx.fromAmountUsd || 0) : 0;
+      const amountUsd = 'fromAmountUsd' in tx ? parseUsdValue(tx.fromAmountUsd) : 0;
       
       volumeByDay.set(date, {
         volume: existing.volume + (isNaN(amount) ? 0 : amount),
@@ -180,7 +190,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
         ? parseFloat(tx.fromAmount || '0') 
         : parseFloat((tx as DexTransaction).fromTokenAmount || '0');
       
-      const amountUsd = 'fromAmountUsd' in tx ? (tx.fromAmountUsd || 0) : 0;
+      const amountUsd = 'fromAmountUsd' in tx ? parseUsdValue(tx.fromAmountUsd) : 0;
       
       pairCounts.set(pair, {
         count: existing.count + 1,
@@ -199,7 +209,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
     allSwaps.forEach(tx => {
       const fromSymbol = 'fromTicker' in tx ? tx.fromTicker : (tx as DexTransaction).fromTokenSymbol;
       const toSymbol = 'toTicker' in tx ? tx.toTicker : (tx as DexTransaction).toTokenSymbol;
-      const amountUsd = 'fromAmountUsd' in tx ? (tx.fromAmountUsd || 0) : 0;
+      const amountUsd = 'fromAmountUsd' in tx ? parseUsdValue(tx.fromAmountUsd) : 0;
       
       // From token
       const fromStats = tokenStats.get(fromSymbol) || { trades: 0, volumeUsd: 0 };
@@ -228,7 +238,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       chainStats.set(tx.chainName, {
         chainIndex: tx.chainId,
         count: current.count + 1,
-        volumeUsd: current.volumeUsd + (tx.fromAmountUsd || 0),
+        volumeUsd: current.volumeUsd + parseUsdValue(tx.fromAmountUsd),
       });
     });
 
