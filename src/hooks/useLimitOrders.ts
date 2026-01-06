@@ -22,7 +22,7 @@ export interface LimitOrder {
   target_price: number;
   condition: 'above' | 'below';
   slippage: string;
-  status: 'active' | 'triggered' | 'cancelled' | 'expired' | 'dismissed';
+  status: 'active' | 'triggered' | 'executed' | 'cancelled' | 'expired' | 'dismissed';
   created_at: string;
   expires_at: string | null;
   triggered_at: string | null;
@@ -324,6 +324,40 @@ export function useLimitOrders() {
     }
   }, [activeAddress, walletSupabase, fetchOrders, toast]);
 
+  // Mark order as executed with transaction hash
+  const markExecuted = useCallback(async (orderId: string, txHash: string) => {
+    if (!activeAddress) return false;
+    
+    try {
+      const { error } = await walletSupabase
+        .from('limit_orders')
+        .update({ 
+          status: 'executed' as LimitOrder['status'],
+          executed_at: new Date().toISOString(),
+          execution_tx_hash: txHash,
+        })
+        .eq('id', orderId)
+        .eq('user_address', activeAddress.toLowerCase());
+      
+      if (error) throw error;
+      
+      toast({
+        title: '✅ Order Executed',
+        description: 'Limit order has been successfully executed',
+      });
+      
+      fetchOrders();
+      return true;
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to mark order as executed',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  }, [activeAddress, walletSupabase, fetchOrders, toast]);
+
   // Mark order as triggered (internal use - no signature needed)
   const markTriggered = useCallback(async (orderId: string) => {
     try {
@@ -430,12 +464,14 @@ export function useLimitOrders() {
     orders,
     activeOrders: orders.filter(o => o.status === 'active'),
     triggeredOrders: orders.filter(o => o.status === 'triggered'),
+    executedOrders: orders.filter(o => o.status === 'executed'),
     isLoading,
     isSigning,
     notificationPermission,
     createOrder,
     cancelOrder,
     dismissOrder,
+    markExecuted,
     refetch: fetchOrders,
     exportToCSV,
     requestNotificationPermission,
