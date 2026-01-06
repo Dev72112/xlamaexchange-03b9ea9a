@@ -113,18 +113,21 @@ serve(async (req) => {
           }
 
           if (isTriggered) {
-            // Update order status to triggered
+            // Update order status to triggered with 24-hour expiration window
             // Note: Actual swap execution requires user's wallet signature
             // This marks the order as ready for manual execution by the user
+            const triggerExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from trigger
+            
             await supabase
               .from('limit_orders')
               .update({
                 status: 'triggered',
                 triggered_at: now.toISOString(),
+                trigger_expires_at: triggerExpiresAt.toISOString(),
               })
               .eq('id', order.id);
 
-            console.log(`[limit-order] Order ${order.id} marked as triggered for ${order.from_token_symbol} -> ${order.to_token_symbol}`);
+            console.log(`[limit-order] Order ${order.id} marked as triggered for ${order.from_token_symbol} -> ${order.to_token_symbol}, expires: ${triggerExpiresAt.toISOString()}`);
           }
         } catch (error) {
           console.error(`[limit-order] Error processing order ${order.id}:`, error);
@@ -136,7 +139,7 @@ serve(async (req) => {
       }
     }
 
-    // Expire old limit orders
+    // Expire old limit orders (past their main expiry date)
     const { data: expiredOrders } = await supabase
       .from('limit_orders')
       .update({ status: 'expired' })
@@ -145,7 +148,19 @@ serve(async (req) => {
       .select('id');
     
     if (expiredOrders?.length) {
-      console.log(`[execute-orders] Expired ${expiredOrders.length} limit orders`);
+      console.log(`[execute-orders] Expired ${expiredOrders.length} limit orders (past expiry date)`);
+    }
+
+    // Expire triggered orders past their 24-hour execution window
+    const { data: expiredTriggeredOrders } = await supabase
+      .from('limit_orders')
+      .update({ status: 'expired', execution_error: 'Trigger window expired (24 hours)' })
+      .eq('status', 'triggered')
+      .lt('trigger_expires_at', now.toISOString())
+      .select('id');
+    
+    if (expiredTriggeredOrders?.length) {
+      console.log(`[execute-orders] Expired ${expiredTriggeredOrders.length} triggered orders (execution window expired)`);
     }
 
     // ==================== DCA ORDERS ====================
