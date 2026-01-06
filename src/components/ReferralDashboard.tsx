@@ -158,22 +158,22 @@ export const ReferralDashboard = memo(function ReferralDashboard() {
           <CollapsibleContent>
             <CardContent className="pt-0 space-y-6">
               {/* Stats */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-lg bg-secondary/30 border border-border/30">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 border border-border/30">
                   <div className="flex items-center gap-2 mb-1">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span className="text-xs text-muted-foreground">Total Referrals</span>
+                    <Users className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Total Referrals</span>
                   </div>
-                  <p className="text-2xl font-semibold font-mono">
+                  <p className="text-xl sm:text-2xl font-semibold font-mono">
                     {data?.totalReferrals || 0}
                   </p>
                 </div>
-                <div className="p-4 rounded-lg bg-secondary/30 border border-border/30">
+                <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 border border-border/30">
                   <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="w-4 h-4 text-primary" />
-                    <span className="text-xs text-muted-foreground">Total Earnings</span>
+                    <DollarSign className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Total Earnings</span>
                   </div>
-                  <p className="text-2xl font-semibold font-mono">
+                  <p className="text-xl sm:text-2xl font-semibold font-mono truncate">
                     ${(data?.totalEarnings || 0).toFixed(2)}
                   </p>
                 </div>
@@ -266,8 +266,7 @@ export const ReferralDashboard = memo(function ReferralDashboard() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="flex-1"
+                  className="flex-1 min-h-[44px]"
                   onClick={shareOnTwitter}
                 >
                   <Twitter className="w-4 h-4 mr-2" />
@@ -275,8 +274,7 @@ export const ReferralDashboard = memo(function ReferralDashboard() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="flex-1"
+                  className="flex-1 min-h-[44px]"
                   onClick={shareOnTelegram}
                 >
                   <Send className="w-4 h-4 mr-2" />
@@ -351,7 +349,7 @@ export const ReferralDashboard = memo(function ReferralDashboard() {
 
       {/* Claim Dialog */}
       <Dialog open={showClaimDialog} onOpenChange={setShowClaimDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Request Payout</DialogTitle>
             <DialogDescription>

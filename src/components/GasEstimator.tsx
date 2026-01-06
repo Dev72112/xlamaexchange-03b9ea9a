@@ -66,14 +66,14 @@ export const GasEstimator = memo(function GasEstimator() {
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4">
             <ScrollArea className="max-h-[400px]">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pr-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pr-2">
                 {gasData.map((chain) => (
                   <div
                     key={chain.chainIndex}
                     className="flex flex-col gap-1.5 p-3 rounded-lg bg-secondary/30 border border-border/30"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium truncate">{chain.chainName}</span>
+                      <span className="text-sm font-medium truncate">{chain.chainName}</span>
                       {getTrendIcon(chain.trend)}
                     </div>
                     
@@ -84,13 +84,13 @@ export const GasEstimator = memo(function GasEstimator() {
                       <span className="text-xs text-muted-foreground">Gwei</span>
                     </div>
 
-                    <div className="flex gap-1 flex-wrap">
+                    <div className="flex gap-1.5 flex-wrap">
                       {chain.tiers.map((tier) => (
                         <Badge
                           key={tier.label}
                           variant="outline"
                           className={cn(
-                            "text-[10px] px-1.5 py-0",
+                            "text-[11px] px-2 py-0.5",
                             tier.label === 'Fast' && "border-primary/30 text-primary",
                             tier.label === 'Slow' && "border-muted-foreground/30"
                           )}

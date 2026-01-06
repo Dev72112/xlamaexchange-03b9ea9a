@@ -209,17 +209,17 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
                               View All ({allBalances.length})
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-lg max-h-[80vh]">
+                          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[80vh]">
                             <DialogHeader>
                               <DialogTitle>All Holdings</DialogTitle>
                             </DialogHeader>
                             <Tabs defaultValue="all" className="mt-2">
-                              <TabsList className="w-full grid grid-cols-2">
-                                <TabsTrigger value="all" className="gap-1">
+                              <TabsList className="w-full grid grid-cols-2 h-auto p-1">
+                                <TabsTrigger value="all" className="gap-1 min-h-[44px]">
                                   <List className="w-3.5 h-3.5" />
                                   All Tokens
                                 </TabsTrigger>
-                                <TabsTrigger value="chain" className="gap-1">
+                                <TabsTrigger value="chain" className="gap-1 min-h-[44px]">
                                   <Grid3X3 className="w-3.5 h-3.5" />
                                   By Chain
                                 </TabsTrigger>

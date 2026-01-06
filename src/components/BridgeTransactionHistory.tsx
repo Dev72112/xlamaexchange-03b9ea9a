@@ -87,8 +87,8 @@ const TransactionRow = memo(function TransactionRow({ tx, onRemove, onRefresh }:
         </div>
       </div>
 
-      {/* Chains */}
-      <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+      {/* Chains - Always visible */}
+      <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
         <img src={tx.fromChain.icon} alt="" className="w-4 h-4 rounded-full" 
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />

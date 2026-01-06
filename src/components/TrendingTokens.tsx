@@ -134,27 +134,28 @@ export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
 
               {/* Sort & Time Controls */}
               <div className="flex flex-wrap gap-2 items-center">
-                <div className="flex gap-1 bg-secondary/50 rounded-lg p-1">
+                <div className="flex gap-0.5 sm:gap-1 bg-secondary/50 rounded-lg p-1 overflow-x-auto">
                   {SORT_OPTIONS.map((option) => (
                     <Button
                       key={option.value}
                       variant={sortBy === option.value ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setSortBy(option.value)}
-                      className="h-7 text-xs"
+                      className="h-9 sm:h-7 text-xs px-2 sm:px-3 min-w-[44px] shrink-0"
                     >
-                      {option.label}
+                      <span className="hidden sm:inline">{option.label}</span>
+                      <span className="sm:hidden">{option.label.split(' ')[0]}</span>
                     </Button>
                   ))}
                 </div>
-                <div className="flex gap-1 bg-secondary/50 rounded-lg p-1">
+                <div className="flex gap-0.5 sm:gap-1 bg-secondary/50 rounded-lg p-1">
                   {TIME_OPTIONS.map((option) => (
                     <Button
                       key={option.value}
                       variant={timeFrame === option.value ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setTimeFrame(option.value)}
-                      className="h-7 text-xs px-2"
+                      className="h-9 sm:h-7 text-xs px-3 sm:px-2 min-w-[44px]"
                     >
                       {option.label}
                     </Button>
