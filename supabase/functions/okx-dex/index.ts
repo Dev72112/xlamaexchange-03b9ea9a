@@ -43,6 +43,7 @@ const VALID_ACTIONS = [
   'token-search',
   'candlesticks',
   'history-candles',
+  'market-trades',
   // Balance API (v6)
   'wallet-balances',
   'portfolio-value',
@@ -64,14 +65,15 @@ const RATE_LIMITS: Record<ValidAction, number> = {
   'approve-transaction': 40,
   'liquidity': 40,
   'token-info': 40,
-  'cross-chain-quote': 50,  // Increased from 30
+  'cross-chain-quote': 50,
   'cross-chain-swap': 30,
-  'token-price': 80,        // Increased from 60
-  'token-price-info': 80,   // Increased from 60
+  'token-price': 80,
+  'token-price-info': 80,
   'token-ranking': 40,
   'token-search': 80,
   'candlesticks': 80,
   'history-candles': 40,
+  'market-trades': 40,
   'wallet-balances': 40,
   'portfolio-value': 40,
   'tx-history': 40,
@@ -685,6 +687,26 @@ serve(async (req) => {
           bar: bar || '1H',
           limit: limit || '100',
           after,
+        });
+        break;
+      }
+
+      case 'market-trades': {
+        const { chainIndex, tokenContractAddress, limit } = params;
+        if (!chainIndex || !tokenContractAddress) {
+          return new Response(
+            JSON.stringify({ error: 'chainIndex and tokenContractAddress are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log(`Fetching market trades for ${tokenContractAddress} on chain ${chainIndex}`);
+        
+        // v6 Market API - Recent trades for a token
+        response = await okxMarketRequest('/trades', {
+          chainIndex,
+          tokenContractAddress,
+          limit: limit || '50',
         });
         break;
       }

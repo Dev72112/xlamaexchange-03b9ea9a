@@ -138,6 +138,19 @@ export interface CandlestickData {
   confirm: string;
 }
 
+// v6 Market Trade data
+export interface MarketTradeData {
+  chainIndex: string;
+  txHash: string;
+  tradeType: string; // 'buy' or 'sell'
+  price: string;
+  volume: string;
+  volumeUsd: string;
+  tradeTime: string;
+  dexName: string;
+  userAddress: string;
+}
+
 // v6 Transaction History
 export interface TransactionHistoryItem {
   chainIndex: string;
@@ -399,6 +412,24 @@ class OkxDexService {
       return [];
     } catch (err) {
       console.error('Failed to fetch history candlesticks:', err);
+      return [];
+    }
+  }
+
+  async getMarketTrades(
+    chainIndex: string,
+    tokenContractAddress: string,
+    limit: number = 50
+  ): Promise<MarketTradeData[]> {
+    try {
+      const result = await this.callApi<MarketTradeData[]>('market-trades', {
+        chainIndex,
+        tokenContractAddress,
+        limit: String(limit),
+      });
+      return Array.isArray(result) ? result : [];
+    } catch (err) {
+      console.error('Failed to fetch market trades:', err);
       return [];
     }
   }
