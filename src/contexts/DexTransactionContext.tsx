@@ -50,6 +50,21 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
     return [];
   });
 
+  // Migration: Add wallet address to old transactions when user connects
+  useEffect(() => {
+    if (!activeAddress) return;
+    
+    const needsMigration = allTransactions.some(tx => !tx.walletAddress);
+    if (needsMigration) {
+      console.log('[DexTransactionContext] Migrating old transactions to include walletAddress');
+      const migrated = allTransactions.map(tx => 
+        tx.walletAddress ? tx : { ...tx, walletAddress: activeAddress.toLowerCase() }
+      );
+      setAllTransactions(migrated);
+      // localStorage will be updated via the existing useEffect
+    }
+  }, [activeAddress, allTransactions.length]);
+
   // Filter transactions for current wallet only
   const transactions = isConnected && activeAddress 
     ? allTransactions.filter(tx => 

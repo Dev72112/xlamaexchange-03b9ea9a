@@ -457,34 +457,9 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       tonConnectUI.disconnect();
     }
 
-    // Clear wallet-specific transaction history from localStorage
-    if (currentAddress) {
-      try {
-        // Filter DEX transaction history
-        const dexHistory = localStorage.getItem('xlama_dex_transaction_history');
-        if (dexHistory) {
-          const parsed = JSON.parse(dexHistory);
-          const filtered = parsed.filter((tx: any) => 
-            tx.walletAddress?.toLowerCase() !== currentAddress
-          );
-          localStorage.setItem('xlama_dex_transaction_history', JSON.stringify(filtered));
-        }
-        
-        // Filter instant transaction history
-        const instantHistory = localStorage.getItem('xlama_transaction_history');
-        if (instantHistory) {
-          const parsed = JSON.parse(instantHistory);
-          const filtered = parsed.filter((tx: any) => 
-            tx.walletAddress?.toLowerCase() !== currentAddress
-          );
-          localStorage.setItem('xlama_transaction_history', JSON.stringify(filtered));
-        }
-        
-        console.log('[MultiWallet] Cleared session data for disconnected wallet');
-      } catch (e) {
-        console.error('[MultiWallet] Failed to clear session data:', e);
-      }
-    }
+    // NOTE: Transaction history is intentionally preserved on disconnect
+    // Users can manually clear history via the "Clear All" button if desired
+    console.log('[MultiWallet] Wallet disconnected - transaction history preserved');
 
     setError(null);
     setConnectionStatus('disconnected');

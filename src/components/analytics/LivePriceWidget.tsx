@@ -1,12 +1,11 @@
 import { memo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { okxDexService, TokenPriceInfo } from '@/services/okxdex';
-import { useDexTransactionHistory } from '@/hooks/useDexTransactionHistory';
+import { okxDexService } from '@/services/okxdex';
+import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +37,7 @@ export const LivePriceWidget = memo(function LivePriceWidget({
 }: { 
   chainFilter?: string 
 }) {
-  const { transactions } = useDexTransactionHistory();
+  const { transactions } = useDexTransactions();
   const [prices, setPrices] = useState<TokenPriceData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
