@@ -230,6 +230,81 @@ export type Database = {
         }
         Relationships: []
       }
+      dex_transactions: {
+        Row: {
+          chain_index: string
+          chain_name: string | null
+          created_at: string
+          explorer_url: string | null
+          from_amount: string
+          from_amount_usd: number | null
+          from_token_address: string | null
+          from_token_logo: string | null
+          from_token_price: number | null
+          from_token_symbol: string
+          id: string
+          status: string
+          to_amount: string
+          to_amount_usd: number | null
+          to_token_address: string | null
+          to_token_logo: string | null
+          to_token_price: number | null
+          to_token_symbol: string
+          tx_hash: string
+          type: string
+          updated_at: string
+          user_address: string
+        }
+        Insert: {
+          chain_index: string
+          chain_name?: string | null
+          created_at?: string
+          explorer_url?: string | null
+          from_amount: string
+          from_amount_usd?: number | null
+          from_token_address?: string | null
+          from_token_logo?: string | null
+          from_token_price?: number | null
+          from_token_symbol: string
+          id?: string
+          status?: string
+          to_amount: string
+          to_amount_usd?: number | null
+          to_token_address?: string | null
+          to_token_logo?: string | null
+          to_token_price?: number | null
+          to_token_symbol: string
+          tx_hash: string
+          type?: string
+          updated_at?: string
+          user_address: string
+        }
+        Update: {
+          chain_index?: string
+          chain_name?: string | null
+          created_at?: string
+          explorer_url?: string | null
+          from_amount?: string
+          from_amount_usd?: number | null
+          from_token_address?: string | null
+          from_token_logo?: string | null
+          from_token_price?: number | null
+          from_token_symbol?: string
+          id?: string
+          status?: string
+          to_amount?: string
+          to_amount_usd?: number | null
+          to_token_address?: string | null
+          to_token_logo?: string | null
+          to_token_price?: number | null
+          to_token_symbol?: string
+          tx_hash?: string
+          type?: string
+          updated_at?: string
+          user_address?: string
+        }
+        Relationships: []
+      }
       feature_votes: {
         Row: {
           feature_id: string
@@ -248,6 +323,66 @@ export type Database = {
           id?: string
           updated_at?: string
           vote_count?: number
+        }
+        Relationships: []
+      }
+      instant_transactions: {
+        Row: {
+          created_at: string
+          from_amount: string
+          from_amount_usd: number | null
+          from_image: string | null
+          from_name: string | null
+          from_ticker: string
+          id: string
+          payin_address: string | null
+          payout_address: string | null
+          status: string
+          to_amount: string | null
+          to_amount_usd: number | null
+          to_image: string | null
+          to_name: string | null
+          to_ticker: string
+          updated_at: string
+          user_address: string
+        }
+        Insert: {
+          created_at?: string
+          from_amount: string
+          from_amount_usd?: number | null
+          from_image?: string | null
+          from_name?: string | null
+          from_ticker: string
+          id: string
+          payin_address?: string | null
+          payout_address?: string | null
+          status?: string
+          to_amount?: string | null
+          to_amount_usd?: number | null
+          to_image?: string | null
+          to_name?: string | null
+          to_ticker: string
+          updated_at?: string
+          user_address: string
+        }
+        Update: {
+          created_at?: string
+          from_amount?: string
+          from_amount_usd?: number | null
+          from_image?: string | null
+          from_name?: string | null
+          from_ticker?: string
+          id?: string
+          payin_address?: string | null
+          payout_address?: string | null
+          status?: string
+          to_amount?: string | null
+          to_amount_usd?: number | null
+          to_image?: string | null
+          to_name?: string | null
+          to_ticker?: string
+          updated_at?: string
+          user_address?: string
         }
         Relationships: []
       }
