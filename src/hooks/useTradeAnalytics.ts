@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useDexTransactionHistory, DexTransaction } from './useDexTransactionHistory';
+import { useDexTransactions, DexTransaction } from '@/contexts/DexTransactionContext';
 import { useTransactionHistory, TransactionRecord } from './useTransactionHistory';
 
 interface TradePairStats {
@@ -67,7 +67,7 @@ export interface TradeAnalytics {
 }
 
 export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
-  const { transactions: dexTransactions } = useDexTransactionHistory();
+  const { transactions: dexTransactions } = useDexTransactions();
   const { transactions: instantTransactions } = useTransactionHistory();
 
   const analytics = useMemo((): TradeAnalytics => {

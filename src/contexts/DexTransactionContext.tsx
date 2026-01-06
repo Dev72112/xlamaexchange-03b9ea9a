@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 
 export interface DexTransaction {
   id: string;
@@ -19,6 +20,7 @@ export interface DexTransaction {
   timestamp: number;
   type: 'swap' | 'approve';
   explorerUrl?: string;
+  walletAddress?: string; // Track which wallet made the transaction
 }
 
 const STORAGE_KEY = 'xlama_dex_transaction_history';
@@ -34,7 +36,9 @@ interface DexTransactionContextType {
 const DexTransactionContext = createContext<DexTransactionContextType | null>(null);
 
 export function DexTransactionProvider({ children }: { children: ReactNode }) {
-  const [transactions, setTransactions] = useState<DexTransaction[]>(() => {
+  const { activeAddress, isConnected } = useMultiWallet();
+  
+  const [allTransactions, setAllTransactions] = useState<DexTransaction[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -46,27 +50,41 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
     return [];
   });
 
+  // Filter transactions for current wallet only
+  const transactions = isConnected && activeAddress 
+    ? allTransactions.filter(tx => 
+        tx.walletAddress?.toLowerCase() === activeAddress.toLowerCase()
+      )
+    : [];
+
   // Save to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
     } catch (e) {
       console.error('Failed to save DEX transaction history:', e);
     }
-  }, [transactions]);
+  }, [allTransactions]);
 
-  const addTransaction = useCallback((tx: Omit<DexTransaction, 'id' | 'timestamp'>) => {
+  const addTransaction = useCallback((tx: Omit<DexTransaction, 'id' | 'timestamp' | 'walletAddress'>) => {
+    if (!activeAddress) {
+      console.warn('Cannot add transaction: no wallet connected');
+      return null as unknown as DexTransaction;
+    }
+    
     const newTx: DexTransaction = {
       ...tx,
       id: `${tx.hash || 'pending'}-${Date.now()}`,
       timestamp: Date.now(),
+      walletAddress: activeAddress.toLowerCase(),
     };
-    setTransactions(prev => [newTx, ...prev.slice(0, 49)]); // Keep max 50
+    console.log('[DexTransactionContext] Adding transaction:', newTx.id, newTx.type);
+    setAllTransactions(prev => [newTx, ...prev.slice(0, 99)]); // Keep max 100 across all wallets
     return newTx;
-  }, []);
+  }, [activeAddress]);
 
   const updateTransaction = useCallback((hashOrId: string, updates: Partial<DexTransaction>) => {
-    setTransactions(prev => prev.map(tx => {
+    setAllTransactions(prev => prev.map(tx => {
       // Match strategies:
       // 1. Exact hash match (for transactions with known hashes)
       const matchesExactHash = tx.hash !== '' && tx.hash === hashOrId;
@@ -102,12 +120,16 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const removeTransaction = useCallback((id: string) => {
-    setTransactions(prev => prev.filter(tx => tx.id !== id));
+    setAllTransactions(prev => prev.filter(tx => tx.id !== id));
   }, []);
 
   const clearHistory = useCallback(() => {
-    setTransactions([]);
-  }, []);
+    if (!activeAddress) return;
+    // Only clear current wallet's transactions
+    setAllTransactions(prev => prev.filter(tx => 
+      tx.walletAddress?.toLowerCase() !== activeAddress.toLowerCase()
+    ));
+  }, [activeAddress]);
 
   return (
     <DexTransactionContext.Provider value={{

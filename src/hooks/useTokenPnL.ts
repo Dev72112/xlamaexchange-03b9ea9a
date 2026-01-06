@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useDexTransactionHistory } from './useDexTransactionHistory';
+import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { okxDexService } from '@/services/okxdex';
 
 export interface TokenPnLData {
@@ -29,7 +29,7 @@ export interface TokenPnLAnalytics {
 }
 
 export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
-  const { transactions } = useDexTransactionHistory();
+  const { transactions } = useDexTransactions();
   const [prices, setPrices] = useState<Map<string, number>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
 
