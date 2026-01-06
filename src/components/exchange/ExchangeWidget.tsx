@@ -33,6 +33,7 @@ import { useTokenPrices } from "@/hooks/useTokenPrice";
 import { useFeedback } from "@/hooks/useFeedback";
 import { useTradePreFill } from "@/contexts/TradePreFillContext";
 import { useReferral } from "@/hooks/useReferral";
+import { usePriceOracle } from "@/contexts/PriceOracleContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useLimitOrders } from "@/hooks/useLimitOrders";
 import {
@@ -90,6 +91,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   const { recordTradeCommission } = useReferral(address);
   const { markExecuted } = useLimitOrders();
+  const { setPrice } = usePriceOracle();
   
   // Exchange mode state
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
@@ -586,6 +588,24 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       onSuccess: async (hash) => {
         // Trigger success feedback
         triggerFeedback('success', 'heavy');
+        
+        // Feed prices to the oracle for app-wide use
+        if (fromTokenPrice && fromDexToken) {
+          setPrice(
+            selectedChain.chainIndex,
+            fromDexToken.tokenContractAddress,
+            fromDexToken.tokenSymbol,
+            fromTokenPrice
+          );
+        }
+        if (toTokenPrice && toDexToken) {
+          setPrice(
+            selectedChain.chainIndex,
+            toDexToken.tokenContractAddress,
+            toDexToken.tokenSymbol,
+            toTokenPrice
+          );
+        }
         
         // Update transaction with hash and confirmed status
         updateTransaction(pendingTx.hash || hash, {

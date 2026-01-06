@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { okxDexService } from '@/services/okxdex';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
+import { usePriceOracle, PriceEntry } from '@/contexts/PriceOracleContext';
 import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +39,7 @@ export const LivePriceWidget = memo(function LivePriceWidget({
   chainFilter?: string 
 }) {
   const { transactions } = useDexTransactions();
+  const { setPrice, getAllPrices } = usePriceOracle();
   const [prices, setPrices] = useState<TokenPriceData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -84,6 +86,22 @@ export const LivePriceWidget = memo(function LivePriceWidget({
 
   const fetchPrices = async () => {
     if (topTokens.length === 0) {
+      // If no trades, show prices from oracle instead
+      const oraclePrices = getAllPrices()
+        .filter(p => !chainFilter || chainFilter === 'all' || p.chainIndex === chainFilter)
+        .slice(0, 6);
+      
+      if (oraclePrices.length > 0) {
+        setPrices(oraclePrices.map(p => ({
+          symbol: p.symbol,
+          chainIndex: p.chainIndex,
+          tokenAddress: p.tokenAddress,
+          price: p.price,
+          change24H: p.change24h || 0,
+          volume24H: p.volume24h || 0,
+        })));
+        setLastUpdated(new Date());
+      }
       setIsLoading(false);
       return;
     }
@@ -99,13 +117,27 @@ export const LivePriceWidget = memo(function LivePriceWidget({
         );
         
         if (priceInfo?.price) {
+          const price = parseFloat(priceInfo.price);
+          const change24H = parseFloat(priceInfo.priceChange24H || '0');
+          const volume24H = parseFloat(priceInfo.volume24H || '0');
+          
+          // Feed price to oracle for app-wide use
+          setPrice(
+            token.chainIndex,
+            token.tokenAddress,
+            token.symbol,
+            price,
+            change24H,
+            { volume24h: volume24H, marketCap: parseFloat(priceInfo.marketCap || '0') }
+          );
+          
           priceData.push({
             symbol: token.symbol,
             chainIndex: token.chainIndex,
             tokenAddress: token.tokenAddress,
-            price: parseFloat(priceInfo.price),
-            change24H: parseFloat(priceInfo.priceChange24H || '0'),
-            volume24H: parseFloat(priceInfo.volume24H || '0'),
+            price,
+            change24H,
+            volume24H,
             logoUrl: token.logoUrl,
           });
         }
