@@ -67,6 +67,8 @@ export function useTradeAnalytics(): TradeAnalytics {
   const { transactions: instantTransactions } = useTransactionHistory();
 
   const analytics = useMemo((): TradeAnalytics => {
+    // Return empty analytics if no transactions (wallet not connected or no data)
+    const hasData = dexTransactions.length > 0 || instantTransactions.length > 0;
     // Combine all swap transactions
     const dexSwaps = dexTransactions.filter(tx => tx.type === 'swap');
     const allSwaps = [

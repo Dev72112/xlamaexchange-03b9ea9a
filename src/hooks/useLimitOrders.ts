@@ -22,14 +22,17 @@ export interface LimitOrder {
   target_price: number;
   condition: 'above' | 'below';
   slippage: string;
-  status: 'active' | 'triggered' | 'cancelled' | 'expired';
+  status: 'active' | 'triggered' | 'cancelled' | 'expired' | 'dismissed';
   created_at: string;
   expires_at: string | null;
   triggered_at: string | null;
-  // New execution tracking fields
+  // Execution tracking fields
   execution_tx_hash?: string;
   executed_at?: string;
   execution_error?: string;
+  // Trigger timeout fields
+  trigger_expires_at?: string;
+  user_dismissed?: boolean;
 }
 
 export function useLimitOrders() {
@@ -289,6 +292,38 @@ export function useLimitOrders() {
     }
   }, [activeAddress, getChainType, getProviders, fetchOrders, toast]);
 
+  // Dismiss a triggered order (user doesn't want to execute it)
+  const dismissOrder = useCallback(async (orderId: string) => {
+    if (!activeAddress) return;
+    
+    try {
+      const { error } = await walletSupabase
+        .from('limit_orders')
+        .update({ 
+          status: 'expired',
+          user_dismissed: true,
+          execution_error: 'Dismissed by user',
+        })
+        .eq('id', orderId)
+        .eq('user_address', activeAddress.toLowerCase());
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Order Dismissed',
+        description: 'The triggered order has been dismissed',
+      });
+      
+      fetchOrders();
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to dismiss order',
+        variant: 'destructive',
+      });
+    }
+  }, [activeAddress, walletSupabase, fetchOrders, toast]);
+
   // Mark order as triggered (internal use - no signature needed)
   const markTriggered = useCallback(async (orderId: string) => {
     try {
@@ -400,6 +435,7 @@ export function useLimitOrders() {
     notificationPermission,
     createOrder,
     cancelOrder,
+    dismissOrder,
     refetch: fetchOrders,
     exportToCSV,
     requestNotificationPermission,

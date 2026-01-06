@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff } from 'lucide-react';
+import { useState } from 'react';
+import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLimitOrders, LimitOrder } from '@/hooks/useLimitOrders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { LimitOrderCountdown } from '@/components/LimitOrderCountdown';
 import { cn } from '@/lib/utils';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 
@@ -18,7 +19,7 @@ interface ActiveLimitOrdersProps {
 
 export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrdersProps) {
   const { isConnected } = useMultiWallet();
-  const { orders, activeOrders, cancelOrder, isLoading, exportToCSV, notificationPermission, requestNotificationPermission } = useLimitOrders();
+  const { orders, activeOrders, cancelOrder, dismissOrder, isLoading, exportToCSV, notificationPermission, requestNotificationPermission } = useLimitOrders();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!isConnected || orders.length === 0) {
@@ -152,7 +153,13 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                             {order.condition === 'above' ? '↑' : '↓'} ${order.target_price.toFixed(6)}
                           </p>
                           <p className="truncate">Amount: {order.amount} {order.from_token_symbol}</p>
-                          {order.expires_at && (
+                          {order.status === 'triggered' && order.trigger_expires_at && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">Execute within:</span>
+                              <LimitOrderCountdown expiresAt={order.trigger_expires_at} />
+                            </div>
+                          )}
+                          {order.status === 'active' && order.expires_at && (
                             <p className="truncate">Expires: {formatDate(order.expires_at)}</p>
                           )}
                         </div>
@@ -171,15 +178,26 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                           </Button>
                         )}
                         {order.status === 'triggered' && onExecuteOrder && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => onExecuteOrder(order)}
-                          >
-                            <ExternalLink className="w-3 h-3 mr-1" />
-                            Execute
-                          </Button>
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => onExecuteOrder(order)}
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Execute
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-muted-foreground"
+                              onClick={() => dismissOrder(order.id)}
+                            >
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Dismiss
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>

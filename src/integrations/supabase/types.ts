@@ -269,8 +269,10 @@ export type Database = {
           target_price: number
           to_token_address: string
           to_token_symbol: string
+          trigger_expires_at: string | null
           triggered_at: string | null
           user_address: string
+          user_dismissed: boolean | null
         }
         Insert: {
           amount: string
@@ -289,8 +291,10 @@ export type Database = {
           target_price: number
           to_token_address: string
           to_token_symbol: string
+          trigger_expires_at?: string | null
           triggered_at?: string | null
           user_address: string
+          user_dismissed?: boolean | null
         }
         Update: {
           amount?: string
@@ -309,8 +313,10 @@ export type Database = {
           target_price?: number
           to_token_address?: string
           to_token_symbol?: string
+          trigger_expires_at?: string | null
           triggered_at?: string | null
           user_address?: string
+          user_dismissed?: boolean | null
         }
         Relationships: []
       }
