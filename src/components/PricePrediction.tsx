@@ -272,7 +272,7 @@ export function PricePrediction({
                 )}
               </Button>
             </PopoverTrigger>
-          <PopoverContent className="w-[360px] p-0" align="start">
+          <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[360px] max-w-[360px] p-0" align="start">
               <div className="p-2 border-b border-border space-y-2">
                 {/* Chain Selector */}
                 <Select value={selectedChainIndex} onValueChange={setSelectedChainIndex}>

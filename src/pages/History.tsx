@@ -323,39 +323,39 @@ const History = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all" className="gap-2">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-1">
+            <TabsTrigger value="all" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
               <LayoutList className="w-4 h-4" />
-              <span className="hidden sm:inline">All</span>
+              <span className="text-[10px] sm:text-sm">All</span>
               {totalTransactionCount > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
                   {totalTransactionCount}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="instant" className="gap-2">
+            <TabsTrigger value="instant" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
               <ArrowRight className="w-4 h-4" />
-              <span className="hidden sm:inline">Instant</span>
+              <span className="text-[10px] sm:text-sm">Instant</span>
               {transactions.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
                   {transactions.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="dex" className="gap-2">
+            <TabsTrigger value="dex" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
               <Link2 className="w-4 h-4" />
-              <span className="hidden sm:inline">DEX</span>
+              <span className="text-[10px] sm:text-sm">DEX</span>
               {dexTransactions.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
                   {dexTransactions.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="bridge" className="gap-2 relative">
+            <TabsTrigger value="bridge" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row relative">
               <ArrowLeftRight className="w-4 h-4" />
-              <span className="hidden sm:inline">Bridge</span>
+              <span className="text-[10px] sm:text-sm">Bridge</span>
               {bridgeTransactions.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
                   {bridgeTransactions.length}
                 </Badge>
               )}
@@ -363,9 +363,9 @@ const History = () => {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
               )}
             </TabsTrigger>
-            <TabsTrigger value="onchain" className="gap-2">
+            <TabsTrigger value="onchain" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
               <Wallet className="w-4 h-4" />
-              <span className="hidden sm:inline">On-Chain</span>
+              <span className="text-[10px] sm:text-sm">Chain</span>
             </TabsTrigger>
           </TabsList>
 
@@ -404,9 +404,9 @@ const History = () => {
               </div>
               
               {showFilters && (
-                <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
                   <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-full sm:w-[130px] min-h-[44px]">
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -419,7 +419,7 @@ const History = () => {
                   
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-2">
+                      <Button variant="outline" className="gap-2 min-h-[44px] w-full sm:w-auto justify-start sm:justify-center">
                         <Calendar className="w-4 h-4" />
                         {dateRange.from ? (
                           dateRange.to ? (
@@ -588,28 +588,26 @@ const History = () => {
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
+                  <div className="flex items-center justify-between pt-4 border-t border-border mt-4 gap-2">
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="gap-1"
+                      className="gap-1 min-h-[44px] px-3"
                     >
                       <ChevronLeft className="w-4 h-4" />
-                      Previous
+                      <span className="hidden sm:inline">Previous</span>
                     </Button>
-                    <span className="text-sm text-muted-foreground">
-                      Page {currentPage} of {totalPages}
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {currentPage} / {totalPages}
                     </span>
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="gap-1"
+                      className="gap-1 min-h-[44px] px-3"
                     >
-                      Next
+                      <span className="hidden sm:inline">Next</span>
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>

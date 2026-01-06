@@ -235,6 +235,11 @@ body {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  
+  /* Mobile touch target utility - minimum 44x44px for accessibility */
+  .touch-target {
+    @apply min-h-11 min-w-11;
+  }
 }
 
 /* Shimmer effect for skeletons - optimized with will-change */

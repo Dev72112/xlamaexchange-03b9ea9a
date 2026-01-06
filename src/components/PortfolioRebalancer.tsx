@@ -196,13 +196,13 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Quick Actions */}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={applyEqualWeight}
             disabled={balances.length === 0}
-            className="flex-1 text-xs"
+            className="flex-1 text-xs min-h-[44px] sm:min-h-0"
           >
             <Percent className="w-3.5 h-3.5 mr-1.5" />
             Equal Weight
@@ -212,7 +212,7 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
             size="sm" 
             onClick={applyMarketCapWeight}
             disabled={balances.length === 0}
-            className="flex-1 text-xs"
+            className="flex-1 text-xs min-h-[44px] sm:min-h-0"
           >
             <Scale className="w-3.5 h-3.5 mr-1.5" />
             Keep Current
@@ -222,7 +222,7 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
             size="sm" 
             onClick={resetTargets}
             disabled={Object.keys(targetAllocations).length === 0}
-            className="text-xs"
+            className="text-xs min-h-[44px] sm:min-h-0"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>
@@ -326,7 +326,7 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
                 <Clock className="w-4 h-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[400px]">
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-[400px]">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-primary" />

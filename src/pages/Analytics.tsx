@@ -354,7 +354,7 @@ const Analytics = () => {
         </div>
 
         {/* Secondary Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4 mb-8">
           <StatCard 
             icon={Activity} 
             label="Avg. Trades/Day" 
@@ -472,8 +472,8 @@ const Analytics = () => {
             </CardHeader>
             <CardContent>
               {analytics.chainDistribution.length > 0 ? (
-                <div className="flex items-center gap-4">
-                  <ResponsiveContainer width="50%" height={220}>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <ResponsiveContainer width="100%" height={180} className="sm:!w-1/2 sm:!h-[220px]">
                     <RechartsPie>
                       <Pie
                         data={analytics.chainDistribution}
