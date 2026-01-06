@@ -54,6 +54,7 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [totalIntervals, setTotalIntervals] = useState<string>('');
   const [slippage, setSlippage] = useState('0.5');
+  const [executionHour, setExecutionHour] = useState<string>('9'); // Default 9 AM UTC
 
   const handleSubmit = useCallback(async () => {
     if (!fromToken || !toToken || !chainIndex || !amount) return;
@@ -68,6 +69,7 @@ export const DCAOrderForm = memo(function DCAOrderForm({
       frequency,
       total_intervals: totalIntervals ? parseInt(totalIntervals) : null,
       slippage,
+      execution_hour: parseInt(executionHour),
     });
     
     if (order) {
@@ -75,7 +77,7 @@ export const DCAOrderForm = memo(function DCAOrderForm({
       setAmount('');
       setTotalIntervals('');
     }
-  }, [fromToken, toToken, chainIndex, amount, frequency, totalIntervals, slippage, createOrder]);
+  }, [fromToken, toToken, chainIndex, amount, frequency, totalIntervals, slippage, executionHour, createOrder]);
 
   const getFrequencyLabel = (freq: string) => {
     switch (freq) {
@@ -165,6 +167,33 @@ export const DCAOrderForm = memo(function DCAOrderForm({
                 <SelectItem value="weekly">Weekly</SelectItem>
                 <SelectItem value="biweekly">Bi-weekly (Every 2 weeks)</SelectItem>
                 <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Execution Time */}
+          <div className="space-y-2">
+            <Label htmlFor="dca-execution-hour" className="flex items-center gap-2">
+              Execution Time (UTC)
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>What time each day/week/month should the order execute?</p>
+                </TooltipContent>
+              </Tooltip>
+            </Label>
+            <Select value={executionHour} onValueChange={setExecutionHour}>
+              <SelectTrigger id="dca-execution-hour">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 24 }, (_, i) => (
+                  <SelectItem key={i} value={String(i)}>
+                    {String(i).padStart(2, '0')}:00 UTC
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

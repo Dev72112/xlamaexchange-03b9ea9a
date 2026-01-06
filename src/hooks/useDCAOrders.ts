@@ -34,6 +34,10 @@ export interface DCAOrder {
   average_price: number | null;
   created_at: string;
   updated_at: string;
+  // New execution tracking fields
+  execution_hour?: number;
+  last_execution_tx_hash?: string;
+  last_execution_error?: string;
 }
 
 export function useDCAOrders() {
@@ -132,6 +136,7 @@ export function useDCAOrders() {
     start_date?: string;
     end_date?: string | null;
     slippage?: string;
+    execution_hour?: number;
   }) => {
     if (!activeAddress) return null;
     
