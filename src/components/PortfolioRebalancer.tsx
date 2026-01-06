@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Scale, RefreshCw, ArrowRight, Percent, Zap, RotateCcw, ChevronDown, Loader2, Download, Clock, Play, Pause, X, ExternalLink, Calendar } from 'lucide-react';
+import { Scale, RefreshCw, ArrowRight, Percent, Zap, RotateCcw, ChevronDown, Loader2, Download, Clock, Play, Pause, X, ExternalLink, Calendar, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -59,6 +59,28 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
   const [scheduleName, setScheduleName] = useState('My Rebalance');
   const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [scheduleThreshold, setScheduleThreshold] = useState(5);
+
+  // Common stablecoins for preset strategies
+  const STABLECOINS = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDP'];
+
+  // Apply preset allocation strategies
+  const applyPreset = (preset: 'stablecoin-heavy' | '60-40' | 'btc-eth-focused') => {
+    const stables = balances.filter(b => STABLECOINS.includes(b.symbol.toUpperCase()));
+    const volatiles = balances.filter(b => !STABLECOINS.includes(b.symbol.toUpperCase()));
+    
+    if (preset === 'stablecoin-heavy') {
+      // 60% stablecoins, 40% volatile (distributed proportionally)
+      const stableAlloc = stables.length > 0 ? 60 / stables.length : 0;
+      const volatileAlloc = volatiles.length > 0 ? 40 / volatiles.length : 0;
+      
+      balances.forEach(b => {
+        const key = `${b.chainIndex}-${b.tokenContractAddress}`;
+        const isStable = STABLECOINS.includes(b.symbol.toUpperCase());
+        setTargetAllocation(key, isStable ? stableAlloc : volatileAlloc);
+      });
+      toast.success('Applied 60% stablecoin strategy');
+    }
+  };
 
   useEffect(() => {
     if (isConnected) {
@@ -195,37 +217,51 @@ export function PortfolioRebalancer({ className }: PortfolioRebalancerProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Quick Actions */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={applyEqualWeight}
-            disabled={balances.length === 0}
-            className="flex-1 text-xs min-h-[44px] sm:min-h-0"
-          >
-            <Percent className="w-3.5 h-3.5 mr-1.5" />
-            Equal Weight
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={applyMarketCapWeight}
-            disabled={balances.length === 0}
-            className="flex-1 text-xs min-h-[44px] sm:min-h-0"
-          >
-            <Scale className="w-3.5 h-3.5 mr-1.5" />
-            Keep Current
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={resetTargets}
-            disabled={Object.keys(targetAllocations).length === 0}
-            className="text-xs min-h-[44px] sm:min-h-0"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </Button>
+        {/* Strategy Presets */}
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Quick Presets</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={applyEqualWeight}
+              disabled={balances.length === 0}
+              className="text-xs min-h-[44px] flex-col gap-0.5 h-auto py-2"
+            >
+              <Percent className="w-3.5 h-3.5" />
+              <span>Equal</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={applyMarketCapWeight}
+              disabled={balances.length === 0}
+              className="text-xs min-h-[44px] flex-col gap-0.5 h-auto py-2"
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span>Current</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => applyPreset('stablecoin-heavy')}
+              disabled={balances.length === 0}
+              className="text-xs min-h-[44px] flex-col gap-0.5 h-auto py-2"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>60% Stable</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={resetTargets}
+              disabled={Object.keys(targetAllocations).length === 0}
+              className="text-xs min-h-[44px] flex-col gap-0.5 h-auto py-2"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </Button>
+          </div>
         </div>
 
         {/* Allocation Sliders */}
