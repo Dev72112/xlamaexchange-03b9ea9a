@@ -1,17 +1,17 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 type RouteLoadingContextValue = {
   isRouteLoading: boolean;
   progress: number;
-  finish: () => void;
+  finish: (locationKey?: string) => void;
   isSlowTransition: boolean;
 };
 
 const RouteLoadingContext = createContext<RouteLoadingContextValue | null>(null);
 
-const SLOW_TRANSITION_THRESHOLD_MS = 1000;
+const SLOW_TRANSITION_THRESHOLD_MS = 2000;
 
 export function RouteLoadingProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -26,6 +26,8 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
   const finishTimerRef = useRef<number | null>(null);
   const slowTimerRef = useRef<number | null>(null);
   const toastShownRef = useRef(false);
+  // Track active navigation to prevent stale finish calls
+  const activeLocationKeyRef = useRef<string | null>(null);
 
   const clearTimers = useCallback(() => {
     if (progressTimerRef.current) {
@@ -42,8 +44,9 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback((locationKey: string) => {
     clearTimers();
+    activeLocationKeyRef.current = locationKey;
     setIsRouteLoading(true);
     setIsSlowTransition(false);
     setProgress(12);
@@ -59,29 +62,36 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
 
     // Show slow transition toast after threshold
     slowTimerRef.current = window.setTimeout(() => {
-      setIsSlowTransition(true);
-      if (!toastShownRef.current) {
-        toastShownRef.current = true;
-        toast({
-          title: "Loading is taking longer than usual",
-          description: "This might be due to a slow connection. You can try refreshing.",
-          action: (
-            <button
-              onClick={() => window.location.reload()}
-              className="shrink-0 rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Retry
-            </button>
-          ),
-        });
+      // Only show if still loading this navigation
+      if (activeLocationKeyRef.current === locationKey) {
+        setIsSlowTransition(true);
+        if (!toastShownRef.current) {
+          toastShownRef.current = true;
+          toast({
+            title: "Loading is taking longer than usual",
+            description: "This might be due to a slow connection. You can try refreshing.",
+            action: (
+              <button
+                onClick={() => window.location.reload()}
+                className="shrink-0 rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Retry
+              </button>
+            ),
+          });
+        }
       }
     }, SLOW_TRANSITION_THRESHOLD_MS);
   }, [clearTimers, toast]);
 
-  const finish = useCallback(() => {
-    if (!isRouteLoading) return;
+  const finish = useCallback((locationKey?: string) => {
+    // If locationKey provided, only finish if it matches active navigation
+    if (locationKey && locationKey !== activeLocationKeyRef.current) {
+      return;
+    }
 
     clearTimers();
+    activeLocationKeyRef.current = null;
     setProgress(100);
     setIsSlowTransition(false);
 
@@ -89,14 +99,15 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
       setIsRouteLoading(false);
       setProgress(0);
     }, 220);
-  }, [isRouteLoading, clearTimers]);
+  }, [clearTimers]);
 
-  useEffect(() => {
+  // Use useLayoutEffect so start() runs before child useEffects
+  useLayoutEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    start();
+    start(location.key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
 
@@ -124,7 +135,8 @@ export function RouteLoadComplete() {
   const { finish } = useRouteLoading();
 
   useEffect(() => {
-    finish();
+    // Pass location.key so finish only completes the current navigation
+    finish(location.key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
 

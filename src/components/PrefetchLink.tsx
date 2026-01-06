@@ -4,6 +4,7 @@ import { prefetchRoute } from '@/lib/routePrefetch';
 
 interface PrefetchLinkProps extends LinkProps {
   prefetchDelay?: number;
+  onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>;
 }
 
 /**
@@ -11,7 +12,7 @@ interface PrefetchLinkProps extends LinkProps {
  * This makes page transitions feel instant by loading the component ahead of time.
  */
 export const PrefetchLink = forwardRef<HTMLAnchorElement, PrefetchLinkProps>(
-  ({ to, prefetchDelay = 50, onMouseEnter, onFocus, ...props }, ref) => {
+  ({ to, prefetchDelay = 50, onMouseEnter, onFocus, onTouchStart, ...props }, ref) => {
     const path = typeof to === 'string' ? to : to.pathname || '';
 
     const handlePrefetch = useCallback(() => {
@@ -33,12 +34,19 @@ export const PrefetchLink = forwardRef<HTMLAnchorElement, PrefetchLinkProps>(
       onFocus?.(e);
     }, [handlePrefetch, onFocus]);
 
+    const handleTouchStart = useCallback((e: React.TouchEvent<HTMLAnchorElement>) => {
+      // Prefetch immediately on touch for mobile
+      prefetchRoute(path);
+      onTouchStart?.(e);
+    }, [path, onTouchStart]);
+
     return (
       <Link
         ref={ref}
         to={to}
         onMouseEnter={handleMouseEnter}
         onFocus={handleFocus}
+        onTouchStart={handleTouchStart}
         {...props}
       />
     );

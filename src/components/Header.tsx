@@ -58,6 +58,7 @@ export function Header() {
                 key={link.path}
                 to={link.path}
                 onMouseEnter={() => handleLinkHover(link.path)}
+                onTouchStart={() => handleLinkHover(link.path)}
                 onFocus={() => handleLinkHover(link.path)}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
@@ -170,9 +171,9 @@ export function Header() {
                   key={link.path}
                   to={link.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  onMouseEnter={() => handleLinkHover(link.path)}
+                  onTouchStart={() => handleLinkHover(link.path)}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-3 min-h-[44px] rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-2 px-4 py-3 min-h-[44px] rounded-lg text-sm font-medium transition-colors active:bg-accent/70",
                     isActive(link.path)
                       ? "bg-secondary text-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
