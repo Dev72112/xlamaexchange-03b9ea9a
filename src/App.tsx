@@ -10,6 +10,7 @@ import { DexTransactionProvider } from "@/contexts/DexTransactionContext";
 import { ExchangeModeProvider } from "@/contexts/ExchangeModeContext";
 import { TradePreFillProvider } from "@/contexts/TradePreFillContext";
 import { BridgeTransactionProvider } from "@/contexts/BridgeTransactionContext";
+import { PriceOracleProvider } from "@/contexts/PriceOracleContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CookieConsent } from "@/components/CookieConsent";
 import { TrackingProvider } from "@/components/TrackingProvider";
@@ -46,14 +47,15 @@ const App = () => (
     <ThemeProvider defaultTheme="dark">
       <ErrorBoundary>
         <MultiWalletProvider>
-          <DexTransactionProvider>
-            <BridgeTransactionProvider>
-              <ExchangeModeProvider>
-                <TradePreFillProvider>
-                  <TooltipProvider>
-                    <Toaster />
-                    <Sonner />
-                    <BrowserRouter>
+          <PriceOracleProvider>
+            <DexTransactionProvider>
+              <BridgeTransactionProvider>
+                <ExchangeModeProvider>
+                  <TradePreFillProvider>
+                    <TooltipProvider>
+                      <Toaster />
+                      <Sonner />
+                      <BrowserRouter>
                       <RouteLoadingProvider>
                         <ScrollToTop />
                         <TrackingProvider>
@@ -87,12 +89,13 @@ const App = () => (
                           <CookieConsent />
                         </TrackingProvider>
                       </RouteLoadingProvider>
-                    </BrowserRouter>
-                  </TooltipProvider>
-                </TradePreFillProvider>
-              </ExchangeModeProvider>
-            </BridgeTransactionProvider>
-          </DexTransactionProvider>
+                      </BrowserRouter>
+                    </TooltipProvider>
+                  </TradePreFillProvider>
+                </ExchangeModeProvider>
+              </BridgeTransactionProvider>
+            </DexTransactionProvider>
+          </PriceOracleProvider>
         </MultiWalletProvider>
       </ErrorBoundary>
     </ThemeProvider>

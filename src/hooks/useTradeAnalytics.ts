@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useDexTransactions, DexTransaction } from '@/contexts/DexTransactionContext';
 import { useTransactionHistory, TransactionRecord } from './useTransactionHistory';
+import { usePriceOracleOptional } from '@/contexts/PriceOracleContext';
 
 // Helper to parse USD values that might be stored as strings like "$1,234.56" or numbers
 const parseUsdValue = (value: string | number | undefined): number => {
@@ -12,29 +13,42 @@ const parseUsdValue = (value: string | number | undefined): number => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
-// Helper to get USD value from a transaction with fallback to token price calculation
-const getTxUsdValue = (tx: DexTransaction | TransactionRecord): number => {
-  // First try direct fromAmountUsd
-  if ('fromAmountUsd' in tx && tx.fromAmountUsd !== undefined) {
-    const direct = parseUsdValue(tx.fromAmountUsd);
-    if (direct > 0) return direct;
-  }
-  
-  // Fallback: calculate from token price if available (DexTransaction only)
-  if ('fromTokenPrice' in tx && tx.fromTokenPrice && tx.fromTokenPrice > 0) {
-    const amount = parseFloat(tx.fromTokenAmount || '0');
-    if (!isNaN(amount) && amount > 0) {
-      return amount * tx.fromTokenPrice;
+// Create a factory function for getTxUsdValue that can use the price oracle
+const createGetTxUsdValue = (priceOracle: ReturnType<typeof usePriceOracleOptional>) => {
+  return (tx: DexTransaction | TransactionRecord): number => {
+    // First try direct fromAmountUsd
+    if ('fromAmountUsd' in tx && tx.fromAmountUsd !== undefined) {
+      const direct = parseUsdValue(tx.fromAmountUsd);
+      if (direct > 0) return direct;
     }
-  }
-  
-  // For TransactionRecord, try fromAmount
-  if ('fromAmount' in tx && 'fromAmountUsd' in tx) {
-    const direct = parseUsdValue(tx.fromAmountUsd);
-    if (direct > 0) return direct;
-  }
-  
-  return 0;
+    
+    // Fallback: calculate from token price if available (DexTransaction only)
+    if ('fromTokenPrice' in tx && tx.fromTokenPrice && tx.fromTokenPrice > 0) {
+      const amount = parseFloat(tx.fromTokenAmount || '0');
+      if (!isNaN(amount) && amount > 0) {
+        return amount * tx.fromTokenPrice;
+      }
+    }
+    
+    // For TransactionRecord, try fromAmount
+    if ('fromAmount' in tx && 'fromAmountUsd' in tx) {
+      const direct = parseUsdValue(tx.fromAmountUsd);
+      if (direct > 0) return direct;
+    }
+    
+    // NEW: Fallback to price oracle if available
+    if (priceOracle && 'fromTokenAddress' in tx && tx.fromTokenAddress && 'chainId' in tx) {
+      const oraclePrice = priceOracle.getPrice(tx.chainId, tx.fromTokenAddress);
+      if (oraclePrice && oraclePrice > 0) {
+        const amount = parseFloat(tx.fromTokenAmount || '0');
+        if (!isNaN(amount) && amount > 0) {
+          return amount * oraclePrice;
+        }
+      }
+    }
+    
+    return 0;
+  };
 };
 
 interface TradePairStats {
@@ -104,6 +118,10 @@ export interface TradeAnalytics {
 export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
   const { transactions: dexTransactions } = useDexTransactions();
   const { transactions: instantTransactions } = useTransactionHistory();
+  const priceOracle = usePriceOracleOptional();
+  
+  // Create getTxUsdValue with oracle fallback
+  const getTxUsdValue = useMemo(() => createGetTxUsdValue(priceOracle), [priceOracle]);
 
   const analytics = useMemo((): TradeAnalytics => {
     // Filter DEX swaps only (exclude approvals)
@@ -349,7 +367,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       dexTradesCount,
       instantTradesCount,
     };
-  }, [dexTransactions, instantTransactions, chainFilter]);
+  }, [dexTransactions, instantTransactions, chainFilter, getTxUsdValue]);
 
   return analytics;
 }
