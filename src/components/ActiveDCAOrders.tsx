@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
+import {
   CalendarClock, 
   ChevronDown, 
   ChevronUp, 
@@ -129,7 +130,10 @@ const DCAOrderCard = memo(function DCAOrderCard({
             {order.status === 'active' && (
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span className="truncate">Next: {getNextExecutionText(order.next_execution)}</span>
+                <span className="truncate">
+                  Next: {getNextExecutionText(order.next_execution)}
+                  {order.execution_hour !== undefined && ` at ${String(order.execution_hour).padStart(2, '0')}:00 UTC`}
+                </span>
               </div>
             )}
             
@@ -270,19 +274,21 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2 sm:space-y-3">
-                {visibleOrders.map((order, index) => (
-                  <DCAOrderCard
-                    key={order.id}
-                    order={order}
-                    onPause={pauseOrder}
-                    onResume={resumeOrder}
-                    onCancel={cancelOrder}
-                    isSigning={isSigning}
-                    index={index}
-                  />
-                ))}
-              </div>
+              <ScrollArea className="max-h-[400px]">
+                <div className="space-y-2 sm:space-y-3 pr-2">
+                  {visibleOrders.map((order, index) => (
+                    <DCAOrderCard
+                      key={order.id}
+                      order={order}
+                      onPause={pauseOrder}
+                      onResume={resumeOrder}
+                      onCancel={cancelOrder}
+                      isSigning={isSigning}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
             )}
           </CardContent>
         </CollapsibleContent>

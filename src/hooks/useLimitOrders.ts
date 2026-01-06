@@ -26,6 +26,10 @@ export interface LimitOrder {
   created_at: string;
   expires_at: string | null;
   triggered_at: string | null;
+  // New execution tracking fields
+  execution_tx_hash?: string;
+  executed_at?: string;
+  execution_error?: string;
 }
 
 export function useLimitOrders() {

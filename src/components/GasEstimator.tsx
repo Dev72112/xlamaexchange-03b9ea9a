@@ -3,17 +3,17 @@ import { Fuel, TrendingUp, TrendingDown, Minus, RefreshCw, ChevronDown, ChevronU
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useMultiChainGas } from '@/hooks/useMultiChainGas';
-import { SUPPORTED_CHAINS } from '@/data/chains';
+import { SUPPORTED_CHAINS, getEvmChains } from '@/data/chains';
 import { cn } from '@/lib/utils';
 
-const TOP_CHAINS = SUPPORTED_CHAINS.filter(c => 
-  c.isEvm && ['1', '8453', '42161', '137', '10', '56'].includes(c.chainIndex)
-);
+// Include all EVM chains for comprehensive gas tracking
+const ALL_EVM_CHAINS = getEvmChains();
 
 export const GasEstimator = memo(function GasEstimator() {
-  const { gasData, isLoading, refetch } = useMultiChainGas(TOP_CHAINS);
+  const { gasData, isLoading, refetch } = useMultiChainGas(ALL_EVM_CHAINS);
   const [isOpen, setIsOpen] = useState(false);
 
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
@@ -65,46 +65,48 @@ export const GasEstimator = memo(function GasEstimator() {
         
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {gasData.map((chain) => (
-                <div
-                  key={chain.chainIndex}
-                  className="flex flex-col gap-1.5 p-3 rounded-lg bg-secondary/30 border border-border/30"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium truncate">{chain.chainName}</span>
-                    {getTrendIcon(chain.trend)}
-                  </div>
-                  
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-lg font-semibold font-mono">
-                      {formatGwei(chain.gasPriceGwei)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">Gwei</span>
-                  </div>
+            <ScrollArea className="max-h-[400px]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pr-2">
+                {gasData.map((chain) => (
+                  <div
+                    key={chain.chainIndex}
+                    className="flex flex-col gap-1.5 p-3 rounded-lg bg-secondary/30 border border-border/30"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium truncate">{chain.chainName}</span>
+                      {getTrendIcon(chain.trend)}
+                    </div>
+                    
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-lg font-semibold font-mono">
+                        {formatGwei(chain.gasPriceGwei)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">Gwei</span>
+                    </div>
 
-                  <div className="flex gap-1 flex-wrap">
-                    {chain.tiers.map((tier) => (
-                      <Badge
-                        key={tier.label}
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] px-1.5 py-0",
-                          tier.label === 'Fast' && "border-primary/30 text-primary",
-                          tier.label === 'Slow' && "border-muted-foreground/30"
-                        )}
-                      >
-                        {tier.label}: {formatGwei(tier.gwei)}
-                      </Badge>
-                    ))}
+                    <div className="flex gap-1 flex-wrap">
+                      {chain.tiers.map((tier) => (
+                        <Badge
+                          key={tier.label}
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            tier.label === 'Fast' && "border-primary/30 text-primary",
+                            tier.label === 'Slow' && "border-muted-foreground/30"
+                          )}
+                        >
+                          {tier.label}: {formatGwei(tier.gwei)}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </ScrollArea>
 
             {gasData.length > 0 && (
               <p className="text-[10px] text-muted-foreground text-center mt-3">
-                Updated {gasData[0]?.lastUpdated?.toLocaleTimeString()} • Auto-refreshes every 15s
+                Tracking {gasData.length} chains • Updated {gasData[0]?.lastUpdated?.toLocaleTimeString()} • Auto-refreshes every 15s
               </p>
             )}
           </CardContent>

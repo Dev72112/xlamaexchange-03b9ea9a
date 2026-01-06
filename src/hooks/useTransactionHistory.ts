@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 
 export interface TransactionRecord {
   id: string;
@@ -17,12 +18,15 @@ export interface TransactionRecord {
   payoutAddress?: string;
   createdAt: number;
   updatedAt: number;
+  walletAddress?: string; // Track which wallet made the transaction
 }
 
 const STORAGE_KEY = 'xlama_transaction_history';
 
 export function useTransactionHistory() {
-  const [transactions, setTransactions] = useState<TransactionRecord[]>(() => {
+  const { activeAddress, isConnected } = useMultiWallet();
+  
+  const [allTransactions, setAllTransactions] = useState<TransactionRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -34,28 +38,38 @@ export function useTransactionHistory() {
     return [];
   });
 
+  // Filter transactions for current wallet only
+  const transactions = isConnected && activeAddress 
+    ? allTransactions.filter(tx => 
+        tx.walletAddress?.toLowerCase() === activeAddress.toLowerCase()
+      )
+    : [];
+
   // Save to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
     } catch (e) {
       console.error('Failed to save transaction history:', e);
     }
-  }, [transactions]);
+  }, [allTransactions]);
 
-  const addTransaction = useCallback((tx: Omit<TransactionRecord, 'createdAt' | 'updatedAt'>) => {
+  const addTransaction = useCallback((tx: Omit<TransactionRecord, 'createdAt' | 'updatedAt' | 'walletAddress'>) => {
+    if (!activeAddress) return null;
+    
     const now = Date.now();
     const newTx: TransactionRecord = {
       ...tx,
       createdAt: now,
       updatedAt: now,
+      walletAddress: activeAddress.toLowerCase(),
     };
-    setTransactions(prev => [newTx, ...prev]);
+    setAllTransactions(prev => [newTx, ...prev.slice(0, 99)]); // Keep max 100 across all wallets
     return newTx;
-  }, []);
+  }, [activeAddress]);
 
   const updateTransaction = useCallback((id: string, updates: Partial<TransactionRecord>) => {
-    setTransactions(prev => prev.map(tx => 
+    setAllTransactions(prev => prev.map(tx => 
       tx.id === id 
         ? { ...tx, ...updates, updatedAt: Date.now() }
         : tx
@@ -63,12 +77,16 @@ export function useTransactionHistory() {
   }, []);
 
   const removeTransaction = useCallback((id: string) => {
-    setTransactions(prev => prev.filter(tx => tx.id !== id));
+    setAllTransactions(prev => prev.filter(tx => tx.id !== id));
   }, []);
 
   const clearHistory = useCallback(() => {
-    setTransactions([]);
-  }, []);
+    if (!activeAddress) return;
+    // Only clear current wallet's transactions
+    setAllTransactions(prev => prev.filter(tx => 
+      tx.walletAddress?.toLowerCase() !== activeAddress.toLowerCase()
+    ));
+  }, [activeAddress]);
 
   return {
     transactions,

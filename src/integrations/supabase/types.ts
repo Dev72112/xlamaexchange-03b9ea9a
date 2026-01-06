@@ -157,10 +157,13 @@ export type Database = {
           completed_intervals: number | null
           created_at: string | null
           end_date: string | null
+          execution_hour: number | null
           frequency: string
           from_token_address: string
           from_token_symbol: string
           id: string
+          last_execution_error: string | null
+          last_execution_tx_hash: string | null
           next_execution: string
           slippage: string | null
           start_date: string
@@ -180,10 +183,13 @@ export type Database = {
           completed_intervals?: number | null
           created_at?: string | null
           end_date?: string | null
+          execution_hour?: number | null
           frequency: string
           from_token_address: string
           from_token_symbol: string
           id?: string
+          last_execution_error?: string | null
+          last_execution_tx_hash?: string | null
           next_execution: string
           slippage?: string | null
           start_date: string
@@ -203,10 +209,13 @@ export type Database = {
           completed_intervals?: number | null
           created_at?: string | null
           end_date?: string | null
+          execution_hour?: number | null
           frequency?: string
           from_token_address?: string
           from_token_symbol?: string
           id?: string
+          last_execution_error?: string | null
+          last_execution_tx_hash?: string | null
           next_execution?: string
           slippage?: string | null
           start_date?: string
@@ -248,6 +257,9 @@ export type Database = {
           chain_index: string
           condition: string
           created_at: string
+          executed_at: string | null
+          execution_error: string | null
+          execution_tx_hash: string | null
           expires_at: string | null
           from_token_address: string
           from_token_symbol: string
@@ -265,6 +277,9 @@ export type Database = {
           chain_index: string
           condition: string
           created_at?: string
+          executed_at?: string | null
+          execution_error?: string | null
+          execution_tx_hash?: string | null
           expires_at?: string | null
           from_token_address: string
           from_token_symbol: string
@@ -282,6 +297,9 @@ export type Database = {
           chain_index?: string
           condition?: string
           created_at?: string
+          executed_at?: string | null
+          execution_error?: string | null
+          execution_tx_hash?: string | null
           expires_at?: string | null
           from_token_address?: string
           from_token_symbol?: string
