@@ -30,10 +30,12 @@ import {
   Trophy,
   Frown,
   Layers,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Fuel
 } from 'lucide-react';
 import { useTradeAnalytics } from '@/hooks/useTradeAnalytics';
 import { useTradeVsHodl } from '@/hooks/useTradeVsHodl';
+import { useGasAnalytics } from '@/hooks/useGasAnalytics';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 import { 
@@ -53,6 +55,11 @@ import {
   Line,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+
+// Lazy load heavy analytics components
+import { LivePriceWidget } from '@/components/analytics/LivePriceWidget';
+import { TokenPnLChart } from '@/components/analytics/TokenPnLChart';
+import { GasBreakdown } from '@/components/analytics/GasBreakdown';
 
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
@@ -207,6 +214,7 @@ const Analytics = () => {
   
   const analytics = useTradeAnalytics(chainFilter);
   const tradeVsHodl = useTradeVsHodl();
+  const gasAnalytics = useGasAnalytics(chainFilter);
 
   // Get unique chains from transactions for the filter
   const availableChains = useMemo(() => {
@@ -434,9 +442,10 @@ const Analytics = () => {
             value={analytics.uniqueTokens} 
           />
           <StatCard 
-            icon={Calendar} 
-            label="Active Days" 
-            value={analytics.activeDays} 
+            icon={Fuel} 
+            label="Est. Gas Spent" 
+            value={formatUsd(gasAnalytics.totalGasUsd)}
+            subValue={`~${formatUsd(gasAnalytics.avgGasPerTrade)}/trade`}
           />
           <StatCard 
             icon={Zap} 
@@ -639,6 +648,13 @@ const Analytics = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Live Prices, Gas & P&L Section */}
+        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          <LivePriceWidget chainFilter={chainFilter} />
+          <TokenPnLChart chainFilter={chainFilter} />
+          <GasBreakdown chainFilter={chainFilter} />
+        </div>
 
         {/* Top Pairs & Top Tokens */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
