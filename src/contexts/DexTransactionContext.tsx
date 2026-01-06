@@ -1,5 +1,13 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import {
+  fetchDexTransactions,
+  upsertDexTransaction,
+  updateDexTransactionStatus,
+  deleteDexTransaction,
+  clearDexTransactions,
+  DexTransactionDB,
+} from '@/lib/transactionSync';
 
 export interface DexTransaction {
   id: string;
@@ -11,18 +19,18 @@ export interface DexTransaction {
   fromTokenAmount: string;
   fromTokenLogo?: string;
   fromAmountUsd?: number;
-  fromTokenPrice?: number; // USD price per token at time of swap
+  fromTokenPrice?: number;
   toTokenSymbol: string;
   toTokenAddress?: string;
   toTokenAmount: string;
   toTokenLogo?: string;
   toAmountUsd?: number;
-  toTokenPrice?: number; // USD price per token at time of swap
+  toTokenPrice?: number;
   status: 'pending' | 'confirmed' | 'failed';
   timestamp: number;
   type: 'swap' | 'approve';
   explorerUrl?: string;
-  walletAddress?: string; // Track which wallet made the transaction
+  walletAddress?: string;
 }
 
 const STORAGE_KEY = 'xlama_dex_transaction_history';
@@ -33,12 +41,67 @@ interface DexTransactionContextType {
   updateTransaction: (hash: string, updates: Partial<DexTransaction>) => void;
   removeTransaction: (id: string) => void;
   clearHistory: () => void;
+  isSyncing: boolean;
 }
 
 const DexTransactionContext = createContext<DexTransactionContextType | null>(null);
 
+// Convert DB format to local format
+function dbToLocal(db: DexTransactionDB): DexTransaction {
+  return {
+    id: db.id,
+    hash: db.tx_hash,
+    chainId: db.chain_index,
+    chainName: db.chain_name || '',
+    fromTokenSymbol: db.from_token_symbol,
+    fromTokenAddress: db.from_token_address || undefined,
+    fromTokenAmount: db.from_amount,
+    fromTokenLogo: db.from_token_logo || undefined,
+    fromAmountUsd: db.from_amount_usd || undefined,
+    fromTokenPrice: db.from_token_price || undefined,
+    toTokenSymbol: db.to_token_symbol,
+    toTokenAddress: db.to_token_address || undefined,
+    toTokenAmount: db.to_amount,
+    toTokenLogo: db.to_token_logo || undefined,
+    toAmountUsd: db.to_amount_usd || undefined,
+    toTokenPrice: db.to_token_price || undefined,
+    status: db.status as 'pending' | 'confirmed' | 'failed',
+    timestamp: new Date(db.created_at).getTime(),
+    type: db.type as 'swap' | 'approve',
+    explorerUrl: db.explorer_url || undefined,
+    walletAddress: db.user_address,
+  };
+}
+
+// Convert local format to DB format
+function localToDb(tx: DexTransaction): Omit<DexTransactionDB, 'id' | 'user_address' | 'updated_at'> {
+  return {
+    tx_hash: tx.hash,
+    chain_index: tx.chainId,
+    chain_name: tx.chainName || null,
+    from_token_symbol: tx.fromTokenSymbol,
+    from_token_address: tx.fromTokenAddress || null,
+    from_amount: tx.fromTokenAmount,
+    from_token_logo: tx.fromTokenLogo || null,
+    from_amount_usd: tx.fromAmountUsd || null,
+    from_token_price: tx.fromTokenPrice || null,
+    to_token_symbol: tx.toTokenSymbol,
+    to_token_address: tx.toTokenAddress || null,
+    to_amount: tx.toTokenAmount,
+    to_token_logo: tx.toTokenLogo || null,
+    to_amount_usd: tx.toAmountUsd || null,
+    to_token_price: tx.toTokenPrice || null,
+    status: tx.status,
+    type: tx.type,
+    explorer_url: tx.explorerUrl || null,
+    created_at: new Date(tx.timestamp).toISOString(),
+  };
+}
+
 export function DexTransactionProvider({ children }: { children: ReactNode }) {
   const { activeAddress, isConnected } = useMultiWallet();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncedAddressRef = useRef<string | null>(null);
   
   const [allTransactions, setAllTransactions] = useState<DexTransaction[]>(() => {
     try {
@@ -52,20 +115,75 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
     return [];
   });
 
-  // Migration: Add wallet address to old transactions when user connects
+  // Sync with database when wallet connects
   useEffect(() => {
-    if (!activeAddress) return;
-    
-    const needsMigration = allTransactions.some(tx => !tx.walletAddress);
-    if (needsMigration) {
-      console.log('[DexTransactionContext] Migrating old transactions to include walletAddress');
-      const migrated = allTransactions.map(tx => 
-        tx.walletAddress ? tx : { ...tx, walletAddress: activeAddress.toLowerCase() }
-      );
-      setAllTransactions(migrated);
-      // localStorage will be updated via the existing useEffect
+    if (!activeAddress || !isConnected) {
+      syncedAddressRef.current = null;
+      return;
     }
-  }, [activeAddress, allTransactions.length]);
+    
+    // Only sync once per wallet connection
+    if (syncedAddressRef.current === activeAddress.toLowerCase()) {
+      return;
+    }
+    
+    const syncWithDatabase = async () => {
+      setIsSyncing(true);
+      console.log('[DexTransactionContext] Syncing with database for', activeAddress);
+      
+      try {
+        // Fetch from database
+        const dbTransactions = await fetchDexTransactions(activeAddress);
+        const dbTxMap = new Map(dbTransactions.map(tx => [tx.tx_hash, tx]));
+        
+        // Get local transactions for this wallet
+        const localWalletTxs = allTransactions.filter(
+          tx => tx.walletAddress?.toLowerCase() === activeAddress.toLowerCase()
+        );
+        
+        // Upload local transactions that aren't in DB (migration)
+        for (const localTx of localWalletTxs) {
+          if (localTx.hash && !dbTxMap.has(localTx.hash)) {
+            console.log('[DexTransactionContext] Uploading local tx to DB:', localTx.hash);
+            await upsertDexTransaction(activeAddress, localToDb(localTx));
+          }
+        }
+        
+        // Merge: DB is source of truth
+        const mergedMap = new Map<string, DexTransaction>();
+        
+        // Add all DB transactions
+        for (const dbTx of dbTransactions) {
+          mergedMap.set(dbTx.tx_hash, dbToLocal(dbTx));
+        }
+        
+        // Add local transactions not in DB (pending or failed to upload)
+        for (const localTx of localWalletTxs) {
+          if (localTx.hash && !mergedMap.has(localTx.hash)) {
+            mergedMap.set(localTx.hash, localTx);
+          }
+        }
+        
+        // Keep transactions from other wallets
+        const otherWalletTxs = allTransactions.filter(
+          tx => tx.walletAddress?.toLowerCase() !== activeAddress.toLowerCase()
+        );
+        
+        const merged = [...Array.from(mergedMap.values()), ...otherWalletTxs]
+          .sort((a, b) => b.timestamp - a.timestamp);
+        
+        setAllTransactions(merged);
+        syncedAddressRef.current = activeAddress.toLowerCase();
+        console.log('[DexTransactionContext] Sync complete, total:', merged.length);
+      } catch (error) {
+        console.error('[DexTransactionContext] Sync failed:', error);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+    
+    syncWithDatabase();
+  }, [activeAddress, isConnected]);
 
   // Filter transactions for current wallet only
   const transactions = isConnected && activeAddress 
@@ -96,26 +214,28 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
       walletAddress: activeAddress.toLowerCase(),
     };
     console.log('[DexTransactionContext] Adding transaction:', newTx.id, newTx.type);
-    setAllTransactions(prev => [newTx, ...prev.slice(0, 99)]); // Keep max 100 across all wallets
+    setAllTransactions(prev => [newTx, ...prev.slice(0, 99)]);
+    
+    // Sync to database in background
+    if (newTx.hash) {
+      upsertDexTransaction(activeAddress, localToDb(newTx)).catch(err => {
+        console.error('[DexTransactionContext] Failed to sync new tx to DB:', err);
+      });
+    }
+    
     return newTx;
   }, [activeAddress]);
 
   const updateTransaction = useCallback((hashOrId: string, updates: Partial<DexTransaction>) => {
+    let updatedHash: string | null = null;
+    
     setAllTransactions(prev => prev.map(tx => {
-      // Match strategies:
-      // 1. Exact hash match (for transactions with known hashes)
       const matchesExactHash = tx.hash !== '' && tx.hash === hashOrId;
-      
-      // 2. ID match (for direct ID updates)
       const matchesId = tx.id === hashOrId;
-      
-      // 3. Pending transaction that needs a hash (when updating with new hash)
       const isPendingNeedingHash = tx.status === 'pending' && 
         tx.hash === '' && 
         updates.hash && 
         (hashOrId === '' || hashOrId === tx.id || tx.id.includes('pending'));
-      
-      // 4. Find most recent pending transaction when hashOrId is empty
       const isLatestPending = hashOrId === '' && 
         tx.status === 'pending' && 
         tx.hash === '' &&
@@ -124,28 +244,48 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
       if (matchesExactHash || matchesId || isPendingNeedingHash || isLatestPending) {
         const newTx = { ...tx, ...updates };
         
-        // Update ID when adding hash to pending transaction
         if (updates.hash && tx.hash === '') {
           newTx.id = `${updates.hash}-${tx.timestamp}`;
           newTx.hash = updates.hash;
         }
         
+        updatedHash = newTx.hash;
         return newTx;
       }
       return tx;
     }));
-  }, []);
+    
+    // Sync status update to database
+    if (updatedHash && updates.status && activeAddress) {
+      updateDexTransactionStatus(activeAddress, updatedHash, updates.status).catch(err => {
+        console.error('[DexTransactionContext] Failed to sync status update to DB:', err);
+      });
+    }
+  }, [activeAddress]);
 
   const removeTransaction = useCallback((id: string) => {
+    const txToRemove = allTransactions.find(tx => tx.id === id);
     setAllTransactions(prev => prev.filter(tx => tx.id !== id));
-  }, []);
+    
+    // Sync deletion to database
+    if (txToRemove?.hash && activeAddress) {
+      deleteDexTransaction(activeAddress, txToRemove.hash).catch(err => {
+        console.error('[DexTransactionContext] Failed to sync deletion to DB:', err);
+      });
+    }
+  }, [allTransactions, activeAddress]);
 
   const clearHistory = useCallback(() => {
     if (!activeAddress) return;
-    // Only clear current wallet's transactions
+    
     setAllTransactions(prev => prev.filter(tx => 
       tx.walletAddress?.toLowerCase() !== activeAddress.toLowerCase()
     ));
+    
+    // Sync to database
+    clearDexTransactions(activeAddress).catch(err => {
+      console.error('[DexTransactionContext] Failed to clear DB transactions:', err);
+    });
   }, [activeAddress]);
 
   return (
@@ -155,6 +295,7 @@ export function DexTransactionProvider({ children }: { children: ReactNode }) {
       updateTransaction,
       removeTransaction,
       clearHistory,
+      isSyncing,
     }}>
       {children}
     </DexTransactionContext.Provider>
