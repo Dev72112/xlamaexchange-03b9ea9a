@@ -169,7 +169,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   );
 
   // Token prices hook for USD display
-  const { fromUsdValue, toUsdValue } = useTokenPrices(
+  const { fromUsdValue, toUsdValue, fromTokenPrice, toTokenPrice } = useTokenPrices(
     exchangeMode === 'dex' ? selectedChain.chainIndex : null,
     fromDexToken,
     toDexToken,
@@ -549,6 +549,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     setShowReviewModal(false);
     setShowSwapProgress(true);
     
+    // Calculate USD values using numeric prices (avoid parsing formatted strings like "< $0.01")
+    const fromAmountNum = parseFloat(fromAmount) || 0;
+    const toAmountNum = parseFloat(dexOutputAmount || '0') || 0;
+    const fromUsdNum = fromTokenPrice ? fromAmountNum * fromTokenPrice : undefined;
+    const toUsdNum = toTokenPrice ? toAmountNum * toTokenPrice : undefined;
+    
     // Add to transaction history as pending with USD values and token addresses
     const pendingTx = addTransaction({
       hash: '', // Will be updated
@@ -558,12 +564,14 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       fromTokenAddress: fromDexToken!.tokenContractAddress,
       fromTokenAmount: fromAmount,
       fromTokenLogo: fromDexToken!.tokenLogoUrl,
-      fromAmountUsd: fromUsdValue ? parseFloat(fromUsdValue.replace(/[,$]/g, '')) : undefined,
+      fromAmountUsd: fromUsdNum,
+      fromTokenPrice: fromTokenPrice || undefined,
       toTokenSymbol: toDexToken!.tokenSymbol,
       toTokenAddress: toDexToken!.tokenContractAddress,
       toTokenAmount: dexOutputAmount || '0',
       toTokenLogo: toDexToken!.tokenLogoUrl,
-      toAmountUsd: toUsdValue ? parseFloat(toUsdValue.replace(/[,$]/g, '')) : undefined,
+      toAmountUsd: toUsdNum,
+      toTokenPrice: toTokenPrice || undefined,
       status: 'pending',
       type: 'swap',
       explorerUrl: '',

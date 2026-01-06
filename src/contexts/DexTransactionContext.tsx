@@ -11,11 +11,13 @@ export interface DexTransaction {
   fromTokenAmount: string;
   fromTokenLogo?: string;
   fromAmountUsd?: number;
+  fromTokenPrice?: number; // USD price per token at time of swap
   toTokenSymbol: string;
   toTokenAddress?: string;
   toTokenAmount: string;
   toTokenLogo?: string;
   toAmountUsd?: number;
+  toTokenPrice?: number; // USD price per token at time of swap
   status: 'pending' | 'confirmed' | 'failed';
   timestamp: number;
   type: 'swap' | 'approve';
