@@ -56,13 +56,13 @@ export const Footer = memo(function Footer() {
           <nav aria-label="Exchange links">
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">Exchange</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} className="text-foreground/80 hover:text-foreground transition-colors">Instant Swap</Link></li>
-              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} className="text-foreground/80 hover:text-foreground transition-colors">DEX Aggregator</Link></li>
-              <li><Link to="/bridge" onMouseEnter={() => handleLinkHover('/bridge')} className="text-foreground/80 hover:text-foreground transition-colors">Cross-Chain Bridge</Link></li>
-              <li><Link to="/orders" onMouseEnter={() => handleLinkHover('/orders')} className="text-foreground/80 hover:text-foreground transition-colors">Orders</Link></li>
-              <li><Link to="/tools" onMouseEnter={() => handleLinkHover('/tools')} className="text-foreground/80 hover:text-foreground transition-colors">Trading Tools</Link></li>
-              <li><Link to="/portfolio" onMouseEnter={() => handleLinkHover('/portfolio')} className="text-foreground/80 hover:text-foreground transition-colors">Portfolio</Link></li>
-              <li><Link to="/compare" onMouseEnter={() => handleLinkHover('/compare')} className="text-foreground/80 hover:text-foreground transition-colors">Token Compare</Link></li>
+              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} onTouchStart={() => handleLinkHover('/')} className="text-foreground/80 hover:text-foreground transition-colors">Instant Swap</Link></li>
+              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} onTouchStart={() => handleLinkHover('/')} className="text-foreground/80 hover:text-foreground transition-colors">DEX Aggregator</Link></li>
+              <li><Link to="/bridge" onMouseEnter={() => handleLinkHover('/bridge')} onTouchStart={() => handleLinkHover('/bridge')} className="text-foreground/80 hover:text-foreground transition-colors">Cross-Chain Bridge</Link></li>
+              <li><Link to="/orders" onMouseEnter={() => handleLinkHover('/orders')} onTouchStart={() => handleLinkHover('/orders')} className="text-foreground/80 hover:text-foreground transition-colors">Orders</Link></li>
+              <li><Link to="/tools" onMouseEnter={() => handleLinkHover('/tools')} onTouchStart={() => handleLinkHover('/tools')} className="text-foreground/80 hover:text-foreground transition-colors">Trading Tools</Link></li>
+              <li><Link to="/portfolio" onMouseEnter={() => handleLinkHover('/portfolio')} onTouchStart={() => handleLinkHover('/portfolio')} className="text-foreground/80 hover:text-foreground transition-colors">Portfolio</Link></li>
+              <li><Link to="/compare" onMouseEnter={() => handleLinkHover('/compare')} onTouchStart={() => handleLinkHover('/compare')} className="text-foreground/80 hover:text-foreground transition-colors">Token Compare</Link></li>
             </ul>
           </nav>
 
@@ -70,11 +70,11 @@ export const Footer = memo(function Footer() {
           <nav aria-label="Support links">
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">Support</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/docs" onMouseEnter={() => handleLinkHover('/docs')} className="text-foreground/80 hover:text-foreground transition-colors">Documentation</Link></li>
-              <li><Link to="/changelog" onMouseEnter={() => handleLinkHover('/changelog')} className="text-foreground/80 hover:text-foreground transition-colors">Changelog</Link></li>
-              <li><Link to="/feedback" onMouseEnter={() => handleLinkHover('/feedback')} className="text-foreground/80 hover:text-foreground transition-colors">Community Feedback</Link></li>
-              <li><Link to="/faq" onMouseEnter={() => handleLinkHover('/faq')} className="text-foreground/80 hover:text-foreground transition-colors">FAQ</Link></li>
-              <li><Link to="/about" onMouseEnter={() => handleLinkHover('/about')} className="text-foreground/80 hover:text-foreground transition-colors">About Us</Link></li>
+              <li><Link to="/docs" onMouseEnter={() => handleLinkHover('/docs')} onTouchStart={() => handleLinkHover('/docs')} className="text-foreground/80 hover:text-foreground transition-colors">Documentation</Link></li>
+              <li><Link to="/changelog" onMouseEnter={() => handleLinkHover('/changelog')} onTouchStart={() => handleLinkHover('/changelog')} className="text-foreground/80 hover:text-foreground transition-colors">Changelog</Link></li>
+              <li><Link to="/feedback" onMouseEnter={() => handleLinkHover('/feedback')} onTouchStart={() => handleLinkHover('/feedback')} className="text-foreground/80 hover:text-foreground transition-colors">Community Feedback</Link></li>
+              <li><Link to="/faq" onMouseEnter={() => handleLinkHover('/faq')} onTouchStart={() => handleLinkHover('/faq')} className="text-foreground/80 hover:text-foreground transition-colors">FAQ</Link></li>
+              <li><Link to="/about" onMouseEnter={() => handleLinkHover('/about')} onTouchStart={() => handleLinkHover('/about')} className="text-foreground/80 hover:text-foreground transition-colors">About Us</Link></li>
               <li>
                 <a href="mailto:support.xlama@defixlama.com" className="text-foreground/80 hover:text-foreground transition-colors inline-flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5" aria-hidden="true" />
@@ -88,9 +88,9 @@ export const Footer = memo(function Footer() {
           <nav aria-label="Legal links">
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">Legal</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/terms" onMouseEnter={() => handleLinkHover('/terms')} className="text-foreground/80 hover:text-foreground transition-colors">Terms of Use</Link></li>
-              <li><Link to="/privacy" onMouseEnter={() => handleLinkHover('/privacy')} className="text-foreground/80 hover:text-foreground transition-colors">Privacy Policy</Link></li>
-              <li><Link to="/cookies" onMouseEnter={() => handleLinkHover('/cookies')} className="text-foreground/80 hover:text-foreground transition-colors">Cookie Policy</Link></li>
+              <li><Link to="/terms" onMouseEnter={() => handleLinkHover('/terms')} onTouchStart={() => handleLinkHover('/terms')} className="text-foreground/80 hover:text-foreground transition-colors">Terms of Use</Link></li>
+              <li><Link to="/privacy" onMouseEnter={() => handleLinkHover('/privacy')} onTouchStart={() => handleLinkHover('/privacy')} className="text-foreground/80 hover:text-foreground transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/cookies" onMouseEnter={() => handleLinkHover('/cookies')} onTouchStart={() => handleLinkHover('/cookies')} className="text-foreground/80 hover:text-foreground transition-colors">Cookie Policy</Link></li>
               <li>
                 <button 
                   onClick={showCookieConsent}

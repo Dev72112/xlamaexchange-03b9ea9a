@@ -1,5 +1,6 @@
 import React, { memo } from "react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import {
   Accordion,
@@ -744,14 +745,14 @@ const Docs = () => {
             Connect your wallet and start swapping across 25+ chains.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <a href="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors">
+            <Link to="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors">
               <ArrowLeftRight className="h-4 w-4" />
               Start Trading
-            </a>
-            <a href="/faq" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border hover:bg-muted transition-colors">
+            </Link>
+            <Link to="/faq" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border hover:bg-muted transition-colors">
               <BookOpen className="h-4 w-4" />
               View FAQ
-            </a>
+            </Link>
           </div>
         </div>
       </div>
