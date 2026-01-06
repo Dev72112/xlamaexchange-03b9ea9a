@@ -116,7 +116,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     setToToken(null);
   }, [toChain.chainIndex]);
 
-  // Li.Fi cross-chain quote - needs wallet connection for quotes
+  // Li.Fi cross-chain quote - always enabled when chains are different (for price discovery)
   const {
     quote,
     formattedOutputAmount,
@@ -125,6 +125,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     isLoading: quoteLoading,
     isRetrying,
     error: quoteError,
+    minimumAmount,
     refetch: refetchQuote,
   } = useLiFiQuote({
     fromChain,
@@ -144,6 +145,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     amount: fromAmount,
     slippage,
     userAddress: activeAddress || undefined,
+    // Always fetch quote when chains are different (for price discovery regardless of balance)
     enabled: fromChain.chainIndex !== toChain.chainIndex && 
              !!fromToken && !!toToken && 
              parseFloat(fromAmount) > 0 &&
@@ -361,12 +363,15 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const hasInsufficientBalance = isConnected && formattedBalance && fromAmount && 
     parseFloat(fromAmount) > parseFloat(formattedBalance);
 
+  // Check if amount is below minimum
+  const isBelowMinimum = minimumAmount && parseFloat(fromAmount) < parseFloat(minimumAmount);
+
   const canSwap = isConnected && fromToken && toToken && 
     parseFloat(fromAmount) > 0 && quote && !quoteLoading && !hasInsufficientBalance &&
-    bothChainsSupported;
+    !isBelowMinimum && bothChainsSupported;
 
-  // Determine if we should hide quote errors when balance is insufficient
-  const shouldShowQuoteError = quoteError && !isRetrying && !hasInsufficientBalance;
+  // Show quote error but not when it's just a minimum amount issue (we handle that separately)
+  const shouldShowQuoteError = quoteError && !isRetrying && !minimumAmount;
 
   const getButtonText = () => {
     if (!isConnected) {
@@ -393,6 +398,9 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
     }
     if (!fromAmount || parseFloat(fromAmount) <= 0) {
       return 'Enter Amount';
+    }
+    if (isBelowMinimum) {
+      return `Minimum: ${minimumAmount} ${fromToken?.tokenSymbol}`;
     }
     if (hasInsufficientBalance) {
       return 'Insufficient Balance';
@@ -652,7 +660,17 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             </div>
           )}
 
-          {/* Insufficient balance warning */}
+          {/* Minimum amount warning */}
+          {minimumAmount && isBelowMinimum && (
+            <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-center gap-2 text-sm text-warning">
+              <Info className="w-4 h-4 flex-shrink-0" />
+              <span>
+                Minimum bridge amount: <strong>{minimumAmount} {fromToken?.tokenSymbol}</strong>
+              </span>
+            </div>
+          )}
+
+          {/* Insufficient balance warning - but still show quote info */}
           {hasInsufficientBalance && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />

@@ -32,24 +32,31 @@ function toSmallestUnit(amount: string, decimals: number): string {
   return combined.replace(/^0+/, '') || '0';
 }
 
-// User-friendly error messages
-function getQuoteErrorMessage(error: any): string {
+// User-friendly error messages with minimum amount extraction
+function getQuoteErrorMessage(error: any): { message: string; minimumAmount?: string } {
   const msg = String(error?.message || error || '');
   
   if (msg.includes('No available quotes') || msg.includes('NO_POSSIBLE_ROUTE')) {
-    return 'No route available for this swap';
+    return { message: 'No route available for this swap' };
   }
-  if (msg.includes('AMOUNT_TOO_LOW')) {
-    return 'Amount is too small for this bridge';
+  if (msg.includes('AMOUNT_TOO_LOW') || msg.includes('amount too low') || msg.includes('minimum')) {
+    // Try to extract minimum amount from error message
+    const minMatch = msg.match(/minimum[:\s]+([0-9.]+)/i) || 
+                     msg.match(/at least[:\s]+([0-9.]+)/i) ||
+                     msg.match(/min[:\s]+([0-9.]+)/i);
+    return { 
+      message: 'Amount is below the minimum for this bridge',
+      minimumAmount: minMatch?.[1] || undefined
+    };
   }
   if (msg.includes('INSUFFICIENT_LIQUIDITY')) {
-    return 'Insufficient liquidity for this route';
+    return { message: 'Insufficient liquidity for this route' };
   }
   if (msg.includes('rate limit') || msg.includes('429')) {
-    return 'Service is busy. Retrying...';
+    return { message: 'Service is busy. Retrying...' };
   }
   
-  return 'Unable to get quote. Please try again.';
+  return { message: 'Unable to get quote. Please try again.' };
 }
 
 export function useLiFiQuote({
@@ -66,6 +73,7 @@ export function useLiFiQuote({
   const [isLoading, setIsLoading] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [minimumAmount, setMinimumAmount] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const retryCountRef = useRef(0);
@@ -80,6 +88,7 @@ export function useLiFiQuote({
     if (!fromChain || !toChain || !fromToken || !toToken || !amount || parseFloat(amount) <= 0 || !enabled) {
       setQuote(null);
       setError(null);
+      setMinimumAmount(null);
       return;
     }
 
@@ -87,18 +96,20 @@ export function useLiFiQuote({
     if (fromChain.chainIndex === toChain.chainIndex) {
       setQuote(null);
       setError(null);
+      setMinimumAmount(null);
       return;
     }
 
-  // Check if chains are supported by Li.Fi
-  if (!lifiService.isChainSupported(fromChain.chainIndex) || !lifiService.isChainSupported(toChain.chainIndex)) {
-    setQuote(null);
-    setError('Chain not supported for cross-chain swap');
-    return;
-  }
+    // Check if chains are supported by Li.Fi
+    if (!lifiService.isChainSupported(fromChain.chainIndex) || !lifiService.isChainSupported(toChain.chainIndex)) {
+      setQuote(null);
+      setError('Chain not supported for cross-chain swap');
+      setMinimumAmount(null);
+      return;
+    }
 
-  // Use placeholder address for quote preview when wallet not connected
-  const quoteAddress = userAddress || '0x0000000000000000000000000000000000000001';
+    // Use placeholder address for quote preview when wallet not connected
+    const quoteAddress = userAddress || '0x0000000000000000000000000000000000000001';
 
     if (!isRetry) {
       setIsLoading(true);
@@ -107,6 +118,7 @@ export function useLiFiQuote({
       setIsRetrying(true);
     }
     setError(null);
+    setMinimumAmount(null);
 
     const cacheKey = `lifi-quote:${fromChain.chainIndex}:${toChain.chainIndex}:${fromToken.tokenContractAddress}:${toToken.tokenContractAddress}:${amount}`;
 
@@ -145,6 +157,7 @@ export function useLiFiQuote({
         setQuote(data);
         setLastUpdated(new Date());
         setError(null);
+        setMinimumAmount(null);
         retryCountRef.current = 0;
       } else {
         setError('No route available');
@@ -162,7 +175,9 @@ export function useLiFiQuote({
         return;
       }
       
-      setError(getQuoteErrorMessage(err));
+      const errorInfo = getQuoteErrorMessage(err);
+      setError(errorInfo.message);
+      setMinimumAmount(errorInfo.minimumAmount || null);
       setQuote(null);
     } finally {
       setIsLoading(false);
@@ -207,6 +222,7 @@ export function useLiFiQuote({
     isLoading,
     isRetrying,
     error,
+    minimumAmount,
     lastUpdated,
     refetch: () => fetchQuote(false),
   };
