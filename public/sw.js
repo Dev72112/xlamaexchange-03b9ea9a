@@ -1,16 +1,89 @@
-// xlama Service Worker for Push Notifications
-const CACHE_NAME = 'xlama-v1';
+// xlama Service Worker for Push Notifications & Caching
+const CACHE_NAME = 'xlama-v2';
+const STATIC_CACHE = 'xlama-static-v1';
 
-// Install event
+// Static assets to cache on install
+const STATIC_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/xlama-mascot.png',
+];
+
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => {
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('[SW] Failed to cache some assets:', err);
+      });
+    })
+  );
   self.skipWaiting();
 });
 
-// Activate event
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating service worker...');
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE)
+          .map((name) => caches.delete(name))
+      );
+    }).then(() => clients.claim())
+  );
+});
+
+// Fetch event - cache-first for static assets, network-first for API
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') return;
+
+  // Skip API requests and external resources
+  if (url.origin !== self.location.origin) return;
+
+  // Cache-first for static assets (images, fonts, scripts, styles)
+  if (
+    request.destination === 'image' ||
+    request.destination === 'font' ||
+    request.destination === 'style' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.svg')
+  ) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          // Only cache successful responses
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          const responseToCache = response.clone();
+          caches.open(STATIC_CACHE).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Network-first for HTML pages (ensures fresh content)
+  if (request.destination === 'document') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(request))
+    );
+    return;
+  }
 });
 
 // Push event - handle incoming push notifications
