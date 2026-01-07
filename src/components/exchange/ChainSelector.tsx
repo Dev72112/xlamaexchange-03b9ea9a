@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Chain, SUPPORTED_CHAINS, getEvmChains, getNonEvmChains } from '@/data/chains';
+import { Chain, getEvmChains, getNonEvmChains } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +21,13 @@ interface ChainSelectorProps {
 }
 
 export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = false, excludeChainIndex }: ChainSelectorProps) {
-  const { evmChainId: chainId, switchEvmChain: switchChain, isConnected } = useMultiWallet();
+  const { 
+    evmChainId: chainId, 
+    switchEvmChain: switchChain, 
+    isConnected,
+    isOkxConnected,
+    switchChainByIndex
+  } = useMultiWallet();
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   
@@ -36,18 +42,26 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
     onChainSelect(chain);
     setOpen(false);
     
-    // For EVM chains: attempt silent network switch (no signing needed)
+    // Priority 1: OKX Universal Provider - seamless multi-chain switching
+    if (isOkxConnected) {
+      try {
+        await switchChainByIndex(chain.chainIndex);
+        console.log(`[ChainSelector] OKX seamless switch to ${chain.name}`);
+        return;
+      } catch (error) {
+        console.warn('[ChainSelector] OKX switch failed:', error);
+        // Fall through to other methods
+      }
+    }
+    
+    // Priority 2: EVM chains via Reown/wagmi
     if (chain.isEvm && chain.chainId) {
-      // Only attempt switch if connected and on different chain
       if (isConnected && chainId !== chain.chainId) {
         try {
           await switchChain(chain.chainId);
-          // Silent success - no toast for routine switches
         } catch (error: any) {
-          // Only show error if user rejected (code 4001) or actual failure
           if (error?.code === 4001) {
-            // User rejected - no toast needed
-            return;
+            return; // User rejected
           }
           console.warn('Network switch:', error?.message || error);
           toast({
@@ -57,8 +71,8 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
         }
       }
     }
-    // Non-EVM chains: UI update already done, wallet stays on its network
-    // No wallet action needed - the chain selector just changes the view context
+    
+    // Non-EVM without OKX: just UI update (existing behavior)
     console.log(`[ChainSelector] Selected ${chain.isEvm ? 'EVM' : 'non-EVM'} chain: ${chain.name}`);
   };
 
