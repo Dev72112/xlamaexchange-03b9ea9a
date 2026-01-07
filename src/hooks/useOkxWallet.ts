@@ -8,17 +8,20 @@ import { OKXUniversalProvider } from '@okxconnect/universal-provider';
 import {
   initOkxProvider,
   connectOkxWallet,
+  connectOkxExtension,
   disconnectOkx,
   switchOkxChain,
   isOkxExtensionAvailable,
   isInOkxBrowser,
+  shouldUseOkxExtension,
   getOkxSession,
   clearOkxSession,
+  saveOkxSession,
   sendOkxTransaction,
   signOkxMessage,
   type OkxSession,
 } from '@/lib/okxProvider';
-import { isMobileBrowser } from '@/lib/wallet-deeplinks';
+import { isMobileBrowser, getOkxWallet } from '@/lib/wallet-deeplinks';
 
 export interface UseOkxWalletResult {
   // State
@@ -106,26 +109,73 @@ export function useOkxWallet(): UseOkxWalletResult {
     init();
   }, []);
   
-  // Connect to OKX wallet
-  const connect = useCallback(async (): Promise<boolean> => {
-    if (!provider) {
-      setError('OKX provider not initialized');
-      return false;
-    }
+  // Listen for extension account/chain changes
+  useEffect(() => {
+    const okx = getOkxWallet();
+    if (!okx || !session) return;
     
+    const handleAccountsChanged = (accounts: string[]) => {
+      console.log('[useOkxWallet] Accounts changed:', accounts);
+      if (accounts.length === 0) {
+        setSession(null);
+        clearOkxSession();
+      } else {
+        const updatedSession = {
+          ...session,
+          addresses: { ...session.addresses, evm: accounts[0] }
+        };
+        setSession(updatedSession);
+        saveOkxSession(updatedSession);
+      }
+    };
+    
+    const handleChainChanged = (chainId: string) => {
+      console.log('[useOkxWallet] Chain changed:', chainId);
+    };
+    
+    okx.on?.('accountsChanged', handleAccountsChanged);
+    okx.on?.('chainChanged', handleChainChanged);
+    
+    return () => {
+      const wallet = getOkxWallet();
+      wallet?.removeListener?.('accountsChanged', handleAccountsChanged);
+      wallet?.removeListener?.('chainChanged', handleChainChanged);
+    };
+  }, [session]);
+  
+  // Connect to OKX wallet - smart routing based on environment
+  const connect = useCallback(async (): Promise<boolean> => {
     setIsConnecting(true);
     setError(null);
     
     try {
-      // Handle mobile external browser - open OKX app
+      // Scenario 1: Mobile external browser - deep link to OKX app
       if (isMobile && !isInOkxApp && !isOkxAvailable) {
+        console.log('[useOkxWallet] Opening OKX app via deep link');
         const dappUrl = encodeURIComponent(window.location.href);
-        const deeplink = `okx://wallet/dapp/url?dappUrl=${dappUrl}`;
-        window.location.href = deeplink;
+        window.location.href = `okx://wallet/dapp/url?dappUrl=${dappUrl}`;
         setIsConnecting(false);
         return false; // Will redirect
       }
       
+      // Scenario 2: Extension available (in-app browser or desktop extension)
+      if (shouldUseOkxExtension()) {
+        console.log('[useOkxWallet] Connecting via OKX extension');
+        const newSession = await connectOkxExtension();
+        if (newSession) {
+          setSession(newSession);
+          return true;
+        }
+        return false;
+      }
+      
+      // Scenario 3: Desktop without extension - use Universal Provider (QR code)
+      if (!provider) {
+        setError('OKX provider not initialized');
+        return false;
+      }
+      
+      console.log('[useOkxWallet] Connecting via Universal Provider (QR)');
       const newSession = await connectOkxWallet(provider);
       
       if (newSession) {

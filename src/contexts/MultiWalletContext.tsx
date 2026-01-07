@@ -109,14 +109,7 @@ interface MultiWalletContextType {
 
 const MultiWalletContext = createContext<MultiWalletContextType | undefined>(undefined);
 
-// Window type declarations
-declare global {
-  interface Window {
-    okxwallet?: any;
-    tronWeb?: any;
-    tronLink?: any;
-  }
-}
+// Note: okxwallet, tronWeb, tronLink Window types are declared in src/lib/wallet-deeplinks.ts and src/lib/okxProvider.ts
 
 // Sui configuration  
 const suiNetworks = {

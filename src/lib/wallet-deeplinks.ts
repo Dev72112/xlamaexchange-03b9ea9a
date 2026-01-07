@@ -1,5 +1,30 @@
 // Deep-link utilities for mobile wallet connections
 
+// Type for OKX wallet extension methods (exported for use in other files)
+export interface OkxWalletExtension {
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  solana?: {
+    connect: () => Promise<{ publicKey?: { toString: () => string } }>;
+    disconnect: () => Promise<void>;
+  };
+  isOKXWallet?: boolean;
+  on?: (event: string, handler: (...args: any[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: any[]) => void) => void;
+}
+
+// Helper to get typed OKX wallet from window
+export function getOkxWallet(): OkxWalletExtension | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return (window as any).okxwallet as OkxWalletExtension | undefined;
+}
+
+// Window type for tronLink only (okxwallet comes from other packages)
+declare global {
+  interface Window {
+    tronLink?: any;
+  }
+}
+
 export interface DeeplinkConfig {
   id: string;
   name: string;
@@ -18,12 +43,13 @@ export function isMobileBrowser(): boolean {
 export function isInWalletBrowser(): boolean {
   if (typeof window === 'undefined') return false;
   
+  const okx = getOkxWallet();
   // Check for various wallet browser indicators
   return !!(
-    window.okxwallet ||
+    okx ||
     (window.ethereum && (window.ethereum as any).isOKXWallet) ||
     (window.ethereum && (window.ethereum as any).isMetaMask) ||
-    window.tronWeb ||
+    (window as any).tronWeb ||
     window.tronLink ||
     (window as any).phantom?.solana ||
     (window as any).solflare
@@ -33,13 +59,13 @@ export function isInWalletBrowser(): boolean {
 // Check if running inside OKX app browser specifically
 export function isInOkxBrowser(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!(window.okxwallet || (window.ethereum && (window.ethereum as any).isOKXWallet));
+  return !!(getOkxWallet() || (window.ethereum && (window.ethereum as any).isOKXWallet));
 }
 
 // Check if OKX wallet extension is available (desktop)
 export function isOkxExtensionAvailable(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!(window.okxwallet || (window.ethereum && (window.ethereum as any).isOKXWallet));
+  return !!(getOkxWallet() || (window.ethereum && (window.ethereum as any).isOKXWallet));
 }
 
 // Smart routing: determine best connection method
@@ -79,7 +105,7 @@ export function isEvmWalletAvailable(walletId: string): boolean {
   
   switch (walletId) {
     case 'okx':
-      return !!(window.okxwallet || (window.ethereum && (window.ethereum as any).isOKXWallet));
+      return !!(getOkxWallet() || (window.ethereum && (window.ethereum as any).isOKXWallet));
     case 'metamask':
       return !!(window.ethereum && (window.ethereum as any).isMetaMask);
     default:
