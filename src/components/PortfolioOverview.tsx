@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { okxDexService, WalletTokenBalance } from '@/services/okxdex';
-import { SUPPORTED_CHAINS, Chain, getEvmChains, getNonEvmChains, getChainIcon, isNonEvmChain } from '@/data/chains';
+import { SUPPORTED_CHAINS, Chain, getEvmChains, getChainIcon } from '@/data/chains';
 import { cn } from '@/lib/utils';
 import { PortfolioSummaryCard } from './portfolio/PortfolioSummaryCard';
 import { PortfolioAllocationChart } from './portfolio/PortfolioAllocationChart';
@@ -27,24 +27,47 @@ interface PortfolioOverviewProps {
 }
 
 export function PortfolioOverview({ className }: PortfolioOverviewProps) {
-  const { isConnected, activeAddress } = useMultiWallet();
+  const { isConnected, activeAddress, activeChainType } = useMultiWallet();
   const { saveSnapshot, getPnLMetrics } = usePortfolioPnL();
   const [totalValue, setTotalValue] = useState<number>(0);
   const [allBalances, setAllBalances] = useState<WalletTokenBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
-  const [chainFilter, setChainFilter] = useState<string>('evm-only');
+  const [chainFilter, setChainFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
 
-  // Use first 15 EVM chains - same approach as PortfolioRebalancer which works
-  const chainIndices = useMemo(() => 
-    SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex).join(','), 
-    []
-  );
+  // Dynamic chain selection based on connected wallet type
+  // Each address type can only query its matching chain type
+  const chainIndices = useMemo(() => {
+    switch (activeChainType) {
+      case 'solana':
+        return '501';
+      case 'tron':
+        return '195';
+      case 'sui':
+        return '784';
+      case 'ton':
+        return '607';
+      case 'evm':
+      default:
+        // First 15 EVM chains for EVM wallets
+        return SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex).join(',');
+    }
+  }, [activeChainType]);
 
-  // Chain options for the filter dropdown
+  // Chain options for the filter - only EVM chains since non-EVM are single-chain
   const evmChains = useMemo(() => getEvmChains(), []);
-  const nonEvmChains = useMemo(() => getNonEvmChains(), []);
+
+  // Get readable chain type name
+  const activeChainName = useMemo(() => {
+    switch (activeChainType) {
+      case 'solana': return 'Solana';
+      case 'tron': return 'TRON';
+      case 'sui': return 'SUI';
+      case 'ton': return 'TON';
+      default: return 'EVM';
+    }
+  }, [activeChainType]);
 
   const fetchPortfolio = useCallback(async () => {
     if (!activeAddress) return;
@@ -101,17 +124,11 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
     }
   }, [isConnected, activeAddress, fetchPortfolio]);
 
-  // Filter balances based on chain filter selection
+  // Filter balances based on chain filter selection (only applies to EVM wallets)
   const filteredBalances = useMemo(() => {
-    if (chainFilter === 'all') return allBalances;
-    if (chainFilter === 'evm-only') {
-      return allBalances.filter(b => !isNonEvmChain(b.chainIndex));
-    }
-    if (chainFilter === 'non-evm-only') {
-      return allBalances.filter(b => isNonEvmChain(b.chainIndex));
-    }
+    if (chainFilter === 'all' || activeChainType !== 'evm') return allBalances;
     return allBalances.filter(b => b.chainIndex === chainFilter);
-  }, [allBalances, chainFilter]);
+  }, [allBalances, chainFilter, activeChainType]);
 
   // Compute filtered total value
   const filteredTotalValue = useMemo(() => {
@@ -153,41 +170,29 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
     <section className={cn("space-y-4", className)}>
       {/* Header with chain filter */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
-        <h2 className="text-lg font-semibold">Overview</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Overview</h2>
+          {activeChainType !== 'evm' && (
+            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              {activeChainName} Wallet
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* Chain Filter */}
-          <div className="flex items-center gap-2 flex-1 sm:flex-none">
-            <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
-            <Select value={chainFilter} onValueChange={setChainFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] h-9">
-                <SelectValue placeholder="All Chains" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="all">All Chains</SelectItem>
-                <SelectItem value="evm-only">EVM Only</SelectItem>
-                <SelectItem value="non-evm-only">Non-EVM Only</SelectItem>
-                
-                <SelectGroup>
-                  <SelectLabel>EVM Chains</SelectLabel>
-                  {evmChains.slice(0, 10).map((chain) => (
-                    <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
-                      <div className="flex items-center gap-2">
-                        <ChainImage
-                          src={getChainIcon(chain)}
-                          alt={chain.name}
-                          fallbackText={chain.shortName}
-                          className="w-4 h-4"
-                        />
-                        <span>{chain.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-                
-                {nonEvmChains.length > 0 && (
+          {/* Chain Filter - only show for EVM wallets with multiple chains */}
+          {activeChainType === 'evm' && (
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
+              <Select value={chainFilter} onValueChange={setChainFilter}>
+                <SelectTrigger className="w-full sm:w-[180px] h-9">
+                  <SelectValue placeholder="All Chains" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="all">All EVM Chains</SelectItem>
+                  
                   <SelectGroup>
-                    <SelectLabel>Non-EVM Chains</SelectLabel>
-                    {nonEvmChains.map((chain) => (
+                    <SelectLabel>Individual Chains</SelectLabel>
+                    {evmChains.slice(0, 10).map((chain) => (
                       <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
                         <div className="flex items-center gap-2">
                           <ChainImage
@@ -201,10 +206,10 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
                       </SelectItem>
                     ))}
                   </SelectGroup>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {lastFetched && (
             <span className="text-xs text-muted-foreground hidden sm:inline">
