@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
+import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 
 export interface GasDataPoint {
@@ -25,16 +26,55 @@ export interface GasAnalytics {
   lowestGasDay: GasDataPoint | null;
 }
 
+// Unified transaction for gas tracking
+interface GasTx {
+  chainIndex: string;
+  timestamp: number;
+  type: 'dex' | 'bridge';
+}
+
 export function useGasAnalytics(chainFilter?: string): GasAnalytics {
-  const { transactions } = useDexTransactions();
+  const { transactions: dexTransactions } = useDexTransactions();
+  const { transactions: bridgeTransactions } = useBridgeTransactions();
 
   const analytics = useMemo((): GasAnalytics => {
-    // Filter to swaps only
-    let swaps = transactions.filter(tx => tx.type === 'swap' && tx.status === 'confirmed');
+    // Build unified list of transactions with gas
+    const gasTxs: GasTx[] = [];
     
-    // Apply chain filter if specified
-    if (chainFilter && chainFilter !== 'all') {
-      swaps = swaps.filter(tx => tx.chainId === chainFilter);
+    // DEX transactions
+    dexTransactions
+      .filter(tx => tx.type === 'swap' && tx.status === 'confirmed')
+      .filter(tx => !chainFilter || chainFilter === 'all' || tx.chainId === chainFilter)
+      .forEach(tx => {
+        gasTxs.push({
+          chainIndex: tx.chainId,
+          timestamp: tx.timestamp,
+          type: 'dex',
+        });
+      });
+    
+    // Bridge transactions (gas is paid on source chain)
+    if (!chainFilter || chainFilter === 'all') {
+      bridgeTransactions
+        .filter(tx => tx.status === 'completed')
+        .forEach(tx => {
+          gasTxs.push({
+            chainIndex: tx.fromChain.chainId.toString(),
+            timestamp: tx.startTime,
+            type: 'bridge',
+          });
+        });
+    } else {
+      // If filtering by chain, include bridges from that chain
+      bridgeTransactions
+        .filter(tx => tx.status === 'completed' && tx.fromChain.chainId.toString() === chainFilter)
+        .forEach(tx => {
+          gasTxs.push({
+            chainIndex: tx.fromChain.chainId.toString(),
+            timestamp: tx.startTime,
+            type: 'bridge',
+          });
+        });
     }
 
     // For now, estimate gas costs based on transaction data
@@ -61,9 +101,11 @@ export function useGasAnalytics(chainFilter?: string): GasAnalytics {
     const chainGas = new Map<string, { gasUsd: number; txCount: number }>();
     let totalGasUsd = 0;
 
-    swaps.forEach(tx => {
-      const chainIndex = tx.chainId;
-      const estimatedGas = gasEstimates.get(chainIndex) || 0.10; // Default estimate
+    gasTxs.forEach(tx => {
+      const chainIndex = tx.chainIndex;
+      // Bridge transactions typically cost more (approval + bridge)
+      const baseGas = gasEstimates.get(chainIndex) || 0.10;
+      const estimatedGas = tx.type === 'bridge' ? baseGas * 1.5 : baseGas;
       
       const current = chainGas.get(chainIndex) || { gasUsd: 0, txCount: 0 };
       chainGas.set(chainIndex, {
@@ -90,10 +132,11 @@ export function useGasAnalytics(chainFilter?: string): GasAnalytics {
 
     // Calculate gas over time
     const gasByDay = new Map<string, { gasUsd: number; txCount: number }>();
-    swaps.forEach(tx => {
+    gasTxs.forEach(tx => {
       const date = new Date(tx.timestamp).toISOString().split('T')[0];
-      const chainIndex = tx.chainId;
-      const estimatedGas = gasEstimates.get(chainIndex) || 0.10;
+      const chainIndex = tx.chainIndex;
+      const baseGas = gasEstimates.get(chainIndex) || 0.10;
+      const estimatedGas = tx.type === 'bridge' ? baseGas * 1.5 : baseGas;
       
       const current = gasByDay.get(date) || { gasUsd: 0, txCount: 0 };
       gasByDay.set(date, {
@@ -116,7 +159,7 @@ export function useGasAnalytics(chainFilter?: string): GasAnalytics {
       ? gasOverTime.reduce((min, day) => day.gasUsd < min.gasUsd ? day : min)
       : null;
 
-    const avgGasPerTrade = swaps.length > 0 ? totalGasUsd / swaps.length : 0;
+    const avgGasPerTrade = gasTxs.length > 0 ? totalGasUsd / gasTxs.length : 0;
 
     return {
       totalGasUsd,
@@ -126,7 +169,7 @@ export function useGasAnalytics(chainFilter?: string): GasAnalytics {
       highestGasDay,
       lowestGasDay,
     };
-  }, [transactions, chainFilter]);
+  }, [dexTransactions, bridgeTransactions, chainFilter]);
 
   return analytics;
 }

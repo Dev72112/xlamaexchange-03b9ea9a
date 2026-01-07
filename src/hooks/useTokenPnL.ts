@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useDexTransactions } from '@/contexts/DexTransactionContext';
+import { useDexTransactions, DexTransaction } from '@/contexts/DexTransactionContext';
+import { useTransactionHistory, TransactionRecord } from '@/hooks/useTransactionHistory';
+import { useBridgeTransactions, BridgeTransaction } from '@/contexts/BridgeTransactionContext';
 import { okxDexService } from '@/services/okxdex';
 
 export interface TokenPnLData {
@@ -28,37 +30,115 @@ export interface TokenPnLAnalytics {
   isLoading: boolean;
 }
 
+// Unified trade record for P&L calculation
+interface UnifiedTrade {
+  chainIndex: string;
+  fromSymbol: string;
+  fromAddress: string;
+  fromAmount: number;
+  fromAmountUsd: number;
+  toSymbol: string;
+  toAddress: string;
+  toAmount: number;
+  toAmountUsd: number;
+  timestamp: number;
+  type: 'dex' | 'instant' | 'bridge';
+}
+
 export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
-  const { transactions } = useDexTransactions();
+  const { transactions: dexTransactions } = useDexTransactions();
+  const { transactions: instantTransactions } = useTransactionHistory();
+  const { transactions: bridgeTransactions } = useBridgeTransactions();
   const [prices, setPrices] = useState<Map<string, number>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
 
+  // Unify all trades into a common format
+  const unifiedTrades = useMemo((): UnifiedTrade[] => {
+    const trades: UnifiedTrade[] = [];
+    
+    // DEX transactions
+    dexTransactions
+      .filter(tx => tx.type === 'swap' && tx.status === 'confirmed')
+      .filter(tx => !chainFilter || chainFilter === 'all' || tx.chainId === chainFilter)
+      .forEach(tx => {
+        trades.push({
+          chainIndex: tx.chainId,
+          fromSymbol: tx.fromTokenSymbol,
+          fromAddress: tx.fromTokenAddress || '',
+          fromAmount: parseFloat(tx.fromTokenAmount) || 0,
+          fromAmountUsd: tx.fromAmountUsd || 0,
+          toSymbol: tx.toTokenSymbol,
+          toAddress: tx.toTokenAddress || '',
+          toAmount: parseFloat(tx.toTokenAmount) || 0,
+          toAmountUsd: tx.toAmountUsd || 0,
+          timestamp: tx.timestamp,
+          type: 'dex',
+        });
+      });
+    
+    // Instant transactions (only when filter is 'all' - no chain info)
+    if (!chainFilter || chainFilter === 'all') {
+      instantTransactions
+        .filter(tx => tx.status === 'completed')
+        .forEach(tx => {
+          trades.push({
+            chainIndex: 'instant', // No specific chain
+            fromSymbol: tx.fromTicker,
+            fromAddress: '',
+            fromAmount: parseFloat(tx.fromAmount) || 0,
+            fromAmountUsd: tx.fromAmountUsd || 0,
+            toSymbol: tx.toTicker,
+            toAddress: '',
+            toAmount: parseFloat(tx.toAmount || '0') || 0,
+            toAmountUsd: tx.toAmountUsd || 0,
+            timestamp: tx.createdAt,
+            type: 'instant',
+          });
+        });
+      
+      // Bridge transactions
+      bridgeTransactions
+        .filter(tx => tx.status === 'completed')
+        .forEach(tx => {
+          trades.push({
+            chainIndex: tx.toChain.chainId.toString(), // Destination chain
+            fromSymbol: tx.fromToken.symbol,
+            fromAddress: tx.fromToken.address || '',
+            fromAmount: parseFloat(tx.fromAmount) || 0,
+            fromAmountUsd: tx.fromAmountUsd || 0,
+            toSymbol: tx.toToken.symbol,
+            toAddress: tx.toToken.address || '',
+            toAmount: parseFloat(tx.toAmount || '0') || 0,
+            toAmountUsd: tx.toAmountUsd || 0,
+            timestamp: tx.startTime,
+            type: 'bridge',
+          });
+        });
+    }
+    
+    return trades;
+  }, [dexTransactions, instantTransactions, bridgeTransactions, chainFilter]);
+
   // Extract unique tokens that need price updates
   const uniqueTokens = useMemo(() => {
-    let swaps = transactions.filter(tx => tx.type === 'swap' && tx.status === 'confirmed');
-    
-    if (chainFilter && chainFilter !== 'all') {
-      swaps = swaps.filter(tx => tx.chainId === chainFilter);
-    }
-
     const tokens = new Map<string, { chainIndex: string; address: string; symbol: string }>();
     
-    swaps.forEach(tx => {
-      // Track "to" tokens (tokens bought)
-      if (tx.toTokenAddress) {
-        const key = `${tx.chainId}-${tx.toTokenAddress.toLowerCase()}`;
+    unifiedTrades.forEach(trade => {
+      // Track "to" tokens (tokens bought) - skip if no address or instant
+      if (trade.toAddress && trade.chainIndex !== 'instant') {
+        const key = `${trade.chainIndex}-${trade.toAddress.toLowerCase()}`;
         if (!tokens.has(key)) {
           tokens.set(key, {
-            chainIndex: tx.chainId,
-            address: tx.toTokenAddress,
-            symbol: tx.toTokenSymbol,
+            chainIndex: trade.chainIndex,
+            address: trade.toAddress,
+            symbol: trade.toSymbol,
           });
         }
       }
     });
 
     return Array.from(tokens.values());
-  }, [transactions, chainFilter]);
+  }, [unifiedTrades]);
 
   // Fetch current prices for tokens
   useEffect(() => {
@@ -104,12 +184,6 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
   }, [uniqueTokens]);
 
   const analytics = useMemo((): TokenPnLAnalytics => {
-    let swaps = transactions.filter(tx => tx.type === 'swap' && tx.status === 'confirmed');
-    
-    if (chainFilter && chainFilter !== 'all') {
-      swaps = swaps.filter(tx => tx.chainId === chainFilter);
-    }
-
     // Track buys and sells per token
     const tokenData = new Map<string, {
       symbol: string;
@@ -122,17 +196,18 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
       trades: number;
     }>();
 
-    swaps.forEach(tx => {
+    unifiedTrades.forEach(trade => {
       // Track tokens received (buys)
-      if (tx.toTokenAddress) {
-        const key = `${tx.chainId}-${tx.toTokenAddress.toLowerCase()}`;
-        const amount = parseFloat(tx.toTokenAmount) || 0;
-        const valueUsd = tx.toAmountUsd || 0;
+      if (trade.toAddress || trade.type === 'instant') {
+        // For instant trades, use symbol as key since we don't have addresses
+        const key = trade.type === 'instant' 
+          ? `instant-${trade.toSymbol.toLowerCase()}`
+          : `${trade.chainIndex}-${trade.toAddress.toLowerCase()}`;
         
         const existing = tokenData.get(key) || {
-          symbol: tx.toTokenSymbol,
-          chainIndex: tx.chainId,
-          tokenAddress: tx.toTokenAddress,
+          symbol: trade.toSymbol,
+          chainIndex: trade.chainIndex,
+          tokenAddress: trade.toAddress,
           buyVolume: 0,
           buyValue: 0,
           sellVolume: 0,
@@ -140,22 +215,22 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
           trades: 0,
         };
         
-        existing.buyVolume += amount;
-        existing.buyValue += valueUsd;
+        existing.buyVolume += trade.toAmount;
+        existing.buyValue += trade.toAmountUsd;
         existing.trades += 1;
         tokenData.set(key, existing);
       }
 
       // Track tokens sent (sells)
-      if (tx.fromTokenAddress) {
-        const key = `${tx.chainId}-${tx.fromTokenAddress.toLowerCase()}`;
-        const amount = parseFloat(tx.fromTokenAmount) || 0;
-        const valueUsd = tx.fromAmountUsd || 0;
+      if (trade.fromAddress || trade.type === 'instant') {
+        const key = trade.type === 'instant'
+          ? `instant-${trade.fromSymbol.toLowerCase()}`
+          : `${trade.chainIndex}-${trade.fromAddress.toLowerCase()}`;
         
         const existing = tokenData.get(key);
         if (existing) {
-          existing.sellVolume += amount;
-          existing.sellValue += valueUsd;
+          existing.sellVolume += trade.fromAmount;
+          existing.sellValue += trade.fromAmountUsd;
         }
       }
     });
@@ -214,7 +289,7 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
       worstPerformer,
       isLoading,
     };
-  }, [transactions, chainFilter, prices, isLoading]);
+  }, [unifiedTrades, prices, isLoading]);
 
   return analytics;
 }
