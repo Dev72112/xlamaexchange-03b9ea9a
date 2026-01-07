@@ -9,17 +9,17 @@
  */
 
 // Components (to be migrated)
-// export { TokenPnLChart } from './components/TokenPnLChart';
-// export { GasBreakdown } from './components/GasBreakdown';
-// export { TradeVolumeChart } from './components/TradeVolumeChart';
-
-// Hooks (to be migrated)
-// export { useTradeAnalytics } from './hooks/useTradeAnalytics';
-// export { useGasAnalytics } from './hooks/useGasAnalytics';
-// export { useTokenPnL } from './hooks/useTokenPnL';
+// export { TokenPnLChart, GasBreakdown, TradeVolumeChart } from './components';
 
 // Types
-export type { TradeAnalytics, GasMetrics, PnLData } from './types';
+export type { 
+  TradeAnalytics, 
+  GasMetrics, 
+  PnLData,
+  ChainGasBreakdown,
+  TokenPnL,
+  TradeVsHodl,
+} from './types';
 
-// Placeholder exports until migration is complete
+// Feature version
 export const ANALYTICS_FEATURE_VERSION = '1.0.0';

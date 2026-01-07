@@ -8,19 +8,20 @@
  * - Transaction tracking
  */
 
-// Components (to be migrated)
-// export { SwapWidget } from './components/SwapWidget';
-// export { TokenSelector } from './components/TokenSelector';
-// export { QuoteInfo } from './components/QuoteInfo';
-// export { SwapProgress } from './components/SwapProgress';
-
-// Hooks (to be migrated)
-// export { useSwapQuote } from './hooks/useQuote';
-// export { useSwapExecution } from './hooks/useSwap';
-// export { useTokenBalance } from './hooks/useTokenBalance';
+// Components
+export { 
+  TokenAmountInput,
+  SwapButton,
+  RateDisplay,
+  GasEstimate,
+  formatGasDisplay,
+  WalletConnectionPrompt,
+  ChainSwitchPrompt,
+  NonEvmChainInfo,
+} from './components';
 
 // Types
-export type { SwapQuote, SwapParams, SwapToken } from './types';
+export type { SwapQuote, SwapParams, SwapToken, SwapRoute, SwapResult } from './types';
 
-// Placeholder exports until migration is complete
+// Feature version
 export const SWAP_FEATURE_VERSION = '1.0.0';

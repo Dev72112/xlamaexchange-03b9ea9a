@@ -8,16 +8,10 @@
  */
 
 // Components (to be migrated)
-// export { LimitOrderForm } from './components/LimitOrderForm';
-// export { DCAOrderForm } from './components/DCAOrderForm';
-// export { ActiveOrders } from './components/ActiveOrders';
-
-// Hooks (to be migrated)
-// export { useLimitOrders } from './hooks/useLimitOrders';
-// export { useDCAOrders } from './hooks/useDCAOrders';
+// export { LimitOrderForm, DCAOrderForm, ActiveOrders } from './components';
 
 // Types
-export type { LimitOrder, DCAOrder, OrderStatus } from './types';
+export type { LimitOrder, DCAOrder, OrderStatus, OrderExecutionResult } from './types';
 
-// Placeholder exports until migration is complete
+// Feature version
 export const ORDERS_FEATURE_VERSION = '1.0.0';

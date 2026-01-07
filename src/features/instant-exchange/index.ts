@@ -8,15 +8,16 @@
  */
 
 // Components (to be migrated)
-// export { InstantExchangeWidget } from './components/Widget';
-// export { CurrencySelector } from './components/CurrencySelector';
-
-// Hooks (to be migrated)
-// export { useInstantQuote } from './hooks/useQuote';
-// export { useInstantExecution } from './hooks/useExecution';
+// export { InstantExchangeWidget, CurrencySelector } from './components';
 
 // Types
-export type { InstantQuote, InstantParams, InstantCurrency } from './types';
+export type { 
+  InstantQuote, 
+  InstantParams, 
+  InstantCurrency, 
+  InstantTransaction, 
+  InstantTransactionStatus 
+} from './types';
 
-// Placeholder exports until migration is complete
+// Feature version
 export const INSTANT_EXCHANGE_FEATURE_VERSION = '1.0.0';
