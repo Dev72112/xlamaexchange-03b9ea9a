@@ -1,6 +1,6 @@
 import { useRef, useCallback, useState, Suspense, lazy, memo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Layout } from "@/components/Layout";
+import { Layout } from "@/shared/components";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { HowItWorks } from "@/components/HowItWorks";
 import { DexHowItWorks } from "@/components/DexHowItWorks";
@@ -9,7 +9,6 @@ import { HeroSection } from "@/components/HeroSection";
 import { FavoritePairsSection } from "@/components/FavoritePairsSection";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Partners } from "@/components/Partners";
-
 import { TokenWatchlist } from "@/components/TokenWatchlist";
 import { Helmet } from "react-helmet-async";
 import { Shield, Zap, Clock, RefreshCw, Wallet, Layers, TrendingUp, Globe, Wrench, ListOrdered, Link2, ArrowRight } from "lucide-react";
@@ -17,7 +16,7 @@ import {
   TrendingPairsSkeleton, 
   TransactionTrackerSkeleton 
 } from "@/components/IndexSectionSkeletons";
-import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/shared/lib";
 
 // Lazy load heavier sections for better initial load
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));

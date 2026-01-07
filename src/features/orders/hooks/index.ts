@@ -3,7 +3,7 @@
  */
 
 // Limit order hooks
-export { useLimitOrders } from '@/hooks/useLimitOrders';
+export { useLimitOrders, type LimitOrder } from '@/hooks/useLimitOrders';
 
 // DCA hooks
 export { useDCAOrders } from '@/hooks/useDCAOrders';

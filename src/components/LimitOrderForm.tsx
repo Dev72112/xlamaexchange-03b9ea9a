@@ -17,12 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useLimitOrders } from '@/hooks/useLimitOrders';
+import { useLimitOrders } from '@/features/orders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { OkxToken } from '@/services/okxdex';
 import { Chain, getChainByIndex } from '@/data/chains';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/lib';
 
 // Non-EVM chains don't support signed limit orders yet
 const NON_EVM_CHAIN_INDEXES = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON

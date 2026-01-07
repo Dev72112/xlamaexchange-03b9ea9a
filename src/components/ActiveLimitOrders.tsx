@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useLimitOrders, LimitOrder } from '@/hooks/useLimitOrders';
+import { useLimitOrders, type LimitOrder } from '@/features/orders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { LimitOrderCountdown } from '@/components/LimitOrderCountdown';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/lib';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 
 interface ActiveLimitOrdersProps {
