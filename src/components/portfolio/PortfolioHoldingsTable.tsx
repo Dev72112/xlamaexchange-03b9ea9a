@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useTradePreFill } from '@/contexts/TradePreFillContext';
 import { useTokenWatchlist, WatchlistToken } from '@/hooks/useTokenWatchlist';
-import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
+import { SUPPORTED_CHAINS, getChainIcon, isNonEvmChain } from '@/data/chains';
 import { WalletTokenBalance } from '@/services/okxdex';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { TokenImage, ChainImage } from '@/components/ui/token-image';
 
 interface PortfolioHoldingsTableProps {
   balances: WalletTokenBalance[];
@@ -187,17 +187,18 @@ export function PortfolioHoldingsTable({ balances, isLoading, className }: Portf
                   {/* Token Info */}
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="relative">
-                      <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-medium">
-                        {balance.symbol.slice(0, 2)}
-                      </div>
+                      <TokenImage
+                        src={undefined}
+                        alt={balance.symbol}
+                        fallbackText={balance.symbol}
+                        className="w-8 h-8"
+                      />
                       {chain && (
-                        <img
+                        <ChainImage
                           src={getChainIcon(chain)}
                           alt={chain.name}
-                          className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border border-background"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
+                          fallbackText={chain.shortName}
+                          className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border border-background"
                         />
                       )}
                     </div>
