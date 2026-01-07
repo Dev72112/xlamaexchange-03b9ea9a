@@ -46,3 +46,35 @@ export {
   trackBridgeInitiated,
   trackBridgeCompleted,
 } from '@/lib/tracking';
+
+// Animation utilities
+export {
+  getStaggerStyle,
+  getStaggeredItemProps,
+  STAGGER_ITEM_CLASS,
+  STAGGER_DELAY_MS,
+  MAX_STAGGER_DELAY_MS,
+} from '@/lib/staggerAnimation';
+
+// Trade export utilities
+export {
+  exportTradesToCSV,
+  exportTradesToJSON,
+  generateShareableLink,
+  parseShareableLink,
+} from '@/lib/tradeExport';
+
+// Transaction sync utilities
+export {
+  fetchDexTransactions,
+  upsertDexTransaction,
+  updateDexTransactionStatus,
+  deleteDexTransaction,
+  clearDexTransactions,
+  fetchInstantTransactions,
+  upsertInstantTransaction,
+  updateInstantTransactionStatus,
+  deleteInstantTransaction,
+  clearInstantTransactions,
+} from '@/lib/transactionSync';
+export type { DexTransactionDB, InstantTransactionDB } from '@/lib/transactionSync';

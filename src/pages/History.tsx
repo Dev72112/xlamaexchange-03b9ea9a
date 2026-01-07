@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Layout } from "@/components/Layout";
+import { Layout } from "@/shared/components";
 import { Helmet } from "react-helmet-async";
-import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { useTransactionHistory } from "@/shared/hooks";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { useBridgeTransactions, BridgeStatus, BridgeTransaction } from "@/contexts/BridgeTransactionContext";
-import { useBridgeStatusPolling } from "@/hooks/useBridgeStatusPolling";
+import { useBridgeStatusPolling } from "@/features/bridge";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";

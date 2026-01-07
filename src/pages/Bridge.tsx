@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Layout } from "@/components/Layout";
+import { Layout } from "@/shared/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,7 @@ import {
   ExternalLink,
   Settings,
 } from "lucide-react";
-import { CrossChainSwap } from "@/components/exchange/CrossChainSwap";
-import { BridgeTransactionHistory } from "@/components/BridgeTransactionHistory";
-import { BridgeSettingsPanel } from "@/components/BridgeSettingsPanel";
+import { CrossChainSwap, BridgeTransactionHistory, BridgeSettingsPanel } from "@/features/bridge";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { lifiService } from "@/services/lifi";
 import { SUPPORTED_CHAINS } from "@/data/chains";
