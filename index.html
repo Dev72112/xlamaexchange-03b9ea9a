@@ -2,11 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>xlama - Crypto Exchange</title>
-    <meta name="description" content="Fast and secure cryptocurrency exchange - swap coins instantly across 25+ chains with best rates">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>xlama - Multi-Chain Crypto Exchange | Swap, Bridge & Trade</title>
+    <meta name="description" content="Swap crypto instantly across 25+ chains. OKX-powered DEX aggregator with best rates, bridge, limit orders & DCA. Connect OKX Wallet for the best experience.">
+    <meta name="keywords" content="crypto exchange, DEX, swap, bridge, OKX, multi-chain, Ethereum, Solana, Tron, limit orders, DCA">
     <meta name="author" content="xlama" />
     <meta name="theme-color" content="#0a0a0b" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://xlama.exchange/" />
 
     <!-- Security Headers -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
@@ -54,29 +57,60 @@
     <link rel="dns-prefetch" href="https://verify.walletconnect.com" />
     <link rel="dns-prefetch" href="https://rpc.walletconnect.com" />
 
+    <!-- Preload critical fonts -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" />
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="xlama" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://xlama.exchange/" />
-    <meta property="og:title" content="xlama - Crypto Exchange" />
-    <meta property="og:description" content="Fast and secure cryptocurrency exchange - swap coins instantly across 25+ chains with best rates" />
+    <meta property="og:title" content="xlama - Multi-Chain Crypto Exchange" />
+    <meta property="og:description" content="Swap crypto instantly across 25+ chains. OKX-powered DEX aggregator with best rates, bridge, limit orders & DCA." />
     <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg" />
+    <meta property="og:site_name" content="xlama" />
+    <meta property="og:locale" content="en_US" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@xlama" />
-    <meta name="twitter:title" content="xlama - Crypto Exchange" />
-    <meta name="twitter:description" content="Fast and secure cryptocurrency exchange - swap coins instantly across 25+ chains with best rates" />
+    <meta name="twitter:creator" content="@xlama" />
+    <meta name="twitter:title" content="xlama - Multi-Chain Crypto Exchange" />
+    <meta name="twitter:description" content="Swap crypto instantly across 25+ chains. OKX-powered DEX aggregator with best rates." />
     <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "xlama",
+      "description": "Multi-chain crypto exchange with DEX aggregation, bridge, limit orders, and DCA trading.",
+      "url": "https://xlama.exchange",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
   </head>
 
   <body>
+    <!-- Skip to content link for accessibility -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none">
+      Skip to main content
+    </a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

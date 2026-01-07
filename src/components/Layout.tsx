@@ -36,7 +36,7 @@ export const Layout = memo(function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden max-w-[100vw]">
       <Header />
-      <main className="flex-1 overflow-x-hidden min-w-0">
+      <main id="main-content" className="flex-1 overflow-x-hidden min-w-0" role="main" tabIndex={-1}>
         <RouteLoadComplete />
         {children}
       </main>
