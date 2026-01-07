@@ -38,8 +38,12 @@ function isValidAmount(amount: unknown): amount is number {
 }
 
 // Validate wallet address (20-128 chars, alphanumeric with common address chars)
+// Supports: EVM (0x...), Bitcoin (bc1..., 1..., 3...), Solana, TON (_-), Cosmos (:), etc.
 function isValidAddress(address: unknown): address is string {
-  return typeof address === 'string' && address.length >= 20 && address.length <= 128 && /^[a-zA-Z0-9:]+$/.test(address);
+  return typeof address === 'string' && 
+         address.length >= 20 && 
+         address.length <= 128 && 
+         /^[a-zA-Z0-9:_\-\.]+$/.test(address);
 }
 
 // Validate email format (optional)
@@ -202,8 +206,9 @@ serve(async (req) => {
           );
         }
         if (!isValidAddress(address)) {
+          console.warn(`Invalid address format: ${String(address)?.substring(0, 30)}... (length: ${String(address)?.length})`);
           return new Response(
-            JSON.stringify({ error: 'Invalid wallet address format' }),
+            JSON.stringify({ error: 'Invalid wallet address format. Please check the address and try again.' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -263,8 +268,9 @@ serve(async (req) => {
           );
         }
         if (!isValidAddress(address)) {
+          console.warn(`Invalid address format (fixed): ${String(address)?.substring(0, 30)}... (length: ${String(address)?.length})`);
           return new Response(
-            JSON.stringify({ error: 'Invalid wallet address format' }),
+            JSON.stringify({ error: 'Invalid wallet address format. Please check the address and try again.' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
