@@ -1,25 +1,35 @@
 /**
- * Wallet Feature Module - Public API
- * 
- * This module handles wallet connectivity:
- * - Multi-chain wallet connections
- * - Session management
- * - Chain switching
- * - Address management
+ * Wallet Feature Module
+ * Manages wallet connections, session auth, and chain management
  */
 
 // Components (to be migrated)
-// export { MultiWalletButton, ChainSelector, WalletPicker } from './components';
+export * from './components';
 
-// Types
-export type { 
-  WalletSession, 
-  ChainType, 
-  ConnectionStatus,
-  WalletInfo,
-  ChainInfo,
-  ConnectedWallet,
-} from './types';
+// Types (explicit exports to avoid conflicts)
+export type { ChainType, ConnectionStatus, WalletInfo, ChainInfo, ConnectedWallet } from './types';
+export type { WalletSession } from './lib/walletSession';
+export type { SessionAuth, SigningProviders } from './lib/sessionAuth';
 
-// Feature version
+// Lib utilities (functions only, types handled above)
+export {
+  saveWalletSession,
+  getWalletSession,
+  clearWalletSession,
+  isSessionValid,
+  updateActiveChain,
+  updateChainConnection,
+} from './lib/walletSession';
+
+export {
+  clearSessionAuth,
+  clearAllSessionAuth,
+  hasValidSessionAuth,
+  getOrCreateSessionAuth,
+  getSessionTimeRemaining,
+} from './lib/sessionAuth';
+
+export * from './lib/deeplinks';
+
+// Feature version for cache busting
 export const WALLET_FEATURE_VERSION = '1.0.0';
