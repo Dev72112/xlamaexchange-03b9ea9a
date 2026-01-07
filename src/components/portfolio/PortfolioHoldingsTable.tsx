@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTradePreFill } from '@/contexts/TradePreFillContext';
 import { useTokenWatchlist, WatchlistToken } from '@/hooks/useTokenWatchlist';
-import { SUPPORTED_CHAINS } from '@/data/chains';
+import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 import { WalletTokenBalance } from '@/services/okxdex';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -192,16 +192,27 @@ export function PortfolioHoldingsTable({ balances, isLoading, className }: Portf
                       </div>
                       {chain && (
                         <img
-                          src={chain.icon}
+                          src={getChainIcon(chain)}
                           alt={chain.name}
                           className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border border-background"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       )}
                     </div>
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{balance.symbol}</p>
                       {chain && (
-                        <p className="text-xs text-muted-foreground truncate">{chain.shortName}</p>
+                        <div className="flex items-center gap-1">
+                          <span className={cn(
+                            "text-[10px] px-1 rounded",
+                            chain.isEvm ? "bg-primary/10 text-primary" : "bg-chart-2/20 text-chart-2"
+                          )}>
+                            {chain.isEvm ? 'EVM' : chain.shortName}
+                          </span>
+                          <p className="text-xs text-muted-foreground truncate">{chain.name}</p>
+                        </div>
                       )}
                     </div>
                   </div>

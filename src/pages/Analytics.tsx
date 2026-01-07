@@ -37,7 +37,7 @@ import { useTradeAnalytics } from '@/hooks/useTradeAnalytics';
 import { useTradeVsHodl } from '@/hooks/useTradeVsHodl';
 import { useGasAnalytics } from '@/hooks/useGasAnalytics';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
-import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
+import { SUPPORTED_CHAINS, getChainIcon, getEvmChains, getNonEvmChains } from '@/data/chains';
 import { 
   BarChart, 
   Bar, 
@@ -216,14 +216,9 @@ const Analytics = () => {
   const tradeVsHodl = useTradeVsHodl();
   const gasAnalytics = useGasAnalytics(chainFilter);
 
-  // Get unique chains from transactions for the filter
-  const availableChains = useMemo(() => {
-    const chains = analytics.chainDistribution.map(c => ({
-      chainIndex: c.chainIndex,
-      name: c.chain,
-    }));
-    return chains;
-  }, [analytics.chainDistribution]);
+  // Get all supported chains for the filter, grouped by EVM/Non-EVM
+  const evmChains = useMemo(() => getEvmChains(), []);
+  const nonEvmChains = useMemo(() => getNonEvmChains(), []);
 
   // Filter data based on time period
   const filteredData = useMemo(() => {
@@ -326,33 +321,53 @@ const Analytics = () => {
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-muted-foreground" />
               <Select value={chainFilter} onValueChange={setChainFilter}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger className="w-[200px] h-9">
                   <SelectValue placeholder="All Chains" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[400px]">
                   <SelectItem value="all">
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 rounded-full bg-gradient-to-r from-primary to-chart-2" />
-                      All Chains
+                      All Chains ({SUPPORTED_CHAINS.length})
                     </div>
                   </SelectItem>
-                  {availableChains.map((chain) => {
-                    const chainData = SUPPORTED_CHAINS.find(c => c.chainIndex === chain.chainIndex);
-                    return (
-                      <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
-                        <div className="flex items-center gap-2">
-                          {chainData && (
-                            <img 
-                              src={getChainIcon(chainData)} 
-                              alt={chain.name}
-                              className="w-4 h-4 rounded-full"
-                            />
-                          )}
-                          {chain.name}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
+                  
+                  {/* EVM Chains */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1">
+                    EVM Chains ({evmChains.length})
+                  </div>
+                  {evmChains.map((chain) => (
+                    <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={getChainIcon(chain)} 
+                          alt={chain.name}
+                          className="w-4 h-4 rounded-full"
+                        />
+                        {chain.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                  
+                  {/* Non-EVM Chains */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1">
+                    Non-EVM Chains ({nonEvmChains.length})
+                  </div>
+                  {nonEvmChains.map((chain) => (
+                    <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={getChainIcon(chain)} 
+                          alt={chain.name}
+                          className="w-4 h-4 rounded-full"
+                        />
+                        {chain.name}
+                        <Badge variant="outline" className="text-[9px] py-0 px-1 ml-auto">
+                          {chain.shortName}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -576,20 +591,35 @@ const Analytics = () => {
                   </ResponsiveContainer>
                   <ScrollArea className="h-[180px] sm:h-[220px] flex-1 min-w-0 pr-2">
                     <div className="space-y-2">
-                      {analytics.chainDistribution.map((chain, index) => (
-                        <div key={chain.chain} className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full flex-shrink-0" 
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                          />
-                          <span className="text-xs truncate flex-1">{chain.chain}</span>
-                          <div className="text-right flex-shrink-0">
-                            <Badge variant="outline" className="text-[10px]">
-                              {formatUsd(chain.volumeUsd)}
-                            </Badge>
+                      {analytics.chainDistribution.map((chain, index) => {
+                        const chainData = SUPPORTED_CHAINS.find(c => c.chainIndex === chain.chainIndex);
+                        return (
+                          <div key={chain.chain} className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full flex-shrink-0" 
+                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                            />
+                            {chainData && (
+                              <img 
+                                src={getChainIcon(chainData)} 
+                                alt={chain.chain}
+                                className="w-4 h-4 rounded-full flex-shrink-0"
+                              />
+                            )}
+                            <span className="text-xs truncate flex-1">{chain.chain}</span>
+                            {chainData && !chainData.isEvm && (
+                              <Badge variant="secondary" className="text-[8px] py-0 px-1">
+                                Non-EVM
+                              </Badge>
+                            )}
+                            <div className="text-right flex-shrink-0">
+                              <Badge variant="outline" className="text-[10px]">
+                                {formatUsd(chain.volumeUsd)}
+                              </Badge>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </div>
