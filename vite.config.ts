@@ -75,8 +75,8 @@ build: {
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           // Solana
           'vendor-solana': ['@solana/web3.js', '@solana/wallet-adapter-base'],
-          // Sui
-          'vendor-sui': ['@mysten/sui', '@mysten/dapp-kit'],
+          // Sui - use specific exports to avoid resolution issues
+          'vendor-sui': ['@mysten/dapp-kit'],
           // TON
           'vendor-ton': ['@tonconnect/ui-react'],
         },

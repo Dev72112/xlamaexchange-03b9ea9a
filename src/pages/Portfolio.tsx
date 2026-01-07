@@ -7,6 +7,7 @@ import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { PortfolioOverview, PortfolioRebalancer } from "@/features/portfolio";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+import { PortfolioSkeleton } from "@/components/skeletons";
 
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
@@ -105,64 +106,66 @@ const Portfolio = memo(function Portfolio() {
             </Card>
           </div>
         ) : (
-          <div className="space-y-8 max-w-4xl mx-auto">
-            {/* Portfolio Overview with P&L Chart */}
-            <section id="overview" className="scroll-mt-20">
-              <PortfolioOverview />
-            </section>
+          <Suspense fallback={<PortfolioSkeleton />}>
+            <div className="space-y-8 max-w-4xl mx-auto">
+              {/* Portfolio Overview with P&L Chart */}
+              <section id="overview" className="scroll-mt-20">
+                <PortfolioOverview />
+              </section>
 
-            {/* Standalone P&L Chart section */}
-            <section id="pnl" className="scroll-mt-20">
-              <Card variant="glass" className="bg-card/50 border-border">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-primary" />
+              {/* Standalone P&L Chart section */}
+              <section id="pnl" className="scroll-mt-20">
+                <Card variant="glass" className="bg-card/50 border-border">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-primary" />
+                      </div>
+                      <h2 className="text-lg font-semibold">Performance History</h2>
                     </div>
-                    <h2 className="text-lg font-semibold">Performance History</h2>
-                  </div>
-                  <Suspense fallback={<div className="h-64 skeleton-shimmer rounded-lg" />}>
-                    <PortfolioPnLChart />
-                  </Suspense>
-                </CardContent>
-              </Card>
-            </section>
+                    <Suspense fallback={<div className="h-64 skeleton-shimmer rounded-lg" />}>
+                      <PortfolioPnLChart />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+              </section>
 
-            {/* Portfolio Rebalancer */}
-            <section id="rebalancer" className="scroll-mt-20 max-w-xl mx-auto">
-              <PortfolioRebalancer />
-            </section>
+              {/* Portfolio Rebalancer */}
+              <section id="rebalancer" className="scroll-mt-20 max-w-xl mx-auto">
+                <PortfolioRebalancer />
+              </section>
 
-            {/* Tips Section */}
-            <section className="mt-8">
-              <Card className="bg-secondary/30 border-border">
-                <CardContent className="pt-6">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-primary" />
-                    Portfolio Tips
-                  </h3>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary">•</span>
-                      <span>Daily snapshots are saved automatically when you view your portfolio.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary">•</span>
-                      <span>Use the rebalancer to set target allocations and maintain your strategy.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary">•</span>
-                      <span>Export your P&L history as CSV for tax reporting or external analysis.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-primary">•</span>
-                      <span>Connect multiple wallets to see your combined portfolio across all addresses.</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </section>
-          </div>
+              {/* Tips Section */}
+              <section className="mt-8">
+                <Card className="bg-secondary/30 border-border">
+                  <CardContent className="pt-6">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-primary" />
+                      Portfolio Tips
+                    </h3>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary">•</span>
+                        <span>Daily snapshots are saved automatically when you view your portfolio.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary">•</span>
+                        <span>Use the rebalancer to set target allocations and maintain your strategy.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary">•</span>
+                        <span>Export your P&L history as CSV for tax reporting or external analysis.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary">•</span>
+                        <span>Connect multiple wallets to see your combined portfolio across all addresses.</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </section>
+            </div>
+          </Suspense>
         )}
       </main>
     </Layout>

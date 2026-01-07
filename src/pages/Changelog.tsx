@@ -62,8 +62,29 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
-    version: "2.0.0",
+    version: "2.1.0",
     date: "2026-01-07",
+    title: "Performance & Security Hardening",
+    description: "Major performance optimizations and security improvements across the platform.",
+    type: "major",
+    changes: [
+      { category: "feature", text: "Added skeleton loading states for Portfolio, Orders, and Analytics pages" },
+      { category: "feature", text: "New performance monitoring with Web Vitals tracking (LCP, FCP, CLS, TTFB)" },
+      { category: "feature", text: "Client-side error tracking and security event logging" },
+      { category: "improvement", text: "Optimized Vite build with granular code splitting (10 vendor chunks)" },
+      { category: "improvement", text: "Enhanced service worker with versioned caching and stale-while-revalidate" },
+      { category: "improvement", text: "Added 18 database indexes for faster wallet address lookups" },
+      { category: "improvement", text: "React Query optimization with centralized query client config" },
+      { category: "security", text: "Hardened edge functions with input validation and request size limits" },
+      { category: "security", text: "Tightened Content Security Policy - removed 'unsafe-eval'" },
+      { category: "security", text: "Standardized security headers across all edge functions" },
+      { category: "fix", text: "Fixed CSS @import order causing build failures" },
+      { category: "fix", text: "Fixed Sui package resolution in Vite config" },
+    ],
+  },
+  {
+    version: "2.0.0",
+    date: "2026-01-06",
     title: "Site-Wide UI Refresh",
     description: "Major UI/UX improvements, OKX Wallet integration, and content updates.",
     type: "major",
@@ -114,19 +135,6 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
       { category: "feature", text: "Wallet connection framework" },
       { category: "improvement", text: "Performance optimizations for quote fetching" },
       { category: "fix", text: "Fixed token balance display issues" },
-    ],
-  },
-  {
-    version: "0.8.0",
-    date: "2025-12-01",
-    title: "Alpha Testing",
-    description: "Internal alpha release for testing core features.",
-    type: "minor",
-    changes: [
-      { category: "feature", text: "Core swap interface" },
-      { category: "feature", text: "Chain selection UI" },
-      { category: "feature", text: "Token search and selection" },
-      { category: "improvement", text: "UI/UX refinements based on feedback" },
     ],
   },
 ];
