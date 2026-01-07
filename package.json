@@ -15,6 +15,7 @@
     "@lifi/sdk": "^3.14.1",
     "@mysten/dapp-kit": "^0.19.11",
     "@mysten/sui": "^1.45.2",
+    "@okxconnect/universal-provider": "^1.9.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
