@@ -154,7 +154,7 @@ export const TokenPnLChart = memo(function TokenPnLChart({
             </p>
           </div>
           
-          {bestPerformer && (
+          {bestPerformer && bestPerformer.totalPnL > 0 && (
             <div className="p-3 rounded-lg bg-green-500/10">
               <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                 <Trophy className="w-3 h-3 text-green-500" />
@@ -165,14 +165,23 @@ export const TokenPnLChart = memo(function TokenPnLChart({
             </div>
           )}
           
-          {worstPerformer && worstPerformer.totalPnL < 0 && (
-            <div className="p-3 rounded-lg bg-red-500/10">
+          {worstPerformer && (
+            <div className={cn(
+              "p-3 rounded-lg",
+              worstPerformer.totalPnL < 0 ? "bg-red-500/10" : "bg-secondary/50"
+            )}>
               <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                <Frown className="w-3 h-3 text-red-500" />
+                <Frown className={cn("w-3 h-3", worstPerformer.totalPnL < 0 ? "text-red-500" : "text-muted-foreground")} />
                 Worst
               </div>
-              <p className="font-semibold text-red-500 truncate">{worstPerformer.symbol}</p>
-              <p className="text-xs text-red-500/80">{formatUsd(worstPerformer.totalPnL)}</p>
+              <p className={cn(
+                "font-semibold truncate",
+                worstPerformer.totalPnL < 0 ? "text-red-500" : "text-muted-foreground"
+              )}>{worstPerformer.symbol}</p>
+              <p className={cn(
+                "text-xs",
+                worstPerformer.totalPnL < 0 ? "text-red-500/80" : "text-muted-foreground/80"
+              )}>{formatUsd(worstPerformer.totalPnL)}</p>
             </div>
           )}
         </div>
