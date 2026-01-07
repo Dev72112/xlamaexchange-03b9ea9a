@@ -342,7 +342,7 @@ const Analytics = () => {
             </Tabs>
 
             {/* Trade Source Badge */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 ml-auto flex-wrap">
               <Badge variant="outline" className="text-xs gap-1">
                 <ArrowRightLeft className="w-3 h-3" />
                 DEX: {analytics.dexTradesCount}
@@ -351,6 +351,12 @@ const Analytics = () => {
                 <Badge variant="outline" className="text-xs gap-1">
                   <Zap className="w-3 h-3" />
                   Instant: {analytics.instantTradesCount}
+                </Badge>
+              )}
+              {analytics.bridgeTradesCount > 0 && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Layers className="w-3 h-3" />
+                  Bridge: {analytics.bridgeTradesCount}
                 </Badge>
               )}
             </div>
