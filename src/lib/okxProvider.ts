@@ -5,6 +5,18 @@
 
 import { OKXUniversalProvider, type SessionTypes } from '@okxconnect/universal-provider';
 import { SUPPORTED_CHAINS, getEvmChains } from '@/data/chains';
+import { getOkxWallet, type OkxWalletExtension } from '@/lib/wallet-deeplinks';
+
+// Extend Window interface for tronWeb only
+declare global {
+  interface Window {
+    tronWeb?: {
+      defaultAddress?: {
+        base58?: string;
+      };
+    };
+  }
+}
 
 // Chain namespace mapping for OKX Connect
 export const OKX_NAMESPACES = {
@@ -253,7 +265,8 @@ export async function disconnectOkx(provider: OKXUniversalProvider): Promise<voi
  */
 export function isOkxExtensionAvailable(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!(window.okxwallet || (window.ethereum && (window.ethereum as any).isOKXWallet));
+  const okx = getOkxWallet();
+  return !!(okx || (window.ethereum && (window.ethereum as any).isOKXWallet));
 }
 
 /**
@@ -261,17 +274,84 @@ export function isOkxExtensionAvailable(): boolean {
  */
 export function isInOkxBrowser(): boolean {
   if (typeof window === 'undefined') return false;
-  // OKX in-app browser injects okxwallet
-  return !!window.okxwallet;
+  return !!getOkxWallet();
+}
+
+/**
+ * Check if we should use extension vs Universal Provider
+ */
+export function shouldUseOkxExtension(): boolean {
+  return isOkxExtensionAvailable() || isInOkxBrowser();
 }
 
 /**
  * Get OKX wallet provider for direct extension calls (desktop)
  */
-export function getOkxExtensionProvider(): any {
+export function getOkxExtensionProvider(): OkxWalletExtension | null {
   if (typeof window === 'undefined') return null;
-  // Prefer dedicated okxwallet over ethereum
-  return window.okxwallet || (window.ethereum?.isOKXWallet ? window.ethereum : null);
+  return getOkxWallet() || null;
+}
+
+/**
+ * Connect via OKX extension (EIP-1193 direct call)
+ */
+export async function connectOkxExtension(): Promise<OkxSession | null> {
+  const okx = getOkxWallet();
+  if (!okx) {
+    throw new Error('OKX extension not found');
+  }
+  
+  try {
+    // Request EVM accounts
+    const accounts = await okx.request({
+      method: 'eth_requestAccounts'
+    });
+    
+    if (!accounts || !accounts[0]) {
+      throw new Error('No accounts returned');
+    }
+    
+    // Try to get Solana address
+    let solanaAddr = null;
+    try {
+      if (okx.solana) {
+        const resp = await okx.solana.connect();
+        solanaAddr = resp?.publicKey?.toString() || null;
+      }
+    } catch (e) {
+      console.warn('[OKX] Solana connection failed:', e);
+    }
+    
+    // Try to get Tron address
+    let tronAddr = null;
+    try {
+      if (window.tronWeb?.defaultAddress?.base58) {
+        tronAddr = window.tronWeb.defaultAddress.base58;
+      }
+    } catch (e) {
+      console.warn('[OKX] Tron address fetch failed:', e);
+    }
+    
+    const session: OkxSession = {
+      topic: 'extension',
+      namespaces: {},
+      expiry: Date.now() + (7 * 24 * 60 * 60 * 1000),
+      addresses: {
+        evm: accounts[0],
+        solana: solanaAddr,
+        tron: tronAddr,
+        sui: null,
+        ton: null,
+      },
+    };
+    
+    saveOkxSession(session);
+    console.log('[OKX] Connected via extension:', session.addresses);
+    return session;
+  } catch (error: any) {
+    console.error('[OKX] Extension connect failed:', error);
+    throw error;
+  }
 }
 
 /**
