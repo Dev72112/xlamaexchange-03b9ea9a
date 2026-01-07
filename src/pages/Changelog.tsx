@@ -62,6 +62,24 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.0.0",
+    date: "2026-01-07",
+    title: "Site-Wide UI Refresh",
+    description: "Major UI/UX improvements, OKX Wallet integration, and content updates.",
+    type: "major",
+    changes: [
+      { category: "feature", text: "OKX Wallet as recommended connection method for multi-chain support" },
+      { category: "improvement", text: "Updated timing: Instant swaps now complete in 1-5 minutes" },
+      { category: "improvement", text: "New card and badge component variants (glass, gradient, interactive)" },
+      { category: "improvement", text: "Live status indicator in footer and hero section" },
+      { category: "improvement", text: "Enhanced Portfolio dashboard with OKX Wallet recommendations" },
+      { category: "improvement", text: "Refreshed FAQ and Docs with accurate information" },
+      { category: "improvement", text: "Improved 404 page with animated background" },
+      { category: "fix", text: "Fixed P&L chart flickering (rave party bug)" },
+      { category: "fix", text: "P&L now correctly shows losses, not just profits" },
+    ],
+  },
+  {
     version: "1.0.0",
     date: "2026-01-05",
     title: "Official Launch",
@@ -70,9 +88,9 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
     changes: [
       { category: "feature", text: "DEX aggregation via OKX DEX with 400+ liquidity sources" },
       { category: "feature", text: "Cross-chain bridge via Li.Fi with 20+ bridge protocols" },
-      { category: "feature", text: "Instant swaps via ChangeNOW with 900+ tokens" },
+      { category: "feature", text: "Instant swaps via ChangeNOW with 900+ tokens (1-5 min completion)" },
       { category: "feature", text: "Support for 25+ blockchain networks (EVM and non-EVM)" },
-      { category: "feature", text: "Multi-wallet support: WalletConnect, Phantom, Sui Wallet, Tonkeeper, TronLink" },
+      { category: "feature", text: "Multi-wallet support: OKX Wallet (recommended), WalletConnect, Phantom, Sui Wallet, Tonkeeper, TronLink" },
       { category: "feature", text: "Limit orders with price target notifications" },
       { category: "feature", text: "DCA (Dollar Cost Averaging) automated orders" },
       { category: "feature", text: "Portfolio tracking with P&L monitoring" },

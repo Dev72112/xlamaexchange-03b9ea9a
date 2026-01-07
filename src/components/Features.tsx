@@ -11,7 +11,7 @@ const features = [
   {
     icon: Zap,
     title: "Lightning Fast",
-    description: "DEX swaps confirm in seconds. Instant mode exchanges in 10-30 minutes.",
+    description: "DEX swaps confirm in seconds. Instant mode exchanges in 1-5 minutes.",
   },
   {
     icon: Globe,

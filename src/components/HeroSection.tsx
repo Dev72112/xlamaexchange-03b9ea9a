@@ -13,17 +13,17 @@ const features = [
   {
     icon: Coins,
     label: "900+ Tokens",
-    description: "Instant swaps",
+    description: "1-5 min swaps",
   },
   {
     icon: Shield,
-    label: "Non-Custodial",
-    description: "Your keys, your crypto",
+    label: "OKX Wallet",
+    description: "Recommended",
   },
   {
     icon: Zap,
     label: "Best Rates",
-    description: "Aggregated liquidity",
+    description: "400+ DEXs",
   },
 ];
 
@@ -67,10 +67,10 @@ export const HeroSection = memo(function HeroSection() {
             />
             <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-primary/10 border border-primary/20 text-xs sm:text-sm text-primary">
               <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2 shrink-0" aria-hidden="true">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-full w-full bg-primary"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-full w-full bg-green-500"></span>
               </span>
-              <span className="truncate">Live DEX Aggregation Across 25+ Chains</span>
+              <span className="truncate">Live • DEX Aggregation Across 25+ Chains</span>
             </div>
           </div>
 

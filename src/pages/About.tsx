@@ -37,6 +37,13 @@ const About = () => {
 
   const techPartners = [
     {
+      name: "OKX Wallet",
+      description: "Recommended wallet for seamless multi-chain trading",
+      logo: "https://static.okx.com/cdn/assets/imgs/2112/1C734C18B89E3B51.png",
+      url: "https://www.okx.com/web3/wallet",
+      icon: Shield,
+    },
+    {
       name: "OKX DEX",
       description: "DEX aggregation across 400+ exchanges on 25+ chains",
       logo: "https://static.okx.com/cdn/assets/imgs/2112/1C734C18B89E3B51.png",
@@ -52,10 +59,10 @@ const About = () => {
     },
     {
       name: "ChangeNOW",
-      description: "Instant crypto exchange for 900+ tokens",
+      description: "Instant crypto exchange for 900+ tokens (1-5 min)",
       logo: "https://changenow.io/images/changenow-logo.svg",
       url: "https://changenow.io",
-      icon: Shield,
+      icon: Zap,
     },
   ];
 
@@ -164,7 +171,7 @@ const About = () => {
           <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
             We integrate with industry-leading protocols to provide the best trading experience across 25+ chains.
           </p>
-          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
             {techPartners.map((partner) => (
               <a
                 key={partner.name}

@@ -104,12 +104,18 @@ export const Footer = memo(function Footer() {
         </div>
 
         <div className="mt-8 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-muted-foreground">
-            © {currentYear} xlama. All rights reserved.
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs text-green-600 dark:text-green-400 font-medium">Live</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              © {currentYear} xlama
+            </p>
+          </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <FeedbackSettings />
-            <span>Powered by ChangeNow, OKX DEX & Li.Fi</span>
+            <span>v2.0 • Powered by ChangeNow, OKX DEX & Li.Fi</span>
           </div>
         </div>
       </div>
