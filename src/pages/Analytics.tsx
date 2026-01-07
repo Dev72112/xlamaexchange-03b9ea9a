@@ -208,7 +208,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const Analytics = () => {
-  const { isConnected } = useMultiWallet();
+  const { 
+    isConnected,
+    isOkxConnected,
+    evmAddress,
+    solanaAddress,
+    tronAddress 
+  } = useMultiWallet();
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);

@@ -50,7 +50,7 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   toToken, 
   chainIndex 
 }: DCAOrderFormProps) {
-  const { isConnected } = useMultiWallet();
+  const { isConnected, isOkxConnected } = useMultiWallet();
   const { createOrder, isSigning } = useDCAOrders();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -107,19 +107,26 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   const chain = chainIndex ? getChainByIndex(chainIndex) : null;
   const chainName = chain?.name || 'this chain';
 
-  // Show disabled state for non-EVM chains
-  if (isNonEvmChain) {
+  // Show disabled state for non-EVM chains when NOT connected via OKX
+  if (isNonEvmChain && !isOkxConnected) {
     return (
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="gap-2 opacity-60 cursor-not-allowed"
-        disabled
-        title={`DCA orders for ${chainName} coming soon`}
-      >
-        <CalendarClock className="w-4 h-4" />
-        <span className="hidden sm:inline">DCA</span>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 opacity-60 cursor-not-allowed"
+            disabled
+          >
+            <CalendarClock className="w-4 h-4" />
+            <span className="hidden sm:inline">DCA</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>DCA orders for {chainName} coming soon</p>
+          <p className="text-xs text-muted-foreground">Connect OKX Wallet for full support</p>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 

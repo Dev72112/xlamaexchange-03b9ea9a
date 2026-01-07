@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { useLimitOrders } from '@/hooks/useLimitOrders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { OkxToken } from '@/services/okxdex';
 import { Chain, getChainByIndex } from '@/data/chains';
 import { cn } from '@/lib/utils';
@@ -48,7 +49,7 @@ export function LimitOrderForm({
   currentPrice,
   className 
 }: LimitOrderFormProps) {
-  const { isConnected } = useMultiWallet();
+  const { isConnected, isOkxConnected } = useMultiWallet();
   const { createOrder, isSigning } = useLimitOrders();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
@@ -98,19 +99,26 @@ export function LimitOrderForm({
   const isNonEvmChain = NON_EVM_CHAIN_INDEXES.includes(chain.chainIndex);
   const chainName = chain.name;
 
-  // Show disabled state for non-EVM chains
-  if (isNonEvmChain) {
+  // Show disabled state for non-EVM chains when NOT connected via OKX
+  if (isNonEvmChain && !isOkxConnected) {
     return (
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className={cn("gap-1.5 opacity-60 cursor-not-allowed", className)}
-        disabled
-        title={`Limit orders for ${chainName} coming soon`}
-      >
-        <Target className="w-3.5 h-3.5" />
-        Limit Order
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={cn("gap-1.5 opacity-60 cursor-not-allowed", className)}
+            disabled
+          >
+            <Target className="w-3.5 h-3.5" />
+            Limit Order
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Limit orders for {chainName} coming soon</p>
+          <p className="text-xs text-muted-foreground">Connect OKX Wallet for full support</p>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
