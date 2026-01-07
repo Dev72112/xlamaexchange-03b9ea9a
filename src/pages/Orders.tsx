@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
+import { OrdersSkeleton } from "@/components/skeletons";
 
 // Lazy load order components from feature modules
 const ActiveLimitOrders = lazy(() => import("@/features/orders").then(m => ({ default: m.ActiveLimitOrders })));
@@ -58,53 +59,55 @@ const Orders = memo(function Orders() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-8 max-w-4xl mx-auto">
-            {/* Order Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <Card className="bg-card/50">
-                <CardContent className="pt-4 pb-4 text-center">
-                  <TrendingUp className="w-5 h-5 text-primary mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Limit Orders</p>
-                  <p className="text-lg font-bold">Active</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50">
-                <CardContent className="pt-4 pb-4 text-center">
-                  <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">DCA Orders</p>
-                  <p className="text-lg font-bold">Scheduled</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50">
-                <CardContent className="pt-4 pb-4 text-center">
-                  <ArrowRightLeft className="w-5 h-5 text-primary mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">History</p>
-                  <p className="text-lg font-bold">View All</p>
-                </CardContent>
-              </Card>
+          <Suspense fallback={<OrdersSkeleton />}>
+            <div className="space-y-8 max-w-4xl mx-auto">
+              {/* Order Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="bg-card/50 hover-lift transition-all">
+                  <CardContent className="pt-4 pb-4 text-center">
+                    <TrendingUp className="w-5 h-5 text-primary mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Limit Orders</p>
+                    <p className="text-lg font-bold">Active</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card/50 hover-lift transition-all">
+                  <CardContent className="pt-4 pb-4 text-center">
+                    <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">DCA Orders</p>
+                    <p className="text-lg font-bold">Scheduled</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card/50 hover-lift transition-all">
+                  <CardContent className="pt-4 pb-4 text-center">
+                    <ArrowRightLeft className="w-5 h-5 text-primary mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">History</p>
+                    <p className="text-lg font-bold">View All</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Active Limit Orders */}
+              <section id="limit-orders" className="scroll-mt-20">
+                <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
+                  <ActiveLimitOrders />
+                </Suspense>
+              </section>
+
+              {/* Active DCA Orders */}
+              <section id="dca-orders" className="scroll-mt-20">
+                <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
+                  <ActiveDCAOrders />
+                </Suspense>
+              </section>
+
+              {/* Transaction History */}
+              <section id="history" className="scroll-mt-20">
+                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                  <DexTransactionHistory />
+                </Suspense>
+              </section>
             </div>
-
-            {/* Active Limit Orders */}
-            <section id="limit-orders" className="scroll-mt-20">
-              <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
-                <ActiveLimitOrders />
-              </Suspense>
-            </section>
-
-            {/* Active DCA Orders */}
-            <section id="dca-orders" className="scroll-mt-20">
-              <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
-                <ActiveDCAOrders />
-              </Suspense>
-            </section>
-
-            {/* Transaction History */}
-            <section id="history" className="scroll-mt-20">
-              <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                <DexTransactionHistory />
-              </Suspense>
-            </section>
-          </div>
+          </Suspense>
         )}
       </main>
     </Layout>
