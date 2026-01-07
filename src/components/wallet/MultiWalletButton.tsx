@@ -234,29 +234,29 @@ export function MultiWalletButton() {
     );
   }
 
-  // Disconnected state - for EVM/Solana use AppKit, for others show native dialog
+  // Unified wallet connection - AppKit handles EVM + Solana in one modal
+  // For native chains (Sui/Tron/TON), show our picker
   const isNativeChain = ['sui', 'tron', 'ton'].includes(activeChainType);
-
-  if (!isNativeChain) {
-    // EVM/Solana - use AppKit modal directly
-    return (
-      <Button onClick={handleAppKitConnect} disabled={isConnecting} className="gap-2">
-        <Wallet className="w-4 h-4" />
-        <span className="hidden sm:inline">{isConnecting ? 'Connecting...' : 'Connect Wallet'}</span>
-      </Button>
-    );
-  }
-
-  // Sui/Tron/TON - show native wallet picker
   const filteredWallets = nativeWalletOptions.filter(w => w.chainType === activeChainType);
+
+  // Single connect button - opens AppKit for EVM/Solana, dialog for native chains
+  const handleConnect = () => {
+    if (isNativeChain) {
+      setIsDialogOpen(true);
+    } else {
+      // AppKit shows all EVM + Solana wallets in one unified modal
+      handleAppKitConnect();
+    }
+  };
 
   return (
     <>
-      <Button onClick={() => setIsDialogOpen(true)} disabled={isConnecting} className="gap-2">
+      <Button onClick={handleConnect} disabled={isConnecting} className="gap-2">
         <Wallet className="w-4 h-4" />
         <span className="hidden sm:inline">{isConnecting ? 'Connecting...' : 'Connect Wallet'}</span>
       </Button>
 
+      {/* Native wallet picker for Sui/Tron/TON */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
