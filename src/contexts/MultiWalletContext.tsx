@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
-import { Chain, getChainByChainId, getPrimaryChain } from '@/data/chains';
+import { Chain, getChainByChainId, getPrimaryChain, SUPPORTED_CHAINS } from '@/data/chains';
 
 // AppKit hooks
 import { useAppKit, useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/react';
@@ -23,6 +23,17 @@ import {
   isTronWalletAvailable,
   openWalletDeeplink 
 } from '@/lib/wallet-deeplinks';
+
+// Session management
+import { 
+  saveWalletSession, 
+  getWalletSession, 
+  clearWalletSession, 
+  isSessionValid,
+  updateActiveChain,
+  updateChainConnection 
+} from '@/lib/walletSession';
+import { clearAllSessionAuth } from '@/lib/sessionAuth';
 
 // Types
 export type ChainType = 'evm' | 'solana' | 'tron' | 'sui' | 'ton';
@@ -117,11 +128,31 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   // Tron state (manual - not supported by AppKit)
   const [tronAddress, setTronAddress] = useState<string | null>(null);
   
-  // Common state
-  const [activeChain, setActiveChain] = useState<Chain>(getPrimaryChain());
+  // Common state - restore active chain from session
+  const [activeChain, setActiveChainState] = useState<Chain>(() => {
+    const session = getWalletSession();
+    if (session && isSessionValid() && session.activeChainIndex) {
+      const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === session.activeChainIndex);
+      if (chain) return chain;
+    }
+    return getPrimaryChain();
+  });
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
+  
+  // Wrapper to persist chain changes to session
+  const setActiveChain = useCallback((chain: Chain) => {
+    setActiveChainState(chain);
+    const chainType = !chain.isEvm 
+      ? (chain.name.toLowerCase().includes('solana') ? 'solana'
+        : chain.name.toLowerCase().includes('tron') ? 'tron'
+        : chain.name.toLowerCase().includes('sui') ? 'sui'
+        : chain.name.toLowerCase().includes('ton') ? 'ton'
+        : 'evm')
+      : 'evm';
+    updateActiveChain(chainType as ChainType, chain.chainIndex);
+  }, []);
   
   // Sui wallet hooks  
   const suiCurrentWallet = useCurrentWallet();
@@ -199,7 +230,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
   const isConnected = !!activeAddress;
 
-  // Update connection status based on AppKit
+  // Update connection status and persist to session
   useEffect(() => {
     if (appKitStatus === 'connecting') {
       setConnectionStatus('connecting');
@@ -207,6 +238,9 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     } else if (appKitConnected && appKitAddress) {
       setConnectionStatus('connected');
       setIsConnecting(false);
+      // Persist EVM/Solana connection to session
+      if (evmAddress) updateChainConnection('evm', true);
+      if (solanaAddress) updateChainConnection('solana', true);
     } else {
       // Only set disconnected if we're not connected to any chain
       if (!suiAddress && !tonAddress && !tronAddress) {
@@ -214,7 +248,31 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       }
       setIsConnecting(false);
     }
-  }, [appKitStatus, appKitConnected, appKitAddress, suiAddress, tonAddress, tronAddress]);
+  }, [appKitStatus, appKitConnected, appKitAddress, evmAddress, solanaAddress, suiAddress, tonAddress, tronAddress]);
+
+  // Track Sui connection
+  useEffect(() => {
+    if (suiAddress) {
+      updateChainConnection('sui', true);
+      setConnectionStatus('connected');
+    }
+  }, [suiAddress]);
+
+  // Track TON connection
+  useEffect(() => {
+    if (tonAddress) {
+      updateChainConnection('ton', true);
+      setConnectionStatus('connected');
+    }
+  }, [tonAddress]);
+
+  // Track Tron connection
+  useEffect(() => {
+    if (tronAddress) {
+      updateChainConnection('tron', true);
+      setConnectionStatus('connected');
+    }
+  }, [tronAddress]);
 
   // Check wallet availability
   const isWalletAvailable = useCallback((walletId: string): boolean => {
@@ -437,9 +495,6 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
   // Disconnect all and clear session data
   const disconnect = useCallback(() => {
-    // Get current address before disconnecting for cleanup
-    const currentAddress = activeAddress?.toLowerCase();
-    
     // AppKit (EVM + Solana)
     disconnectAppKit();
 
@@ -457,13 +512,16 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       tonConnectUI.disconnect();
     }
 
+    // Clear session data
+    clearWalletSession();
+    clearAllSessionAuth();
+
     // NOTE: Transaction history is intentionally preserved on disconnect
-    // Users can manually clear history via the "Clear All" button if desired
-    console.log('[MultiWallet] Wallet disconnected - transaction history preserved');
+    console.log('[MultiWallet] Wallet disconnected - session cleared');
 
     setError(null);
     setConnectionStatus('disconnected');
-  }, [disconnectAppKit, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet, activeAddress]);
+  }, [disconnectAppKit, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet]);
 
   // Switch EVM chain via wagmi
   const switchEvmChain = useCallback(async (targetChainId: number) => {
