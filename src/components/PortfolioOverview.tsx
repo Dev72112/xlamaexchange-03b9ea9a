@@ -38,15 +38,14 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Convert global filter to local chain filter for API calls
-  const chainFilter = useMemo(() => {
-    if (globalChainFilter === 'all' || globalChainFilter === 'all-evm') return 'all';
-    return globalChainFilter;
-  }, [globalChainFilter]);
-
-  // Dynamic chain selection based on connected wallet type
-  // OKX connections can query multiple chain types simultaneously
+  // Dynamic chain selection based on connected wallet type and global filter
+  // When a specific chain is selected, only query that chain for faster/accurate results
   const chainIndices = useMemo(() => {
+    // If a specific chain is selected, only query that chain
+    if (globalChainFilter && globalChainFilter !== 'all' && globalChainFilter !== 'all-evm') {
+      return globalChainFilter;
+    }
+    
     // OKX connected: can fetch from all chains the user has addresses for
     if (isOkxConnected) {
       const indexes: string[] = [];
@@ -77,7 +76,7 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
         // First 15 EVM chains for EVM wallets
         return SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex).join(',');
     }
-  }, [activeChainType, isOkxConnected, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
+  }, [globalChainFilter, activeChainType, isOkxConnected, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
 
   // Chain options for the filter - only EVM chains since non-EVM are single-chain
   const evmChains = useMemo(() => getEvmChains(), []);
@@ -138,6 +137,7 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
     }
   }, [activeAddress, chainIndices, saveSnapshot]);
 
+  // Re-fetch when chain filter changes or when connected
   useEffect(() => {
     if (isConnected && activeAddress) {
       fetchPortfolio();
@@ -146,13 +146,18 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
       setAllBalances([]);
       setError(null);
     }
-  }, [isConnected, activeAddress, fetchPortfolio]);
+  }, [isConnected, activeAddress, fetchPortfolio, chainIndices]);
 
-  // Filter balances based on chain filter selection (only applies to EVM wallets)
+  // Filter balances based on chain filter selection
+  // Since we now fetch specifically for the selected chain, this is mostly for UI consistency
   const filteredBalances = useMemo(() => {
-    if (chainFilter === 'all' || activeChainType !== 'evm') return allBalances;
-    return allBalances.filter(b => b.chainIndex === chainFilter);
-  }, [allBalances, chainFilter, activeChainType]);
+    // If fetching for a specific chain, return all (already filtered by API)
+    if (globalChainFilter && globalChainFilter !== 'all' && globalChainFilter !== 'all-evm') {
+      return allBalances;
+    }
+    // For "all" or "all-evm", return all fetched balances
+    return allBalances;
+  }, [allBalances, globalChainFilter]);
 
   // Compute filtered total value
   const filteredTotalValue = useMemo(() => {
@@ -244,7 +249,7 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
       )}
 
       <PortfolioSummaryCard
-        totalValue={chainFilter === 'all' ? totalValue : filteredTotalValue}
+        totalValue={filteredTotalValue > 0 ? filteredTotalValue : totalValue}
         previousValue={previousValue}
         balances={filteredBalances}
         isLoading={isLoading}
@@ -254,7 +259,7 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <PortfolioAllocationChart
           chainBalances={chainBalances}
-          totalValue={chainFilter === 'all' ? totalValue : filteredTotalValue}
+          totalValue={filteredTotalValue > 0 ? filteredTotalValue : totalValue}
         />
         <PortfolioHoldingsTable
           balances={filteredBalances}

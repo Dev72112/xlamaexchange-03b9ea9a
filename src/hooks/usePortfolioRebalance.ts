@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useExchangeMode } from '@/contexts/ExchangeModeContext';
 import { okxDexService, WalletTokenBalance } from '@/services/okxdex';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 import { toast } from 'sonner';
@@ -30,16 +31,62 @@ export interface RebalanceTrade {
 }
 
 export function usePortfolioRebalance() {
-  const { activeAddress, isConnected } = useMultiWallet();
+  const { 
+    activeAddress, 
+    isConnected, 
+    isOkxConnected,
+    evmAddress,
+    solanaAddress,
+    tronAddress,
+    suiAddress,
+    tonAddress,
+    activeChainType
+  } = useMultiWallet();
+  const { globalChainFilter } = useExchangeMode();
+  
   const [isLoading, setIsLoading] = useState(false);
   const [balances, setBalances] = useState<WalletTokenBalance[]>([]);
   const [targetAllocations, setTargetAllocations] = useState<Record<string, number>>({});
   const [rebalanceResult, setRebalanceResult] = useState<RebalanceResult | null>(null);
 
-  const chainIndices = useMemo(() => 
-    SUPPORTED_CHAINS.slice(0, 10).map(c => c.chainIndex).join(','), 
-    []
-  );
+  // Dynamic chain selection based on globalChainFilter and connected wallets
+  const chainIndices = useMemo(() => {
+    // If a specific chain is selected, only query that chain
+    if (globalChainFilter && globalChainFilter !== 'all' && globalChainFilter !== 'all-evm') {
+      return globalChainFilter;
+    }
+    
+    // OKX connected: can fetch from all chains the user has addresses for
+    if (isOkxConnected) {
+      const indexes: string[] = [];
+      // Add EVM chains if EVM address exists
+      if (evmAddress) {
+        indexes.push(...SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex));
+      }
+      // Add non-EVM chain indexes if those addresses exist
+      if (solanaAddress) indexes.push('501');
+      if (tronAddress) indexes.push('195');
+      if (suiAddress) indexes.push('784');
+      if (tonAddress) indexes.push('607');
+      return indexes.join(',');
+    }
+    
+    // Non-OKX: existing logic based on activeChainType
+    switch (activeChainType) {
+      case 'solana':
+        return '501';
+      case 'tron':
+        return '195';
+      case 'sui':
+        return '784';
+      case 'ton':
+        return '607';
+      case 'evm':
+      default:
+        // First 15 EVM chains for EVM wallets
+        return SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex).join(',');
+    }
+  }, [globalChainFilter, isOkxConnected, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress, activeChainType]);
 
   const fetchCurrentPortfolio = useCallback(async () => {
     if (!activeAddress) return [];
