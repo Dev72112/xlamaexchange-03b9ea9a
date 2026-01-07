@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Check, ChevronDown, Loader2, Search, Clock, AlertCircle, AlertTriangle, X, TrendingUp, TrendingDown, BadgeCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { OkxToken, okxDexService, TokenSearchResult } from "@/services/okxdex";
 import { Chain } from "@/data/chains";
 import { useRecentTokens } from "@/hooks/useRecentTokens";
@@ -190,7 +190,7 @@ export function DexTokenSelector({
     return () => clearTimeout(debounce);
   }, [searchQuery, chain, tokens]);
 
-  // Filter tokens - simple flat list without groupings
+  // Filter tokens - simple flat list without groupings (removed limit for virtualization)
   const { filteredTokens, localSearchResults, totalCount } = useMemo(() => {
     // Add native token at the start
     const allTokens = nativeToken ? [nativeToken, ...tokens] : tokens;
@@ -212,11 +212,21 @@ export function DexTokenSelector({
       : [];
 
     return {
-      filteredTokens: filtered.slice(0, 100), // Limit to 100 for performance
+      filteredTokens: filtered, // No limit - virtualization handles performance
       localSearchResults: localFiltered,
       totalCount: total,
     };
   }, [tokens, nativeToken, excludeAddress, searchQuery, searchResults.length]);
+
+  // Virtualized token list ref
+  const parentRef = useRef<HTMLDivElement>(null);
+  
+  const virtualizer = useVirtualizer({
+    count: filteredTokens.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56, // Height of each token row
+    overscan: 5,
+  });
 
   // Filter recent tokens to only show valid ones
   const validRecentTokens = useMemo(() => {
@@ -490,7 +500,7 @@ export function DexTokenSelector({
           <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-md">{totalCount}</span>
         </div>
 
-        <ScrollArea className="h-[350px]">
+        <div className="h-[350px] overflow-auto" ref={parentRef}>
           <div className="p-2">
             {isLoading ? (
               <div className="py-8 text-center">
@@ -557,7 +567,7 @@ export function DexTokenSelector({
                 ) : null}
               </div>
             ) : (
-              // Default view - Recent + All tokens
+              // Default view - Recent + Virtualized all tokens
               <div className="space-y-4">
                 {/* Recent tokens */}
                 {validRecentTokens.length > 0 && (
@@ -581,17 +591,42 @@ export function DexTokenSelector({
                   </div>
                 )}
 
-                {/* All tokens - flat list */}
+                {/* All tokens - virtualized for performance */}
                 <div className="space-y-1">
                   <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
                     All Tokens ({filteredTokens.length})
                   </div>
-                  {filteredTokens.map((t, i) => renderTokenItem(t, false, `token-${i}-`))}
+                  <div
+                    style={{
+                      height: `${virtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {virtualizer.getVirtualItems().map((virtualRow) => {
+                      const token = filteredTokens[virtualRow.index];
+                      return (
+                        <div
+                          key={token.tokenContractAddress}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: `${virtualRow.size}px`,
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
+                        >
+                          {renderTokenItem(token, false, `virt-${virtualRow.index}-`)}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
 
       {/* Custom Token Confirmation Dialog */}

@@ -433,3 +433,77 @@ body {
     transform: scale(1);
   }
 }
+
+/* === Performance & UX Micro-interactions === */
+
+/* Button hover/press animations */
+.btn-interactive {
+  @apply transition-all duration-150;
+}
+.btn-interactive:hover {
+  transform: scale(1.02);
+}
+.btn-interactive:active {
+  transform: scale(0.98);
+}
+
+/* Ripple effect container */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Slippage warning color classes */
+.slippage-safe {
+  color: hsl(var(--success));
+}
+.slippage-warning {
+  color: hsl(var(--warning));
+}
+.slippage-danger {
+  color: hsl(var(--destructive));
+}
+
+/* Chain switch animation */
+.chain-switch-enter {
+  animation: chainFadeSlide 0.2s ease-out forwards;
+}
+
+@keyframes chainFadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Quote loading skeleton with shimmer */
+.quote-skeleton {
+  @apply skeleton-shimmer rounded-md;
+  height: 1.25rem;
+  width: 80%;
+}
+
+/* Mobile connect bar slide-up */
+.mobile-connect-bar {
+  animation: slideUpFade 0.3s ease-out forwards;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Safe area inset for mobile bottom bar */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
