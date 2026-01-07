@@ -1,4 +1,4 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UnifiedChainSelector, ChainFilterValue } from '@/components/ui/UnifiedChainSelector';
+import { useExchangeMode } from '@/contexts/ExchangeModeContext';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -208,9 +209,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const Analytics = () => {
   const { isConnected } = useMultiWallet();
+  const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('30d');
-  const [chainFilter, setChainFilter] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Use global chain filter for analytics
+  const chainFilter = globalChainFilter === 'all-evm' ? 'all' : globalChainFilter;
   
   const analytics = useTradeAnalytics(chainFilter);
   const tradeVsHodl = useTradeVsHodl();
@@ -317,60 +321,13 @@ const Analytics = () => {
 
           {/* Filters Row */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            {/* Chain Filter */}
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-muted-foreground" />
-              <Select value={chainFilter} onValueChange={setChainFilter}>
-                <SelectTrigger className="w-[200px] h-9">
-                  <SelectValue placeholder="All Chains" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[400px]">
-                  <SelectItem value="all">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-gradient-to-r from-primary to-chart-2" />
-                      All Chains ({SUPPORTED_CHAINS.length})
-                    </div>
-                  </SelectItem>
-                  
-                  {/* EVM Chains */}
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1">
-                    EVM Chains ({evmChains.length})
-                  </div>
-                  {evmChains.map((chain) => (
-                    <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
-                      <div className="flex items-center gap-2">
-                        <img 
-                          src={getChainIcon(chain)} 
-                          alt={chain.name}
-                          className="w-4 h-4 rounded-full"
-                        />
-                        {chain.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                  
-                  {/* Non-EVM Chains */}
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1">
-                    Non-EVM Chains ({nonEvmChains.length})
-                  </div>
-                  {nonEvmChains.map((chain) => (
-                    <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
-                      <div className="flex items-center gap-2">
-                        <img 
-                          src={getChainIcon(chain)} 
-                          alt={chain.name}
-                          className="w-4 h-4 rounded-full"
-                        />
-                        {chain.name}
-                        <Badge variant="outline" className="text-[9px] py-0 px-1 ml-auto">
-                          {chain.shortName}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Chain Filter - Unified Selector */}
+            <UnifiedChainSelector
+              value={globalChainFilter}
+              onChange={(value) => setGlobalChainFilter(value)}
+              showAllOption={true}
+              showEvmOnlyOption={true}
+            />
 
             {/* Time Period */}
             <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>

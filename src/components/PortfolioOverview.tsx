@@ -1,26 +1,18 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, Layers, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useExchangeMode } from '@/contexts/ExchangeModeContext';
 import { okxDexService, WalletTokenBalance } from '@/services/okxdex';
-import { SUPPORTED_CHAINS, Chain, getEvmChains, getChainIcon } from '@/data/chains';
+import { SUPPORTED_CHAINS, Chain, getEvmChains } from '@/data/chains';
 import { cn } from '@/lib/utils';
 import { PortfolioSummaryCard } from './portfolio/PortfolioSummaryCard';
 import { PortfolioAllocationChart } from './portfolio/PortfolioAllocationChart';
 import { PortfolioHoldingsTable } from './portfolio/PortfolioHoldingsTable';
 import { usePortfolioPnL } from '@/hooks/usePortfolioPnL';
 import { toast } from 'sonner';
-import { ChainImage } from './ui/token-image';
+import { UnifiedChainSelector, ChainFilterValue } from './ui/UnifiedChainSelector';
 
 interface PortfolioOverviewProps {
   className?: string;
@@ -28,13 +20,19 @@ interface PortfolioOverviewProps {
 
 export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   const { isConnected, activeAddress, activeChainType } = useMultiWallet();
+  const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const { saveSnapshot, getPnLMetrics } = usePortfolioPnL();
   const [totalValue, setTotalValue] = useState<number>(0);
   const [allBalances, setAllBalances] = useState<WalletTokenBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
-  const [chainFilter, setChainFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
+
+  // Convert global filter to local chain filter for API calls
+  const chainFilter = useMemo(() => {
+    if (globalChainFilter === 'all' || globalChainFilter === 'all-evm') return 'all';
+    return globalChainFilter;
+  }, [globalChainFilter]);
 
   // Dynamic chain selection based on connected wallet type
   // Each address type can only query its matching chain type
@@ -179,37 +177,15 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
           )}
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* Chain Filter - only show for EVM wallets with multiple chains */}
-          {activeChainType === 'evm' && (
-            <div className="flex items-center gap-2 flex-1 sm:flex-none">
-              <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
-              <Select value={chainFilter} onValueChange={setChainFilter}>
-                <SelectTrigger className="w-full sm:w-[180px] h-9">
-                  <SelectValue placeholder="All Chains" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <SelectItem value="all">All EVM Chains</SelectItem>
-                  
-                  <SelectGroup>
-                    <SelectLabel>Individual Chains</SelectLabel>
-                    {evmChains.slice(0, 10).map((chain) => (
-                      <SelectItem key={chain.chainIndex} value={chain.chainIndex}>
-                        <div className="flex items-center gap-2">
-                          <ChainImage
-                            src={getChainIcon(chain)}
-                            alt={chain.name}
-                            fallbackText={chain.shortName}
-                            className="w-4 h-4"
-                          />
-                          <span>{chain.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          {/* Chain Filter - show unified selector for all wallet types */}
+          <UnifiedChainSelector
+            value={globalChainFilter}
+            onChange={(value) => setGlobalChainFilter(value)}
+            showAllOption={true}
+            showEvmOnlyOption={activeChainType === 'evm'}
+            compact={true}
+            triggerClassName="h-9"
+          />
 
           {lastFetched && (
             <span className="text-xs text-muted-foreground hidden sm:inline">
