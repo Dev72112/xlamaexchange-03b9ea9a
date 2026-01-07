@@ -30,6 +30,49 @@ export function isInWalletBrowser(): boolean {
   );
 }
 
+// Check if running inside OKX app browser specifically
+export function isInOkxBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!(window.okxwallet || (window.ethereum && (window.ethereum as any).isOKXWallet));
+}
+
+// Check if OKX wallet extension is available (desktop)
+export function isOkxExtensionAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!(window.okxwallet || (window.ethereum && (window.ethereum as any).isOKXWallet));
+}
+
+// Smart routing: determine best connection method
+export type ConnectionMethod = 'okx-extension' | 'okx-deeplink' | 'okx-universal' | 'reown';
+
+export function getRecommendedConnectionMethod(): ConnectionMethod {
+  // If in OKX browser, use extension directly
+  if (isInOkxBrowser()) return 'okx-extension';
+  
+  // If OKX extension available on desktop, use it
+  if (isOkxExtensionAvailable() && !isMobileBrowser()) return 'okx-extension';
+  
+  // Mobile external browser: use deep link to OKX app
+  if (isMobileBrowser() && !isInWalletBrowser()) return 'okx-deeplink';
+  
+  // Desktop without OKX: use Universal Provider (QR code)
+  if (!isMobileBrowser()) return 'okx-universal';
+  
+  // Fallback to Reown
+  return 'reown';
+}
+
+// Open OKX app via deep link
+export function openOkxDeeplink(): void {
+  const dappUrl = encodeURIComponent(window.location.href);
+  const deeplink = `okx://wallet/dapp/url?dappUrl=${dappUrl}`;
+  const universalLink = `https://www.okx.com/download?deeplink=${encodeURIComponent(deeplink)}`;
+  
+  // Try deep link first, fall back to universal
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  window.location.href = isIOS ? universalLink : deeplink;
+}
+
 // Check if a specific EVM wallet is available
 export function isEvmWalletAvailable(walletId: string): boolean {
   if (typeof window === 'undefined') return false;

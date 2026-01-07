@@ -15,16 +15,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useMultiWallet, ChainType } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
-import { isMobileBrowser, isInWalletBrowser } from '@/lib/wallet-deeplinks';
+import { isMobileBrowser, isInWalletBrowser, getRecommendedConnectionMethod } from '@/lib/wallet-deeplinks';
 import { TonWalletPicker } from './TonWalletPicker';
 
 // Import wallet logos
 import suiWalletLogo from '@/assets/wallets/sui-wallet-logo.png';
 import tonkeeperLogo from '@/assets/wallets/tonkeeper-logo.jpeg';
+import okxWalletLogo from '@/assets/wallets/okx-wallet-logo.png';
 
 interface WalletOption {
   id: string;
@@ -72,11 +72,13 @@ export function MultiWalletButton() {
   const {
     activeChainType,
     activeAddress,
-    isConnected,
     hasAnyConnection,
     anyConnectedAddress,
     isConnecting,
     activeChain,
+    isOkxConnected,
+    isOkxAvailable,
+    connectOkx,
     openConnectModal,
     connectTron,
     connectSui,
@@ -87,20 +89,47 @@ export function MultiWalletButton() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTonPickerOpen, setIsTonPickerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<ChainType>('sui');
   const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
   const { toast } = useToast();
 
   const isMobile = isMobileBrowser();
+  const recommendedMethod = getRecommendedConnectionMethod();
 
   const truncateAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  // For EVM/Solana - use AppKit modal
-  const handleAppKitConnect = useCallback(() => {
-    openConnectModal();
-  }, [openConnectModal]);
+  // Primary: Connect OKX Wallet
+  const handleOkxConnect = useCallback(async () => {
+    setConnectingWallet('okx');
+    try {
+      const connected = await connectOkx();
+      if (connected) {
+        toast({
+          title: 'OKX Wallet Connected',
+          description: 'Multi-chain wallet ready for seamless swaps.',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Connection Failed',
+        description: error.message || 'Failed to connect OKX Wallet',
+        variant: 'destructive',
+      });
+    } finally {
+      setConnectingWallet(null);
+    }
+  }, [connectOkx, toast]);
+
+  // Fallback: Other wallets via AppKit or native
+  const handleOtherWallets = useCallback(() => {
+    const isNativeChain = ['sui', 'tron', 'ton'].includes(activeChainType);
+    if (isNativeChain) {
+      setIsDialogOpen(true);
+    } else {
+      openConnectModal();
+    }
+  }, [activeChainType, openConnectModal]);
 
   // For Sui/Tron/TON - use native dialogs
   const handleNativeConnect = useCallback(async (wallet: WalletOption) => {
@@ -192,7 +221,7 @@ export function MultiWalletButton() {
   // Use the display address - prefer active, fall back to any connected
   const displayAddress = activeAddress || anyConnectedAddress;
 
-  // Connected state - show dropdown (use hasAnyConnection to show connected even if chain mismatch)
+  // Connected state - show dropdown
   if (hasAnyConnection && displayAddress) {
     return (
       <DropdownMenu>
@@ -211,6 +240,11 @@ export function MultiWalletButton() {
               <span className="sm:hidden">
                 <Wallet className="w-4 h-4" />
               </span>
+              {isOkxConnected && (
+                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-green-500/50 text-green-500">
+                  OKX
+                </Badge>
+              )}
             </div>
             <ChevronDown className="w-3 h-3" />
           </Button>
@@ -240,27 +274,42 @@ export function MultiWalletButton() {
     );
   }
 
-  // Unified wallet connection - AppKit handles EVM + Solana in one modal
-  // For native chains (Sui/Tron/TON), show our picker
-  const isNativeChain = ['sui', 'tron', 'ton'].includes(activeChainType);
   const filteredWallets = nativeWalletOptions.filter(w => w.chainType === activeChainType);
-
-  // Single connect button - opens AppKit for EVM/Solana, dialog for native chains
-  const handleConnect = () => {
-    if (isNativeChain) {
-      setIsDialogOpen(true);
-    } else {
-      // AppKit shows all EVM + Solana wallets in one unified modal
-      handleAppKitConnect();
-    }
-  };
+  const isConnectingAny = isConnecting || connectingWallet !== null;
 
   return (
     <>
-      <Button onClick={handleConnect} disabled={isConnecting} className="gap-2">
-        <Wallet className="w-4 h-4" />
-        <span className="hidden sm:inline">{isConnecting ? 'Connecting...' : 'Connect Wallet'}</span>
-      </Button>
+      {/* Primary: OKX Connect Button */}
+      <div className="flex items-center gap-2">
+        <Button 
+          onClick={handleOkxConnect} 
+          disabled={isConnectingAny}
+          className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+        >
+          {connectingWallet === 'okx' ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <img src={okxWalletLogo} alt="OKX" className="w-4 h-4 rounded" onError={(e) => handleIconError(e, 'OKX')} />
+          )}
+          <span className="hidden sm:inline">
+            {connectingWallet === 'okx' ? 'Connecting...' : 'Connect OKX'}
+          </span>
+          <span className="sm:hidden">
+            <Wallet className="w-4 h-4" />
+          </span>
+        </Button>
+        
+        {/* Secondary: Other Wallets */}
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={handleOtherWallets}
+          disabled={isConnectingAny}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Other
+        </Button>
+      </div>
 
       {/* Native wallet picker for Sui/Tron/TON */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -14,6 +14,10 @@ import { getFullnodeUrl } from '@mysten/sui/client';
 // TON
 import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } from '@tonconnect/ui-react';
 
+// OKX Universal Provider
+import { useOkxWallet } from '@/hooks/useOkxWallet';
+import { switchOkxChain, isOkxExtensionAvailable, isInOkxBrowser } from '@/lib/okxProvider';
+
 // Utilities
 import { 
   isMobileBrowser, 
@@ -21,7 +25,8 @@ import {
   isEvmWalletAvailable, 
   isSolanaWalletAvailable,
   isTronWalletAvailable,
-  openWalletDeeplink 
+  openWalletDeeplink,
+  getRecommendedConnectionMethod,
 } from '@/lib/wallet-deeplinks';
 
 // Session management
@@ -60,6 +65,10 @@ interface MultiWalletContextType {
   evmChain: Chain | null;
   evmWalletType: WalletType;
   
+  // OKX-specific
+  isOkxConnected: boolean;
+  isOkxAvailable: boolean;
+  
   // Connection status
   isConnecting: boolean;
   connectionStatus: ConnectionStatus;
@@ -68,13 +77,15 @@ interface MultiWalletContextType {
   // Wallet availability
   isWalletAvailable: (walletId: string) => boolean;
   
-  // Methods - AppKit handles EVM/Solana
+  // Methods - OKX is primary, AppKit handles fallback EVM/Solana
+  connectOkx: () => Promise<boolean>;
   openConnectModal: () => void;
   connectTron: (preferredWallet?: 'tronlink') => Promise<boolean>;
   connectSui: (preferredWallet?: string) => Promise<boolean>;
   connectTon: () => Promise<boolean>;
   disconnect: () => void;
   switchEvmChain: (chainId: number) => Promise<void>;
+  switchChainByIndex: (chainIndex: string) => Promise<boolean>;
   
   // Deep-link for mobile
   openInWallet: (walletId: string) => void;
@@ -118,7 +129,10 @@ interface MultiWalletProviderProps {
 
 // Inner provider that has access to all wallet hooks
 function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
-  // AppKit hooks for EVM + Solana
+  // OKX Universal Provider (primary wallet connection)
+  const okxWallet = useOkxWallet();
+  
+  // AppKit hooks for EVM + Solana (fallback)
   const { open: openAppKit } = useAppKit();
   const { address: appKitAddress, caipAddress, isConnected: appKitConnected, status: appKitStatus } = useAppKitAccount();
   const { caipNetwork, chainId: appKitChainId } = useAppKitNetwork();
@@ -127,8 +141,11 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   // Solana-specific from AppKit
   const { connection: solanaConnection } = useAppKitConnection();
   
-  // Tron state (manual - not supported by AppKit)
-  const [tronAddress, setTronAddress] = useState<string | null>(null);
+  // Tron state (manual - not supported by AppKit or when OKX doesn't have Tron)
+  const [tronAddressManual, setTronAddressManual] = useState<string | null>(null);
+  
+  // Derive addresses - prioritize OKX, fallback to AppKit/manual
+  const tronAddress = okxWallet.tronAddress || tronAddressManual;
   
   // Common state - restore active chain from session
   const [activeChain, setActiveChainState] = useState<Chain>(() => {
@@ -172,25 +189,35 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const tonAddressRaw = useTonAddress();
   const tonAddress = tonAddressRaw || null;
 
-  // Derive addresses from AppKit's caipAddress
+  // Derive addresses - prioritize OKX session, fallback to AppKit
   const evmAddress = useMemo(() => {
+    // OKX has priority
+    if (okxWallet.evmAddress) return okxWallet.evmAddress;
+    
+    // Fallback to AppKit
     if (!caipAddress) return null;
-    // caipAddress format: "eip155:1:0x..."
     if (caipAddress.startsWith('eip155:')) {
       return caipAddress.split(':')[2] || null;
     }
     return null;
-  }, [caipAddress]);
+  }, [okxWallet.evmAddress, caipAddress]);
 
   const solanaAddress = useMemo(() => {
+    // OKX has priority
+    if (okxWallet.solanaAddress) return okxWallet.solanaAddress;
+    
+    // Fallback to AppKit
     if (!caipAddress) return null;
-    // caipAddress format: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:..."
     if (caipAddress.startsWith('solana:')) {
       const parts = caipAddress.split(':');
       return parts[2] || null;
     }
     return null;
-  }, [caipAddress]);
+  }, [okxWallet.solanaAddress, caipAddress]);
+  
+  // Sui and TON from OKX or native SDKs
+  const suiAddressFinal = okxWallet.suiAddress || suiAddress;
+  const tonAddressFinal = okxWallet.tonAddress || tonAddress;
 
   // Get EVM chain ID from AppKit
   const evmChainId = useMemo(() => {
@@ -426,7 +453,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
         if (res.code === 200) {
           const address = window.tronLink.tronWeb?.defaultAddress?.base58;
           if (address) {
-            setTronAddress(address);
+            setTronAddressManual(address);
             setConnectionStatus('connected');
             localStorage.setItem('tronWalletConnected', 'true');
             return true;
@@ -439,7 +466,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       }
       
       if (window.tronWeb?.defaultAddress?.base58) {
-        setTronAddress(window.tronWeb.defaultAddress.base58);
+        setTronAddressManual(window.tronWeb.defaultAddress.base58);
         setConnectionStatus('connected');
         localStorage.setItem('tronWalletConnected', 'true');
         return true;
@@ -548,8 +575,13 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     disconnectAppKit();
 
     // Tron
-    setTronAddress(null);
+    setTronAddressManual(null);
     localStorage.removeItem('tronWalletConnected');
+    
+    // OKX
+    if (okxWallet.isConnected) {
+      okxWallet.disconnect();
+    }
 
     // Sui
     if (suiCurrentWallet.isConnected) {
@@ -581,16 +613,45 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   useEffect(() => {
     const wasConnected = localStorage.getItem('tronWalletConnected') === 'true';
     if (wasConnected && window.tronWeb?.defaultAddress?.base58) {
-      setTronAddress(window.tronWeb.defaultAddress.base58);
+      setTronAddressManual(window.tronWeb.defaultAddress.base58);
     }
   }, []);
+  
+  // Connect OKX (primary method)
+  const connectOkx = useCallback(async (): Promise<boolean> => {
+    return okxWallet.connect();
+  }, [okxWallet]);
+  
+  // Switch chain by index (uses OKX if connected, else wagmi)
+  const switchChainByIndex = useCallback(async (chainIndex: string): Promise<boolean> => {
+    const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
+    if (!chain) return false;
+    
+    // If OKX connected, use OKX's seamless chain switching
+    if (okxWallet.isConnected && okxWallet.provider) {
+      return okxWallet.switchChain(chainIndex);
+    }
+    
+    // For EVM, fallback to wagmi
+    if (chain.isEvm && chain.chainId) {
+      try {
+        await switchEvmChain(chain.chainId);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    
+    // Non-EVM without OKX - just update context
+    return true;
+  }, [okxWallet, switchEvmChain]);
 
   const value: MultiWalletContextType = {
     evmAddress,
     solanaAddress,
     tronAddress,
-    suiAddress,
-    tonAddress,
+    suiAddress: suiAddressFinal,
+    tonAddress: tonAddressFinal,
     activeChainType,
     activeAddress,
     isConnected,
@@ -599,16 +660,20 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     evmChainId,
     evmChain,
     evmWalletType,
-    isConnecting,
+    isOkxConnected: okxWallet.isConnected,
+    isOkxAvailable: okxWallet.isOkxAvailable,
+    isConnecting: isConnecting || okxWallet.isConnecting,
     connectionStatus,
     error,
     isWalletAvailable,
+    connectOkx,
     openConnectModal,
     connectTron,
     connectSui,
     connectTon,
     disconnect,
     switchEvmChain,
+    switchChainByIndex,
     openInWallet,
     getEvmProvider,
     getSolanaConnection,
