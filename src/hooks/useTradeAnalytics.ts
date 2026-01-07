@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useDexTransactions, DexTransaction } from '@/contexts/DexTransactionContext';
 import { useTransactionHistory, TransactionRecord } from './useTransactionHistory';
+import { useBridgeTransactions, BridgeTransaction } from '@/contexts/BridgeTransactionContext';
 import { usePriceOracleOptional } from '@/contexts/PriceOracleContext';
 
 // Helper to parse USD values that might be stored as strings like "$1,234.56" or numbers
@@ -113,11 +114,13 @@ export interface TradeAnalytics {
   // Source breakdown
   dexTradesCount: number;
   instantTradesCount: number;
+  bridgeTradesCount: number;
 }
 
 export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
   const { transactions: dexTransactions } = useDexTransactions();
   const { transactions: instantTransactions } = useTransactionHistory();
+  const { transactions: bridgeTransactions } = useBridgeTransactions();
   const priceOracle = usePriceOracleOptional();
   
   // Create getTxUsdValue with oracle fallback
@@ -135,11 +138,20 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
     // For instant swaps, we don't have chain info, so only include if filter is 'all' or not set
     const instantSwaps = (!chainFilter || chainFilter === 'all') ? instantTransactions : [];
     
+    // Include completed bridge transactions
+    const completedBridges = (!chainFilter || chainFilter === 'all') 
+      ? bridgeTransactions.filter(tx => tx.status === 'completed')
+      : [];
+    
     const allSwaps = [...dexSwaps, ...instantSwaps];
 
-    const totalTrades = allSwaps.length;
+    const totalTrades = allSwaps.length + completedBridges.length;
     const dexTradesCount = dexSwaps.length;
     const instantTradesCount = instantSwaps.length;
+    const bridgeTradesCount = completedBridges.length;
+    
+    // Calculate bridge volume
+    const bridgeVolumeUsd = completedBridges.reduce((sum, tx) => sum + (tx.fromAmountUsd || 0), 0);
 
     // Calculate success/fail/pending rates
     const successfulDexSwaps = dexSwaps.filter(tx => tx.status === 'confirmed').length;
@@ -159,7 +171,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       : 100;
 
     // Calculate total volume in USD using getTxUsdValue with fallback
-    let totalVolumeUsd = 0;
+    let totalVolumeUsd = bridgeVolumeUsd;
     allSwaps.forEach(tx => {
       totalVolumeUsd += getTxUsdValue(tx);
     });
@@ -366,8 +378,9 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       weekOverWeekChange,
       dexTradesCount,
       instantTradesCount,
+      bridgeTradesCount,
     };
-  }, [dexTransactions, instantTransactions, chainFilter, getTxUsdValue]);
+  }, [dexTransactions, instantTransactions, bridgeTransactions, chainFilter, getTxUsdValue]);
 
   return analytics;
 }

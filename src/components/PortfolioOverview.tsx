@@ -99,22 +99,70 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
     setError(null);
     
     try {
-      // Fetch portfolio value and balances in parallel
-      const [valueResult, balancesResult] = await Promise.all([
-        okxDexService.getPortfolioValue(activeAddress, chainIndices),
-        okxDexService.getWalletBalances(activeAddress, chainIndices),
-      ]);
+      let allBalances: WalletTokenBalance[] = [];
+      let computedTotal = 0;
+      
+      // For OKX with multi-chain, fetch from each chain type with its correct address
+      if (isOkxConnected) {
+        const fetches: Promise<WalletTokenBalance[]>[] = [];
+        
+        // Add EVM chains fetch if EVM address exists
+        if (evmAddress) {
+          const evmChains = SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex).join(',');
+          // If filtering to a specific EVM chain, only fetch that one
+          if (globalChainFilter && globalChainFilter !== 'all' && globalChainFilter !== 'all-evm') {
+            const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === globalChainFilter);
+            if (chain?.isEvm) {
+              fetches.push(okxDexService.getWalletBalances(evmAddress, globalChainFilter));
+            }
+          } else {
+            fetches.push(okxDexService.getWalletBalances(evmAddress, evmChains));
+          }
+        }
+        
+        // Add non-EVM chain fetches only if not filtering to a specific EVM chain
+        const isEvmChainFilter = globalChainFilter && 
+          globalChainFilter !== 'all' && 
+          globalChainFilter !== 'all-evm' && 
+          SUPPORTED_CHAINS.find(c => c.chainIndex === globalChainFilter)?.isEvm;
+        
+        if (!isEvmChainFilter) {
+          if (solanaAddress && (!globalChainFilter || globalChainFilter === 'all' || globalChainFilter === '501')) {
+            fetches.push(okxDexService.getWalletBalances(solanaAddress, '501'));
+          }
+          if (tronAddress && (!globalChainFilter || globalChainFilter === 'all' || globalChainFilter === '195')) {
+            fetches.push(okxDexService.getWalletBalances(tronAddress, '195'));
+          }
+          if (suiAddress && (!globalChainFilter || globalChainFilter === 'all' || globalChainFilter === '784')) {
+            fetches.push(okxDexService.getWalletBalances(suiAddress, '784'));
+          }
+          if (tonAddress && (!globalChainFilter || globalChainFilter === 'all' || globalChainFilter === '607')) {
+            fetches.push(okxDexService.getWalletBalances(tonAddress, '607'));
+          }
+        }
+        
+        const results = await Promise.all(fetches);
+        allBalances = results.flat();
+      } else {
+        // Single address mode - use existing logic
+        const [valueResult, balancesResult] = await Promise.all([
+          okxDexService.getPortfolioValue(activeAddress, chainIndices),
+          okxDexService.getWalletBalances(activeAddress, chainIndices),
+        ]);
+        
+        allBalances = balancesResult;
+        
+        if (valueResult?.totalValue && parseFloat(valueResult.totalValue) > 0) {
+          computedTotal = parseFloat(valueResult.totalValue);
+        }
+      }
 
       // Store all balances
-      setAllBalances(balancesResult);
+      setAllBalances(allBalances);
 
-      // Use API total, or compute fallback from balances
-      let computedTotal = 0;
-      if (valueResult?.totalValue && parseFloat(valueResult.totalValue) > 0) {
-        computedTotal = parseFloat(valueResult.totalValue);
-      } else {
-        // Fallback: compute total from individual token balances
-        computedTotal = balancesResult.reduce((sum, b) => {
+      // Compute total from individual token balances if not already set
+      if (computedTotal === 0) {
+        computedTotal = allBalances.reduce((sum, b) => {
           const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
           return sum + value;
         }, 0);
@@ -135,7 +183,7 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress, chainIndices, saveSnapshot]);
+  }, [activeAddress, chainIndices, saveSnapshot, isOkxConnected, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress, globalChainFilter]);
 
   // Re-fetch when chain filter changes or when connected
   useEffect(() => {
