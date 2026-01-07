@@ -3,8 +3,11 @@
  * Manages wallet connections, session auth, and chain management
  */
 
-// Components (to be migrated)
+// Components
 export * from './components';
+
+// Hooks
+export { useOkxWallet, useTonProof } from './hooks';
 
 // Types (explicit exports to avoid conflicts)
 export type { ChainType, ConnectionStatus, WalletInfo, ChainInfo, ConnectedWallet } from './types';

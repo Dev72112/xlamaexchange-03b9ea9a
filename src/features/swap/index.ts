@@ -20,6 +20,19 @@ export {
   NonEvmChainInfo,
 } from './components';
 
+// Hooks
+export {
+  useDexQuote,
+  useDexSwap,
+  useDexTokens,
+  useTokenBalance,
+  useTokenPrices,
+  useRecentTokens,
+  useCustomTokens,
+  useAutoSlippage,
+} from './hooks';
+export type { SwapStep } from './hooks';
+
 // Types
 export type { SwapQuote, SwapParams, SwapToken, SwapRoute, SwapResult } from './types';
 

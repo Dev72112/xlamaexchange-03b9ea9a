@@ -6,6 +6,17 @@
 // Components
 export * from './components';
 
+// Hooks
+export {
+  useLiFiQuote,
+  useLiFiRoutes,
+  useLiFiSwapExecution,
+  useCrossChainQuote,
+  useCrossChainSwapExecution,
+  useBridgeSettings,
+  useBridgeStatusPolling,
+} from './hooks';
+
 // Types
 export type { 
   BridgeQuote,
