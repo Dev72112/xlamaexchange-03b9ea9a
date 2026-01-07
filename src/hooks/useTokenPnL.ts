@@ -1,7 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
-import { useDexTransactions, DexTransaction } from '@/contexts/DexTransactionContext';
-import { useTransactionHistory, TransactionRecord } from '@/hooks/useTransactionHistory';
-import { useBridgeTransactions, BridgeTransaction } from '@/contexts/BridgeTransactionContext';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { okxDexService } from '@/services/okxdex';
 
 export interface TokenPnLData {
@@ -47,16 +45,18 @@ interface UnifiedTrade {
 
 export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
   const { transactions: dexTransactions } = useDexTransactions();
-  const { transactions: instantTransactions } = useTransactionHistory();
-  const { transactions: bridgeTransactions } = useBridgeTransactions();
   const [prices, setPrices] = useState<Map<string, number>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
+  const pricesFetchedRef = useRef(false);
 
   // Unify all trades into a common format
+  // NOTE: Only DEX swaps generate true P&L - Bridge and Instant are asset transfers/conversions
   const unifiedTrades = useMemo((): UnifiedTrade[] => {
     const trades: UnifiedTrade[] = [];
     
-    // DEX transactions
+    // Only DEX transactions contribute to actual P&L
+    // Bridge = same asset, different chain (no P&L)
+    // Instant = exchange at market rate (P&L is realized immediately, hard to track)
     dexTransactions
       .filter(tx => tx.type === 'swap' && tx.status === 'confirmed')
       .filter(tx => !chainFilter || chainFilter === 'all' || tx.chainId === chainFilter)
@@ -76,48 +76,8 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
         });
       });
     
-    // Instant transactions (only when filter is 'all' - no chain info)
-    if (!chainFilter || chainFilter === 'all') {
-      instantTransactions
-        .filter(tx => tx.status === 'completed')
-        .forEach(tx => {
-          trades.push({
-            chainIndex: 'instant', // No specific chain
-            fromSymbol: tx.fromTicker,
-            fromAddress: '',
-            fromAmount: parseFloat(tx.fromAmount) || 0,
-            fromAmountUsd: tx.fromAmountUsd || 0,
-            toSymbol: tx.toTicker,
-            toAddress: '',
-            toAmount: parseFloat(tx.toAmount || '0') || 0,
-            toAmountUsd: tx.toAmountUsd || 0,
-            timestamp: tx.createdAt,
-            type: 'instant',
-          });
-        });
-      
-      // Bridge transactions
-      bridgeTransactions
-        .filter(tx => tx.status === 'completed')
-        .forEach(tx => {
-          trades.push({
-            chainIndex: tx.toChain.chainId.toString(), // Destination chain
-            fromSymbol: tx.fromToken.symbol,
-            fromAddress: tx.fromToken.address || '',
-            fromAmount: parseFloat(tx.fromAmount) || 0,
-            fromAmountUsd: tx.fromAmountUsd || 0,
-            toSymbol: tx.toToken.symbol,
-            toAddress: tx.toToken.address || '',
-            toAmount: parseFloat(tx.toAmount || '0') || 0,
-            toAmountUsd: tx.toAmountUsd || 0,
-            timestamp: tx.startTime,
-            type: 'bridge',
-          });
-        });
-    }
-    
     return trades;
-  }, [dexTransactions, instantTransactions, bridgeTransactions, chainFilter]);
+  }, [dexTransactions, chainFilter]);
 
   // Extract unique tokens that need price updates
   const uniqueTokens = useMemo(() => {
@@ -140,9 +100,13 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
     return Array.from(tokens.values());
   }, [unifiedTrades]);
 
-  // Fetch current prices for tokens
+  // Fetch current prices for tokens - only once per unique token set
   useEffect(() => {
     if (uniqueTokens.length === 0) return;
+    
+    // Create stable key to prevent re-fetching
+    const tokenKey = uniqueTokens.map(t => `${t.chainIndex}-${t.address}`).sort().join(',');
+    if (pricesFetchedRef.current) return;
 
     const fetchPrices = async () => {
       setIsLoading(true);
@@ -172,10 +136,11 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
           }
           
           // Small delay between requests
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 150));
         }
       }
 
+      pricesFetchedRef.current = true;
       setPrices(newPrices);
       setIsLoading(false);
     };
