@@ -9,20 +9,17 @@
  */
 
 // Components (to be migrated)
-// export { MultiWalletButton } from './components/MultiWalletButton';
-// export { ChainSelector } from './components/ChainSelector';
-// export { WalletPicker } from './components/WalletPicker';
-
-// Hooks (to be migrated)
-// export { useMultiWallet } from './hooks/useMultiWallet';
-// export { useOkxWallet } from './hooks/useOkxWallet';
-
-// Lib (to be migrated)
-// export { saveWalletSession, getWalletSession } from './lib/session';
-// export { getDeepLink } from './lib/deeplinks';
+// export { MultiWalletButton, ChainSelector, WalletPicker } from './components';
 
 // Types
-export type { WalletSession, ChainType, ConnectionStatus } from './types';
+export type { 
+  WalletSession, 
+  ChainType, 
+  ConnectionStatus,
+  WalletInfo,
+  ChainInfo,
+  ConnectedWallet,
+} from './types';
 
-// Placeholder exports until migration is complete
+// Feature version
 export const WALLET_FEATURE_VERSION = '1.0.0';

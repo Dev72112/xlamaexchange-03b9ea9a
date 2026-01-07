@@ -8,16 +8,10 @@
  */
 
 // Components (to be migrated)
-// export { BridgeWidget } from './components/BridgeWidget';
-// export { RouteComparison } from './components/RouteComparison';
-// export { BridgeProgress } from './components/BridgeProgress';
-
-// Hooks (to be migrated)
-// export { useBridgeQuote } from './hooks/useQuote';
-// export { useBridgeExecution } from './hooks/useExecution';
+// export { BridgeWidget, RouteCard, BridgeProgress } from './components';
 
 // Types
-export type { BridgeQuote, BridgeParams, BridgeRoute } from './types';
+export type { BridgeQuote, BridgeParams, BridgeRoute, BridgeToken, BridgeStep, BridgeResult } from './types';
 
-// Placeholder exports until migration is complete
+// Feature version
 export const BRIDGE_FEATURE_VERSION = '1.0.0';
