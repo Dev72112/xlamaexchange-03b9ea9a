@@ -54,7 +54,16 @@ const History = () => {
   const { transactions: dexTransactions, clearHistory: clearDexHistory } = useDexTransactions();
   const { transactions: bridgeTransactions, removeTransaction: removeBridgeTx, clearHistory: clearBridgeHistory, pendingCount: bridgePendingCount } = useBridgeTransactions();
   const { pollTransaction } = useBridgeStatusPolling();
-  const { isConnected, activeAddress } = useMultiWallet();
+  const { 
+    isConnected, 
+    activeAddress,
+    isOkxConnected,
+    evmAddress,
+    solanaAddress,
+    tronAddress,
+    suiAddress,
+    tonAddress 
+  } = useMultiWallet();
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const navigate = useNavigate();
   

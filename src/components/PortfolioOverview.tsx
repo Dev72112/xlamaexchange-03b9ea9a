@@ -19,7 +19,17 @@ interface PortfolioOverviewProps {
 }
 
 export function PortfolioOverview({ className }: PortfolioOverviewProps) {
-  const { isConnected, activeAddress, activeChainType } = useMultiWallet();
+  const { 
+    isConnected, 
+    activeAddress, 
+    activeChainType,
+    isOkxConnected,
+    evmAddress,
+    solanaAddress,
+    tronAddress,
+    suiAddress,
+    tonAddress 
+  } = useMultiWallet();
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const { saveSnapshot, getPnLMetrics } = usePortfolioPnL();
   const [totalValue, setTotalValue] = useState<number>(0);
@@ -35,8 +45,24 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   }, [globalChainFilter]);
 
   // Dynamic chain selection based on connected wallet type
-  // Each address type can only query its matching chain type
+  // OKX connections can query multiple chain types simultaneously
   const chainIndices = useMemo(() => {
+    // OKX connected: can fetch from all chains the user has addresses for
+    if (isOkxConnected) {
+      const indexes: string[] = [];
+      // Add EVM chains if EVM address exists
+      if (evmAddress) {
+        indexes.push(...SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex));
+      }
+      // Add non-EVM chain indexes if those addresses exist
+      if (solanaAddress) indexes.push('501');
+      if (tronAddress) indexes.push('195');
+      if (suiAddress) indexes.push('784');
+      if (tonAddress) indexes.push('607');
+      return indexes.join(',');
+    }
+    
+    // Non-OKX: existing logic based on activeChainType
     switch (activeChainType) {
       case 'solana':
         return '501';
@@ -51,7 +77,7 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
         // First 15 EVM chains for EVM wallets
         return SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex).join(',');
     }
-  }, [activeChainType]);
+  }, [activeChainType, isOkxConnected, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
 
   // Chain options for the filter - only EVM chains since non-EVM are single-chain
   const evmChains = useMemo(() => getEvmChains(), []);
