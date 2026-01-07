@@ -1,16 +1,15 @@
 import { memo, Suspense, lazy } from "react";
 import { Helmet } from "react-helmet-async";
-import { Layout } from "@/components/Layout";
+import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { Wallet, TrendingUp, PieChart, BarChart3 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
-import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
-import { PortfolioOverview } from "@/components/PortfolioOverview";
-import { PortfolioRebalancer } from "@/components/PortfolioRebalancer";
+import { MultiWalletButton } from "@/features/wallet";
+import { PortfolioOverview, PortfolioRebalancer } from "@/features/portfolio";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 // Lazy load chart components
-const PortfolioPnLChart = lazy(() => import("@/components/PortfolioPnLChart").then(m => ({ default: m.PortfolioPnLChart })));
+const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
 
 const portfolioFeatures = [
   {

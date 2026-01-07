@@ -1,6 +1,6 @@
 import { memo, useState, useMemo, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Layout } from '@/components/Layout';
+import { Layout } from '@/shared/components';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,9 +34,7 @@ import {
   ArrowRightLeft,
   Fuel
 } from 'lucide-react';
-import { useTradeAnalytics } from '@/hooks/useTradeAnalytics';
-import { useTradeVsHodl } from '@/hooks/useTradeVsHodl';
-import { useGasAnalytics } from '@/hooks/useGasAnalytics';
+import { useTradeAnalytics, useTradeVsHodl, useGasAnalytics } from '@/features/analytics';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { SUPPORTED_CHAINS, getChainIcon, getEvmChains, getNonEvmChains } from '@/data/chains';
 import { 
@@ -57,10 +55,8 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
-// Lazy load heavy analytics components
-import { LivePriceWidget } from '@/components/analytics/LivePriceWidget';
-import { TokenPnLChart } from '@/components/analytics/TokenPnLChart';
-import { GasBreakdown } from '@/components/analytics/GasBreakdown';
+// Import analytics components from feature module
+import { LivePriceWidget, TokenPnLChart, GasBreakdown } from '@/features/analytics';
 
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];

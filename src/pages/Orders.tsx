@@ -1,14 +1,14 @@
 import { memo, Suspense, lazy } from "react";
 import { Helmet } from "react-helmet-async";
-import { Layout } from "@/components/Layout";
+import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
-import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
+import { MultiWalletButton } from "@/features/wallet";
 
-// Lazy load order components
-const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
-const ActiveDCAOrders = lazy(() => import("@/components/ActiveDCAOrders").then(m => ({ default: m.ActiveDCAOrders })));
+// Lazy load order components from feature modules
+const ActiveLimitOrders = lazy(() => import("@/features/orders").then(m => ({ default: m.ActiveLimitOrders })));
+const ActiveDCAOrders = lazy(() => import("@/features/orders").then(m => ({ default: m.ActiveDCAOrders })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 
 const Orders = memo(function Orders() {
