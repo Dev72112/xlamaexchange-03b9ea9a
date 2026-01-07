@@ -210,7 +210,7 @@ const Docs = () => {
                   Connect Your Wallet
                 </h4>
                 <p className="text-muted-foreground ml-8">
-                  Click the "Connect Wallet" button in the header. xLama supports 526+ wallets through WalletConnect, 
+                  Click the "Connect Wallet" button in the header. <strong>We recommend OKX Wallet</strong> for the best multi-chain experience - it supports EVM, Solana, Tron, Sui, and TON with a single connection. You can also use 526+ other wallets through WalletConnect, 
                   plus native integrations with Phantom, Solflare, Sui Wallet, Tonkeeper, and TronLink.
                 </p>
 
@@ -284,7 +284,7 @@ const Docs = () => {
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>900+ tradable tokens</li>
                       <li>No wallet needed for quotes</li>
-                      <li>Fixed or floating rate options</li>
+                      <li>Completes in 1-5 minutes</li>
                       <li>Cross-chain without bridging complexity</li>
                     </ul>
                   </CardContent>
@@ -422,6 +422,16 @@ const Docs = () => {
                 Connect with virtually any wallet through our multi-chain integration:
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Badge variant="glow">Recommended</Badge>
+                    OKX Wallet
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Best multi-chain experience. Single connection for EVM, Solana, Tron, Sui, and TON. 
+                    Seamless chain switching with no extra signing.
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <h4 className="font-semibold">WalletConnect</h4>
                   <p className="text-sm text-muted-foreground">
@@ -429,15 +439,15 @@ const Docs = () => {
                     Coinbase Wallet, and more.
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Native Integrations</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Phantom & Solflare (Solana)</li>
-                    <li>• Sui Wallet (Sui)</li>
-                    <li>• Tonkeeper (TON)</li>
-                    <li>• TronLink (Tron)</li>
-                  </ul>
-                </div>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-semibold">Native Integrations</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Phantom & Solflare (Solana)</li>
+                  <li>• Sui Wallet (Sui)</li>
+                  <li>• Tonkeeper (TON)</li>
+                  <li>• TronLink (Tron)</li>
+                </ul>
               </div>
               <div className="p-3 rounded-lg bg-muted/50">
                 <p className="text-sm">

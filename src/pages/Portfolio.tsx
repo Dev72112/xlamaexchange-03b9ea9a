@@ -56,12 +56,13 @@ const Portfolio = memo(function Portfolio() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-4">
             <Wallet className="w-4 h-4" />
             <span>Portfolio Dashboard</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Portfolio Dashboard
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Track your crypto holdings, monitor P&L performance, and optimize your portfolio 
+            Track your crypto holdings across 25+ chains, monitor P&L performance, and optimize your portfolio 
             with intelligent rebalancing recommendations.
           </p>
         </div>
@@ -69,14 +70,17 @@ const Portfolio = memo(function Portfolio() {
         {/* Connect wallet prompt if not connected */}
         {!isConnected ? (
           <div className="max-w-xl mx-auto">
-            <Card className="bg-card/50">
+            <Card variant="glass" className="bg-card/50">
               <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-4">
-                  <Wallet className="w-8 h-8 text-muted-foreground" />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                  <Wallet className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Connect your wallet to view your portfolio, track P&L, and access rebalancing tools.
+                <p className="text-sm text-muted-foreground mb-2">
+                  We recommend <strong className="text-primary">OKX Wallet</strong> for the best multi-chain experience.
+                </p>
+                <p className="text-xs text-muted-foreground mb-6">
+                  Connect to view your portfolio, track P&L, and access rebalancing tools.
                 </p>
                 <MultiWalletButton />
 
@@ -109,10 +113,12 @@ const Portfolio = memo(function Portfolio() {
 
             {/* Standalone P&L Chart section */}
             <section id="pnl" className="scroll-mt-20">
-              <Card className="bg-card/50 border-border">
+              <Card variant="glass" className="bg-card/50 border-border">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                    </div>
                     <h2 className="text-lg font-semibold">Performance History</h2>
                   </div>
                   <Suspense fallback={<div className="h-64 skeleton-shimmer rounded-lg" />}>

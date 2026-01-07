@@ -10,11 +10,11 @@ import {
 const faqs = [
   {
     question: "What is xlama?",
-    answer: "xlama is a multi-chain cryptocurrency exchange aggregator that supports 25+ blockchain networks. We offer three core features: Instant Mode (via ChangeNOW) for cross-chain swaps with 900+ tokens, DEX Mode (via OKX DEX) for on-chain swaps aggregated from 400+ decentralized exchanges, and Cross-Chain Bridge (via Li.Fi) for bridging assets across 20+ networks.",
+    answer: "xlama is a multi-chain cryptocurrency exchange aggregator that supports 25+ blockchain networks. We offer three core features: Instant Mode (via ChangeNOW) for cross-chain swaps with 900+ tokens in 1-5 minutes, DEX Mode (via OKX DEX) for on-chain swaps aggregated from 400+ decentralized exchanges, and Cross-Chain Bridge (via Li.Fi) for bridging assets across 20+ networks.",
   },
   {
-    question: "How many wallets do you support?",
-    answer: "We support 526+ wallets through WalletConnect integration, including MetaMask, Trust Wallet, Rainbow, Coinbase Wallet, and hundreds more. We also have native integrations for Phantom, Solflare (Solana), Sui Wallet, Suiet (Sui), Tonkeeper (TON), and TronLink (Tron).",
+    question: "Which wallet should I use?",
+    answer: "We recommend OKX Wallet for the best experience. It offers seamless multi-chain support across EVM, Solana, Tron, Sui, and TON with a single connection. You can also use 526+ other wallets through WalletConnect (MetaMask, Trust Wallet, Rainbow, Coinbase Wallet, etc.) or native integrations with Phantom, Solflare (Solana), Sui Wallet (Sui), Tonkeeper (TON), and TronLink (Tron).",
   },
   {
     question: "Which blockchain networks are supported?",
@@ -78,7 +78,7 @@ const faqs = [
   },
   {
     question: "What fees do you charge?",
-    answer: "For DEX swaps (OKX DEX), we include a 1.5% commission in the quote. For Bridge transactions (Li.Fi), we include a 1.5% platform fee. For Instant swaps (ChangeNOW), fees are included in the exchange rate. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
+    answer: "For DEX swaps (OKX DEX), we include a 1.5% commission in the quote. For Bridge transactions (Li.Fi), we include a 1.5% platform fee. For Instant swaps (ChangeNOW), fees are included in the exchange rate. Instant swaps typically complete in 1-5 minutes. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
   },
   {
     question: "How can I track my transaction?",
