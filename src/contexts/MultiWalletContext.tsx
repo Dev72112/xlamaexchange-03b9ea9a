@@ -51,7 +51,9 @@ interface MultiWalletContextType {
   // Current active chain/address
   activeChainType: ChainType;
   activeAddress: string | null;
-  isConnected: boolean;
+  isConnected: boolean; // Connected to active chain
+  hasAnyConnection: boolean; // Any wallet connected (regardless of active chain)
+  anyConnectedAddress: string | null; // First available connected address
   
   // EVM-specific
   evmChainId: number | null;
@@ -228,7 +230,54 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     }
   }, [activeChainType, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
 
+  // Check if ANY wallet is connected (regardless of active chain)
+  const hasAnyConnection = useMemo(() => {
+    return !!(evmAddress || solanaAddress || tronAddress || suiAddress || tonAddress);
+  }, [evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
+
+  // Get first available connected address
+  const anyConnectedAddress = useMemo(() => {
+    return evmAddress || solanaAddress || tronAddress || suiAddress || tonAddress || null;
+  }, [evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
+
   const isConnected = !!activeAddress;
+
+  // Auto-switch active chain to match connected wallet
+  useEffect(() => {
+    // Only auto-switch if we have a connection but active chain doesn't match
+    if (hasAnyConnection && !isConnected) {
+      // Find first connected chain and switch to it
+      if (evmAddress && activeChainType !== 'evm') {
+        const primaryEvm = getPrimaryChain();
+        setActiveChainState(primaryEvm);
+        console.log('[MultiWallet] Auto-switched to EVM chain');
+      } else if (solanaAddress && activeChainType !== 'solana') {
+        const solanaChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('solana'));
+        if (solanaChain) {
+          setActiveChainState(solanaChain);
+          console.log('[MultiWallet] Auto-switched to Solana');
+        }
+      } else if (tronAddress && activeChainType !== 'tron') {
+        const tronChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('tron'));
+        if (tronChain) {
+          setActiveChainState(tronChain);
+          console.log('[MultiWallet] Auto-switched to Tron');
+        }
+      } else if (suiAddress && activeChainType !== 'sui') {
+        const suiChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('sui'));
+        if (suiChain) {
+          setActiveChainState(suiChain);
+          console.log('[MultiWallet] Auto-switched to Sui');
+        }
+      } else if (tonAddress && activeChainType !== 'ton') {
+        const tonChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('ton'));
+        if (tonChain) {
+          setActiveChainState(tonChain);
+          console.log('[MultiWallet] Auto-switched to TON');
+        }
+      }
+    }
+  }, [hasAnyConnection, isConnected, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress, activeChainType]);
 
   // Update connection status and persist to session
   useEffect(() => {
@@ -545,6 +594,8 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     activeChainType,
     activeAddress,
     isConnected,
+    hasAnyConnection,
+    anyConnectedAddress,
     evmChainId,
     evmChain,
     evmWalletType,

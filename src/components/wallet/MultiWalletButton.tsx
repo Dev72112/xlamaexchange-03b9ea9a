@@ -73,6 +73,8 @@ export function MultiWalletButton() {
     activeChainType,
     activeAddress,
     isConnected,
+    hasAnyConnection,
+    anyConnectedAddress,
     isConnecting,
     activeChain,
     openConnectModal,
@@ -163,8 +165,9 @@ export function MultiWalletButton() {
   };
 
   const handleCopyAddress = async () => {
-    if (activeAddress) {
-      await navigator.clipboard.writeText(activeAddress);
+    const addressToCopy = activeAddress || anyConnectedAddress;
+    if (addressToCopy) {
+      await navigator.clipboard.writeText(addressToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast({
@@ -186,8 +189,11 @@ export function MultiWalletButton() {
     target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name.slice(0, 2))}&background=6366f1&color=fff&size=64`;
   };
 
-  // Connected state - show dropdown
-  if (isConnected && activeAddress) {
+  // Use the display address - prefer active, fall back to any connected
+  const displayAddress = activeAddress || anyConnectedAddress;
+
+  // Connected state - show dropdown (use hasAnyConnection to show connected even if chain mismatch)
+  if (hasAnyConnection && displayAddress) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -201,7 +207,7 @@ export function MultiWalletButton() {
                   onError={(e) => handleIconError(e, activeChain.shortName)}
                 />
               )}
-              <span className="hidden sm:inline">{truncateAddress(activeAddress)}</span>
+              <span className="hidden sm:inline">{truncateAddress(displayAddress)}</span>
               <span className="sm:hidden">
                 <Wallet className="w-4 h-4" />
               </span>
