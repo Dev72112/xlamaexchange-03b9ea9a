@@ -6,16 +6,9 @@ export type ChainType = 'evm' | 'solana' | 'sui' | 'tron' | 'ton';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'error';
 
-export interface WalletSession {
-  evmConnected: boolean;
-  solanaConnected: boolean;
-  suiConnected: boolean;
-  tronConnected: boolean;
-  tonConnected: boolean;
-  lastConnected: number;
-  activeChainType: ChainType;
-  activeChainIndex?: string;
-}
+// WalletSession is exported from ./lib/walletSession.ts
+// Re-exported here for convenience
+export type { WalletSession } from './lib/walletSession';
 
 export interface WalletInfo {
   name: string;
