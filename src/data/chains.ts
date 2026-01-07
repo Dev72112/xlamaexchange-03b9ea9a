@@ -371,6 +371,13 @@ export function getNonEvmChains(): Chain[] {
   return SUPPORTED_CHAINS.filter(c => !c.isEvm);
 }
 
+// Non-EVM chain indexes for quick checks
+export const NON_EVM_CHAIN_INDEXES = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
+
+export function isNonEvmChain(chainIndex: string): boolean {
+  return NON_EVM_CHAIN_INDEXES.includes(chainIndex);
+}
+
 // Default fallback icon
 export const DEFAULT_CHAIN_ICON = 'https://ui-avatars.com/api/?name=C&background=6366f1&color=fff&size=128';
 

@@ -22,9 +22,9 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
-  // Get chain indices for fetching
+  // Get chain indices for fetching - include ALL chains for non-EVM support
   const chainIndices = useMemo(() => 
-    SUPPORTED_CHAINS.slice(0, 10).map(c => c.chainIndex).join(','), 
+    SUPPORTED_CHAINS.map(c => c.chainIndex).join(','), 
     []
   );
 
