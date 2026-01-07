@@ -1,8 +1,17 @@
 /**
- * Orders Feature Components - Public API
+ * Orders Feature Components - Barrel Export
+ * 
+ * Note: Components are re-exported from their original locations
+ * for backwards compatibility during migration
  */
 
-// Components will be migrated here
-// export { LimitOrderForm } from './LimitOrderForm';
-// export { DCAOrderForm } from './DCAOrderForm';
-// export { ActiveOrders } from './ActiveOrders';
+// Limit order components
+export { LimitOrderForm } from '@/components/LimitOrderForm';
+export { ActiveLimitOrders } from '@/components/ActiveLimitOrders';
+export { LimitOrderCountdown } from '@/components/LimitOrderCountdown';
+
+// DCA components
+export { DCAOrderForm } from '@/components/DCAOrderForm';
+export { DCADashboard } from '@/components/DCADashboard';
+export { DCAHistoryChart } from '@/components/DCAHistoryChart';
+export { ActiveDCAOrders } from '@/components/ActiveDCAOrders';
