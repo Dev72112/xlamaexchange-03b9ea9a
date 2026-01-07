@@ -1,26 +1,21 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { wagmiConfig, initializeAppKit } from "./config/appkit";
 import { startTokenPrefetch } from "./lib/tokenPrefetch";
+import { queryClient } from "./lib/queryClient";
+import { initWebVitals } from "./lib/performance";
 import App from "./App.tsx";
 import "./index.css";
 
 // Import Sui dapp-kit styles
 import '@mysten/dapp-kit/dist/index.css';
 
-// Optimized QueryClient with garbage collection and stale time
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30 * 1000, // 30 seconds
-      gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
-      refetchOnWindowFocus: false,
-      retry: 2,
-    },
-  },
-});
+// Initialize performance monitoring
+if (typeof window !== 'undefined') {
+  initWebVitals();
+}
 
 // Splash screen with progress steps
 const steps = [

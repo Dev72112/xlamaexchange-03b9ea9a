@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { corsHeaders, securityHeaders, sanitizeInput } from "../_shared/security-headers.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+// Combined response headers
+const responseHeaders = {
+  ...corsHeaders,
+  ...securityHeaders,
+  'Content-Type': 'application/json',
+  'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
 };
 
 interface NewsItem {
@@ -110,18 +113,21 @@ serve(async (req) => {
     return rateLimitResponse(corsHeaders);
   }
 
-  const responseHeaders = { 
-    ...corsHeaders, 
-    'Content-Type': 'application/json',
-    'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
-  };
-
   try {
     const url = new URL(req.url);
     const categoriesParam = url.searchParams.get('categories');
     const includeTrending = url.searchParams.get('trending') !== 'false';
     
-    const categories = categoriesParam ? categoriesParam.split(',') : undefined;
+    // Validate and sanitize categories input
+    let categories: string[] | undefined;
+    if (categoriesParam) {
+      // Only allow alphanumeric category names, max 10 categories
+      categories = categoriesParam
+        .split(',')
+        .slice(0, 10)
+        .map(c => sanitizeInput(c, 50))
+        .filter(c => /^[a-zA-Z0-9\-_]+$/.test(c));
+    }
     
     console.log('Fetching crypto news', { categories, includeTrending });
     
@@ -153,7 +159,7 @@ serve(async (req) => {
       { status: 200, headers: responseHeaders }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Crypto news edge function error:', error);
     return new Response(
       JSON.stringify({ 
