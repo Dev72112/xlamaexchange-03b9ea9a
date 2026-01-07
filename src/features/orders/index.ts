@@ -1,14 +1,17 @@
 /**
- * Orders Feature Module - Public API
- * 
- * This module handles limit orders and DCA:
- * - Limit order creation and management
- * - DCA strategy setup
- * - Order monitoring and execution
+ * Orders Feature Module
+ * Limit orders and DCA strategies
  */
 
-// Components (to be migrated)
-// export { LimitOrderForm, DCAOrderForm, ActiveOrders } from './components';
+// Components
+export * from './components';
+
+// Hooks
+export {
+  useLimitOrders,
+  useDCAOrders,
+  useDCATokenPrices,
+} from './hooks';
 
 // Types
 export type { LimitOrder, DCAOrder, OrderStatus, OrderExecutionResult } from './types';

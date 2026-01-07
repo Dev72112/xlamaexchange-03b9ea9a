@@ -1,15 +1,19 @@
 /**
- * Portfolio Feature Module - Public API
- * 
- * This module handles portfolio management:
- * - Holdings overview
- * - Allocation tracking
- * - Rebalancing strategies
- * - P&L tracking
+ * Portfolio Feature Module
+ * Portfolio management and rebalancing
  */
 
-// Components (to be migrated)
-// export { PortfolioOverview, HoldingsTable, AllocationChart, Rebalancer } from './components';
+// Components
+export * from './components';
+
+// Hooks
+export {
+  usePortfolioPnL,
+  usePortfolioRebalance,
+  useRebalanceSchedule,
+  useTokenWatchlist,
+  useTokenPnL,
+} from './hooks';
 
 // Types
 export type { 

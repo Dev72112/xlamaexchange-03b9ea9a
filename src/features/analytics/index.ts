@@ -1,15 +1,21 @@
 /**
- * Analytics Feature Module - Public API
- * 
- * This module handles trading analytics:
- * - Trade history and volume
- * - Gas analysis
- * - P&L charts
- * - Performance metrics
+ * Analytics Feature Module
+ * Trading analytics and performance tracking
  */
 
-// Components (to be migrated)
-// export { TokenPnLChart, GasBreakdown, TradeVolumeChart } from './components';
+// Components
+export * from './components';
+
+// Hooks
+export {
+  useGasPrice,
+  useGasAnalytics,
+  useMultiChainGas,
+  useTradeAnalytics,
+  useTradeVsHodl,
+  usePricePrediction,
+  useWebSocketPrice,
+} from './hooks';
 
 // Types
 export type { 
