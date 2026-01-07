@@ -14,3 +14,20 @@ export {
   ChainSwitchPrompt, 
   NonEvmChainInfo 
 } from './ConnectionPrompts';
+
+// Decomposed SwapWidget components
+export {
+  SwapHeader,
+  SwapTokenInput,
+  SwapRateDisplay,
+  SwapActions,
+} from './SwapWidget';
+
+// Types
+export type {
+  SwapMode,
+  SwapToken,
+  SwapQuote,
+  SwapState,
+  SwapWidgetProps,
+} from './SwapWidget';

@@ -131,13 +131,33 @@ export function ExchangeForm({
       });
     } catch (error) {
       console.error("Create transaction error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Please try again";
-      // Provide clearer message for edge function errors
-      const displayMessage = errorMessage.includes('Edge Function') || errorMessage.includes('non-2xx')
-        ? "Service temporarily unavailable. Please try again in a moment."
-        : errorMessage;
+      const errorMessage = error instanceof Error ? error.message : "";
+      
+      // Map specific errors to user-friendly messages
+      let displayMessage = "Please try again later.";
+      let title = "Exchange Failed";
+      
+      if (errorMessage.includes('pair_is_inactive') || errorMessage.includes('pair is inactive')) {
+        title = "Pair Unavailable";
+        displayMessage = "This trading pair is currently unavailable. Please try a different pair.";
+      } else if (errorMessage.includes('fixed_rate_not_enabled')) {
+        title = "Fixed Rate Unavailable";
+        displayMessage = "Fixed rate is not available for this pair. Please use floating rate.";
+      } else if (errorMessage.includes('deposit_too_small')) {
+        title = "Amount Too Small";
+        displayMessage = "The amount is too small for this exchange. Please enter a larger amount.";
+      } else if (errorMessage.includes('Edge Function') || errorMessage.includes('non-2xx')) {
+        title = "Service Unavailable";
+        displayMessage = "Exchange service is temporarily unavailable. Please try again in a moment.";
+      } else if (errorMessage.includes('address') || errorMessage.includes('validation')) {
+        title = "Invalid Address";
+        displayMessage = "The wallet address appears to be invalid. Please check and try again.";
+      } else if (errorMessage) {
+        displayMessage = errorMessage;
+      }
+      
       toast({
-        title: "Failed to create exchange",
+        title,
         description: displayMessage,
         variant: "destructive",
       });
@@ -410,7 +430,7 @@ export function ExchangeForm({
               <p className="text-sm text-muted-foreground mt-1">
                 {txStatus?.status === "finished" 
                   ? "Your funds have been sent to your wallet"
-                  : "This usually takes 10-30 minutes"}
+                  : "This usually takes 1-5 minutes"}
               </p>
             </div>
 

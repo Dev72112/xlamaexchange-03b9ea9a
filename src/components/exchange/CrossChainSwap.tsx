@@ -263,9 +263,24 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
       });
     } catch (error: any) {
       console.error('Bridge error:', error);
+      const errorMessage = error?.message?.toLowerCase() || '';
+      
+      let title = "Bridge Failed";
+      let description = "Failed to initiate bridge. Please try again.";
+      
+      if (errorMessage.includes('insufficient') || errorMessage.includes('gas')) {
+        title = "Insufficient Gas";
+        description = "Not enough native tokens for gas fees. Keep some ETH/BNB/MATIC for transaction fees.";
+      } else if (errorMessage.includes('rejected') || errorMessage.includes('denied')) {
+        title = "Transaction Rejected";
+        description = "You rejected the transaction. Try again when ready.";
+      } else if (error?.message) {
+        description = error.message;
+      }
+      
       toast({
-        title: "Bridge Failed",
-        description: error?.message || "Failed to initiate bridge",
+        title,
+        description,
         variant: "destructive",
       });
     }
