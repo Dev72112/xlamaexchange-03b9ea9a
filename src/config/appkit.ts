@@ -176,7 +176,7 @@ export const initializeAppKit = async (): Promise<void> => {
   // Export the wagmi config from adapter
   wagmiConfig = wagmiAdapter.wagmiConfig;
 
-  // Create AppKit instance with enhanced session persistence
+  // Create AppKit instance with unified wallet-first experience
   appKit = createAppKit({
     adapters: [wagmiAdapter, solanaAdapter],
     networks: allNetworks,
@@ -187,11 +187,11 @@ export const initializeAppKit = async (): Promise<void> => {
       socials: false,
       email: false,
     },
-    // Enable automatic reconnection for returning users
+    // Wallet-first: show all wallets, user picks chain after
     enableWalletGuide: false,
     themeMode: 'dark',
     themeVariables: {
-      '--w3m-accent': 'hsl(142, 71%, 45%)', // Match app primary color
+      '--w3m-accent': 'hsl(142, 71%, 45%)',
       '--w3m-border-radius-master': '0.5rem',
     },
   });
