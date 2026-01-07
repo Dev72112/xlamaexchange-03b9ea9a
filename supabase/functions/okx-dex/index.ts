@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, securityHeaders } from "../_shared/security-headers.ts";
+import { 
+  corsHeaders, 
+  securityHeaders, 
+  isValidChainIndex,
+  isValidTokenAddress,
+  isValidWalletAddress,
+  sanitizeInput,
+} from "../_shared/security-headers.ts";
 
 // Combined headers for responses
 const responseHeaders = {
@@ -8,6 +15,8 @@ const responseHeaders = {
   'Content-Type': 'application/json',
 };
 
+// Maximum request body size (10KB)
+const MAX_BODY_SIZE = 10 * 1024;
 const OKX_API_KEY = Deno.env.get('OKX_API_KEY') || '';
 const OKX_SECRET_KEY = Deno.env.get('OKX_SECRET_KEY') || '';
 const OKX_API_PASSPHRASE = Deno.env.get('OKX_API_PASSPHRASE') || '';
@@ -223,6 +232,15 @@ serve(async (req) => {
   }
 
   try {
+    // Request body size validation
+    const contentLength = req.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Request body too large' }),
+        { status: 413, headers: responseHeaders }
+      );
+    }
+
     const { action, params = {} } = await req.json();
     const clientIp = getClientIp(req);
     
@@ -230,7 +248,38 @@ serve(async (req) => {
     if (!action || !VALID_ACTIONS.includes(action)) {
       return new Response(
         JSON.stringify({ error: 'Invalid action', validActions: VALID_ACTIONS }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: responseHeaders }
+      );
+    }
+    
+    // Validate chainIndex if present
+    if (params.chainIndex && !isValidChainIndex(String(params.chainIndex))) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid chainIndex format' }),
+        { status: 400, headers: responseHeaders }
+      );
+    }
+    
+    // Validate wallet address if present
+    if (params.userWalletAddress && !isValidWalletAddress(String(params.userWalletAddress))) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid wallet address format' }),
+        { status: 400, headers: responseHeaders }
+      );
+    }
+    
+    // Validate token addresses if present
+    if (params.fromTokenAddress && !isValidTokenAddress(String(params.fromTokenAddress))) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid fromTokenAddress format' }),
+        { status: 400, headers: responseHeaders }
+      );
+    }
+    
+    if (params.toTokenAddress && !isValidTokenAddress(String(params.toTokenAddress))) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid toTokenAddress format' }),
+        { status: 400, headers: responseHeaders }
       );
     }
     

@@ -1,42 +1,61 @@
-// xlama Service Worker for Push Notifications & Caching
-const CACHE_NAME = 'xlama-v2';
-const STATIC_CACHE = 'xlama-static-v1';
+// xlama Service Worker v3 - Performance & Caching Optimizations
+const CACHE_VERSION = 'v3';
+const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
+const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
 
-// Static assets to cache on install
+// Static assets to precache on install
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/xlama-mascot.png',
+  '/placeholder.svg',
 ];
+
+// API domains to cache with stale-while-revalidate
+const CACHEABLE_API_HOSTS = [
+  'api.coingecko.com',
+  'min-api.cryptocompare.com',
+];
+
+// Max age for runtime cache entries (5 minutes)
+const RUNTIME_CACHE_MAX_AGE = 5 * 60 * 1000;
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
+  console.log('[SW] Installing service worker v3...');
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Failed to cache some assets:', err);
+        console.warn('[SW] Failed to cache some static assets:', err);
       });
     })
   );
+  // Activate immediately
   self.skipWaiting();
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
+  console.log('[SW] Activating service worker v3...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE)
-          .map((name) => caches.delete(name))
+          .filter((name) => {
+            // Delete old versioned caches
+            return name.startsWith('xlama-') && 
+                   !name.includes(CACHE_VERSION);
+          })
+          .map((name) => {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
       );
     }).then(() => clients.claim())
   );
 });
 
-// Fetch event - cache-first for static assets, network-first for API
+// Fetch event - smart caching strategies
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -44,11 +63,37 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
-  // Skip API requests and external resources
-  if (url.origin !== self.location.origin) return;
+  // Skip API requests to our edge functions (always fresh)
+  if (url.pathname.startsWith('/functions/')) return;
 
   // Cache-first for static assets (images, fonts, scripts, styles)
-  if (
+  if (isStaticAsset(request, url)) {
+    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    return;
+  }
+
+  // Stale-while-revalidate for cacheable external APIs
+  if (isCacheableApi(url)) {
+    event.respondWith(staleWhileRevalidate(request));
+    return;
+  }
+
+  // Network-first for HTML pages (ensures fresh content)
+  if (request.destination === 'document') {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Network-first for same-origin requests
+  if (url.origin === self.location.origin) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+});
+
+// Check if request is for a static asset
+function isStaticAsset(request, url) {
+  return (
     request.destination === 'image' ||
     request.destination === 'font' ||
     request.destination === 'style' ||
@@ -56,35 +101,67 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.css') ||
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.jpg') ||
-    url.pathname.endsWith('.svg')
-  ) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          // Only cache successful responses
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          const responseToCache = response.clone();
-          caches.open(STATIC_CACHE).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-          return response;
-        });
-      })
-    );
-    return;
-  }
+    url.pathname.endsWith('.jpeg') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.webp') ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.woff')
+  );
+}
 
-  // Network-first for HTML pages (ensures fresh content)
-  if (request.destination === 'document') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(request))
-    );
-    return;
+// Check if URL is a cacheable external API
+function isCacheableApi(url) {
+  return CACHEABLE_API_HOSTS.some(host => url.host === host);
+}
+
+// Cache-first strategy
+async function cacheFirst(request, cacheName) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === 'basic') {
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    console.warn('[SW] Cache-first fetch failed:', error);
+    return new Response('Network error', { status: 503 });
   }
-});
+}
+
+// Network-first strategy
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    return new Response('Offline', { status: 503 });
+  }
+}
+
+// Stale-while-revalidate strategy
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = await cache.match(request);
+  
+  // Fetch fresh version in background
+  const fetchPromise = fetch(request).then((response) => {
+    if (response.ok) {
+      // Clone and cache with timestamp
+      const responseToCache = response.clone();
+      cache.put(request, responseToCache);
+    }
+    return response;
+  }).catch(() => cached);
+  
+  // Return cached version immediately if available
+  return cached || fetchPromise;
+}
 
 // Push event - handle incoming push notifications
 self.addEventListener('push', (event) => {
@@ -119,6 +196,7 @@ self.addEventListener('push', (event) => {
       { action: 'open', title: 'Open xlama' },
       { action: 'dismiss', title: 'Dismiss' },
     ],
+    requireInteraction: false,
   };
 
   event.waitUntil(
@@ -170,5 +248,10 @@ self.addEventListener('message', (event) => {
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  
+  // Clear runtime cache on request
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    caches.delete(RUNTIME_CACHE);
   }
 });

@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { corsHeaders, securityHeaders } from "../_shared/security-headers.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Combined response headers
+const responseHeaders = {
+  ...corsHeaders,
+  ...securityHeaders,
+  'Content-Type': 'application/json',
 };
 
 // --- Input Validation Helpers ---
