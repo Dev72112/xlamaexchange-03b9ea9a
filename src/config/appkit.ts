@@ -176,7 +176,7 @@ export const initializeAppKit = async (): Promise<void> => {
   // Export the wagmi config from adapter
   wagmiConfig = wagmiAdapter.wagmiConfig;
 
-  // Create AppKit instance
+  // Create AppKit instance with enhanced session persistence
   appKit = createAppKit({
     adapters: [wagmiAdapter, solanaAdapter],
     networks: allNetworks,
@@ -187,6 +187,8 @@ export const initializeAppKit = async (): Promise<void> => {
       socials: false,
       email: false,
     },
+    // Enable automatic reconnection for returning users
+    enableWalletGuide: false,
     themeMode: 'dark',
     themeVariables: {
       '--w3m-accent': 'hsl(142, 71%, 45%)', // Match app primary color

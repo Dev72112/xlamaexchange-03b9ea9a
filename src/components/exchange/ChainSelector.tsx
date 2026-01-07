@@ -35,23 +35,25 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
     onChainSelect(chain);
     setOpen(false);
     
-    // If wallet is connected and chain is different and EVM, prompt to switch
+    // For EVM chains: attempt silent network switch (no signing needed)
     if (isConnected && chain.isEvm && chain.chainId && chainId !== chain.chainId) {
       try {
         await switchChain(chain.chainId);
+        // Silent success - no toast for routine switches
+      } catch (error: any) {
+        // Only show error if user rejected (code 4001) or actual failure
+        if (error?.code === 4001) {
+          // User rejected - no toast needed
+          return;
+        }
+        console.warn('Network switch:', error?.message || error);
         toast({
-          title: "Network Switched",
-          description: `Now using ${chain.name}`,
-        });
-      } catch (error) {
-        console.error('Failed to switch chain:', error);
-        toast({
-          title: "Switch Failed",
-          description: "Could not switch network. Please try manually.",
-          variant: "destructive",
+          title: "Network Switch",
+          description: `Please switch to ${chain.name} in your wallet.`,
         });
       }
     }
+    // Non-EVM chains: just update UI, wallet handles its own network
   };
 
   // Fallback icon handler
