@@ -6,15 +6,17 @@ import { wagmiConfig, initializeAppKit } from "./config/appkit";
 import { startTokenPrefetch } from "./lib/tokenPrefetch";
 import { queryClient } from "./lib/queryClient";
 import { initWebVitals } from "./lib/performance";
+import { initErrorTracking } from "./lib/errorTracking";
 import App from "./App.tsx";
 import "./index.css";
 
 // Import Sui dapp-kit styles
 import '@mysten/dapp-kit/dist/index.css';
 
-// Initialize performance monitoring
+// Initialize monitoring
 if (typeof window !== 'undefined') {
   initWebVitals();
+  initErrorTracking();
 }
 
 // Splash screen with progress steps
