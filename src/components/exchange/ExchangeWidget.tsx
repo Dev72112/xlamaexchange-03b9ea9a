@@ -86,7 +86,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
-  const { isConnected, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain } = useMultiWallet();
+  const { isConnected, hasAnyConnection, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain } = useMultiWallet();
   const { triggerFeedback } = useFeedback();
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   const { recordTradeCommission } = useReferral(address);
@@ -809,7 +809,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </div>
           
           {/* DEX Mode: Wallet connection prompt - show quotes are available */}
-          {exchangeMode === 'dex' && !isConnected && (
+          {exchangeMode === 'dex' && !hasAnyConnection && (
             <div className="mx-4 sm:mx-5 mt-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
               <div className="flex items-center gap-2 text-sm">
                 <Wallet className="w-4 h-4 text-primary" />
