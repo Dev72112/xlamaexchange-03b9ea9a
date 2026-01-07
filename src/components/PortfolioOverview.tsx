@@ -26,41 +26,6 @@ interface PortfolioOverviewProps {
   className?: string;
 }
 
-// Detect address type and return applicable chains
-function getApplicableChainsForAddress(address: string): Chain[] {
-  if (!address) return [];
-  
-  const trimmed = address.trim();
-  
-  // EVM address (0x + 40 hex chars)
-  if (/^0x[a-fA-F0-9]{40}$/i.test(trimmed)) {
-    return SUPPORTED_CHAINS.filter(c => c.isEvm);
-  }
-  
-  // TRON address (starts with T, 34 chars base58)
-  if (/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(trimmed)) {
-    return SUPPORTED_CHAINS.filter(c => c.chainIndex === '195');
-  }
-  
-  // Solana address (32-44 chars base58, not starting with T)
-  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed) && !trimmed.startsWith('T')) {
-    return SUPPORTED_CHAINS.filter(c => c.chainIndex === '501');
-  }
-  
-  // TON address (EQ or UQ prefix)
-  if (/^(EQ|UQ)[A-Za-z0-9_-]{46}$/.test(trimmed) || /^0:[a-fA-F0-9]{64}$/.test(trimmed)) {
-    return SUPPORTED_CHAINS.filter(c => c.chainIndex === '607');
-  }
-  
-  // SUI address (0x + 64 hex chars)
-  if (/^0x[a-fA-F0-9]{64}$/i.test(trimmed)) {
-    return SUPPORTED_CHAINS.filter(c => c.chainIndex === '784');
-  }
-  
-  // Default to EVM chains if unknown
-  return SUPPORTED_CHAINS.filter(c => c.isEvm);
-}
-
 export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   const { isConnected, activeAddress } = useMultiWallet();
   const { saveSnapshot, getPnLMetrics } = usePortfolioPnL();
@@ -68,19 +33,13 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
   const [allBalances, setAllBalances] = useState<WalletTokenBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
-  const [chainFilter, setChainFilter] = useState<string>('all');
+  const [chainFilter, setChainFilter] = useState<string>('evm-only');
   const [error, setError] = useState<string | null>(null);
 
-  // Get applicable chains based on wallet address type
-  const applicableChains = useMemo(() => 
-    getApplicableChainsForAddress(activeAddress || ''),
-    [activeAddress]
-  );
-
-  // Get chain indices for fetching - only applicable chains for this address type
+  // Use first 15 EVM chains - same approach as PortfolioRebalancer which works
   const chainIndices = useMemo(() => 
-    applicableChains.map(c => c.chainIndex).join(','), 
-    [applicableChains]
+    SUPPORTED_CHAINS.filter(c => c.isEvm).slice(0, 15).map(c => c.chainIndex).join(','), 
+    []
   );
 
   // Chain options for the filter dropdown
