@@ -86,7 +86,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
-  const { isConnected, hasAnyConnection, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain } = useMultiWallet();
+  const { isConnected, hasAnyConnection, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain, isOkxConnected } = useMultiWallet();
   const { triggerFeedback } = useFeedback();
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   const { recordTradeCommission } = useReferral(address);
@@ -841,15 +841,20 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           )}
 
-          {/* DEX Mode: Non‑EVM info */}
-          {exchangeMode === 'dex' && selectedChain && !selectedChain.isEvm && (
+          {/* DEX Mode: Non-EVM info - only show if NOT connected via OKX */}
+          {exchangeMode === 'dex' && selectedChain && !selectedChain.isEvm && !isOkxConnected && (
             <div className="mx-4 sm:mx-5 mt-3 p-3 bg-secondary/50 border border-border rounded-lg">
               <div className="flex items-center gap-2 text-sm">
                 <Info className="w-4 h-4 text-muted-foreground" />
-                <span className="text-foreground">Non‑EVM wallet switching isn’t supported yet</span>
+                <span className="text-foreground">
+                  {isConnected 
+                    ? `For best experience on ${selectedChain.name}, use OKX Wallet`
+                    : `Connect OKX Wallet for seamless ${selectedChain.name} swaps`
+                  }
+                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Quotes work, but swaps require a chain‑specific wallet integration for {selectedChain.name}.
+                OKX Wallet supports multi-chain swaps including {selectedChain.name}.
               </p>
             </div>
           )}

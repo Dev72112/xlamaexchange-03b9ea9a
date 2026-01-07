@@ -131,9 +131,14 @@ export function ExchangeForm({
       });
     } catch (error) {
       console.error("Create transaction error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Please try again";
+      // Provide clearer message for edge function errors
+      const displayMessage = errorMessage.includes('Edge Function') || errorMessage.includes('non-2xx')
+        ? "Service temporarily unavailable. Please try again in a moment."
+        : errorMessage;
       toast({
         title: "Failed to create exchange",
-        description: error instanceof Error ? error.message : "Please try again",
+        description: displayMessage,
         variant: "destructive",
       });
     } finally {

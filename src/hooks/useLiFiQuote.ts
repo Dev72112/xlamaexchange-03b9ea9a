@@ -55,6 +55,12 @@ function getQuoteErrorMessage(error: any): { message: string; minimumAmount?: st
   if (msg.includes('rate limit') || msg.includes('429')) {
     return { message: 'Service is busy. Retrying...' };
   }
+  if (msg.includes('No available quotes') || msg.includes('NO_POSSIBLE_ROUTE')) {
+    return { message: 'No route available for this swap. Try different tokens or chains.' };
+  }
+  if (msg.includes('not supported') || msg.includes('Unsupported chain')) {
+    return { message: 'This chain is not yet supported for bridging.' };
+  }
   
   return { message: 'Unable to get quote. Please try again.' };
 }
