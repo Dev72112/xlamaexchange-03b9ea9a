@@ -6,6 +6,7 @@ import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { useBridgeTransactions, BridgeStatus, BridgeTransaction } from "@/contexts/BridgeTransactionContext";
 import { useBridgeStatusPolling } from "@/hooks/useBridgeStatusPolling";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
+import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";
 import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList, Search, Filter, X, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { UnifiedChainSelector, ChainFilterValue } from "@/components/ui/UnifiedChainSelector";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
@@ -53,6 +55,7 @@ const History = () => {
   const { transactions: bridgeTransactions, removeTransaction: removeBridgeTx, clearHistory: clearBridgeHistory, pendingCount: bridgePendingCount } = useBridgeTransactions();
   const { pollTransaction } = useBridgeStatusPolling();
   const { isConnected, activeAddress } = useMultiWallet();
+  const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const navigate = useNavigate();
   
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -250,8 +253,10 @@ const History = () => {
     return unified.sort((a, b) => b.timestamp - a.timestamp);
   }, [transactions, dexTransactions, bridgeTransactions]);
 
-  // Filtered transactions based on search and filters
+  // Filtered transactions based on search, type filters, and chain filter
   const filteredTransactions = useMemo(() => {
+    const chainFilterValue = globalChainFilter === 'all-evm' ? 'all' : globalChainFilter;
+    
     return unifiedTransactions.filter(tx => {
       // Search filter
       if (searchQuery) {
@@ -267,27 +272,34 @@ const History = () => {
       // Type filter
       if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
       
+      // Chain filter (for DEX transactions)
+      if (chainFilterValue !== 'all' && tx.type === 'dex') {
+        const dexTx = tx.original;
+        if (dexTx?.chainId !== chainFilterValue) return false;
+      }
+      
       // Date range filter
       if (dateRange.from && isBefore(tx.timestamp, startOfDay(dateRange.from))) return false;
       if (dateRange.to && isAfter(tx.timestamp, endOfDay(dateRange.to))) return false;
       
       return true;
     });
-  }, [unifiedTransactions, searchQuery, typeFilter, dateRange]);
+  }, [unifiedTransactions, searchQuery, typeFilter, dateRange, globalChainFilter]);
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setTypeFilter('all');
     setDateRange({});
+    setGlobalChainFilter('all');
     setCurrentPage(1);
-  }, []);
+  }, [setGlobalChainFilter]);
 
-  const hasActiveFilters = searchQuery || typeFilter !== 'all' || dateRange.from || dateRange.to;
+  const hasActiveFilters = searchQuery || typeFilter !== 'all' || dateRange.from || dateRange.to || globalChainFilter !== 'all';
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, typeFilter, dateRange]);
+  }, [searchQuery, typeFilter, dateRange, globalChainFilter]);
 
   // Pagination for filtered transactions
   const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
@@ -405,6 +417,15 @@ const History = () => {
               
               {showFilters && (
                 <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
+                  {/* Chain Filter */}
+                  <UnifiedChainSelector
+                    value={globalChainFilter}
+                    onChange={(value) => setGlobalChainFilter(value)}
+                    showAllOption={true}
+                    compact={true}
+                    triggerClassName="w-full sm:w-auto min-h-[44px]"
+                  />
+                  
                   <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
                     <SelectTrigger className="w-full sm:w-[130px] min-h-[44px]">
                       <SelectValue placeholder="Type" />

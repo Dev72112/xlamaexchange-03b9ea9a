@@ -3,6 +3,7 @@ import { Chain, getPrimaryChain } from '@/data/chains';
 
 export type ExchangeMode = 'instant' | 'dex';
 export type SwapMode = 'swap' | 'bridge';
+export type ChainFilterValue = 'all' | 'all-evm' | string;
 
 interface ExchangeModeContextType {
   mode: ExchangeMode;
@@ -14,6 +15,9 @@ interface ExchangeModeContextType {
   isDexMode: boolean;
   isInstantMode: boolean;
   isTransitioning: boolean;
+  // Global chain filter for data pages (Portfolio, Analytics, History)
+  globalChainFilter: ChainFilterValue;
+  setGlobalChainFilter: (filter: ChainFilterValue) => void;
 }
 
 const ExchangeModeContext = createContext<ExchangeModeContextType | undefined>(undefined);
@@ -29,6 +33,7 @@ export function ExchangeModeProvider({ children }: ExchangeModeProviderProps) {
   const [swapMode, setSwapMode] = useState<SwapMode>('swap');
   const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [globalChainFilter, setGlobalChainFilter] = useState<ChainFilterValue>('all');
   const transitionTimeoutRef = useRef<number | null>(null);
 
   // Cleanup on unmount
@@ -61,16 +66,24 @@ export function ExchangeModeProvider({ children }: ExchangeModeProviderProps) {
     }, TRANSITION_DURATION / 2);
   }, [mode]);
 
+  // Sync global chain filter when selectedChain changes
+  const handleSetSelectedChain = useCallback((chain: Chain) => {
+    setSelectedChain(chain);
+    setGlobalChainFilter(chain.chainIndex);
+  }, []);
+
   const value: ExchangeModeContextType = {
     mode,
     setMode,
     swapMode,
     setSwapMode,
     selectedChain,
-    setSelectedChain,
+    setSelectedChain: handleSetSelectedChain,
     isDexMode: mode === 'dex',
     isInstantMode: mode === 'instant',
     isTransitioning,
+    globalChainFilter,
+    setGlobalChainFilter,
   };
 
   return (

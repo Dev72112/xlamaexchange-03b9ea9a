@@ -32,28 +32,34 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
   const isOnCorrectChain = chainId === selectedChain.chainId;
 
   const handleChainSelect = async (chain: Chain) => {
+    // Always update the chain selection first
     onChainSelect(chain);
     setOpen(false);
     
     // For EVM chains: attempt silent network switch (no signing needed)
-    if (isConnected && chain.isEvm && chain.chainId && chainId !== chain.chainId) {
-      try {
-        await switchChain(chain.chainId);
-        // Silent success - no toast for routine switches
-      } catch (error: any) {
-        // Only show error if user rejected (code 4001) or actual failure
-        if (error?.code === 4001) {
-          // User rejected - no toast needed
-          return;
+    if (chain.isEvm && chain.chainId) {
+      // Only attempt switch if connected and on different chain
+      if (isConnected && chainId !== chain.chainId) {
+        try {
+          await switchChain(chain.chainId);
+          // Silent success - no toast for routine switches
+        } catch (error: any) {
+          // Only show error if user rejected (code 4001) or actual failure
+          if (error?.code === 4001) {
+            // User rejected - no toast needed
+            return;
+          }
+          console.warn('Network switch:', error?.message || error);
+          toast({
+            title: "Network Switch",
+            description: `Please switch to ${chain.name} in your wallet.`,
+          });
         }
-        console.warn('Network switch:', error?.message || error);
-        toast({
-          title: "Network Switch",
-          description: `Please switch to ${chain.name} in your wallet.`,
-        });
       }
     }
-    // Non-EVM chains: just update UI, wallet handles its own network
+    // Non-EVM chains: UI update already done, wallet stays on its network
+    // No wallet action needed - the chain selector just changes the view context
+    console.log(`[ChainSelector] Selected ${chain.isEvm ? 'EVM' : 'non-EVM'} chain: ${chain.name}`);
   };
 
   // Fallback icon handler
