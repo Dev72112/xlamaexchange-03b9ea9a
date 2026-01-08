@@ -47,18 +47,22 @@
       usb=()
     " />
 
-    <!-- Preconnect to API partners for faster initial requests -->
+    <!-- Preconnect to critical origins for faster initial requests -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://www.okx.com" crossorigin />
     <link rel="dns-prefetch" href="https://www.okx.com" />
-    <link rel="preconnect" href="https://li.quest" crossorigin />
     <link rel="dns-prefetch" href="https://li.quest" />
     <link rel="dns-prefetch" href="https://api.changenow.io" />
     <link rel="dns-prefetch" href="https://cloud.reown.com" />
     <link rel="dns-prefetch" href="https://verify.walletconnect.com" />
-    <link rel="dns-prefetch" href="https://rpc.walletconnect.com" />
 
-    <!-- Preload critical fonts -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" />
+    <!-- Preload LCP image (hero mascot) -->
+    <link rel="preload" href="/xlama-mascot.png" as="image" fetchpriority="high" />
+
+    <!-- Preload critical fonts with display=swap for faster text rendering -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" /></noscript>
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />

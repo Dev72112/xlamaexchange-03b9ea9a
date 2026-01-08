@@ -62,6 +62,24 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.2.0",
+    date: "2026-01-08",
+    title: "Critical Path Optimization",
+    description: "Phase 1 performance optimizations targeting Core Web Vitals and faster initial load.",
+    type: "minor",
+    changes: [
+      { category: "improvement", text: "Preload LCP image (mascot) with fetchpriority='high' for faster paint" },
+      { category: "improvement", text: "Optimized font loading with display:swap and async preload" },
+      { category: "improvement", text: "Deferred Sui CSS import until after initial render" },
+      { category: "improvement", text: "Removed 300ms artificial delay before React render" },
+      { category: "improvement", text: "Granular bundle splitting (14 chunks) for better caching" },
+      { category: "improvement", text: "Enhanced service worker v4 with font/image-specific caching" },
+      { category: "improvement", text: "Token logo CDN caching with 1-hour TTL" },
+      { category: "improvement", text: "Performance marks for app initialization timeline" },
+      { category: "fix", text: "Fixed font preconnect ordering in index.html" },
+    ],
+  },
+  {
     version: "2.1.0",
     date: "2026-01-07",
     title: "Performance & Security Hardening",
