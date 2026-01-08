@@ -29,21 +29,11 @@ export default defineConfig(({ mode }) => ({
       "@/shared": path.resolve(__dirname, "./src/shared"),
     },
   },
-build: {
+  build: {
     // Target modern browsers for smaller bundles
     target: 'esnext',
-    // Enable minification with terser for better compression
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.debug'],
-      },
-      mangle: {
-        safari10: true,
-      },
-    },
+    // Use Vite's default esbuild minification (faster and more reliable than terser)
+    minify: 'esbuild',
     // Generate source maps but don't link to them publicly
     sourcemap: 'hidden',
     // Chunk size warning threshold
