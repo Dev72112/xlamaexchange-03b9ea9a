@@ -16,7 +16,6 @@ import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } fr
 
 // OKX Universal Provider
 import { useOkxWallet } from '@/hooks/useOkxWallet';
-import { switchOkxChain, isOkxExtensionAvailable, isInOkxBrowser } from '@/lib/okxProvider';
 
 // Utilities
 import { 
@@ -26,12 +25,10 @@ import {
   isSolanaWalletAvailable,
   isTronWalletAvailable,
   openWalletDeeplink,
-  getRecommendedConnectionMethod,
 } from '@/lib/wallet-deeplinks';
 
 // Session management
 import { 
-  saveWalletSession, 
   getWalletSession, 
   clearWalletSession, 
   isSessionValid,
@@ -46,38 +43,25 @@ export type WalletType = 'okx' | 'metamask' | 'walletconnect' | 'phantom' | 'sol
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 interface MultiWalletContextType {
-  // Connection state per chain type
   evmAddress: string | null;
   solanaAddress: string | null;
   tronAddress: string | null;
   suiAddress: string | null;
   tonAddress: string | null;
-  
-  // Current active chain/address
   activeChainType: ChainType;
   activeAddress: string | null;
-  isConnected: boolean; // Connected to active chain
-  hasAnyConnection: boolean; // Any wallet connected (regardless of active chain)
-  anyConnectedAddress: string | null; // First available connected address
-  
-  // EVM-specific
+  isConnected: boolean;
+  hasAnyConnection: boolean;
+  anyConnectedAddress: string | null;
   evmChainId: number | null;
   evmChain: Chain | null;
   evmWalletType: WalletType;
-  
-  // OKX-specific
   isOkxConnected: boolean;
   isOkxAvailable: boolean;
-  
-  // Connection status
   isConnecting: boolean;
   connectionStatus: ConnectionStatus;
   error: string | null;
-  
-  // Wallet availability
   isWalletAvailable: (walletId: string) => boolean;
-  
-  // Methods - OKX is primary, AppKit handles fallback EVM/Solana
   connectOkx: () => Promise<boolean>;
   openConnectModal: () => void;
   connectTron: (preferredWallet?: 'tronlink') => Promise<boolean>;
@@ -86,11 +70,7 @@ interface MultiWalletContextType {
   disconnect: () => void;
   switchEvmChain: (chainId: number) => Promise<void>;
   switchChainByIndex: (chainIndex: string) => Promise<boolean>;
-  
-  // Deep-link for mobile
   openInWallet: (walletId: string) => void;
-  
-  // Chain-specific providers
   getEvmProvider: () => Promise<any>;
   getSolanaConnection: () => any;
   getSolanaWallet: () => any;
@@ -98,49 +78,27 @@ interface MultiWalletContextType {
   getSuiClient: () => any;
   getTonConnectUI: () => any;
   signAndExecuteSuiTransaction: (transaction: any) => Promise<any>;
-  
-  // Active chain selection
   setActiveChain: (chain: Chain) => void;
   activeChain: Chain;
-  
-  // Check if connected to specific chain
   isConnectedToChain: (chain: Chain) => boolean;
 }
 
 const MultiWalletContext = createContext<MultiWalletContextType | undefined>(undefined);
 
-// Note: okxwallet, tronWeb, tronLink Window types are declared in src/lib/wallet-deeplinks.ts and src/lib/okxProvider.ts
+const suiNetworks = { mainnet: { url: getFullnodeUrl('mainnet') } };
 
-// Sui configuration  
-const suiNetworks = {
-  mainnet: { url: getFullnodeUrl('mainnet') },
-};
+interface MultiWalletProviderProps { children: ReactNode; }
 
-interface MultiWalletProviderProps {
-  children: ReactNode;
-}
-
-// Inner provider that has access to all wallet hooks
 function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
-  // OKX Universal Provider (primary wallet connection)
   const okxWallet = useOkxWallet();
-  
-  // AppKit hooks for EVM + Solana (fallback)
   const { open: openAppKit } = useAppKit();
   const { address: appKitAddress, caipAddress, isConnected: appKitConnected, status: appKitStatus } = useAppKitAccount();
   const { caipNetwork, chainId: appKitChainId } = useAppKitNetwork();
   const { disconnect: disconnectAppKit } = useDisconnect();
-  
-  // Solana-specific from AppKit
   const { connection: solanaConnection } = useAppKitConnection();
-  
-  // Tron state (manual - not supported by AppKit or when OKX doesn't have Tron)
   const [tronAddressManual, setTronAddressManual] = useState<string | null>(null);
-  
-  // Derive addresses - prioritize OKX, fallback to AppKit/manual
   const tronAddress = okxWallet.tronAddress || tronAddressManual;
   
-  // Common state - restore active chain from session
   const [activeChain, setActiveChainState] = useState<Chain>(() => {
     const session = getWalletSession();
     if (session && isSessionValid() && session.activeChainIndex) {
@@ -153,20 +111,14 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
   
-  // Wrapper to persist chain changes to session
   const setActiveChain = useCallback((chain: Chain) => {
     setActiveChainState(chain);
     const chainType = !chain.isEvm 
-      ? (chain.name.toLowerCase().includes('solana') ? 'solana'
-        : chain.name.toLowerCase().includes('tron') ? 'tron'
-        : chain.name.toLowerCase().includes('sui') ? 'sui'
-        : chain.name.toLowerCase().includes('ton') ? 'ton'
-        : 'evm')
+      ? (chain.name.toLowerCase().includes('solana') ? 'solana' : chain.name.toLowerCase().includes('tron') ? 'tron' : chain.name.toLowerCase().includes('sui') ? 'sui' : chain.name.toLowerCase().includes('ton') ? 'ton' : 'evm')
       : 'evm';
     updateActiveChain(chainType as ChainType, chain.chainIndex);
   }, []);
   
-  // Sui wallet hooks  
   const suiCurrentWallet = useCurrentWallet();
   const suiWallets = useWallets();
   const suiAccount = useCurrentAccount();
@@ -176,58 +128,31 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const suiSignAndExecute = useSignAndExecuteTransaction();
   const suiAddress = suiAccount?.address || null;
   
-  // TON wallet hooks
   const [tonConnectUI] = useTonConnectUI();
   const tonWallet = useTonWallet();
   const tonAddressRaw = useTonAddress();
   const tonAddress = tonAddressRaw || null;
 
-  // Derive addresses - prioritize OKX session, fallback to AppKit
   const evmAddress = useMemo(() => {
-    // OKX has priority
     if (okxWallet.evmAddress) return okxWallet.evmAddress;
-    
-    // Fallback to AppKit
     if (!caipAddress) return null;
-    if (caipAddress.startsWith('eip155:')) {
-      return caipAddress.split(':')[2] || null;
-    }
+    if (caipAddress.startsWith('eip155:')) return caipAddress.split(':')[2] || null;
     return null;
   }, [okxWallet.evmAddress, caipAddress]);
 
   const solanaAddress = useMemo(() => {
-    // OKX has priority
     if (okxWallet.solanaAddress) return okxWallet.solanaAddress;
-    
-    // Fallback to AppKit
     if (!caipAddress) return null;
-    if (caipAddress.startsWith('solana:')) {
-      const parts = caipAddress.split(':');
-      return parts[2] || null;
-    }
+    if (caipAddress.startsWith('solana:')) return caipAddress.split(':')[2] || null;
     return null;
   }, [okxWallet.solanaAddress, caipAddress]);
   
-  // Sui and TON from OKX or native SDKs
   const suiAddressFinal = okxWallet.suiAddress || suiAddress;
   const tonAddressFinal = okxWallet.tonAddress || tonAddress;
-
-  // Get EVM chain ID from AppKit
-  const evmChainId = useMemo(() => {
-    if (!caipNetwork) return null;
-    // caipNetwork.id is the numeric chain ID
-    return typeof appKitChainId === 'number' ? appKitChainId : null;
-  }, [caipNetwork, appKitChainId]);
-
+  const evmChainId = useMemo(() => typeof appKitChainId === 'number' ? appKitChainId : null, [appKitChainId]);
   const evmChain = evmChainId ? getChainByChainId(evmChainId) : null;
-  
-  // Determine wallet type from connection
-  const evmWalletType: WalletType = useMemo(() => {
-    if (!evmAddress) return null;
-    return 'walletconnect'; // AppKit uses WalletConnect protocol
-  }, [evmAddress]);
+  const evmWalletType: WalletType = evmAddress ? 'walletconnect' : null;
 
-  // Determine active chain type
   const activeChainType: ChainType = useMemo(() => {
     if (!activeChain.isEvm) {
       const name = activeChain.name.toLowerCase();
@@ -239,492 +164,135 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     return 'evm';
   }, [activeChain]);
 
-  // Get active address based on chain type
   const activeAddress = useMemo(() => {
     switch (activeChainType) {
       case 'solana': return solanaAddress;
       case 'tron': return tronAddress;
-      case 'sui': return suiAddress;
-      case 'ton': return tonAddress;
+      case 'sui': return suiAddressFinal;
+      case 'ton': return tonAddressFinal;
       default: return evmAddress;
     }
-  }, [activeChainType, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
+  }, [activeChainType, evmAddress, solanaAddress, tronAddress, suiAddressFinal, tonAddressFinal]);
 
-  // Check if ANY wallet is connected (regardless of active chain)
-  const hasAnyConnection = useMemo(() => {
-    return !!(evmAddress || solanaAddress || tronAddress || suiAddress || tonAddress);
-  }, [evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
-
-  // Get first available connected address
-  const anyConnectedAddress = useMemo(() => {
-    return evmAddress || solanaAddress || tronAddress || suiAddress || tonAddress || null;
-  }, [evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
-
+  const hasAnyConnection = !!(evmAddress || solanaAddress || tronAddress || suiAddressFinal || tonAddressFinal);
+  const anyConnectedAddress = evmAddress || solanaAddress || tronAddress || suiAddressFinal || tonAddressFinal || null;
   const isConnected = !!activeAddress;
 
-  // Auto-switch active chain to match connected wallet
   useEffect(() => {
-    // Only auto-switch if we have a connection but active chain doesn't match
     if (hasAnyConnection && !isConnected) {
-      // Find first connected chain and switch to it
-      if (evmAddress && activeChainType !== 'evm') {
-        const primaryEvm = getPrimaryChain();
-        setActiveChainState(primaryEvm);
-        console.log('[MultiWallet] Auto-switched to EVM chain');
-      } else if (solanaAddress && activeChainType !== 'solana') {
-        const solanaChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('solana'));
-        if (solanaChain) {
-          setActiveChainState(solanaChain);
-          console.log('[MultiWallet] Auto-switched to Solana');
-        }
-      } else if (tronAddress && activeChainType !== 'tron') {
-        const tronChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('tron'));
-        if (tronChain) {
-          setActiveChainState(tronChain);
-          console.log('[MultiWallet] Auto-switched to Tron');
-        }
-      } else if (suiAddress && activeChainType !== 'sui') {
-        const suiChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('sui'));
-        if (suiChain) {
-          setActiveChainState(suiChain);
-          console.log('[MultiWallet] Auto-switched to Sui');
-        }
-      } else if (tonAddress && activeChainType !== 'ton') {
-        const tonChain = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('ton'));
-        if (tonChain) {
-          setActiveChainState(tonChain);
-          console.log('[MultiWallet] Auto-switched to TON');
-        }
-      }
+      if (evmAddress) setActiveChainState(getPrimaryChain());
+      else if (solanaAddress) { const c = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('solana')); if (c) setActiveChainState(c); }
+      else if (tronAddress) { const c = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('tron')); if (c) setActiveChainState(c); }
+      else if (suiAddressFinal) { const c = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('sui')); if (c) setActiveChainState(c); }
+      else if (tonAddressFinal) { const c = SUPPORTED_CHAINS.find(c => c.name.toLowerCase().includes('ton')); if (c) setActiveChainState(c); }
     }
-  }, [hasAnyConnection, isConnected, evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress, activeChainType]);
+  }, [hasAnyConnection, isConnected, evmAddress, solanaAddress, tronAddress, suiAddressFinal, tonAddressFinal]);
 
-  // Update connection status and persist to session
   useEffect(() => {
-    if (appKitStatus === 'connecting') {
-      setConnectionStatus('connecting');
-      setIsConnecting(true);
-    } else if (appKitConnected && appKitAddress) {
-      setConnectionStatus('connected');
-      setIsConnecting(false);
-      // Persist EVM/Solana connection to session
-      if (evmAddress) updateChainConnection('evm', true);
-      if (solanaAddress) updateChainConnection('solana', true);
-    } else {
-      // Only set disconnected if we're not connected to any chain
-      if (!suiAddress && !tonAddress && !tronAddress) {
-        setConnectionStatus('disconnected');
-      }
-      setIsConnecting(false);
-    }
-  }, [appKitStatus, appKitConnected, appKitAddress, evmAddress, solanaAddress, suiAddress, tonAddress, tronAddress]);
+    if (appKitStatus === 'connecting') { setConnectionStatus('connecting'); setIsConnecting(true); }
+    else if (appKitConnected && appKitAddress) { setConnectionStatus('connected'); setIsConnecting(false); if (evmAddress) updateChainConnection('evm', true); if (solanaAddress) updateChainConnection('solana', true); }
+    else { if (!suiAddressFinal && !tonAddressFinal && !tronAddress) setConnectionStatus('disconnected'); setIsConnecting(false); }
+  }, [appKitStatus, appKitConnected, appKitAddress, evmAddress, solanaAddress, suiAddressFinal, tonAddressFinal, tronAddress]);
 
-  // Track Sui connection
-  useEffect(() => {
-    if (suiAddress) {
-      updateChainConnection('sui', true);
-      setConnectionStatus('connected');
-    }
-  }, [suiAddress]);
+  useEffect(() => { if (suiAddressFinal) { updateChainConnection('sui', true); setConnectionStatus('connected'); } }, [suiAddressFinal]);
+  useEffect(() => { if (tonAddressFinal) { updateChainConnection('ton', true); setConnectionStatus('connected'); } }, [tonAddressFinal]);
+  useEffect(() => { if (tronAddress) { updateChainConnection('tron', true); setConnectionStatus('connected'); } }, [tronAddress]);
 
-  // Track TON connection
-  useEffect(() => {
-    if (tonAddress) {
-      updateChainConnection('ton', true);
-      setConnectionStatus('connected');
-    }
-  }, [tonAddress]);
-
-  // Track Tron connection
-  useEffect(() => {
-    if (tronAddress) {
-      updateChainConnection('tron', true);
-      setConnectionStatus('connected');
-    }
-  }, [tronAddress]);
-
-  // Check wallet availability
   const isWalletAvailable = useCallback((walletId: string): boolean => {
     switch (walletId) {
-      case 'okx':
-      case 'metamask':
-        return isEvmWalletAvailable(walletId);
-      case 'phantom':
-      case 'solflare':
-        return isSolanaWalletAvailable(walletId);
-      case 'tronlink':
-      case 'tokenpocket':
-        return isTronWalletAvailable();
-      case 'sui-wallet':
-        return suiWallets.length > 0;
-      case 'tonkeeper':
-        return true;
-      default:
-        return false;
+      case 'okx': case 'metamask': return isEvmWalletAvailable(walletId);
+      case 'phantom': case 'solflare': return isSolanaWalletAvailable(walletId);
+      case 'tronlink': case 'tokenpocket': return isTronWalletAvailable();
+      case 'sui-wallet': return suiWallets.length > 0;
+      case 'tonkeeper': return true;
+      default: return false;
     }
   }, [suiWallets.length]);
 
-  // Open wallet deep-link
-  const openInWallet = useCallback((walletId: string) => {
-    openWalletDeeplink(walletId);
-  }, []);
-
-  // Check if connected to a specific chain
+  const openInWallet = useCallback((walletId: string) => openWalletDeeplink(walletId), []);
   const isConnectedToChain = useCallback((chain: Chain): boolean => {
-    if (chain.isEvm) {
-      return !!evmAddress && evmChainId === chain.chainId;
-    }
+    if (chain.isEvm) return !!evmAddress && evmChainId === chain.chainId;
     const name = chain.name.toLowerCase();
     if (name.includes('solana')) return !!solanaAddress;
     if (name.includes('tron')) return !!tronAddress;
-    if (name.includes('sui')) return !!suiAddress;
-    if (name.includes('ton')) return !!tonAddress;
+    if (name.includes('sui')) return !!suiAddressFinal;
+    if (name.includes('ton')) return !!tonAddressFinal;
     return false;
-  }, [evmAddress, evmChainId, solanaAddress, tronAddress, suiAddress, tonAddress]);
+  }, [evmAddress, evmChainId, solanaAddress, tronAddress, suiAddressFinal, tonAddressFinal]);
 
-  // Open AppKit modal (for EVM/Solana)
-  const openConnectModal = useCallback(() => {
-    openAppKit();
-  }, [openAppKit]);
-
-  // Get EVM provider from wagmi
+  const openConnectModal = useCallback(() => openAppKit(), [openAppKit]);
   const getEvmProvider = useCallback(async () => {
     if (!evmChainId) return null;
-    try {
-      const walletClient = await getWalletClient(wagmiConfig, { chainId: evmChainId as any });
-      if (walletClient) {
-        return {
-          request: async (args: { method: string; params?: any[] }) => {
-            return walletClient.transport.request(args as any);
-          },
-        };
-      }
-    } catch (e) {
-      console.warn('EVM provider unavailable:', e);
-    }
-    return null;
+    try { const wc = await getWalletClient(wagmiConfig, { chainId: evmChainId as any }); return wc ? { request: async (args: any) => wc.transport.request(args) } : null; } catch { return null; }
   }, [evmChainId]);
-
-  // Solana connection - AppKit handles wallet provider internally
   const getSolanaConnection = useCallback(() => solanaConnection, [solanaConnection]);
-  const getSolanaWallet = useCallback(() => null, []); // AppKit manages Solana signing
-
-  // Tron provider
+  const getSolanaWallet = useCallback(() => null, []);
   const getTronWeb = useCallback(() => window.tronWeb || null, []);
-
-  // Sui client
   const getSuiClient = useCallback(() => suiClient, [suiClient]);
-  
-  // TON Connect UI for transactions
   const getTonConnectUI = useCallback(() => tonConnectUI, [tonConnectUI]);
-  
-  // Sui signAndExecuteTransaction wrapper
-  const signAndExecuteSuiTransaction = useCallback(async (transaction: any) => {
-    return suiSignAndExecute.mutateAsync({ transaction });
-  }, [suiSignAndExecute]);
+  const signAndExecuteSuiTransaction = useCallback(async (tx: any) => suiSignAndExecute.mutateAsync({ transaction: tx }), [suiSignAndExecute]);
 
-  // Connect Tron (manual - not supported by AppKit)
-  const connectTron = useCallback(async (preferredWallet?: 'tronlink'): Promise<boolean> => {
-    setIsConnecting(true);
-    setConnectionStatus('connecting');
-    setError(null);
-    
+  const connectTron = useCallback(async (): Promise<boolean> => {
+    setIsConnecting(true); setConnectionStatus('connecting'); setError(null);
     try {
-      if (isMobileBrowser() && !isInWalletBrowser()) {
-        openWalletDeeplink('tronlink');
-        setIsConnecting(false);
-        setConnectionStatus('disconnected');
-        return false;
-      }
-
-      if (!isTronWalletAvailable()) {
-        throw new Error('TronLink is not installed. Please install from tronlink.org');
-      }
-
-      if (window.tronLink) {
-        const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
-        if (res.code === 200) {
-          const address = window.tronLink.tronWeb?.defaultAddress?.base58;
-          if (address) {
-            setTronAddressManual(address);
-            setConnectionStatus('connected');
-            localStorage.setItem('tronWalletConnected', 'true');
-            return true;
-          }
-        } else if (res.code === 4001) {
-          throw new Error('TronLink connection rejected by user');
-        } else {
-          throw new Error(`TronLink connection failed: ${res.message || 'Unknown error'}`);
-        }
-      }
-      
-      if (window.tronWeb?.defaultAddress?.base58) {
-        setTronAddressManual(window.tronWeb.defaultAddress.base58);
-        setConnectionStatus('connected');
-        localStorage.setItem('tronWalletConnected', 'true');
-        return true;
-      }
-      
-      throw new Error('Failed to connect to TronLink. Please unlock your wallet.');
-    } catch (err: any) {
-      setError(err.message);
-      setConnectionStatus('error');
-      throw err;
-    } finally {
-      setIsConnecting(false);
-    }
+      if (isMobileBrowser() && !isInWalletBrowser()) { openWalletDeeplink('tronlink'); setIsConnecting(false); return false; }
+      if (!isTronWalletAvailable()) throw new Error('TronLink not installed');
+      if (window.tronLink) { const res = await window.tronLink.request({ method: 'tron_requestAccounts' }); if (res.code === 200) { const addr = window.tronLink.tronWeb?.defaultAddress?.base58; if (addr) { setTronAddressManual(addr); setConnectionStatus('connected'); localStorage.setItem('tronWalletConnected', 'true'); return true; } } }
+      if (window.tronWeb?.defaultAddress?.base58) { setTronAddressManual(window.tronWeb.defaultAddress.base58); setConnectionStatus('connected'); localStorage.setItem('tronWalletConnected', 'true'); return true; }
+      throw new Error('Failed to connect');
+    } catch (err: any) { setError(err.message); setConnectionStatus('error'); throw err; } finally { setIsConnecting(false); }
   }, []);
 
-  // Connect Sui
   const connectSui = useCallback(async (preferredWallet?: string): Promise<boolean> => {
-    setIsConnecting(true);
-    setConnectionStatus('connecting');
-    setError(null);
-    
+    setIsConnecting(true); setConnectionStatus('connecting'); setError(null);
     try {
-      if (suiWallets.length > 0) {
-        const normalizedPref = preferredWallet?.replace('-wallet', '').replace('-', '').toLowerCase();
-        
-        let targetWallet = preferredWallet
-          ? suiWallets.find((w) => {
-              const wName = w.name.toLowerCase().replace(/\s+/g, '');
-              return wName.includes(normalizedPref || '') || normalizedPref?.includes(wName);
-            })
-          : null;
-        
-        if (!targetWallet) {
-          targetWallet = suiWallets[0];
-        }
-        
-        await suiConnect.mutateAsync({ wallet: targetWallet });
-        setConnectionStatus('connected');
-        return true;
-      } else {
-        if (isMobileBrowser()) {
-          throw new Error('No Sui wallet detected. Please open this site in the Sui Wallet app browser.');
-        }
-        throw new Error('No Sui wallet detected. Please install Sui Wallet or Suiet extension.');
-      }
-    } catch (err: any) {
-      setError(err.message);
-      setConnectionStatus('error');
-      throw err;
-    } finally {
-      setIsConnecting(false);
-    }
+      if (suiWallets.length > 0) { const target = suiWallets.find(w => w.name.toLowerCase().includes(preferredWallet?.toLowerCase() || '')) || suiWallets[0]; await suiConnect.mutateAsync({ wallet: target }); setConnectionStatus('connected'); return true; }
+      throw new Error('No Sui wallet detected');
+    } catch (err: any) { setError(err.message); setConnectionStatus('error'); throw err; } finally { setIsConnecting(false); }
   }, [suiConnect, suiWallets]);
 
-  // Connect TON - signals to open TonWalletPicker
-  const connectTon = useCallback(async (): Promise<boolean> => {
-    return false; // TonWalletPicker handles the actual connection
-  }, []);
+  const connectTon = useCallback(async (): Promise<boolean> => false, []);
 
-  // Watch for TON connection and capture tonProof
   useEffect(() => {
     if (!tonConnectUI) return;
-    
-    // Request tonProof during connection for secure signed operations
-    const payload = crypto.randomUUID();
-    tonConnectUI.setConnectRequestParameters({
-      state: 'ready',
-      value: { tonProof: payload },
-    });
-    
-    const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
-      if (wallet) {
-        setConnectionStatus('connected');
-        
-        // Capture tonProof if available for signed operations
-        if (wallet.connectItems?.tonProof && 'proof' in wallet.connectItems.tonProof) {
-          const proof = wallet.connectItems.tonProof.proof;
-          // Store the proof globally for use in signing operations
-          import('@/hooks/useTonProof').then(({ setGlobalTonProof }) => {
-            setGlobalTonProof({
-              timestamp: proof.timestamp,
-              domainLengthBytes: proof.domain.lengthBytes,
-              domainValue: proof.domain.value,
-              signature: proof.signature,
-              payload: proof.payload,
-              stateInit: wallet.account.walletStateInit || '',
-              publicKey: wallet.account.publicKey || '',
-            });
-            console.log('[MultiWallet] Captured TON proof for signed operations');
-          });
-        }
-      } else if (!evmAddress && !solanaAddress && !suiAddress && !tronAddress) {
-        setConnectionStatus('disconnected');
-        // Clear stored proof when disconnected
-        import('@/hooks/useTonProof').then(({ setGlobalTonProof }) => {
-          setGlobalTonProof(null);
-        });
-      }
-    });
-    return () => unsubscribe();
-  }, [tonConnectUI, evmAddress, solanaAddress, suiAddress, tronAddress]);
+    tonConnectUI.setConnectRequestParameters({ state: 'ready', value: { tonProof: crypto.randomUUID() } });
+    const unsub = tonConnectUI.onStatusChange((w) => { if (w?.connectItems?.tonProof && 'proof' in w.connectItems.tonProof) { import('@/hooks/useTonProof').then(({ setGlobalTonProof }) => setGlobalTonProof({ timestamp: w.connectItems.tonProof.proof.timestamp, domainLengthBytes: w.connectItems.tonProof.proof.domain.lengthBytes, domainValue: w.connectItems.tonProof.proof.domain.value, signature: w.connectItems.tonProof.proof.signature, payload: w.connectItems.tonProof.proof.payload, stateInit: w.account.walletStateInit || '', publicKey: w.account.publicKey || '' })); } });
+    return () => unsub();
+  }, [tonConnectUI]);
 
-  // Disconnect all and clear session data
   const disconnect = useCallback(() => {
-    // AppKit (EVM + Solana)
-    disconnectAppKit();
+    disconnectAppKit(); setTronAddressManual(null); localStorage.removeItem('tronWalletConnected');
+    if (okxWallet.isConnected) okxWallet.disconnect();
+    if (suiCurrentWallet.isConnected) suiDisconnect.mutate();
+    if (tonWallet) tonConnectUI.disconnect();
+    clearWalletSession(); clearAllSessionAuth(); setError(null); setConnectionStatus('disconnected');
+  }, [disconnectAppKit, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet, okxWallet]);
 
-    // Tron
-    setTronAddressManual(null);
-    localStorage.removeItem('tronWalletConnected');
-    
-    // OKX
-    if (okxWallet.isConnected) {
-      okxWallet.disconnect();
-    }
-
-    // Sui
-    if (suiCurrentWallet.isConnected) {
-      suiDisconnect.mutate();
-    }
-
-    // TON
-    if (tonWallet) {
-      tonConnectUI.disconnect();
-    }
-
-    // Clear session data
-    clearWalletSession();
-    clearAllSessionAuth();
-
-    // NOTE: Transaction history is intentionally preserved on disconnect
-    console.log('[MultiWallet] Wallet disconnected - session cleared');
-
-    setError(null);
-    setConnectionStatus('disconnected');
-  }, [disconnectAppKit, suiCurrentWallet.isConnected, suiDisconnect, tonConnectUI, tonWallet]);
-
-  // Switch EVM chain via wagmi
-  const switchEvmChain = useCallback(async (targetChainId: number) => {
-    await switchChain(wagmiConfig, { chainId: targetChainId as any });
-  }, []);
-
-  // Auto-reconnect Tron
-  useEffect(() => {
-    const wasConnected = localStorage.getItem('tronWalletConnected') === 'true';
-    if (wasConnected && window.tronWeb?.defaultAddress?.base58) {
-      setTronAddressManual(window.tronWeb.defaultAddress.base58);
-    }
-  }, []);
-  
-  // Connect OKX (primary method)
-  const connectOkx = useCallback(async (): Promise<boolean> => {
-    return okxWallet.connect();
-  }, [okxWallet]);
-  
-  // Switch chain by index (uses OKX if connected, else wagmi)
-  const switchChainByIndex = useCallback(async (chainIndex: string): Promise<boolean> => {
-    const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
-    if (!chain) return false;
-    
-    // If OKX connected, use OKX's seamless chain switching
-    if (okxWallet.isConnected && okxWallet.provider) {
-      return okxWallet.switchChain(chainIndex);
-    }
-    
-    // For EVM, fallback to wagmi
-    if (chain.isEvm && chain.chainId) {
-      try {
-        await switchEvmChain(chain.chainId);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    
-    // Non-EVM without OKX - just update context
+  const switchEvmChain = useCallback(async (id: number) => switchChain(wagmiConfig, { chainId: id as any }), []);
+  useEffect(() => { if (localStorage.getItem('tronWalletConnected') === 'true' && window.tronWeb?.defaultAddress?.base58) setTronAddressManual(window.tronWeb.defaultAddress.base58); }, []);
+  const connectOkx = useCallback(async () => okxWallet.connect(), [okxWallet]);
+  const switchChainByIndex = useCallback(async (idx: string) => {
+    const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === idx); if (!chain) return false;
+    if (okxWallet.isConnected && okxWallet.provider) return okxWallet.switchChain(idx);
+    if (chain.isEvm && chain.chainId) { try { await switchEvmChain(chain.chainId); return true; } catch { return false; } }
     return true;
   }, [okxWallet, switchEvmChain]);
 
-  const value: MultiWalletContextType = {
-    evmAddress,
-    solanaAddress,
-    tronAddress,
-    suiAddress: suiAddressFinal,
-    tonAddress: tonAddressFinal,
-    activeChainType,
-    activeAddress,
-    isConnected,
-    hasAnyConnection,
-    anyConnectedAddress,
-    evmChainId,
-    evmChain,
-    evmWalletType,
-    isOkxConnected: okxWallet.isConnected,
-    isOkxAvailable: okxWallet.isOkxAvailable,
-    isConnecting: isConnecting || okxWallet.isConnecting,
-    connectionStatus,
-    error,
-    isWalletAvailable,
-    connectOkx,
-    openConnectModal,
-    connectTron,
-    connectSui,
-    connectTon,
-    disconnect,
-    switchEvmChain,
-    switchChainByIndex,
-    openInWallet,
-    getEvmProvider,
-    getSolanaConnection,
-    getSolanaWallet,
-    getTronWeb,
-    getSuiClient,
-    getTonConnectUI,
-    signAndExecuteSuiTransaction,
-    setActiveChain,
-    activeChain,
-    isConnectedToChain,
-  };
+  const value: MultiWalletContextType = { evmAddress, solanaAddress, tronAddress, suiAddress: suiAddressFinal, tonAddress: tonAddressFinal, activeChainType, activeAddress, isConnected, hasAnyConnection, anyConnectedAddress, evmChainId, evmChain, evmWalletType, isOkxConnected: okxWallet.isConnected, isOkxAvailable: okxWallet.isOkxAvailable, isConnecting: isConnecting || okxWallet.isConnecting, connectionStatus, error, isWalletAvailable, connectOkx, openConnectModal, connectTron, connectSui, connectTon, disconnect, switchEvmChain, switchChainByIndex, openInWallet, getEvmProvider, getSolanaConnection, getSolanaWallet, getTronWeb, getSuiClient, getTonConnectUI, signAndExecuteSuiTransaction, setActiveChain, activeChain, isConnectedToChain };
 
-  return (
-    <MultiWalletContext.Provider value={value}>
-      {children}
-    </MultiWalletContext.Provider>
-  );
+  return <MultiWalletContext.Provider value={value}>{children}</MultiWalletContext.Provider>;
 }
 
-// Outer provider wrapping Sui/TON SDKs (AppKit providers are in main.tsx)
 export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
   return (
     <SuiClientProvider networks={suiNetworks} defaultNetwork="mainnet">
       <SuiWalletProvider autoConnect>
-        <TonConnectUIProvider 
-          manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}
-          actionsConfiguration={{
-            // Request tonProof during connection for secure operations
-            twaReturnUrl: window.location.origin as `${string}://${string}`,
-          }}
-          walletsListConfiguration={{
-            includeWallets: [
-              {
-                appName: 'tonkeeper',
-                name: 'Tonkeeper',
-                imageUrl: 'https://tonkeeper.com/assets/tonconnect-icon.png',
-                aboutUrl: 'https://tonkeeper.com',
-                universalLink: 'https://app.tonkeeper.com/ton-connect',
-                bridgeUrl: 'https://bridge.tonapi.io/bridge',
-                platforms: ['ios', 'android', 'chrome', 'firefox', 'safari'],
-              },
-            ],
-          }}
-        >
-          <MultiWalletProviderInner>
-            {children}
-          </MultiWalletProviderInner>
+        <TonConnectUIProvider manifestUrl={`${window.location.origin}/tonconnect-manifest.json`} actionsConfiguration={{ twaReturnUrl: window.location.origin as `${string}://${string}` }} walletsListConfiguration={{ includeWallets: [{ appName: 'tonkeeper', name: 'Tonkeeper', imageUrl: 'https://tonkeeper.com/assets/tonconnect-icon.png', aboutUrl: 'https://tonkeeper.com', universalLink: 'https://app.tonkeeper.com/ton-connect', bridgeUrl: 'https://bridge.tonapi.io/bridge', platforms: ['ios', 'android', 'chrome', 'firefox', 'safari'] }] }}>
+          <MultiWalletProviderInner>{children}</MultiWalletProviderInner>
         </TonConnectUIProvider>
       </SuiWalletProvider>
     </SuiClientProvider>
   );
 }
 
-export function useMultiWallet() {
-  const context = useContext(MultiWalletContext);
-  if (context === undefined) {
-    throw new Error('useMultiWallet must be used within a MultiWalletProvider');
-  }
-  return context;
-}
+export function useMultiWallet() { const ctx = useContext(MultiWalletContext); if (!ctx) throw new Error('useMultiWallet must be used within MultiWalletProvider'); return ctx; }
