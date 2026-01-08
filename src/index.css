@@ -1,5 +1,5 @@
-/* Preload fonts with font-display: swap for better performance */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Fonts are now loaded via index.html with preload for non-blocking render */
+/* Font fallback stack defined in tailwind.config.ts */
 
 @tailwind base;
 @tailwind components;
