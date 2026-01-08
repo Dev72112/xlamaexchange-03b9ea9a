@@ -62,6 +62,22 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.3.0",
+    date: "2026-01-08",
+    title: "Asset Optimization",
+    description: "Phase 2 performance optimizations for images and token logos to reduce CLS and improve load times.",
+    type: "minor",
+    changes: [
+      { category: "improvement", text: "Added explicit width/height to all token and chain logos to prevent CLS" },
+      { category: "improvement", text: "Optimized TokenImage and ChainImage components with proper sizing" },
+      { category: "improvement", text: "Enhanced OptimizedImage with srcset support and fetchpriority" },
+      { category: "improvement", text: "Memoized image components for better render performance" },
+      { category: "improvement", text: "Token logo fallbacks now use proper size parameters (2x for retina)" },
+      { category: "improvement", text: "Service worker v4 caches token CDN images for 1 hour" },
+      { category: "fix", text: "Fixed oversized fallback avatars in DexTokenSelector and ChainSelector" },
+    ],
+  },
+  {
     version: "2.2.0",
     date: "2026-01-08",
     title: "Critical Path Optimization",
