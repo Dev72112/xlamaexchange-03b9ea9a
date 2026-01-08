@@ -1,9 +1,6 @@
 /**
  * App Shell - Core application structure with routing
  * Separates routing logic from provider configuration
- * 
- * Performance: Non-critical components (feedback, shortcuts, cookies)
- * are deferred until after initial render completes
  */
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -12,7 +9,10 @@ import { ScrollToTop } from '@/components/ScrollToTop';
 import { TrackingProvider } from '@/components/TrackingProvider';
 import { PageLoadingSkeleton } from '@/components/PageLoadingSkeleton';
 import { PageTransition } from '@/components/PageTransition';
-import { DeferredComponents } from '@/components/DeferredComponents';
+import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
+import { BridgeNotificationWatcher } from '@/components/BridgeNotificationWatcher';
+import { FloatingFeedback } from '@/components/FloatingFeedback';
+import { CookieConsent } from '@/components/CookieConsent';
 import { allRoutes } from './routes';
 
 export function AppShell() {
@@ -34,8 +34,10 @@ export function AppShell() {
               </Routes>
             </PageTransition>
           </Suspense>
-          {/* Non-critical components load after initial render */}
-          <DeferredComponents />
+          <KeyboardShortcuts />
+          <BridgeNotificationWatcher />
+          <FloatingFeedback />
+          <CookieConsent />
         </TrackingProvider>
       </RouteLoadingProvider>
     </BrowserRouter>

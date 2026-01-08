@@ -63,11 +63,6 @@ export const HeroSection = memo(function HeroSection() {
             <img 
               src={xlamaMascot} 
               alt="xLama mascot" 
-              width={56}
-              height={56}
-              fetchPriority="high"
-              loading="eager"
-              decoding="async"
               className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full border-2 border-primary/20 shrink-0"
             />
             <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-primary/10 border border-primary/20 text-xs sm:text-sm text-primary">

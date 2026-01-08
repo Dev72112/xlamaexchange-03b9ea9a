@@ -1,11 +1,8 @@
 /**
- * Security and caching headers for edge function responses
- * Phase 5: Optimized for delivery performance
+ * Security headers for edge function responses
+ * These headers provide additional protection for API responses
  */
 
-/**
- * Security headers for all responses
- */
 export const securityHeaders = {
   // Prevent MIME type sniffing
   'X-Content-Type-Options': 'nosniff',
@@ -15,63 +12,26 @@ export const securityHeaders = {
   'X-XSS-Protection': '1; mode=block',
   // Control referrer information
   'Referrer-Policy': 'strict-origin-when-cross-origin',
+  // Prevent caching of sensitive data
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
 };
-
-/**
- * Cache control presets for different response types
- */
-export const cachePresets = {
-  // No caching - for sensitive/dynamic data
-  noStore: {
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
-  },
-  // Short cache - for frequently changing data (quotes, prices)
-  short: {
-    'Cache-Control': 'public, max-age=30, s-maxage=15, stale-while-revalidate=60',
-  },
-  // Medium cache - for semi-static data (token lists)
-  medium: {
-    'Cache-Control': 'public, max-age=300, s-maxage=180, stale-while-revalidate=600',
-  },
-  // Long cache - for static data (chain configs)
-  long: {
-    'Cache-Control': 'public, max-age=3600, s-maxage=1800, stale-while-revalidate=86400',
-  },
-  // Immutable - for versioned/hashed assets
-  immutable: {
-    'Cache-Control': 'public, max-age=31536000, immutable',
-  },
-} as const;
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-wallet-address, x-referrer-address, x-request-id, accept-encoding',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-wallet-address, x-referrer-address, x-request-id',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
 };
 
 /**
- * Compression hint headers
- */
-export const compressionHeaders = {
-  // Indicate we support compression
-  'Vary': 'Accept-Encoding',
-};
-
-/**
  * Combined headers for API responses
  */
-export function getResponseHeaders(
-  additionalHeaders: Record<string, string> = {},
-  cachePreset: keyof typeof cachePresets = 'noStore'
-): Record<string, string> {
+export function getResponseHeaders(additionalHeaders: Record<string, string> = {}): Record<string, string> {
   return {
     ...corsHeaders,
     ...securityHeaders,
-    ...cachePresets[cachePreset],
-    ...compressionHeaders,
     'Content-Type': 'application/json',
     ...additionalHeaders,
   };
@@ -83,16 +43,11 @@ export function getResponseHeaders(
 export function secureJsonResponse(
   data: unknown, 
   status = 200,
-  options: {
-    additionalHeaders?: Record<string, string>;
-    cachePreset?: keyof typeof cachePresets;
-  } = {}
+  additionalHeaders: Record<string, string> = {}
 ): Response {
-  const { additionalHeaders = {}, cachePreset = 'noStore' } = options;
-  
   return new Response(JSON.stringify(data), {
     status,
-    headers: getResponseHeaders(additionalHeaders, cachePreset),
+    headers: getResponseHeaders(additionalHeaders),
   });
 }
 
@@ -112,7 +67,7 @@ export function secureErrorResponse(
     }), 
     {
       status,
-      headers: getResponseHeaders({}, 'noStore'),
+      headers: getResponseHeaders(),
     }
   );
 }
@@ -127,20 +82,6 @@ export function corsPreflightResponse(): Response {
       ...corsHeaders,
       'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
     },
-  });
-}
-
-/**
- * Create a cached response for static-like data
- */
-export function cachedJsonResponse(
-  data: unknown,
-  cachePreset: keyof typeof cachePresets = 'medium',
-  additionalHeaders: Record<string, string> = {}
-): Response {
-  return new Response(JSON.stringify(data), {
-    status: 200,
-    headers: getResponseHeaders(additionalHeaders, cachePreset),
   });
 }
 
