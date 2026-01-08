@@ -1,14 +1,31 @@
-// xlama Service Worker v3 - Performance & Caching Optimizations
-const CACHE_VERSION = 'v3';
+// xlama Service Worker v4 - Enhanced Performance & Caching
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
+const FONT_CACHE = `xlama-fonts-${CACHE_VERSION}`;
+const IMAGE_CACHE = `xlama-images-${CACHE_VERSION}`;
 
-// Static assets to precache on install
+// Critical static assets to precache on install
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/xlama-mascot.png',
   '/placeholder.svg',
+];
+
+// Font URLs to cache aggressively (1 year TTL)
+const FONT_HOSTS = [
+  'fonts.googleapis.com',
+  'fonts.gstatic.com',
+];
+
+// Token/chain logo CDNs to cache
+const IMAGE_HOSTS = [
+  'raw.githubusercontent.com',
+  'assets.coingecko.com',
+  'cryptologos.cc',
+  'tokens.1inch.io',
+  's2.coinmarketcap.com',
 ];
 
 // API domains to cache with stale-while-revalidate
@@ -19,6 +36,8 @@ const CACHEABLE_API_HOSTS = [
 
 // Max age for runtime cache entries (5 minutes)
 const RUNTIME_CACHE_MAX_AGE = 5 * 60 * 1000;
+// Max age for images (1 hour)
+const IMAGE_CACHE_MAX_AGE = 60 * 60 * 1000;
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -66,7 +85,19 @@ self.addEventListener('fetch', (event) => {
   // Skip API requests to our edge functions (always fresh)
   if (url.pathname.startsWith('/functions/')) return;
 
-  // Cache-first for static assets (images, fonts, scripts, styles)
+  // Cache fonts aggressively (long TTL)
+  if (isFont(request, url)) {
+    event.respondWith(cacheFirst(request, FONT_CACHE));
+    return;
+  }
+
+  // Cache token/chain logos
+  if (isTokenImage(url)) {
+    event.respondWith(cacheFirstWithExpiry(request, IMAGE_CACHE, IMAGE_CACHE_MAX_AGE));
+    return;
+  }
+
+  // Cache-first for static assets (images, scripts, styles)
   if (isStaticAsset(request, url)) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
@@ -90,6 +121,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 });
+
+// Check if request is for a font
+function isFont(request, url) {
+  return (
+    request.destination === 'font' ||
+    FONT_HOSTS.some(host => url.host === host) ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.woff')
+  );
+}
+
+// Check if request is for token/chain images
+function isTokenImage(url) {
+  return IMAGE_HOSTS.some(host => url.host.includes(host));
+}
 
 // Check if request is for a static asset
 function isStaticAsset(request, url) {
@@ -121,7 +167,7 @@ async function cacheFirst(request, cacheName) {
   
   try {
     const response = await fetch(request);
-    if (response.ok && response.type === 'basic') {
+    if (response.ok) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
@@ -129,6 +175,40 @@ async function cacheFirst(request, cacheName) {
   } catch (error) {
     console.warn('[SW] Cache-first fetch failed:', error);
     return new Response('Network error', { status: 503 });
+  }
+}
+
+// Cache-first with expiry for images
+async function cacheFirstWithExpiry(request, cacheName, maxAge) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  
+  if (cached) {
+    // Check if cache entry is still fresh
+    const cachedTime = cached.headers.get('sw-cached-time');
+    if (cachedTime && (Date.now() - parseInt(cachedTime)) < maxAge) {
+      return cached;
+    }
+  }
+  
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      // Clone response and add timestamp header
+      const headers = new Headers(response.headers);
+      headers.set('sw-cached-time', Date.now().toString());
+      const timedResponse = new Response(response.clone().body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: headers
+      });
+      cache.put(request, timedResponse);
+    }
+    return response;
+  } catch (error) {
+    if (cached) return cached;
+    console.warn('[SW] Image fetch failed:', error);
+    return new Response('', { status: 404 });
   }
 }
 

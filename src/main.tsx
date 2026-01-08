@@ -5,18 +5,27 @@ import { WagmiProvider } from "wagmi";
 import { wagmiConfig, initializeAppKit } from "./config/appkit";
 import { startTokenPrefetch } from "./lib/tokenPrefetch";
 import { queryClient } from "./lib/queryClient";
-import { initWebVitals } from "./lib/performance";
+import { initWebVitals, mark } from "./lib/performance";
 import { initErrorTracking } from "./lib/errorTracking";
 import App from "./App.tsx";
 import "./index.css";
 
-// Import Sui dapp-kit styles
-import '@mysten/dapp-kit/dist/index.css';
+// Lazy import Sui styles - not needed for initial render
+const loadSuiStyles = () => import('@mysten/dapp-kit/dist/index.css');
 
-// Initialize monitoring
+// Initialize monitoring (non-blocking)
 if (typeof window !== 'undefined') {
-  initWebVitals();
-  initErrorTracking();
+  // Mark when script starts executing
+  mark('app-init-start');
+  
+  // Defer non-critical monitoring initialization
+  requestIdleCallback?.(() => {
+    initWebVitals();
+    initErrorTracking();
+  }) || setTimeout(() => {
+    initWebVitals();
+    initErrorTracking();
+  }, 0);
 }
 
 // Splash screen with progress steps
@@ -281,6 +290,9 @@ initializeAppKit().then(() => {
   clearInterval(progressInterval);
   updateStep(steps.length - 1); // Mark all complete
   
+  // Mark performance milestone
+  mark('appkit-initialized');
+  
   // Only render when wagmiConfig is ready
   if (!wagmiConfig) {
     console.error('[Main] WagmiConfig not initialized');
@@ -293,21 +305,27 @@ initializeAppKit().then(() => {
     return;
   }
   
-  // Small delay to show completion state
-  setTimeout(() => {
-    createRoot(rootElement).render(
-      <React.StrictMode>
-        <WagmiProvider config={wagmiConfig}>
-          <QueryClientProvider client={queryClient}>
-            <App />
-          </QueryClientProvider>
-        </WagmiProvider>
-      </React.StrictMode>
-    );
-  }, 300);
+  // Render immediately - remove artificial delay for faster LCP
+  mark('react-render-start');
+  createRoot(rootElement).render(
+    <React.StrictMode>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </WagmiProvider>
+    </React.StrictMode>
+  );
   
-  // Start prefetching token lists for common chains (non-blocking)
-  startTokenPrefetch();
+  // Load non-critical resources after render
+  requestIdleCallback?.(() => {
+    loadSuiStyles();
+    startTokenPrefetch();
+  }) || setTimeout(() => {
+    loadSuiStyles();
+    startTokenPrefetch();
+  }, 100);
+  
 }).catch((error) => {
   clearInterval(progressInterval);
   console.error('[Main] Failed to initialize AppKit:', error);

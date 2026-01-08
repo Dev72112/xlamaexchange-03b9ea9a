@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => ({
       "@/shared": path.resolve(__dirname, "./src/shared"),
     },
   },
-build: {
+  build: {
     // Target modern browsers for smaller bundles
     target: 'esnext',
     // Enable minification with terser for better compression
@@ -47,38 +47,68 @@ build: {
     // Generate source maps but don't link to them publicly
     sourcemap: 'hidden',
     // Chunk size warning threshold
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        // Optimize chunk splitting for better caching
-        manualChunks: {
-          // Core React runtime
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // UI component libraries
-          'vendor-ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-dropdown-menu',
-          ],
-          // Wallet connection
-          'vendor-wallet': ['@reown/appkit', 'wagmi', 'viem'],
-          // Bridge/DEX aggregator
-          'vendor-lifi': ['@lifi/sdk'],
-          // Charts
-          'vendor-charts': ['recharts'],
-          // React Query
-          'vendor-query': ['@tanstack/react-query'],
-          // Forms
-          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          // Solana
-          'vendor-solana': ['@solana/web3.js', '@solana/wallet-adapter-base'],
-          // Sui - use specific exports to avoid resolution issues
-          'vendor-sui': ['@mysten/dapp-kit'],
-          // TON
-          'vendor-ton': ['@tonconnect/ui-react'],
+        // Optimize chunk splitting for better caching and smaller initial bundle
+        manualChunks: (id) => {
+          // Core React - loads immediately
+          if (id.includes('react-dom') || id.includes('react/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('react-router-dom')) {
+            return 'vendor-router';
+          }
+          
+          // UI components - split by usage frequency
+          if (id.includes('@radix-ui/react-dialog') || 
+              id.includes('@radix-ui/react-tooltip') ||
+              id.includes('@radix-ui/react-popover')) {
+            return 'vendor-ui-core';
+          }
+          if (id.includes('@radix-ui/')) {
+            return 'vendor-ui-extended';
+          }
+          
+          // Wallet SDKs - defer loading
+          if (id.includes('@reown/appkit') || id.includes('wagmi') || id.includes('viem')) {
+            return 'vendor-wallet-evm';
+          }
+          if (id.includes('@solana/')) {
+            return 'vendor-wallet-solana';
+          }
+          if (id.includes('@mysten/')) {
+            return 'vendor-wallet-sui';
+          }
+          if (id.includes('@tonconnect/')) {
+            return 'vendor-wallet-ton';
+          }
+          if (id.includes('@okxconnect/')) {
+            return 'vendor-wallet-okx';
+          }
+          
+          // Bridge/DEX - only load when needed
+          if (id.includes('@lifi/')) {
+            return 'vendor-lifi';
+          }
+          
+          // Charts - only load on pages with charts
+          if (id.includes('recharts') || id.includes('d3-')) {
+            return 'vendor-charts';
+          }
+          
+          // Query/Forms - commonly used
+          if (id.includes('@tanstack/react-query')) {
+            return 'vendor-query';
+          }
+          if (id.includes('react-hook-form') || id.includes('zod') || id.includes('@hookform/')) {
+            return 'vendor-forms';
+          }
+          
+          // Date utilities
+          if (id.includes('date-fns')) {
+            return 'vendor-date';
+          }
         },
       },
     },

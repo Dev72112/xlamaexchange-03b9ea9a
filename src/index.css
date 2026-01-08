@@ -1,4 +1,7 @@
-/* Preload fonts with font-display: swap for better performance */
+/* 
+ * Font loading optimized with font-display: swap
+ * Fonts are preloaded in index.html for faster LCP
+ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
