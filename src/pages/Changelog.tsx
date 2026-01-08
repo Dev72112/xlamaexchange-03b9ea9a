@@ -62,6 +62,24 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.4.0",
+    date: "2026-01-08",
+    title: "Advanced Caching & Service Worker",
+    description: "Phase 3 performance optimizations with intelligent caching strategies, route precaching, and LRU cache management.",
+    type: "minor",
+    changes: [
+      { category: "improvement", text: "Service Worker v5 with route precaching for instant navigation" },
+      { category: "improvement", text: "LRU cache eviction to prevent memory bloat (500 entry limit)" },
+      { category: "improvement", text: "Optimized cache TTLs: fonts (1yr), images (1wk), APIs (30s-5min)" },
+      { category: "improvement", text: "Versioned asset detection for immutable caching (hash in filename)" },
+      { category: "improvement", text: "API-specific stale-while-revalidate with TTL checking" },
+      { category: "improvement", text: "Cache trimming on activation to clean up old entries" },
+      { category: "improvement", text: "Added DefiLlama and OKX static CDN to cacheable hosts" },
+      { category: "improvement", text: "Price API detection for shorter TTL (30s vs 5min)" },
+      { category: "fix", text: "Offline fallback now returns cached homepage shell" },
+    ],
+  },
+  {
     version: "2.3.0",
     date: "2026-01-08",
     title: "Asset Optimization",
