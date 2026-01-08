@@ -63,11 +63,11 @@ export default defineConfig(({ mode }) => ({
           'vendor-query': ['@tanstack/react-query'],
           // Forms
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          // Solana
+          // Solana (always loaded with AppKit)
           'vendor-solana': ['@solana/web3.js', '@solana/wallet-adapter-base'],
-          // Sui - use specific exports to avoid resolution issues
-          'vendor-sui': ['@mysten/dapp-kit'],
-          // TON
+          // Sui - lazy loaded, separate chunk for dynamic import
+          'vendor-sui': ['@mysten/dapp-kit', '@mysten/sui'],
+          // TON - lazy loaded, separate chunk for dynamic import
           'vendor-ton': ['@tonconnect/ui-react'],
         },
       },
