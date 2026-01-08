@@ -3,7 +3,7 @@
  * Prefetches token lists for common chains on app initialization
  */
 
-import { cache, cacheKeys, CACHE_TTLS } from './cache';
+import { cache, cacheKeys } from './cache';
 import { okxDexService } from '@/services/okxdex';
 
 // Priority chains to prefetch (most commonly used)
@@ -64,7 +64,7 @@ async function prefetchChains(chainIndexes: string[]): Promise<void> {
       await cache.fetchAndCache(
         cacheKey,
         () => okxDexService.getTokens(chainIndex),
-        CACHE_TTLS.tokenList
+        { staleTime: 60000, maxAge: 5 * 60000 }
       );
       console.debug(`[TokenPrefetch] Prefetched chain ${chainIndex}`);
     } catch (err) {
@@ -93,7 +93,7 @@ export function prefetchChain(chainIndex: string): void {
     cache.fetchAndCache(
       cacheKey,
       () => okxDexService.getTokens(chainIndex),
-      CACHE_TTLS.tokenList
+      { staleTime: 60000, maxAge: 5 * 60000 }
     ).catch(() => {
       // Silent failure for prefetch
     });

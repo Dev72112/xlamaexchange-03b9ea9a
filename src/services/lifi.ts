@@ -8,23 +8,10 @@ const INTEGRATOR_ID = 'Xlama';
 const PLATFORM_FEE = 0.015;
 const FEES_ENABLED = true; // Enabled - Xlama integrator is active in portal.li.fi
 
-// IMPORTANT: LiFi's createConfig can perform network requests.
-// If the network is blocked/unavailable and we don't await/catch, it can surface
-// as an unhandled promise rejection and blank the app.
-let lifiInitPromise: Promise<void> | null = null;
-const ensureLiFiInitialized = async (): Promise<void> => {
-  if (lifiInitPromise) return lifiInitPromise;
-
-  lifiInitPromise = Promise.resolve(createConfig({ integrator: INTEGRATOR_ID }) as unknown as void)
-    .then(() => undefined)
-    .catch((err) => {
-      console.warn('[LiFi] init failed (will retry on next call):', err);
-      // Allow retry on next call
-      lifiInitPromise = null;
-    });
-
-  return lifiInitPromise;
-};
+// Initialize the SDK configuration
+createConfig({
+  integrator: INTEGRATOR_ID,
+});
 
 export interface LiFiChain {
   id: number;

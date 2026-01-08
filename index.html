@@ -47,46 +47,18 @@
       usb=()
     " />
 
-    <!-- 
-      PHASE 5: DELIVERY OPTIMIZATION
-      Resource hints ordered by priority for optimal loading
-    -->
-    
-    <!-- Critical: Fonts (highest priority preconnect) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    
-    <!-- Critical: API endpoints used on initial load -->
+    <!-- Preconnect to API partners for faster initial requests -->
     <link rel="preconnect" href="https://www.okx.com" crossorigin />
-    <link rel="preconnect" href="https://mnziekrimlmvnrcwgmbk.supabase.co" crossorigin />
-    
-    <!-- High priority: APIs used shortly after load -->
     <link rel="dns-prefetch" href="https://www.okx.com" />
+    <link rel="preconnect" href="https://li.quest" crossorigin />
     <link rel="dns-prefetch" href="https://li.quest" />
     <link rel="dns-prefetch" href="https://api.changenow.io" />
-    <link rel="dns-prefetch" href="https://api.coingecko.com" />
-    <link rel="dns-prefetch" href="https://coins.llama.fi" />
-    <link rel="dns-prefetch" href="https://api.llama.fi" />
-    
-    <!-- Medium priority: Wallet/bridge infrastructure -->
     <link rel="dns-prefetch" href="https://cloud.reown.com" />
     <link rel="dns-prefetch" href="https://verify.walletconnect.com" />
-    <link rel="dns-prefetch" href="https://explorer-api.walletconnect.com" />
-    
-    <!-- Low priority: CDNs for token images -->
-    <link rel="dns-prefetch" href="https://static.okx.com" />
-    <link rel="dns-prefetch" href="https://assets.coingecko.com" />
-    <link rel="dns-prefetch" href="https://raw.githubusercontent.com" />
+    <link rel="dns-prefetch" href="https://rpc.walletconnect.com" />
 
-    <!-- Preload LCP image (hero mascot) - highest priority -->
-    <link rel="preload" href="/xlama-mascot.png" as="image" type="image/png" fetchpriority="high" />
-
-    <!-- Preload critical fonts with display=swap for faster text rendering -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" /></noscript>
-
-    <!-- Modulepreload for critical JS chunks (filled by Vite at build time) -->
-    <!-- These will be automatically added by Vite's build process -->
+    <!-- Preload critical fonts -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" />
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
@@ -131,22 +103,6 @@
         "priceCurrency": "USD"
       }
     }
-    </script>
-
-    <!-- Early hints script: Detect slow connection and adjust loading strategy -->
-    <script>
-      // Network-aware resource loading
-      (function() {
-        var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        if (conn) {
-          // Add class for CSS-based optimizations
-          if (conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g') {
-            document.documentElement.classList.add('slow-network');
-          }
-          // Hint for JS-based optimizations
-          window.__SLOW_NETWORK__ = conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g';
-        }
-      })();
     </script>
   </head>
 
