@@ -5,18 +5,28 @@ import { WagmiProvider } from "wagmi";
 import { wagmiConfig, initializeAppKit } from "./config/appkit";
 import { startTokenPrefetch } from "./lib/tokenPrefetch";
 import { queryClient } from "./lib/queryClient";
-import { initWebVitals } from "./lib/performance";
+import { initWebVitals, mark } from "./lib/performance";
 import { initErrorTracking } from "./lib/errorTracking";
+import { prefetchCriticalRoutes, prefetchHighPriorityRoutes } from "./lib/routePrefetch";
 import App from "./App.tsx";
 import "./index.css";
 
-// Import Sui dapp-kit styles
-import '@mysten/dapp-kit/dist/index.css';
+// Lazy import Sui styles - not needed for initial render
+const loadSuiStyles = () => import('@mysten/dapp-kit/dist/index.css');
 
-// Initialize monitoring
+// Initialize monitoring (non-blocking)
 if (typeof window !== 'undefined') {
-  initWebVitals();
-  initErrorTracking();
+  // Mark when script starts executing
+  mark('app-init-start');
+  
+  // Defer non-critical monitoring initialization
+  requestIdleCallback?.(() => {
+    initWebVitals();
+    initErrorTracking();
+  }) || setTimeout(() => {
+    initWebVitals();
+    initErrorTracking();
+  }, 0);
 }
 
 // Splash screen with progress steps
@@ -276,53 +286,84 @@ const progressInterval = setInterval(() => {
   }
 }, 400);
 
-// Initialize AppKit (loads WalletConnect project ID) before rendering
-initializeAppKit().then(() => {
-  clearInterval(progressInterval);
-  updateStep(steps.length - 1); // Mark all complete
-  
-  // Only render when wagmiConfig is ready
-  if (!wagmiConfig) {
-    console.error('[Main] WagmiConfig not initialized');
-    return;
-  }
-  
+// Render the app - handles both success and failure cases
+const renderApp = () => {
   const rootElement = document.getElementById("root");
   if (!rootElement) {
     console.error('[Main] Root element not found');
     return;
   }
-  
-  // Small delay to show completion state
-  setTimeout(() => {
-    createRoot(rootElement).render(
-      <React.StrictMode>
-        <WagmiProvider config={wagmiConfig}>
-          <QueryClientProvider client={queryClient}>
-            <App />
-          </QueryClientProvider>
-        </WagmiProvider>
-      </React.StrictMode>
-    );
-  }, 300);
-  
-  // Start prefetching token lists for common chains (non-blocking)
-  startTokenPrefetch();
-}).catch((error) => {
-  clearInterval(progressInterval);
-  console.error('[Main] Failed to initialize AppKit:', error);
-  
-  // Render without wallet functionality as fallback
-  const rootElement = document.getElementById("root");
-  if (rootElement && wagmiConfig) {
-    createRoot(rootElement).render(
-      <React.StrictMode>
-        <WagmiProvider config={wagmiConfig}>
-          <QueryClientProvider client={queryClient}>
-            <App />
-          </QueryClientProvider>
-        </WagmiProvider>
-      </React.StrictMode>
-    );
+
+  // If wagmiConfig failed to initialize, show error state
+  if (!wagmiConfig) {
+    console.error('[Main] WagmiConfig not initialized, showing error state');
+    rootElement.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0f;color:#fff;font-family:system-ui;">
+        <h1 style="margin-bottom:1rem;">Failed to load wallet</h1>
+        <p style="opacity:0.7;margin-bottom:2rem;">Please refresh the page to try again</p>
+        <button onclick="location.reload()" style="padding:0.75rem 1.5rem;background:#00ff00;color:#000;border:none;border-radius:0.5rem;cursor:pointer;font-weight:600;">
+          Refresh Page
+        </button>
+      </div>
+    `;
+    return;
   }
-});
+
+  mark('react-render-start');
+  createRoot(rootElement).render(
+    <React.StrictMode>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </WagmiProvider>
+    </React.StrictMode>
+  );
+
+  // Load non-critical resources after render
+  requestIdleCallback?.(() => {
+    loadSuiStyles();
+    startTokenPrefetch();
+    prefetchHighPriorityRoutes();
+  }) || setTimeout(() => {
+    loadSuiStyles();
+    startTokenPrefetch();
+    prefetchHighPriorityRoutes();
+  }, 100);
+
+  prefetchCriticalRoutes();
+};
+
+// Initialize AppKit then render (with a watchdog so we never get stuck on the splash screen)
+let initFinished = false;
+const INIT_WATCHDOG_MS = 15000;
+
+const initWatchdog = window.setTimeout(() => {
+  if (initFinished) return;
+
+  console.error('[Main] App initialization timed out, rendering fallback');
+  clearInterval(progressInterval);
+  updateStep(steps.length - 1);
+  renderApp();
+}, INIT_WATCHDOG_MS);
+
+initializeAppKit()
+  .then(() => {
+    initFinished = true;
+    window.clearTimeout(initWatchdog);
+
+    clearInterval(progressInterval);
+    updateStep(steps.length - 1);
+    mark('appkit-initialized');
+    renderApp();
+  })
+  .catch((error) => {
+    initFinished = true;
+    window.clearTimeout(initWatchdog);
+
+    clearInterval(progressInterval);
+    console.error('[Main] Failed to initialize AppKit:', error);
+    // Still try to render - wagmiConfig might be partially initialized
+    renderApp();
+  });
+

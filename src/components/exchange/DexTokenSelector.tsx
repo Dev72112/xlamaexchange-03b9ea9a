@@ -306,11 +306,15 @@ export function DexTokenSelector({
         )}
       >
         <img
-          src={token.tokenLogoUrl || `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`}
+          src={token.tokenLogoUrl || `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random&size=56`}
           alt={token.tokenName}
-          className="w-6 h-6 sm:w-7 sm:h-7 rounded-full shrink-0"
+          width={28}
+          height={28}
+          loading="lazy"
+          decoding="async"
+          className="w-6 h-6 sm:w-7 sm:h-7 rounded-full shrink-0 object-cover"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random`;
+            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.tokenSymbol}&background=random&size=56`;
           }}
         />
         <div className="flex-1 min-w-0 overflow-hidden">

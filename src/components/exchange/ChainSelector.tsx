@@ -80,7 +80,7 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
   const handleIconError = (e: React.SyntheticEvent<HTMLImageElement>, name: string) => {
     const target = e.target as HTMLImageElement;
     target.onerror = null;
-    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name.slice(0, 2))}&background=6366f1&color=fff&size=64`;
+    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name.slice(0, 2))}&background=6366f1&color=fff&size=48`;
   };
 
   // Prefetch tokens when hovering over a chain
@@ -101,7 +101,11 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
     >
       <img 
         src={chain.icon} 
-        alt={chain.name} 
+        alt={chain.name}
+        width={24}
+        height={24}
+        loading="lazy"
+        decoding="async"
         className="w-6 h-6 rounded-full object-cover shrink-0"
         onError={(e) => handleIconError(e, chain.shortName)}
       />
@@ -132,7 +136,9 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
           <div className="flex items-center gap-2">
             <img 
               src={selectedChain.icon} 
-              alt={selectedChain.name} 
+              alt={selectedChain.name}
+              width={20}
+              height={20}
               className="w-5 h-5 rounded-full object-cover"
               onError={(e) => handleIconError(e, selectedChain.shortName)}
             />
