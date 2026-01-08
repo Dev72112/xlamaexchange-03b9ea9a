@@ -1,0 +1,81 @@
+# Netlify Headers Configuration
+# Phase 5: Delivery Optimization
+
+# Global headers for all routes
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+
+# HTML pages - no cache, always fetch fresh
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Versioned assets (with hash in filename) - immutable, cache forever
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# JavaScript and CSS with hash
+/*.*.js
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/javascript; charset=utf-8
+
+/*.*.css
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: text/css; charset=utf-8
+
+# Fonts - long cache
+/assets/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
+/assets/*.woff
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
+# Images - long cache with stale-while-revalidate
+/*.png
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/*.jpg
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/*.jpeg
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/*.webp
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/*.svg
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/*.ico
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+# Service Worker - no cache
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
+# Manifest - short cache
+/manifest.json
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# Sitemap and robots - medium cache
+/sitemap.xml
+  Cache-Control: public, max-age=86400
+
+/robots.txt
+  Cache-Control: public, max-age=86400
+
+# API routes (if proxied through Netlify)
+/api/*
+  Cache-Control: no-store
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: authorization, x-client-info, apikey, content-type, x-wallet-address, x-referrer-address, x-request-id, accept-encoding

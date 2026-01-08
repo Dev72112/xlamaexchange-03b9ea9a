@@ -62,6 +62,24 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.6.0",
+    date: "2026-01-08",
+    title: "Delivery Optimization",
+    description: "Phase 5 performance optimizations with enhanced resource hints, optimized HTTP headers, and network-aware loading.",
+    type: "minor",
+    changes: [
+      { category: "improvement", text: "Expanded resource hints: preconnect to Supabase, dns-prefetch for 12+ API endpoints" },
+      { category: "improvement", text: "Cache presets for edge functions: noStore, short (30s), medium (5min), long (1hr), immutable" },
+      { category: "improvement", text: "Netlify/Vercel headers configuration for optimal caching at CDN level" },
+      { category: "improvement", text: "Immutable caching for versioned assets (1 year max-age)" },
+      { category: "improvement", text: "Network-aware loading: detect slow connections and adjust strategy" },
+      { category: "improvement", text: "Vary: Accept-Encoding header for proper compression negotiation" },
+      { category: "improvement", text: "stale-while-revalidate for images and static assets" },
+      { category: "improvement", text: "Added CoinGecko, Llama.fi, and token CDNs to dns-prefetch" },
+      { category: "fix", text: "Service worker now allowed at root with proper header" },
+    ],
+  },
+  {
     version: "2.5.0",
     date: "2026-01-08",
     title: "Bundle Splitting & Deferred Loading",
