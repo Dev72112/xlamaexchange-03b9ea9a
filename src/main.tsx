@@ -7,6 +7,7 @@ import { startTokenPrefetch } from "./lib/tokenPrefetch";
 import { queryClient } from "./lib/queryClient";
 import { initWebVitals, mark } from "./lib/performance";
 import { initErrorTracking } from "./lib/errorTracking";
+import { prefetchCriticalRoutes, prefetchHighPriorityRoutes } from "./lib/routePrefetch";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -321,10 +322,16 @@ initializeAppKit().then(() => {
   requestIdleCallback?.(() => {
     loadSuiStyles();
     startTokenPrefetch();
+    // Prefetch high-priority routes after initial load
+    prefetchHighPriorityRoutes();
   }) || setTimeout(() => {
     loadSuiStyles();
     startTokenPrefetch();
+    prefetchHighPriorityRoutes();
   }, 100);
+  
+  // Prefetch critical routes immediately (/ and /bridge)
+  prefetchCriticalRoutes();
   
 }).catch((error) => {
   clearInterval(progressInterval);

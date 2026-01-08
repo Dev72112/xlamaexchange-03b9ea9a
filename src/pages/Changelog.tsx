@@ -62,6 +62,24 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.5.0",
+    date: "2026-01-08",
+    title: "Bundle Splitting & Deferred Loading",
+    description: "Phase 4 performance optimizations with route-based code splitting, deferred non-critical components, and enhanced tree-shaking.",
+    type: "minor",
+    changes: [
+      { category: "improvement", text: "Deferred loading for FloatingFeedback, KeyboardShortcuts, CookieConsent, BridgeNotificationWatcher" },
+      { category: "improvement", text: "Priority-based route prefetching (critical/high/low tiers)" },
+      { category: "improvement", text: "Network-aware loading - defer on slow 2G/3G connections" },
+      { category: "improvement", text: "Enhanced tree-shaking with 2-pass dead code elimination" },
+      { category: "improvement", text: "New vendor chunks: Supabase, Icons, Animation libraries" },
+      { category: "improvement", text: "Optimized chunk naming with content hashes for long-term caching" },
+      { category: "improvement", text: "Module side-effects configuration for better tree-shaking" },
+      { category: "improvement", text: "DeferredComponents wrapper for post-render loading" },
+      { category: "fix", text: "Removed duplicate route loading requests with in-progress tracking" },
+    ],
+  },
+  {
     version: "2.4.0",
     date: "2026-01-08",
     title: "Advanced Caching & Service Worker",
