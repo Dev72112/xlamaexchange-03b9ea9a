@@ -334,17 +334,36 @@ const renderApp = () => {
   prefetchCriticalRoutes();
 };
 
-// Initialize AppKit then render
+// Initialize AppKit then render (with a watchdog so we never get stuck on the splash screen)
+let initFinished = false;
+const INIT_WATCHDOG_MS = 15000;
+
+const initWatchdog = window.setTimeout(() => {
+  if (initFinished) return;
+
+  console.error('[Main] App initialization timed out, rendering fallback');
+  clearInterval(progressInterval);
+  updateStep(steps.length - 1);
+  renderApp();
+}, INIT_WATCHDOG_MS);
+
 initializeAppKit()
   .then(() => {
+    initFinished = true;
+    window.clearTimeout(initWatchdog);
+
     clearInterval(progressInterval);
     updateStep(steps.length - 1);
     mark('appkit-initialized');
     renderApp();
   })
   .catch((error) => {
+    initFinished = true;
+    window.clearTimeout(initWatchdog);
+
     clearInterval(progressInterval);
     console.error('[Main] Failed to initialize AppKit:', error);
     // Still try to render - wagmiConfig might be partially initialized
     renderApp();
   });
+
