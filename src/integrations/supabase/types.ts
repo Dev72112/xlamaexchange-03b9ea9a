@@ -683,48 +683,6 @@ export type Database = {
         }
         Relationships: []
       }
-      wallet_snapshots: {
-        Row: {
-          balance: string
-          chain_index: string
-          created_at: string
-          id: string
-          price_at_snapshot: number | null
-          snapshot_type: string
-          token_address: string
-          token_logo: string | null
-          token_symbol: string
-          user_address: string
-          value_usd: number | null
-        }
-        Insert: {
-          balance: string
-          chain_index: string
-          created_at?: string
-          id?: string
-          price_at_snapshot?: number | null
-          snapshot_type?: string
-          token_address: string
-          token_logo?: string | null
-          token_symbol: string
-          user_address: string
-          value_usd?: number | null
-        }
-        Update: {
-          balance?: string
-          chain_index?: string
-          created_at?: string
-          id?: string
-          price_at_snapshot?: number | null
-          snapshot_type?: string
-          token_address?: string
-          token_logo?: string | null
-          token_symbol?: string
-          user_address?: string
-          value_usd?: number | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
