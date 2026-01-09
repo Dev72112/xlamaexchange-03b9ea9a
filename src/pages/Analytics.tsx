@@ -56,7 +56,7 @@ import {
 import { cn } from '@/lib/utils';
 
 // Import analytics components from feature module
-import { LivePriceWidget, TokenPnLChart, GasBreakdown } from '@/features/analytics';
+import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings } from '@/features/analytics';
 
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
@@ -665,8 +665,13 @@ const Analytics = () => {
           </CardContent>
         </Card>
 
-        {/* Live Prices, Gas & P&L Section */}
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+        {/* Wallet Holdings, Live Prices, Gas & P&L Section */}
+        <div className="grid lg:grid-cols-4 gap-6 mb-8">
+          <WalletHoldings 
+            holdings={tradeVsHodl.walletHoldings} 
+            isLoading={tradeVsHodl.isLoadingHoldings}
+            totalValue={tradeVsHodl.hodlCurrentValue}
+          />
           <LivePriceWidget chainFilter={chainFilter} />
           <TokenPnLChart chainFilter={chainFilter} />
           <GasBreakdown chainFilter={chainFilter} />

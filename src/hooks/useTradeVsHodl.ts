@@ -2,8 +2,8 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { useTransactionHistory } from './useTransactionHistory';
 import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
-import { usePortfolioPnL } from './usePortfolioPnL';
-import { okxDexService } from '@/services/okxdex';
+import { okxDexService, WalletTokenBalance } from '@/services/okxdex';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 
 interface TradePerformance {
   id: string;
@@ -29,6 +29,16 @@ interface CumulativeDataPoint {
   hodlValue: number;
 }
 
+// Wallet holdings for HODL analysis
+export interface WalletHolding {
+  symbol: string;
+  balance: number;
+  valueUsd: number;
+  price: number;
+  chainIndex: string;
+  tokenAddress: string;
+}
+
 interface TradeVsHodlSummary {
   totalTrades: number;
   tradesAnalyzed: number;
@@ -36,11 +46,13 @@ interface TradeVsHodlSummary {
   currentTradeValue: number;
   tradePnl: number;
   tradePnlPercent: number;
-  // HODL = actual wallet holdings performance
+  // HODL = actual wallet holdings value
   hodlPnl: number;
   hodlPnlPercent: number;
   hodlStartValue: number;
   hodlCurrentValue: number;
+  // Wallet holdings breakdown
+  walletHoldings: WalletHolding[];
   // Comparison
   tradeVsHodlDiff: number;
   tradingWasBetter: boolean;
@@ -51,6 +63,7 @@ interface TradeVsHodlSummary {
   trades: TradePerformance[];
   cumulativeData: CumulativeDataPoint[];
   isLoading: boolean;
+  isLoadingHoldings: boolean;
 }
 
 // Simple price cache
@@ -94,17 +107,24 @@ interface UnifiedTrade {
   source: 'dex' | 'instant' | 'bridge';
 }
 
+// Get all connected chains for balance fetching
+const ALL_CHAIN_INDICES = '1,56,137,42161,10,43114,250,8453,324,59144,534352,196,81457';
+
 export function useTradeVsHodl(): TradeVsHodlSummary {
   const { transactions: dexTransactions } = useDexTransactions();
   const { transactions: instantTransactions } = useTransactionHistory();
   const { transactions: bridgeTransactions } = useBridgeTransactions();
-  const { dailyData: hodlData, getPnLMetrics } = usePortfolioPnL();
+  const { evmAddress, solanaAddress, tronAddress, isOkxConnected } = useMultiWallet();
+  
   const [performances, setPerformances] = useState<TradePerformance[]>([]);
+  const [walletHoldings, setWalletHoldings] = useState<WalletHolding[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingHoldings, setIsLoadingHoldings] = useState(true);
   
   // Track which trades we've already processed to prevent refetching
   const processedTradeIdsRef = useRef<string>('');
   const isFetchingRef = useRef(false);
+  const holdingsFetchedRef = useRef<string>('');
 
   // Get all confirmed trades from all sources - STABLE memo
   const allConfirmedTrades = useMemo((): UnifiedTrade[] => {
@@ -265,18 +285,86 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     };
   }, [tradeIdsFingerprint, allConfirmedTrades]);
 
-  // Calculate summary comparing trades vs actual HODL (wallet holdings)
+  // Fetch actual wallet balances for HODL analysis
+  useEffect(() => {
+    const primaryAddress = evmAddress || solanaAddress || tronAddress;
+    if (!primaryAddress) {
+      setWalletHoldings([]);
+      setIsLoadingHoldings(false);
+      return;
+    }
+
+    // Skip if we've already fetched for this address
+    if (holdingsFetchedRef.current === primaryAddress) {
+      return;
+    }
+
+    let cancelled = false;
+    
+    async function fetchWalletHoldings() {
+      setIsLoadingHoldings(true);
+      
+      try {
+        // Fetch wallet balances from OKX API
+        const balances = await okxDexService.getWalletBalances(
+          primaryAddress!,
+          ALL_CHAIN_INDICES,
+          true // exclude risk tokens
+        );
+
+        if (cancelled) return;
+
+        // Convert to WalletHolding format
+        const holdings: WalletHolding[] = balances
+          .filter(b => parseFloat(b.balance) > 0 && parseFloat(b.tokenPrice) > 0)
+          .map(b => ({
+            symbol: b.symbol,
+            balance: parseFloat(b.balance),
+            valueUsd: parseFloat(b.balance) * parseFloat(b.tokenPrice),
+            price: parseFloat(b.tokenPrice),
+            chainIndex: b.chainIndex,
+            tokenAddress: b.tokenContractAddress,
+          }))
+          .sort((a, b) => b.valueUsd - a.valueUsd);
+
+        if (!cancelled) {
+          holdingsFetchedRef.current = primaryAddress!;
+          setWalletHoldings(holdings);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch wallet holdings:', error);
+        if (!cancelled) {
+          setWalletHoldings([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingHoldings(false);
+        }
+      }
+    }
+
+    fetchWalletHoldings();
+
+    return () => { cancelled = true; };
+  }, [evmAddress, solanaAddress, tronAddress]);
+
+  // Calculate summary comparing trades vs actual wallet holdings
   const summary = useMemo((): TradeVsHodlSummary => {
     const validTrades = performances.filter(p => p.tradeValueUsd > 0 || p.currentToValueUsd > 0);
     
-    // Get HODL metrics from portfolio snapshots (actual wallet holdings)
-    const hodlMetrics = getPnLMetrics(90); // 90-day comparison
+    // Calculate HODL value from actual wallet holdings
+    const hodlCurrentValue = walletHoldings.reduce((sum, h) => sum + h.valueUsd, 0);
     
-    // Use portfolio snapshots if available
-    const hodlPnl = hodlMetrics?.absoluteChange || 0;
-    const hodlPnlPercent = hodlMetrics?.percentChange || 0;
-    const hodlStartValue = hodlMetrics?.startValue || 0;
-    const hodlCurrentValue = hodlMetrics?.endValue || 0;
+    // For P&L, we don't have historical data, so estimate based on trade volume
+    // This is a rough approximation - true HODL P&L would require historical snapshots
+    const totalTradeVolume = validTrades.reduce((sum, t) => sum + t.tradeValueUsd, 0);
+    const tradePnl = validTrades.reduce((sum, t) => sum + t.tradePnl, 0);
+    
+    // Estimate HODL start value: current holdings minus trade profits/losses
+    // This assumes trades were made from the current portfolio
+    const hodlStartValue = hodlCurrentValue > 0 ? hodlCurrentValue - tradePnl : totalTradeVolume;
+    const hodlPnl = hodlCurrentValue - hodlStartValue;
+    const hodlPnlPercent = hodlStartValue > 0 ? (hodlPnl / hodlStartValue) * 100 : 0;
 
     const totalTradesCount = allConfirmedTrades.length;
 
@@ -292,6 +380,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
         hodlPnlPercent,
         hodlStartValue,
         hodlCurrentValue,
+        walletHoldings,
         tradeVsHodlDiff: 0,
         tradingWasBetter: false,
         winningTrades: 0,
@@ -301,13 +390,14 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
         trades: [],
         cumulativeData: [],
         isLoading,
+        isLoadingHoldings,
       };
     }
 
     const totalTradeValue = validTrades.reduce((sum, t) => sum + t.tradeValueUsd, 0);
     const currentTradeValue = validTrades.reduce((sum, t) => sum + t.currentToValueUsd, 0);
-    const tradePnl = currentTradeValue - totalTradeValue;
-    const tradePnlPercent = totalTradeValue > 0 ? (tradePnl / totalTradeValue) * 100 : 0;
+    const calculatedTradePnl = currentTradeValue - totalTradeValue;
+    const tradePnlPercent = totalTradeValue > 0 ? (calculatedTradePnl / totalTradeValue) * 100 : 0;
     
     // Compare trade performance vs HODL performance (percentage-based for fairness)
     const tradeVsHodlDiff = tradePnlPercent - hodlPnlPercent;
@@ -322,15 +412,10 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     let cumulativeTradeValue = 0;
     let cumulativeOriginalValue = 0;
     
-    // Match HODL data to trade dates
+    // Build cumulative chart data
     const cumulativeData: CumulativeDataPoint[] = sortedByDate.map((trade, idx) => {
       cumulativeOriginalValue += trade.tradeValueUsd;
       cumulativeTradeValue += trade.currentToValueUsd;
-      
-      // Find closest HODL snapshot
-      const tradeDate = new Date(trade.date).toISOString().split('T')[0];
-      const hodlSnapshot = hodlData.find(h => h.date <= tradeDate) || hodlData[0];
-      const hodlValue = hodlSnapshot?.value || hodlStartValue;
       
       // Scale HODL P&L proportionally based on how far through the trades we are
       const progress = (idx + 1) / sortedByDate.length;
@@ -350,12 +435,13 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       tradesAnalyzed: validTrades.length,
       totalTradeValue,
       currentTradeValue,
-      tradePnl,
+      tradePnl: calculatedTradePnl,
       tradePnlPercent,
       hodlPnl,
       hodlPnlPercent,
       hodlStartValue,
       hodlCurrentValue,
+      walletHoldings,
       tradeVsHodlDiff,
       tradingWasBetter: tradeVsHodlDiff > 0,
       winningTrades,
@@ -365,8 +451,9 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       trades: validTrades,
       cumulativeData,
       isLoading,
+      isLoadingHoldings,
     };
-  }, [performances, allConfirmedTrades.length, isLoading, hodlData, getPnLMetrics]);
+  }, [performances, allConfirmedTrades.length, isLoading, isLoadingHoldings, walletHoldings]);
 
   return summary;
 }
