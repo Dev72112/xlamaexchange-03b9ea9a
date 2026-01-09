@@ -256,7 +256,21 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   useEffect(() => {
     if (!tonConnectUI) return;
     tonConnectUI.setConnectRequestParameters({ state: 'ready', value: { tonProof: crypto.randomUUID() } });
-    const unsub = tonConnectUI.onStatusChange((w) => { if (w?.connectItems?.tonProof && 'proof' in w.connectItems.tonProof) { import('@/hooks/useTonProof').then(({ setGlobalTonProof }) => setGlobalTonProof({ timestamp: w.connectItems.tonProof.proof.timestamp, domainLengthBytes: w.connectItems.tonProof.proof.domain.lengthBytes, domainValue: w.connectItems.tonProof.proof.domain.value, signature: w.connectItems.tonProof.proof.signature, payload: w.connectItems.tonProof.proof.payload, stateInit: w.account.walletStateInit || '', publicKey: w.account.publicKey || '' })); } });
+    const unsub = tonConnectUI.onStatusChange((w) => { 
+      const tonProof = w?.connectItems?.tonProof;
+      if (tonProof && 'proof' in tonProof) { 
+        const proof = tonProof.proof;
+        import('@/hooks/useTonProof').then(({ setGlobalTonProof }) => setGlobalTonProof({ 
+          timestamp: proof.timestamp, 
+          domainLengthBytes: proof.domain.lengthBytes, 
+          domainValue: proof.domain.value, 
+          signature: proof.signature, 
+          payload: proof.payload, 
+          stateInit: w.account.walletStateInit || '', 
+          publicKey: w.account.publicKey || '' 
+        })); 
+      } 
+    });
     return () => unsub();
   }, [tonConnectUI]);
 
