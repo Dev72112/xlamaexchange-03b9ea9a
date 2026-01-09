@@ -138,17 +138,23 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
     // For instant swaps, we don't have chain info, so only include if filter is 'all' or not set
     const instantSwaps = (!chainFilter || chainFilter === 'all') ? instantTransactions : [];
     
-    // Include completed bridge transactions
-    const completedBridges = (!chainFilter || chainFilter === 'all') 
-      ? bridgeTransactions.filter(tx => tx.status === 'completed')
-      : [];
+    // Include all bridge transactions (completed, failed, pending)
+    const allBridges = (!chainFilter || chainFilter === 'all') 
+      ? bridgeTransactions
+      : bridgeTransactions.filter(tx => tx.fromChain.chainId.toString() === chainFilter);
+    const completedBridges = allBridges.filter(tx => tx.status === 'completed');
+    const failedBridges = allBridges.filter(tx => tx.status === 'failed');
+    const pendingBridges = allBridges.filter(tx => 
+      tx.status !== 'completed' && tx.status !== 'failed' && tx.status !== 'idle'
+    );
     
     const allSwaps = [...dexSwaps, ...instantSwaps];
 
-    const totalTrades = allSwaps.length + completedBridges.length;
+    // Include failed in total for accurate counting
+    const totalTrades = allSwaps.length + allBridges.length;
     const dexTradesCount = dexSwaps.length;
     const instantTradesCount = instantSwaps.length;
-    const bridgeTradesCount = completedBridges.length;
+    const bridgeTradesCount = allBridges.length;
     
     // Calculate bridge volume
     const bridgeVolumeUsd = completedBridges.reduce((sum, tx) => sum + (tx.fromAmountUsd || 0), 0);
@@ -162,9 +168,14 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
     const failedInstant = instantSwaps.filter(tx => tx.status === 'failed').length;
     const pendingInstant = instantSwaps.filter(tx => tx.status === 'pending').length;
     
-    const successfulTotal = successfulDexSwaps + successfulInstant;
-    const failedTrades = failedDexSwaps + failedInstant;
-    const pendingTrades = pendingDexSwaps + pendingInstant;
+    // Include bridge in success/fail counts
+    const successfulBridges = completedBridges.length;
+    const failedBridgesCount = failedBridges.length;
+    const pendingBridgesCount = pendingBridges.length;
+    
+    const successfulTotal = successfulDexSwaps + successfulInstant + successfulBridges;
+    const failedTrades = failedDexSwaps + failedInstant + failedBridgesCount;
+    const pendingTrades = pendingDexSwaps + pendingInstant + pendingBridgesCount;
     
     const successRate = totalTrades > 0 
       ? (successfulTotal / totalTrades) * 100 
@@ -257,25 +268,25 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       .sort((a, b) => b.volumeUsd - a.volumeUsd || b.count - a.count)
       .slice(0, 10);
 
-    // Unique tokens & top tokens
+    // Unique tokens & top tokens - attribute volume to BOTH from and to tokens
     const tokenStats = new Map<string, { trades: number; volumeUsd: number }>();
     allSwaps.forEach(tx => {
       const fromSymbol = 'fromTicker' in tx ? tx.fromTicker : (tx as DexTransaction).fromTokenSymbol;
       const toSymbol = 'toTicker' in tx ? tx.toTicker : (tx as DexTransaction).toTokenSymbol;
       const amountUsd = getTxUsdValue(tx);
       
-      // From token
+      // From token - gets the volume
       const fromStats = tokenStats.get(fromSymbol) || { trades: 0, volumeUsd: 0 };
       tokenStats.set(fromSymbol, {
         trades: fromStats.trades + 1,
         volumeUsd: fromStats.volumeUsd + amountUsd,
       });
       
-      // To token
+      // To token - also gets the volume (same USD value for the trade)
       const toStats = tokenStats.get(toSymbol) || { trades: 0, volumeUsd: 0 };
       tokenStats.set(toSymbol, {
         trades: toStats.trades + 1,
-        volumeUsd: toStats.volumeUsd,
+        volumeUsd: toStats.volumeUsd + amountUsd,
       });
     });
 

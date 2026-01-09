@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
+import { useTransactionHistory } from './useTransactionHistory';
+import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
 import { usePortfolioPnL } from './usePortfolioPnL';
 import { okxDexService } from '@/services/okxdex';
 
@@ -16,6 +18,7 @@ interface TradePerformance {
   tradePnlPercent: number;
   chainId?: string;
   chainName?: string;
+  source: 'dex' | 'instant' | 'bridge';
 }
 
 interface CumulativeDataPoint {
@@ -77,24 +80,86 @@ async function getTokenPrice(chainIndex: string, tokenAddress: string, symbol: s
   }
 }
 
+interface UnifiedTrade {
+  id: string;
+  timestamp: number;
+  fromSymbol: string;
+  toSymbol: string;
+  fromAmount: number;
+  toAmount: number;
+  fromAmountUsd: number;
+  toTokenAddress?: string;
+  chainId?: string;
+  chainName?: string;
+  source: 'dex' | 'instant' | 'bridge';
+}
+
 export function useTradeVsHodl(): TradeVsHodlSummary {
   const { transactions: dexTransactions } = useDexTransactions();
+  const { transactions: instantTransactions } = useTransactionHistory();
+  const { transactions: bridgeTransactions } = useBridgeTransactions();
   const { dailyData: hodlData, getPnLMetrics } = usePortfolioPnL();
   const [performances, setPerformances] = useState<TradePerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get all confirmed DEX swaps - don't require USD values (we'll calculate them)
-  const confirmedSwaps = useMemo(() => {
-    return dexTransactions.filter(
-      tx => tx.type === 'swap' && 
-            tx.status === 'confirmed' &&
-            tx.toTokenAddress
-    );
-  }, [dexTransactions]);
+  // Get all confirmed trades from all sources
+  const allConfirmedTrades = useMemo((): UnifiedTrade[] => {
+    const trades: UnifiedTrade[] = [];
+    
+    // DEX swaps (confirmed only)
+    dexTransactions
+      .filter(tx => tx.type === 'swap' && tx.status === 'confirmed' && tx.toTokenAddress)
+      .forEach(tx => trades.push({
+        id: tx.id,
+        timestamp: tx.timestamp,
+        fromSymbol: tx.fromTokenSymbol,
+        toSymbol: tx.toTokenSymbol,
+        fromAmount: parseFloat(tx.fromTokenAmount) || 0,
+        toAmount: parseFloat(tx.toTokenAmount) || 0,
+        fromAmountUsd: tx.fromAmountUsd || 0,
+        toTokenAddress: tx.toTokenAddress,
+        chainId: tx.chainId,
+        chainName: tx.chainName,
+        source: 'dex',
+      }));
+    
+    // Instant swaps (completed only)
+    instantTransactions
+      .filter(tx => tx.status === 'completed')
+      .forEach(tx => trades.push({
+        id: tx.id,
+        timestamp: tx.createdAt,
+        fromSymbol: tx.fromTicker,
+        toSymbol: tx.toTicker,
+        fromAmount: parseFloat(tx.fromAmount) || 0,
+        toAmount: parseFloat(tx.toAmount || '0') || 0,
+        fromAmountUsd: typeof tx.fromAmountUsd === 'number' ? tx.fromAmountUsd : parseFloat(String(tx.fromAmountUsd) || '0'),
+        source: 'instant',
+      }));
+    
+    // Bridge transactions (completed only)
+    bridgeTransactions
+      .filter(tx => tx.status === 'completed')
+      .forEach(tx => trades.push({
+        id: tx.id,
+        timestamp: tx.startTime,
+        fromSymbol: tx.fromToken.symbol,
+        toSymbol: tx.toToken.symbol,
+        fromAmount: parseFloat(tx.fromAmount) || 0,
+        toAmount: parseFloat(tx.toAmount || '0') || 0,
+        fromAmountUsd: tx.fromAmountUsd || 0,
+        chainId: tx.toChain.chainId.toString(),
+        chainName: tx.toChain.name,
+        source: 'bridge',
+      }));
+    
+    // Sort by date descending (newest first)
+    return trades.sort((a, b) => b.timestamp - a.timestamp);
+  }, [dexTransactions, instantTransactions, bridgeTransactions]);
 
   // Fetch current prices and calculate trade performance
   useEffect(() => {
-    if (confirmedSwaps.length === 0) {
+    if (allConfirmedTrades.length === 0) {
       setPerformances([]);
       setIsLoading(false);
       return;
@@ -106,28 +171,23 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       setIsLoading(true);
       const results: TradePerformance[] = [];
 
-      // Process in batches to avoid rate limits
-      for (const tx of confirmedSwaps.slice(0, 20)) {
+      // Process up to 50 trades (increased from 20)
+      for (const trade of allConfirmedTrades.slice(0, 50)) {
         if (cancelled) break;
 
-      try {
-          // Get current price for received token
-          const toPrice = await getTokenPrice(tx.chainId, tx.toTokenAddress!, tx.toTokenSymbol);
-          
-          // Also get current price for from token if we need to calculate USD value
-          let fromPrice = 0;
-          if ((!tx.fromAmountUsd || tx.fromAmountUsd === 0) && tx.fromTokenAddress) {
-            fromPrice = await getTokenPrice(tx.chainId, tx.fromTokenAddress, tx.fromTokenSymbol);
+        try {
+          // For DEX trades with token address, get current price
+          let currentToValueUsd = 0;
+          if (trade.toTokenAddress && trade.chainId) {
+            const toPrice = await getTokenPrice(trade.chainId, trade.toTokenAddress, trade.toSymbol);
+            currentToValueUsd = trade.toAmount * toPrice;
+          } else {
+            // For instant/bridge without live pricing, estimate based on original value
+            // (they're typically 1:1 value transfers minus fees)
+            currentToValueUsd = trade.fromAmountUsd * 0.98; // ~2% fee estimate
           }
 
-          const fromAmount = parseFloat(tx.fromTokenAmount) || 0;
-          const toAmount = parseFloat(tx.toTokenAmount) || 0;
-          
-          // Use stored USD value or calculate from current price
-          const tradeValueUsd = tx.fromAmountUsd && tx.fromAmountUsd > 0 
-            ? tx.fromAmountUsd 
-            : fromAmount * fromPrice;
-          const currentToValueUsd = toAmount * toPrice;
+          const tradeValueUsd = trade.fromAmountUsd;
           
           // Skip if we couldn't get any USD values
           if (tradeValueUsd === 0 && currentToValueUsd === 0) {
@@ -138,21 +198,22 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
           const tradePnlPercent = tradeValueUsd > 0 ? (tradePnl / tradeValueUsd) * 100 : 0;
 
           results.push({
-            id: tx.id,
-            date: tx.timestamp,
-            fromSymbol: tx.fromTokenSymbol,
-            toSymbol: tx.toTokenSymbol,
-            fromAmount,
-            toAmount,
+            id: trade.id,
+            date: trade.timestamp,
+            fromSymbol: trade.fromSymbol,
+            toSymbol: trade.toSymbol,
+            fromAmount: trade.fromAmount,
+            toAmount: trade.toAmount,
             tradeValueUsd,
             currentToValueUsd,
             tradePnl,
             tradePnlPercent,
-            chainId: tx.chainId,
-            chainName: tx.chainName,
+            chainId: trade.chainId,
+            chainName: trade.chainName,
+            source: trade.source,
           });
 
-          await new Promise(r => setTimeout(r, 100));
+          await new Promise(r => setTimeout(r, 50)); // Reduced delay
         } catch (error) {
           console.warn('Error calculating performance for trade:', error);
         }
@@ -167,22 +228,26 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     calculatePerformances();
 
     return () => { cancelled = true; };
-  }, [confirmedSwaps]);
+  }, [allConfirmedTrades]);
 
   // Calculate summary comparing trades vs actual HODL (wallet holdings)
   const summary = useMemo((): TradeVsHodlSummary => {
-    const validTrades = performances.filter(p => p.tradeValueUsd > 0 && p.currentToValueUsd > 0);
+    const validTrades = performances.filter(p => p.tradeValueUsd > 0 || p.currentToValueUsd > 0);
     
     // Get HODL metrics from portfolio snapshots (actual wallet holdings)
     const hodlMetrics = getPnLMetrics(90); // 90-day comparison
+    
+    // Use portfolio snapshots if available, otherwise use current wallet balance
     const hodlPnl = hodlMetrics?.absoluteChange || 0;
     const hodlPnlPercent = hodlMetrics?.percentChange || 0;
     const hodlStartValue = hodlMetrics?.startValue || 0;
     const hodlCurrentValue = hodlMetrics?.endValue || 0;
 
+    const totalTradesCount = allConfirmedTrades.length;
+
     if (validTrades.length === 0) {
       return {
-        totalTrades: confirmedSwaps.length,
+        totalTrades: totalTradesCount,
         tradesAnalyzed: 0,
         totalTradeValue: 0,
         currentTradeValue: 0,
@@ -246,7 +311,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     });
 
     return {
-      totalTrades: confirmedSwaps.length,
+      totalTrades: totalTradesCount,
       tradesAnalyzed: validTrades.length,
       totalTradeValue,
       currentTradeValue,
@@ -266,7 +331,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       cumulativeData,
       isLoading,
     };
-  }, [performances, confirmedSwaps.length, isLoading, hodlData, getPnLMetrics]);
+  }, [performances, allConfirmedTrades.length, isLoading, hodlData, getPnLMetrics]);
 
   return summary;
 }

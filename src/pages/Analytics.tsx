@@ -61,7 +61,7 @@ import { LivePriceWidget, TokenPnLChart, GasBreakdown } from '@/features/analyti
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
 
-type TimePeriod = '7d' | '30d' | '90d' | 'all';
+type TimePeriod = '24h' | '3d' | '7d' | '30d' | '90d' | 'all';
 
 const formatUsd = (value: number, compact = false) => {
   const absValue = Math.abs(value);
@@ -230,6 +230,8 @@ const Analytics = () => {
   const filteredData = useMemo(() => {
     const now = new Date();
     const daysMap: Record<TimePeriod, number> = {
+      '24h': 1,
+      '3d': 3,
       '7d': 7,
       '30d': 30,
       '90d': 90,
@@ -334,6 +336,8 @@ const Analytics = () => {
             {/* Time Period */}
             <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
               <TabsList className="bg-secondary/50 h-9">
+                <TabsTrigger value="24h" className="text-xs min-h-[36px]">24H</TabsTrigger>
+                <TabsTrigger value="3d" className="text-xs min-h-[36px]">3D</TabsTrigger>
                 <TabsTrigger value="7d" className="text-xs min-h-[36px]">7D</TabsTrigger>
                 <TabsTrigger value="30d" className="text-xs min-h-[36px]">30D</TabsTrigger>
                 <TabsTrigger value="90d" className="text-xs min-h-[36px]">90D</TabsTrigger>
@@ -434,10 +438,10 @@ const Analytics = () => {
             subValue="trades"
           />
           <StatCard 
-            icon={Clock} 
-            label="Pending" 
-            value={analytics.pendingTrades}
-            variant={analytics.pendingTrades > 0 ? 'warning' : 'default'}
+            icon={Target} 
+            label="Successful" 
+            value={analytics.totalTrades - analytics.failedTrades - analytics.pendingTrades}
+            variant="success"
           />
           <StatCard 
             icon={AlertCircle} 
