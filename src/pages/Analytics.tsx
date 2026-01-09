@@ -34,7 +34,7 @@ import {
   ArrowRightLeft,
   Fuel
 } from 'lucide-react';
-import { useTradeAnalytics, useTradeVsHodl, useGasAnalytics } from '@/features/analytics';
+import { useTradeAnalytics, useTradeVsHodl, useGasAnalytics, type TimePeriod } from '@/features/analytics';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { SUPPORTED_CHAINS, getChainIcon, getEvmChains, getNonEvmChains } from '@/data/chains';
 import { 
@@ -60,8 +60,6 @@ import { LivePriceWidget, TokenPnLChart, GasBreakdown } from '@/features/analyti
 
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
-
-type TimePeriod = '24h' | '3d' | '7d' | '30d' | '90d' | 'all';
 
 const formatUsd = (value: number, compact = false) => {
   const absValue = Math.abs(value);
@@ -218,44 +216,14 @@ const Analytics = () => {
   // Use global chain filter for analytics
   const chainFilter = globalChainFilter === 'all-evm' ? 'all' : globalChainFilter;
   
-  const analytics = useTradeAnalytics(chainFilter);
+  // Pass timePeriod to analytics hook - all filtering happens inside the hook
+  const analytics = useTradeAnalytics(chainFilter, timePeriod);
   const tradeVsHodl = useTradeVsHodl();
   const gasAnalytics = useGasAnalytics(chainFilter);
 
   // Get all supported chains for the filter, grouped by EVM/Non-EVM
   const evmChains = useMemo(() => getEvmChains(), []);
   const nonEvmChains = useMemo(() => getNonEvmChains(), []);
-
-  // Filter data based on time period
-  const filteredData = useMemo(() => {
-    const now = new Date();
-    const daysMap: Record<TimePeriod, number> = {
-      '24h': 1,
-      '3d': 3,
-      '7d': 7,
-      '30d': 30,
-      '90d': 90,
-      'all': Infinity
-    };
-    const days = daysMap[timePeriod];
-    const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    
-    const filteredDaily = analytics.dailyVolume.filter(d => 
-      timePeriod === 'all' || new Date(d.date) >= cutoffDate
-    );
-
-    // Recalculate totals for the filtered period
-    const periodTrades = filteredDaily.reduce((sum, d) => sum + d.count, 0);
-    const periodVolumeUsd = filteredDaily.reduce((sum, d) => sum + d.volumeUsd, 0);
-    
-    return {
-      ...analytics,
-      dailyVolume: filteredDaily,
-      periodTrades,
-      periodVolumeUsd,
-      periodAvgTradeSize: periodTrades > 0 ? periodVolumeUsd / periodTrades : 0,
-    };
-  }, [analytics, timePeriod]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -266,7 +234,7 @@ const Analytics = () => {
   const handleExport = () => {
     const csvContent = [
       ['Date', 'Trades', 'Volume (USD)'].join(','),
-      ...filteredData.dailyVolume.map(d => 
+      ...analytics.dailyVolume.map(d => 
         [d.date, d.count, d.volumeUsd.toFixed(2)].join(',')
       )
     ].join('\n');
@@ -316,7 +284,7 @@ const Analytics = () => {
                 size="icon"
                 onClick={handleExport}
                 className="h-9 w-9"
-                disabled={filteredData.dailyVolume.length === 0}
+                disabled={analytics.dailyVolume.length === 0}
               >
                 <Download className="w-4 h-4" />
               </Button>
@@ -384,16 +352,16 @@ const Analytics = () => {
           <StatCard 
             icon={DollarSign} 
             label="Total Volume (USD)" 
-            value={formatUsd(filteredData.periodVolumeUsd)} 
-            subValue={`${filteredData.periodTrades} trades`}
+            value={formatUsd(analytics.totalVolumeUsd)} 
+            subValue={`${analytics.totalTrades} trades`}
             trend={weekTrend}
             trendValue={`${Math.abs(analytics.weekOverWeekChange).toFixed(0)}% WoW`}
           />
           <StatCard 
             icon={BarChart3} 
             label="Total Trades" 
-            value={filteredData.periodTrades.toLocaleString()} 
-            subValue={`Avg ${formatUsd(filteredData.periodAvgTradeSize)}/trade`}
+            value={analytics.totalTrades.toLocaleString()} 
+            subValue={`Avg ${formatUsd(analytics.avgTradeSizeUsd)}/trade`}
             trend={analytics.last7DaysTrades > 0 ? 'up' : 'neutral'}
           />
           <StatCard 
@@ -463,9 +431,58 @@ const Analytics = () => {
               <CardDescription>Daily trading volume (USD) and trade count</CardDescription>
             </CardHeader>
             <CardContent>
-              {filteredData.dailyVolume.length > 0 ? (
+              {/* Use hourly data for 24h view, daily for others */}
+              {timePeriod === '24h' && analytics.hourlyVolume.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
-                  <ComposedChart data={filteredData.dailyVolume}>
+                  <ComposedChart data={analytics.hourlyVolume}>
+                    <defs>
+                      <linearGradient id="volumeGradientHourly" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="label" 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis 
+                      yAxisId="left"
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      tickFormatter={(v) => formatUsd(v)}
+                    />
+                    <YAxis 
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      yAxisId="left"
+                      type="monotone" 
+                      dataKey="volumeUsd" 
+                      name="Volume (USD)"
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      fill="url(#volumeGradientHourly)" 
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="count"
+                      name="Trades"
+                      stroke="hsl(var(--chart-2))"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : analytics.dailyVolume.length > 0 ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <ComposedChart data={analytics.dailyVolume}>
                     <defs>
                       <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>

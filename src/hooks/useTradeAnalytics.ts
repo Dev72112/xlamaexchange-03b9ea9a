@@ -4,6 +4,8 @@ import { useTransactionHistory, TransactionRecord } from './useTransactionHistor
 import { useBridgeTransactions, BridgeTransaction } from '@/contexts/BridgeTransactionContext';
 import { usePriceOracleOptional } from '@/contexts/PriceOracleContext';
 
+export type TimePeriod = '24h' | '3d' | '7d' | '30d' | '90d' | 'all';
+
 // Helper to parse USD values that might be stored as strings like "$1,234.56" or numbers
 const parseUsdValue = (value: string | number | undefined): number => {
   if (typeof value === 'number') return isNaN(value) ? 0 : value;
@@ -66,6 +68,14 @@ interface DailyVolume {
   count: number;
 }
 
+interface HourlyVolume {
+  hour: string;
+  label: string;
+  volume: number;
+  volumeUsd: number;
+  count: number;
+}
+
 interface HourlyDistribution {
   hour: number;
   count: number;
@@ -90,6 +100,7 @@ export interface TradeAnalytics {
   // Time-based
   dailyVolume: DailyVolume[];
   weeklyVolume: DailyVolume[];
+  hourlyVolume: HourlyVolume[]; // NEW: For 24h view
   hourlyDistribution: HourlyDistribution[];
   
   // Pair analysis
@@ -117,7 +128,23 @@ export interface TradeAnalytics {
   bridgeTradesCount: number;
 }
 
-export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
+// Get cutoff timestamp for time period
+function getCutoffTimestamp(timePeriod: TimePeriod): number {
+  if (timePeriod === 'all') return 0;
+  
+  const now = Date.now();
+  const daysMap: Record<Exclude<TimePeriod, 'all'>, number> = {
+    '24h': 1,
+    '3d': 3,
+    '7d': 7,
+    '30d': 30,
+    '90d': 90,
+  };
+  
+  return now - daysMap[timePeriod] * 24 * 60 * 60 * 1000;
+}
+
+export function useTradeAnalytics(chainFilter?: string, timePeriod: TimePeriod = 'all'): TradeAnalytics {
   const { transactions: dexTransactions } = useDexTransactions();
   const { transactions: instantTransactions } = useTransactionHistory();
   const { transactions: bridgeTransactions } = useBridgeTransactions();
@@ -127,21 +154,35 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
   const getTxUsdValue = useMemo(() => createGetTxUsdValue(priceOracle), [priceOracle]);
 
   const analytics = useMemo((): TradeAnalytics => {
-    // Filter DEX swaps only (exclude approvals)
-    let dexSwaps = dexTransactions.filter(tx => tx.type === 'swap');
+    const cutoffTimestamp = getCutoffTimestamp(timePeriod);
+    
+    // Filter DEX swaps only (exclude approvals) + time filter
+    let dexSwaps = dexTransactions.filter(tx => {
+      if (tx.type !== 'swap') return false;
+      if (timePeriod !== 'all' && tx.timestamp < cutoffTimestamp) return false;
+      return true;
+    });
     
     // Apply chain filter if specified
     if (chainFilter && chainFilter !== 'all') {
       dexSwaps = dexSwaps.filter(tx => tx.chainId === chainFilter);
     }
     
-    // For instant swaps, we don't have chain info, so only include if filter is 'all' or not set
-    const instantSwaps = (!chainFilter || chainFilter === 'all') ? instantTransactions : [];
+    // Filter instant swaps by time period
+    let instantSwaps = (!chainFilter || chainFilter === 'all') ? instantTransactions : [];
+    if (timePeriod !== 'all') {
+      instantSwaps = instantSwaps.filter(tx => tx.createdAt >= cutoffTimestamp);
+    }
     
-    // Include all bridge transactions (completed, failed, pending)
-    const allBridges = (!chainFilter || chainFilter === 'all') 
+    // Filter bridge transactions by time period
+    let allBridges = (!chainFilter || chainFilter === 'all') 
       ? bridgeTransactions
       : bridgeTransactions.filter(tx => tx.fromChain.chainId.toString() === chainFilter);
+    
+    if (timePeriod !== 'all') {
+      allBridges = allBridges.filter(tx => tx.startTime >= cutoffTimestamp);
+    }
+    
     const completedBridges = allBridges.filter(tx => tx.status === 'completed');
     const failedBridges = allBridges.filter(tx => tx.status === 'failed');
     const pendingBridges = allBridges.filter(tx => 
@@ -214,6 +255,43 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-90); // Last 90 days
 
+    // Hourly volume for 24h view
+    const hourlyVolumeMap = new Map<string, { volume: number; volumeUsd: number; count: number }>();
+    if (timePeriod === '24h') {
+      const now = new Date();
+      // Initialize all 24 hours
+      for (let i = 0; i < 24; i++) {
+        const hourDate = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000);
+        const hourKey = hourDate.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+        hourlyVolumeMap.set(hourKey, { volume: 0, volumeUsd: 0, count: 0 });
+      }
+      
+      allSwaps.forEach(tx => {
+        const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
+        const hourKey = new Date(timestamp).toISOString().slice(0, 13);
+        const existing = hourlyVolumeMap.get(hourKey);
+        if (existing) {
+          const amount = 'fromAmount' in tx 
+            ? parseFloat(tx.fromAmount || '0') 
+            : parseFloat((tx as DexTransaction).fromTokenAmount || '0');
+          const amountUsd = getTxUsdValue(tx);
+          hourlyVolumeMap.set(hourKey, {
+            volume: existing.volume + (isNaN(amount) ? 0 : amount),
+            volumeUsd: existing.volumeUsd + amountUsd,
+            count: existing.count + 1,
+          });
+        }
+      });
+    }
+
+    const hourlyVolume: HourlyVolume[] = Array.from(hourlyVolumeMap.entries())
+      .map(([hour, data]) => ({
+        hour,
+        label: new Date(hour + ':00:00Z').toLocaleTimeString('en', { hour: 'numeric', hour12: true }),
+        ...data,
+      }))
+      .sort((a, b) => a.hour.localeCompare(b.hour));
+
     // Weekly aggregation
     const weeklyVolume = dailyVolume.reduce<DailyVolume[]>((acc, day) => {
       const weekStart = getWeekStart(day.date);
@@ -228,7 +306,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       return acc;
     }, []);
 
-    // Hourly distribution
+    // Hourly distribution (all-time pattern)
     const hourCounts = new Map<number, number>();
     allSwaps.forEach(tx => {
       const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
@@ -332,14 +410,16 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
     // Trading streak (consecutive days)
     const tradingStreak = calculateTradingStreak(Array.from(uniqueDays).sort());
 
-    // Recent activity metrics
+    // Recent activity metrics (always use actual timestamps, not filtered)
     const now = Date.now();
-    const last7Days = allSwaps.filter(tx => {
+    const allSwapsUnfiltered = [...dexTransactions.filter(tx => tx.type === 'swap'), ...instantTransactions];
+    
+    const last7Days = allSwapsUnfiltered.filter(tx => {
       const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
       return now - timestamp < 7 * 24 * 60 * 60 * 1000;
     }).length;
     
-    const last30Days = allSwaps.filter(tx => {
+    const last30Days = allSwapsUnfiltered.filter(tx => {
       const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
       return now - timestamp < 30 * 24 * 60 * 60 * 1000;
     }).length;
@@ -348,12 +428,12 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
     const thisWeekStart = now - 7 * 24 * 60 * 60 * 1000;
     const lastWeekStart = now - 14 * 24 * 60 * 60 * 1000;
     
-    const thisWeekTrades = allSwaps.filter(tx => {
+    const thisWeekTrades = allSwapsUnfiltered.filter(tx => {
       const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
       return timestamp >= thisWeekStart;
     }).length;
     
-    const lastWeekTrades = allSwaps.filter(tx => {
+    const lastWeekTrades = allSwapsUnfiltered.filter(tx => {
       const timestamp = 'createdAt' in tx ? tx.createdAt : tx.timestamp;
       return timestamp >= lastWeekStart && timestamp < thisWeekStart;
     }).length;
@@ -371,6 +451,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       pendingTrades,
       dailyVolume,
       weeklyVolume,
+      hourlyVolume,
       hourlyDistribution,
       topPairs,
       uniqueTokens: tokenStats.size,
@@ -391,7 +472,7 @@ export function useTradeAnalytics(chainFilter?: string): TradeAnalytics {
       instantTradesCount,
       bridgeTradesCount,
     };
-  }, [dexTransactions, instantTransactions, bridgeTransactions, chainFilter, getTxUsdValue]);
+  }, [dexTransactions, instantTransactions, bridgeTransactions, chainFilter, timePeriod, getTxUsdValue]);
 
   return analytics;
 }
