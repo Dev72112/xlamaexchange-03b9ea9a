@@ -66,7 +66,8 @@ export default defineConfig(({ mode }) => ({
           // Solana (always loaded with AppKit)
           'vendor-solana': ['@solana/web3.js', '@solana/wallet-adapter-base'],
           // Sui - lazy loaded, separate chunk for dynamic import
-          'vendor-sui': ['@mysten/dapp-kit', '@mysten/sui'],
+          // Note: Only include dapp-kit, not @mysten/sui directly (causes Rollup export resolution errors)
+          'vendor-sui': ['@mysten/dapp-kit'],
           // TON - lazy loaded, separate chunk for dynamic import
           'vendor-ton': ['@tonconnect/ui-react'],
         },
