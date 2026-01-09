@@ -17,6 +17,9 @@ export {
   useWebSocketPrice,
 } from './hooks';
 
+// Re-export TimePeriod type from useTradeAnalytics
+export type { TimePeriod } from '@/hooks/useTradeAnalytics';
+
 // Types
 export type { 
   TradeAnalytics, 

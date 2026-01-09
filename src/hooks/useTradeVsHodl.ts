@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { useTransactionHistory } from './useTransactionHistory';
 import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
@@ -101,8 +101,12 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
   const { dailyData: hodlData, getPnLMetrics } = usePortfolioPnL();
   const [performances, setPerformances] = useState<TradePerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Track which trades we've already processed to prevent refetching
+  const processedTradeIdsRef = useRef<string>('');
+  const isFetchingRef = useRef(false);
 
-  // Get all confirmed trades from all sources
+  // Get all confirmed trades from all sources - STABLE memo
   const allConfirmedTrades = useMemo((): UnifiedTrade[] => {
     const trades: UnifiedTrade[] = [];
     
@@ -157,78 +161,109 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     return trades.sort((a, b) => b.timestamp - a.timestamp);
   }, [dexTransactions, instantTransactions, bridgeTransactions]);
 
-  // Fetch current prices and calculate trade performance
+  // Create a stable trade ID fingerprint
+  const tradeIdsFingerprint = useMemo(() => {
+    return allConfirmedTrades.slice(0, 50).map(t => t.id).join(',');
+  }, [allConfirmedTrades]);
+
+  // Fetch current prices and calculate trade performance - BATCHED
   useEffect(() => {
+    // Skip if no trades or already fetching same set
     if (allConfirmedTrades.length === 0) {
       setPerformances([]);
       setIsLoading(false);
       return;
     }
 
+    // Skip if we've already processed these exact trades
+    if (tradeIdsFingerprint === processedTradeIdsRef.current) {
+      return;
+    }
+
+    // Skip if already fetching
+    if (isFetchingRef.current) {
+      return;
+    }
+
     let cancelled = false;
+    isFetchingRef.current = true;
 
     async function calculatePerformances() {
       setIsLoading(true);
+      const tradesToProcess = allConfirmedTrades.slice(0, 50);
+      
+      // Batch fetch all prices at once
+      const pricePromises = tradesToProcess
+        .filter(t => t.toTokenAddress && t.chainId)
+        .map(async (trade) => {
+          const price = await getTokenPrice(trade.chainId!, trade.toTokenAddress!, trade.toSymbol);
+          return { id: trade.id, price };
+        });
+
+      const priceResults = await Promise.all(pricePromises);
+      const priceMap = new Map(priceResults.map(p => [p.id, p.price]));
+
+      if (cancelled) {
+        isFetchingRef.current = false;
+        return;
+      }
+
+      // Now calculate all performances synchronously
       const results: TradePerformance[] = [];
-
-      // Process up to 50 trades (increased from 20)
-      for (const trade of allConfirmedTrades.slice(0, 50)) {
-        if (cancelled) break;
-
-        try {
-          // For DEX trades with token address, get current price
-          let currentToValueUsd = 0;
-          if (trade.toTokenAddress && trade.chainId) {
-            const toPrice = await getTokenPrice(trade.chainId, trade.toTokenAddress, trade.toSymbol);
-            currentToValueUsd = trade.toAmount * toPrice;
-          } else {
-            // For instant/bridge without live pricing, estimate based on original value
-            // (they're typically 1:1 value transfers minus fees)
-            currentToValueUsd = trade.fromAmountUsd * 0.98; // ~2% fee estimate
-          }
-
-          const tradeValueUsd = trade.fromAmountUsd;
-          
-          // Skip if we couldn't get any USD values
-          if (tradeValueUsd === 0 && currentToValueUsd === 0) {
-            continue;
-          }
-          
-          const tradePnl = currentToValueUsd - tradeValueUsd;
-          const tradePnlPercent = tradeValueUsd > 0 ? (tradePnl / tradeValueUsd) * 100 : 0;
-
-          results.push({
-            id: trade.id,
-            date: trade.timestamp,
-            fromSymbol: trade.fromSymbol,
-            toSymbol: trade.toSymbol,
-            fromAmount: trade.fromAmount,
-            toAmount: trade.toAmount,
-            tradeValueUsd,
-            currentToValueUsd,
-            tradePnl,
-            tradePnlPercent,
-            chainId: trade.chainId,
-            chainName: trade.chainName,
-            source: trade.source,
-          });
-
-          await new Promise(r => setTimeout(r, 50)); // Reduced delay
-        } catch (error) {
-          console.warn('Error calculating performance for trade:', error);
+      
+      for (const trade of tradesToProcess) {
+        let currentToValueUsd = 0;
+        
+        if (trade.toTokenAddress && trade.chainId) {
+          const toPrice = priceMap.get(trade.id) || 0;
+          currentToValueUsd = trade.toAmount * toPrice;
+        } else {
+          // For instant/bridge without live pricing, estimate based on original value
+          currentToValueUsd = trade.fromAmountUsd * 0.98; // ~2% fee estimate
         }
+
+        const tradeValueUsd = trade.fromAmountUsd;
+        
+        // Skip if we couldn't get any USD values
+        if (tradeValueUsd === 0 && currentToValueUsd === 0) {
+          continue;
+        }
+        
+        const tradePnl = currentToValueUsd - tradeValueUsd;
+        const tradePnlPercent = tradeValueUsd > 0 ? (tradePnl / tradeValueUsd) * 100 : 0;
+
+        results.push({
+          id: trade.id,
+          date: trade.timestamp,
+          fromSymbol: trade.fromSymbol,
+          toSymbol: trade.toSymbol,
+          fromAmount: trade.fromAmount,
+          toAmount: trade.toAmount,
+          tradeValueUsd,
+          currentToValueUsd,
+          tradePnl,
+          tradePnlPercent,
+          chainId: trade.chainId,
+          chainName: trade.chainName,
+          source: trade.source,
+        });
       }
 
       if (!cancelled) {
+        processedTradeIdsRef.current = tradeIdsFingerprint;
         setPerformances(results);
         setIsLoading(false);
       }
+      
+      isFetchingRef.current = false;
     }
 
     calculatePerformances();
 
-    return () => { cancelled = true; };
-  }, [allConfirmedTrades]);
+    return () => { 
+      cancelled = true; 
+    };
+  }, [tradeIdsFingerprint, allConfirmedTrades]);
 
   // Calculate summary comparing trades vs actual HODL (wallet holdings)
   const summary = useMemo((): TradeVsHodlSummary => {
@@ -237,7 +272,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     // Get HODL metrics from portfolio snapshots (actual wallet holdings)
     const hodlMetrics = getPnLMetrics(90); // 90-day comparison
     
-    // Use portfolio snapshots if available, otherwise use current wallet balance
+    // Use portfolio snapshots if available
     const hodlPnl = hodlMetrics?.absoluteChange || 0;
     const hodlPnlPercent = hodlMetrics?.percentChange || 0;
     const hodlStartValue = hodlMetrics?.startValue || 0;
