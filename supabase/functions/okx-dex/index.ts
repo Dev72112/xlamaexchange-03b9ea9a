@@ -23,6 +23,20 @@ const OKX_API_PASSPHRASE = Deno.env.get('OKX_API_PASSPHRASE') || '';
 const OKX_PROJECT_ID = Deno.env.get('OKX_PROJECT_ID') || '';
 const OKX_REFERRER_WALLET_ADDRESS = Deno.env.get('OKX_REFERRER_WALLET_ADDRESS') || '';
 
+// Non-EVM chain indices (referrer addresses use different formats)
+const NON_EVM_CHAIN_INDICES = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
+
+// Get chain-appropriate referrer address (skip for non-EVM until we have proper addresses)
+function getReferrerAddress(chainIndex: string): string | null {
+  // Non-EVM chains require chain-specific address formats (Base58 for Solana, etc.)
+  // Skip referrer fee for non-EVM chains until proper addresses are configured
+  if (NON_EVM_CHAIN_INDICES.includes(chainIndex)) {
+    console.log(`[okx-dex] Skipping referrer fee for non-EVM chain ${chainIndex}`);
+    return null;
+  }
+  return OKX_REFERRER_WALLET_ADDRESS || null;
+}
+
 // API Base URLs - all using v6
 const OKX_DEX_AGGREGATOR_URL = 'https://web3.okx.com/api/v6/dex/aggregator';
 const OKX_MARKET_API_URL = 'https://web3.okx.com/api/v6/dex/market';
@@ -351,9 +365,11 @@ serve(async (req) => {
           slippage: validSlippage,
         };
         
-        if (OKX_REFERRER_WALLET_ADDRESS) {
+        // Only add referrer for chains where we have a valid address format
+        const referrerAddress = getReferrerAddress(chainIndex);
+        if (referrerAddress) {
           quoteParams.feePercent = COMMISSION_FEE_PERCENT;
-          quoteParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+          quoteParams.toTokenReferrerWalletAddress = referrerAddress;
         }
         
         response = await okxDexRequest('/quote', quoteParams);
@@ -386,9 +402,11 @@ serve(async (req) => {
           userWalletAddress,
         };
         
-        if (OKX_REFERRER_WALLET_ADDRESS) {
+        // Only add referrer for chains where we have a valid address format
+        const swapReferrerAddress = getReferrerAddress(chainIndex);
+        if (swapReferrerAddress) {
           swapParams.feePercent = COMMISSION_FEE_PERCENT;
-          swapParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+          swapParams.toTokenReferrerWalletAddress = swapReferrerAddress;
         }
         
         response = await okxDexRequest('/swap', swapParams);

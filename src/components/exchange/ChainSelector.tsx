@@ -49,8 +49,13 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
         console.log(`[ChainSelector] OKX seamless switch to ${chain.name}`);
         return;
       } catch (error) {
-        console.warn('[ChainSelector] OKX switch failed:', error);
-        // Fall through to other methods
+        console.warn('[ChainSelector] OKX switch failed, continuing with UI update:', error);
+        // Don't block - the UI is already updated, swap will use this network
+        toast({
+          title: "Network Selected",
+          description: `Selected ${chain.name}. Swap will use this network.`,
+        });
+        return;
       }
     }
     
