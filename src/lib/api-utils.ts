@@ -111,6 +111,19 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
   if (message.includes("insufficient funds") || message.includes("insufficient balance")) {
     return "Insufficient funds for this transaction. Please check your balance.";
   }
+  
+  // Solana-specific errors (check before generic ones)
+  if (message.includes("solana") || message.includes("spl") || message.includes("sol")) {
+    if (message.includes("insufficient")) {
+      return "Insufficient SOL or token balance for this transaction.";
+    }
+    if (message.includes("sign") || message.includes("signature")) {
+      return "Failed to sign Solana transaction. Please try again.";
+    }
+    if (message.includes("provider")) {
+      return "No Solana wallet provider available. Please connect OKX Wallet or Phantom.";
+    }
+  }
 
   if (message.includes("gas") && message.includes("estimate")) {
     return "Unable to estimate gas. Try increasing slippage or reducing amount.";
@@ -124,7 +137,9 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "Price moved too much. Increase slippage tolerance or try a smaller amount.";
   }
 
-  if (message.includes("allowance") || message.includes("approve")) {
+  // EVM-specific allowance errors (exclude Solana context)
+  if ((message.includes("allowance") || message.includes("approve")) && 
+      !message.includes("solana") && !message.includes("spl")) {
     return "Token approval required. Please approve the token first.";
   }
 

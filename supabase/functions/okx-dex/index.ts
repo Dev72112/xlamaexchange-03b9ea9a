@@ -33,6 +33,9 @@ const OKX_CROSS_CHAIN_URL = 'https://web3.okx.com/api/v6/dex/cross-chain';
 // Commission fee percentage for partner revenue
 const COMMISSION_FEE_PERCENT = '1.5';
 
+// Non-EVM chains that don't support toTokenReferrerWalletAddress
+const NON_EVM_CHAINS = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
+
 // Valid actions - v6 API additions
 const VALID_ACTIONS = [
   // DEX Aggregator (v5)
@@ -351,7 +354,8 @@ serve(async (req) => {
           slippage: validSlippage,
         };
         
-        if (OKX_REFERRER_WALLET_ADDRESS) {
+        // Only add referrer params for EVM chains (non-EVM don't support toTokenReferrerWalletAddress)
+        if (OKX_REFERRER_WALLET_ADDRESS && !NON_EVM_CHAINS.includes(chainIndex)) {
           quoteParams.feePercent = COMMISSION_FEE_PERCENT;
           quoteParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
         }
@@ -386,7 +390,8 @@ serve(async (req) => {
           userWalletAddress,
         };
         
-        if (OKX_REFERRER_WALLET_ADDRESS) {
+        // Only add referrer params for EVM chains (non-EVM don't support toTokenReferrerWalletAddress)
+        if (OKX_REFERRER_WALLET_ADDRESS && !NON_EVM_CHAINS.includes(chainIndex)) {
           swapParams.feePercent = COMMISSION_FEE_PERCENT;
           swapParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
         }
