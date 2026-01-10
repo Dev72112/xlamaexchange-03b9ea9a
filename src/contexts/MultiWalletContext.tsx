@@ -226,7 +226,18 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     try { const wc = await getWalletClient(wagmiConfig, { chainId: evmChainId as any }); return wc ? { request: async (args: any) => wc.transport.request(args) } : null; } catch { return null; }
   }, [evmChainId]);
   const getSolanaConnection = useCallback(() => solanaConnection, [solanaConnection]);
-  const getSolanaWallet = useCallback(() => null, []);
+  const getSolanaWallet = useCallback(() => {
+    // Priority: OKX injected Solana provider
+    if (typeof window !== 'undefined') {
+      // OKX Wallet's Solana provider
+      const okxSolana = (window as any).okxwallet?.solana;
+      if (okxSolana) return okxSolana;
+      // Phantom fallback
+      const phantom = (window as any).solana;
+      if (phantom?.isPhantom) return phantom;
+    }
+    return null;
+  }, []);
   const getTronWeb = useCallback(() => window.tronWeb || null, []);
   const getSuiClient = useCallback(() => suiClient, [suiClient]);
   const getTonConnectUI = useCallback(() => tonConnectUI, [tonConnectUI]);
