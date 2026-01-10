@@ -131,6 +131,14 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "Solana transaction failed. Please try again.";
   }
 
+  // Solana RPC errors
+  if (message.includes("failed to get recent blockhash") || message.includes("403")) {
+    return "Solana network is busy. Please try again in a moment.";
+  }
+  if (message.includes("unable to connect to solana")) {
+    return "Unable to connect to Solana network. Please try again later.";
+  }
+  
   // Base58/Base64 decoding and deserialization errors (Solana-specific)
   if (message.includes("invalid base58") || message.includes("non-base58")) {
     return "Failed to decode transaction data. Please try again.";
