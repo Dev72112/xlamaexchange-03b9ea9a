@@ -24,6 +24,7 @@ import { OkxToken } from "@/services/okxdex";
 import { useDexTokens } from "@/hooks/useDexTokens";
 import { useDexQuote } from "@/hooks/useDexQuote";
 import { useDexSwap } from "@/hooks/useDexSwap";
+import { useDexSwapMulti } from "@/hooks/useDexSwapMulti";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { SlippageSettings } from "./SlippageSettings";
@@ -86,7 +87,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
-  const { isConnected, hasAnyConnection, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain, isOkxConnected } = useMultiWallet();
+  const { isConnected, hasAnyConnection, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain, isOkxConnected, switchChainByIndex } = useMultiWallet();
   const { triggerFeedback } = useFeedback();
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   const { recordTradeCommission } = useReferral(address);
@@ -155,14 +156,34 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     enabled: exchangeMode === 'dex' && !!fromDexToken && !!toDexToken,
   });
 
+  // EVM swap hook
   const { 
-    step: swapStep, 
-    txHash, 
-    error: swapError, 
-    isLoading: swapLoading, 
-    executeSwap, 
-    reset: resetSwap 
+    step: evmSwapStep, 
+    txHash: evmTxHash, 
+    error: evmSwapError, 
+    isLoading: evmSwapLoading, 
+    executeSwap: executeEvmSwap, 
+    reset: resetEvmSwap 
   } = useDexSwap();
+
+  // Multi-chain swap hook (Solana, Tron, Sui, TON, and fallback EVM)
+  const { 
+    step: multiSwapStep, 
+    txHash: multiTxHash, 
+    error: multiSwapError, 
+    isLoading: multiSwapLoading, 
+    executeSwap: executeMultiSwap, 
+    reset: resetMultiSwap 
+  } = useDexSwapMulti();
+
+  // Choose the appropriate swap hook based on chain type
+  const isEvmChain = selectedChain.isEvm;
+  const swapStep = isEvmChain ? evmSwapStep : multiSwapStep;
+  const txHash = isEvmChain ? evmTxHash : multiTxHash;
+  const swapError = isEvmChain ? evmSwapError : multiSwapError;
+  const swapLoading = isEvmChain ? evmSwapLoading : multiSwapLoading;
+  const executeSwap = isEvmChain ? executeEvmSwap : executeMultiSwap;
+  const resetSwap = isEvmChain ? resetEvmSwap : resetMultiSwap;
 
   // Token balance hook for DEX mode
   const { formatted: fromTokenBalance, loading: balanceLoading, refetch: refetchBalance } = useTokenBalance(
@@ -821,7 +842,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           )}
           
-          {/* DEX Mode: Wrong chain warning (EVM only) */}
+          {/* DEX Mode: Wrong chain warning (EVM) */}
           {exchangeMode === 'dex' && isConnected && selectedChain.isEvm && !isOnCorrectChain && (
             <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
               <div className="flex items-center justify-between gap-2">
@@ -832,7 +853,34 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => selectedChain.chainId && switchChain(selectedChain.chainId)}
+                  onClick={async () => {
+                    if (isOkxConnected) {
+                      // Use OKX seamless chain switching
+                      await switchChainByIndex(selectedChain.chainIndex);
+                    } else if (selectedChain.chainId) {
+                      switchChain(selectedChain.chainId);
+                    }
+                  }}
+                  className="h-7 text-xs"
+                >
+                  Switch Network
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* DEX Mode: Non-EVM chain switch for OKX users */}
+          {exchangeMode === 'dex' && isConnected && !selectedChain.isEvm && isOkxConnected && !isOnCorrectChain && (
+            <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="w-4 h-4 text-warning" />
+                  <span className="text-warning">Switch to {selectedChain.name}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => switchChainByIndex(selectedChain.chainIndex)}
                   className="h-7 text-xs"
                 >
                   Switch Network

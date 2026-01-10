@@ -1,7 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { okxDexService } from '@/services/okxdex';
-import { getWalletHeaders } from '@/lib/supabaseWithWallet';
 
 // All supported chain indices for balance fetching
 const ALL_CHAIN_INDICES = '1,56,137,42161,10,43114,250,8453,324,59144,534352,196,81457,501'; // EVM + Solana
@@ -33,16 +32,17 @@ export function useWalletSnapshot() {
    */
   const hasInitialSnapshot = useCallback(async (address: string): Promise<boolean> => {
     try {
-      const headers = getWalletHeaders(address);
+      const normalizedAddress = address.toLowerCase();
       const { data, error } = await supabase
         .from('wallet_snapshots')
         .select('id')
-        .eq('user_address', address.toLowerCase())
+        .eq('user_address', normalizedAddress)
         .eq('snapshot_type', 'initial')
-        .limit(1);
+        .limit(1)
+        .setHeader('x-wallet-address', normalizedAddress);
 
       if (error) {
-        console.error('Error checking for initial snapshot:', error);
+        console.error('Error checking for initial snapshot:', error.message);
         return false;
       }
 
@@ -67,6 +67,7 @@ export function useWalletSnapshot() {
     }
 
     isCapturingRef.current = true;
+    const normalizedAddress = address.toLowerCase();
 
     try {
       // Fetch all token balances from OKX API
@@ -91,7 +92,7 @@ export function useWalletSnapshot() {
           const valueUsd = balance * price;
 
           return {
-            user_address: address.toLowerCase(),
+            user_address: normalizedAddress,
             chain_index: b.chainIndex,
             token_address: b.tokenContractAddress || 'native',
             token_symbol: b.symbol,
@@ -100,6 +101,7 @@ export function useWalletSnapshot() {
             price_at_snapshot: price > 0 ? price : null,
             value_usd: valueUsd > 0 ? valueUsd : null,
             snapshot_type: snapshotType,
+            snapshot_date: new Date().toISOString().slice(0, 10),
           };
         });
 
@@ -110,18 +112,18 @@ export function useWalletSnapshot() {
       }
 
       // Insert snapshot records with wallet auth headers
-      const headers = getWalletHeaders(address);
       const { error } = await supabase
         .from('wallet_snapshots')
-        .insert(snapshotRecords);
+        .insert(snapshotRecords)
+        .setHeader('x-wallet-address', normalizedAddress);
 
       if (error) {
-        console.error('Error saving wallet snapshot:', error);
+        console.error('Error saving wallet snapshot:', error.message, error.details);
         isCapturingRef.current = false;
         return false;
       }
 
-      console.log(`Captured ${snapshotType} snapshot with ${snapshotRecords.length} tokens`);
+      console.log(`Captured ${snapshotType} snapshot with ${snapshotRecords.length} tokens for ${normalizedAddress}`);
       isCapturingRef.current = false;
       return true;
     } catch (err) {
@@ -157,15 +159,16 @@ export function useWalletSnapshot() {
    */
   const getInitialSnapshot = useCallback(async (address: string): Promise<WalletSnapshotToken[]> => {
     try {
-      const headers = getWalletHeaders(address);
+      const normalizedAddress = address.toLowerCase();
       const { data, error } = await supabase
         .from('wallet_snapshots')
         .select('*')
-        .eq('user_address', address.toLowerCase())
-        .eq('snapshot_type', 'initial');
+        .eq('user_address', normalizedAddress)
+        .eq('snapshot_type', 'initial')
+        .setHeader('x-wallet-address', normalizedAddress);
 
       if (error) {
-        console.error('Error fetching initial snapshot:', error);
+        console.error('Error fetching initial snapshot:', error.message);
         return [];
       }
 

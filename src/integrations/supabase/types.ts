@@ -690,6 +690,7 @@ export type Database = {
           created_at: string
           id: string
           price_at_snapshot: number | null
+          snapshot_date: string | null
           snapshot_type: string
           token_address: string
           token_logo: string | null
@@ -703,6 +704,7 @@ export type Database = {
           created_at?: string
           id?: string
           price_at_snapshot?: number | null
+          snapshot_date?: string | null
           snapshot_type?: string
           token_address: string
           token_logo?: string | null
@@ -716,12 +718,31 @@ export type Database = {
           created_at?: string
           id?: string
           price_at_snapshot?: number | null
+          snapshot_date?: string | null
           snapshot_type?: string
           token_address?: string
           token_logo?: string | null
           token_symbol?: string
           user_address?: string
           value_usd?: number | null
+        }
+        Relationships: []
+      }
+      wallet_users: {
+        Row: {
+          created_at: string
+          last_seen_at: string
+          user_address: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen_at?: string
+          user_address: string
+        }
+        Update: {
+          created_at?: string
+          last_seen_at?: string
+          user_address?: string
         }
         Relationships: []
       }
