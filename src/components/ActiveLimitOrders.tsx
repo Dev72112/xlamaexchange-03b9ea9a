@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,6 @@ import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { LimitOrderCountdown } from '@/components/LimitOrderCountdown';
 import { cn } from '@/shared/lib';
 import xlamaMascot from '@/assets/xlama-mascot.png';
-import { SUPPORTED_CHAINS } from '@/data/chains';
 
 interface ActiveLimitOrdersProps {
   className?: string;
@@ -21,24 +20,9 @@ interface ActiveLimitOrdersProps {
 export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrdersProps) {
   const { isConnected } = useMultiWallet();
   const { orders, activeOrders, cancelOrder, dismissOrder, isLoading, exportToCSV, notificationPermission, requestNotificationPermission } = useLimitOrders();
-  
-  // Default to open if there are actionable orders (active or triggered)
-  const hasActionableOrders = orders.some(o => o.status === 'active' || o.status === 'triggered');
-  const [isOpen, setIsOpen] = useState(hasActionableOrders);
-  
-  // Auto-expand when actionable orders appear
-  useEffect(() => {
-    if (hasActionableOrders && !isOpen) {
-      setIsOpen(true);
-    }
-  }, [hasActionableOrders]);
-  
-  // Get chain info helper
-  const getChainInfo = (chainIndex: string) => {
-    return SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
-  };
+  const [isOpen, setIsOpen] = useState(false);
 
-  if (!isConnected) {
+  if (!isConnected || orders.length === 0) {
     return null;
   }
 
@@ -148,39 +132,24 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
           <CardContent className="pt-0 pb-3">
             <ScrollArea className="h-[350px] pr-2">
               <div className="space-y-2">
-                  {orders.length === 0 ? (
-                    <div className="text-center py-4">
-                      <img src={xlamaMascot} alt="xLama mascot" className="w-12 h-12 mx-auto mb-2 opacity-60 rounded-full" />
-                      <p className="text-sm text-muted-foreground">No limit orders yet</p>
-                      <p className="text-xs text-muted-foreground mt-1">Create a limit order from the swap form</p>
-                    </div>
-                  ) : orders.slice(0, 10).map(order => {
-                    const chainInfo = getChainInfo(order.chain_index);
-                    return (
-                    <div 
-                      key={order.id}
-                      className={cn(
-                        "p-2.5 sm:p-3 rounded-lg border transition-colors",
-                        order.status === 'triggered' 
-                          ? "bg-success/5 border-success/20" 
-                          : "bg-secondary/30 border-border"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                            {chainInfo && (
-                              <img 
-                                src={chainInfo.icon} 
-                                alt={chainInfo.name} 
-                                className="w-4 h-4 rounded-full shrink-0"
-                              />
-                            )}
-                            <span className="font-medium text-xs sm:text-sm truncate">
-                              {order.from_token_symbol} → {order.to_token_symbol}
-                            </span>
-                            {getStatusBadge(order.status)}
-                          </div>
+                {orders.slice(0, 10).map(order => (
+                  <div 
+                    key={order.id}
+                    className={cn(
+                      "p-2.5 sm:p-3 rounded-lg border transition-colors",
+                      order.status === 'triggered' 
+                        ? "bg-success/5 border-success/20" 
+                        : "bg-secondary/30 border-border"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                          <span className="font-medium text-xs sm:text-sm truncate">
+                            {order.from_token_symbol} → {order.to_token_symbol}
+                          </span>
+                          {getStatusBadge(order.status)}
+                        </div>
                         <div className="text-[10px] sm:text-xs text-muted-foreground space-y-0.5">
                           <p className="truncate">
                             {order.condition === 'above' ? '↑' : '↓'} ${order.target_price.toFixed(6)}
@@ -238,9 +207,16 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                           </>
                         )}
                       </div>
-                      </div>
                     </div>
-                  )})}
+                  </div>
+                ))}
+                
+                {orders.length === 0 && (
+                  <div className="text-center py-4">
+                    <img src={xlamaMascot} alt="xLama mascot" className="w-12 h-12 mx-auto mb-2 opacity-60 rounded-full" />
+                    <p className="text-sm text-muted-foreground">No limit orders yet</p>
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </CardContent>

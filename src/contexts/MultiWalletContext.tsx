@@ -226,16 +226,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     try { const wc = await getWalletClient(wagmiConfig, { chainId: evmChainId as any }); return wc ? { request: async (args: any) => wc.transport.request(args) } : null; } catch { return null; }
   }, [evmChainId]);
   const getSolanaConnection = useCallback(() => solanaConnection, [solanaConnection]);
-  
-  // Get Solana signing wallet for DCA/Limit orders
-  const getSolanaWallet = useCallback(() => {
-    // Check for OKX Solana provider first
-    if (okxWallet.isConnected && (window as any).okxwallet?.solana) {
-      return (window as any).okxwallet.solana;
-    }
-    // Fallback: return null - AppKit Solana provider is accessed via useAppKitProvider in the swap hooks
-    return null;
-  }, [okxWallet.isConnected]);
+  const getSolanaWallet = useCallback(() => null, []);
   const getTronWeb = useCallback(() => window.tronWeb || null, []);
   const getSuiClient = useCallback(() => suiClient, [suiClient]);
   const getTonConnectUI = useCallback(() => tonConnectUI, [tonConnectUI]);

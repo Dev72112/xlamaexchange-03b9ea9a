@@ -108,26 +108,13 @@ export function useDexSwapMulti() {
     } catch (err: any) {
       console.error('Swap error:', err);
       let errorMessage = 'Swap failed';
-      const errMsg = err.message?.toLowerCase() || '';
-      
-      if (err.code === 4001 || errMsg.includes('rejected') || errMsg.includes('cancelled') || errMsg.includes('canceled')) {
+      if (err.code === 4001 || err.message?.includes('rejected')) {
         errorMessage = 'Transaction rejected by user';
-      } else if (errMsg.includes('insufficient funds') || errMsg.includes('insufficient balance')) {
+      } else if (err.message?.includes('insufficient funds')) {
         errorMessage = 'Insufficient funds for gas';
-      } else if (errMsg.includes('slippage') || errMsg.includes('price impact')) {
-        errorMessage = 'Price moved too much. Try increasing slippage.';
-      } else if (errMsg.includes('no route') || errMsg.includes('no path')) {
-        errorMessage = 'No swap route found. Try a different pair or amount.';
-      } else if ((errMsg.includes('allowance') || errMsg.includes('approve')) && chain.isEvm) {
-        // Only show approval message for EVM chains
-        errorMessage = 'Token approval required. Please approve the token first.';
-      } else if (errMsg.includes('liquidity')) {
-        errorMessage = 'Insufficient liquidity. Try a smaller amount.';
       } else if (err.message) {
-        // Clean up error message - avoid showing raw error codes
-        errorMessage = err.message.length > 100 ? 'Swap failed. Please try again.' : err.message;
+        errorMessage = err.message.slice(0, 100);
       }
-      
       setError(errorMessage);
       setStep('error');
       toast({
@@ -294,33 +281,18 @@ export function useDexSwapMulti() {
       } else {
         throw new Error('Solana wallet does not support transaction signing');
       }
-    } catch (versionedError: any) {
-      // Check if this was a user rejection - don't retry in that case
-      const errMsg = versionedError?.message?.toLowerCase() || '';
-      if (errMsg.includes('rejected') || errMsg.includes('cancelled') || errMsg.includes('canceled') || errMsg.includes('denied')) {
-        throw versionedError;
-      }
-      
+    } catch {
       // Fallback to legacy transaction
-      try {
-        const legacyTx = Transaction.from(txBuffer);
-        
-        if (solanaProvider?.signAndSendTransaction) {
-          const result = await solanaProvider.signAndSendTransaction(legacyTx);
-          signature = result.signature;
-        } else if (solanaProvider?.signTransaction) {
-          const signedTx = await solanaProvider.signTransaction(legacyTx);
-          signature = await connection.sendRawTransaction(signedTx.serialize());
-        } else {
-          throw new Error('Solana wallet does not support transaction signing');
-        }
-      } catch (legacyError: any) {
-        // Throw the more informative error
-        const legacyMsg = legacyError?.message?.toLowerCase() || '';
-        if (legacyMsg.includes('rejected') || legacyMsg.includes('cancelled') || legacyMsg.includes('canceled') || legacyMsg.includes('denied')) {
-          throw new Error('Transaction rejected by user');
-        }
-        throw legacyError;
+      const legacyTx = Transaction.from(txBuffer);
+      
+      if (solanaProvider?.signAndSendTransaction) {
+        const result = await solanaProvider.signAndSendTransaction(legacyTx);
+        signature = result.signature;
+      } else if (solanaProvider?.signTransaction) {
+        const signedTx = await solanaProvider.signTransaction(legacyTx);
+        signature = await connection.sendRawTransaction(signedTx.serialize());
+      } else {
+        throw new Error('Solana wallet does not support transaction signing');
       }
     }
 

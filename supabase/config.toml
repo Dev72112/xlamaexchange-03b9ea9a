@@ -38,6 +38,3 @@ verify_jwt = false
 
 [functions.execute-orders]
 verify_jwt = false
-
-[functions.capture-daily-snapshots]
-verify_jwt = false

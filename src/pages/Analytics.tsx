@@ -56,7 +56,7 @@ import {
 import { cn } from '@/lib/utils';
 
 // Import analytics components from feature module
-import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings, TradingHeatmap, TradingEfficiencyScore, SnapshotButton } from '@/features/analytics';
+import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings } from '@/features/analytics';
 
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
@@ -278,8 +278,6 @@ const Analytics = () => {
               >
                 <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
               </Button>
-              
-              <SnapshotButton className="h-9 w-9" />
               
               <Button 
                 variant="outline" 
@@ -1029,25 +1027,6 @@ const Analytics = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Heatmap & Efficiency Score */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
-          <TradingHeatmap 
-            trades={tradeVsHodl.trades.map(t => ({ timestamp: t.date }))}
-            isLoading={tradeVsHodl.isLoading}
-          />
-          <TradingEfficiencyScore
-            tradePnlPercent={tradeVsHodl.tradePnlPercent}
-            hodlPnlPercent={tradeVsHodl.hodlPnlPercent}
-            tradingWasBetter={tradeVsHodl.tradingWasBetter}
-            successRate={analytics.successRate}
-            winRate={tradeVsHodl.tradesAnalyzed > 0 ? (tradeVsHodl.winningTrades / tradeVsHodl.tradesAnalyzed) * 100 : 0}
-            avgGasPerTrade={gasAnalytics.avgGasPerTrade}
-            totalGasUsd={gasAnalytics.totalGasUsd}
-            totalVolumeUsd={analytics.totalVolumeUsd}
-            isLoading={tradeVsHodl.isLoading}
-          />
-        </div>
 
         {analytics.bestTradingDay && analytics.bestTradingDay.volumeUsd > 0 && (
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
