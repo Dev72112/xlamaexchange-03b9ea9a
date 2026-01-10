@@ -124,7 +124,13 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "Price moved too much. Increase slippage tolerance or try a smaller amount.";
   }
 
+  // Token approval errors - but NOT for Solana/non-EVM chains (they don't have approval mechanism)
+  // The caller should check chain type before showing this message
   if (message.includes("allowance") || message.includes("approve")) {
+    // Check if this might be a Solana error (shouldn't need approval)
+    if (message.includes("solana") || message.includes("spl")) {
+      return "Transaction failed. Please try again or use a different token pair.";
+    }
     return "Token approval required. Please approve the token first.";
   }
 
