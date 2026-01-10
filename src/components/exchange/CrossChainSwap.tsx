@@ -51,7 +51,7 @@ function toSmallestUnit(amount: string, decimals: number): string {
 
 export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const { toast } = useToast();
-  const { isConnected, activeAddress, getEvmProvider } = useMultiWallet();
+  const { isConnected, activeAddress, getEvmProvider, evmChainId, switchEvmChain, switchChainByIndex, isOkxConnected } = useMultiWallet();
 
   // Chain states - default to Ethereum and Polygon (both Li.Fi supported)
   const [fromChain, setFromChain] = useState<Chain>(
@@ -443,6 +443,32 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Bridge Mode: Wrong chain warning - show when wallet chain doesn't match fromChain */}
+          {isConnected && fromChain.isEvm && evmChainId && evmChainId !== fromChain.chainId && (
+            <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="w-4 h-4 text-warning" />
+                  <span className="text-warning">Switch to {fromChain.name} to bridge</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    if (isOkxConnected) {
+                      await switchChainByIndex(fromChain.chainIndex);
+                    } else if (fromChain.chainId) {
+                      await switchEvmChain(fromChain.chainId);
+                    }
+                  }}
+                  className="h-7 text-xs"
+                >
+                  Switch Network
+                </Button>
+              </div>
+            </div>
+          )}
+          
           {/* From Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
