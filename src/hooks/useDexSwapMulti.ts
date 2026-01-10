@@ -281,10 +281,35 @@ export function useDexSwapMulti() {
     // CRITICAL: OKX returns base58-encoded transaction data for Solana
     const txBytes = decodeBase58ToBytes(swapData.tx.data);
     let signature: string;
-    const connection = new Connection(chain.rpcUrl || 'https://api.mainnet-beta.solana.com');
     
-    // Fetch fresh blockhash for transaction validity
-    const latestBlockhash = await connection.getLatestBlockhash('finalized');
+    // Use multiple RPC endpoints with fallback (public endpoints have rate limits)
+    const SOLANA_RPC_ENDPOINTS = [
+      chain.rpcUrl,
+      'https://api.mainnet-beta.solana.com',
+      'https://solana-mainnet.g.alchemy.com/v2/demo',
+      'https://rpc.ankr.com/solana',
+    ].filter(Boolean) as string[];
+    
+    let connection: Connection | null = null;
+    let latestBlockhash: { blockhash: string; lastValidBlockHeight: number } | null = null;
+    
+    // Try each RPC endpoint until one works
+    for (const rpcUrl of SOLANA_RPC_ENDPOINTS) {
+      try {
+        const testConnection = new Connection(rpcUrl, 'confirmed');
+        latestBlockhash = await testConnection.getLatestBlockhash('finalized');
+        connection = testConnection;
+        console.log('Using Solana RPC:', rpcUrl);
+        break;
+      } catch (rpcError) {
+        console.warn(`RPC ${rpcUrl} failed:`, rpcError);
+        continue;
+      }
+    }
+    
+    if (!connection || !latestBlockhash) {
+      throw new Error('Unable to connect to Solana network. Please try again later.');
+    }
 
     try {
       // Try as versioned transaction first
