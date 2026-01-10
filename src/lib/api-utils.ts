@@ -112,17 +112,23 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "Insufficient funds for this transaction. Please check your balance.";
   }
   
-  // Solana-specific errors (check before generic ones)
-  if (message.includes("solana") || message.includes("spl") || message.includes("sol")) {
+  // Solana-specific errors (check FIRST before generic ones to prevent mislabeling)
+  if (message.includes("solana") || message.includes("spl") || message.includes("sol ") || 
+      message.includes("versioned") || message.includes("legacy transaction")) {
     if (message.includes("insufficient")) {
       return "Insufficient SOL or token balance for this transaction.";
     }
     if (message.includes("sign") || message.includes("signature")) {
       return "Failed to sign Solana transaction. Please try again.";
     }
-    if (message.includes("provider")) {
+    if (message.includes("provider") || message.includes("wallet")) {
       return "No Solana wallet provider available. Please connect OKX Wallet or Phantom.";
     }
+    if (message.includes("rejected") || message.includes("denied") || message.includes("4001")) {
+      return "Transaction rejected. Please try again when ready.";
+    }
+    // Generic Solana error
+    return "Solana transaction failed. Please try again.";
   }
 
   if (message.includes("gas") && message.includes("estimate")) {
@@ -137,9 +143,11 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "Price moved too much. Increase slippage tolerance or try a smaller amount.";
   }
 
-  // EVM-specific allowance errors (exclude Solana context)
+  // EVM-specific allowance errors (exclude non-EVM context entirely)
+  // This check comes AFTER Solana checks to prevent mislabeling
   if ((message.includes("allowance") || message.includes("approve")) && 
-      !message.includes("solana") && !message.includes("spl")) {
+      !message.includes("solana") && !message.includes("spl") && 
+      !message.includes("tron") && !message.includes("sui") && !message.includes("ton")) {
     return "Token approval required. Please approve the token first.";
   }
 
