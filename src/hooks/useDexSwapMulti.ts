@@ -5,6 +5,7 @@ import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
 import { Transaction, VersionedTransaction, Connection } from '@solana/web3.js';
 import { useAppKitProvider } from '@reown/appkit/react';
+import bs58 from 'bs58';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
@@ -29,16 +30,9 @@ function toSmallestUnit(amount: string, decimals: number): string {
   return combined.replace(/^0+/, '') || '0';
 }
 
-function decodeBase64ToBytes(base64: string): Uint8Array {
-  // OKX responses may be unpadded base64 and sometimes base64url.
-  const normalized = base64.replace(/-/g, '+').replace(/_/g, '/');
-  const padLength = (4 - (normalized.length % 4)) % 4;
-  const padded = normalized + '='.repeat(padLength);
-
-  const binary = globalThis.atob(padded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
+// OKX returns base58-encoded transaction data for Solana (NOT base64!)
+function decodeBase58ToBytes(encoded: string): Uint8Array {
+  return bs58.decode(encoded);
 }
 
 const ERC20_ALLOWANCE_ABI = '0xdd62ed3e';
@@ -284,14 +278,19 @@ export function useDexSwapMulti() {
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your wallet' });
 
-    // Decode and sign the transaction (Buffer is not available in the browser)
-    const txBytes = decodeBase64ToBytes(swapData.tx.data);
+    // CRITICAL: OKX returns base58-encoded transaction data for Solana
+    const txBytes = decodeBase58ToBytes(swapData.tx.data);
     let signature: string;
     const connection = new Connection(chain.rpcUrl || 'https://api.mainnet-beta.solana.com');
+    
+    // Fetch fresh blockhash for transaction validity
+    const latestBlockhash = await connection.getLatestBlockhash('finalized');
 
     try {
       // Try as versioned transaction first
       const versionedTx = VersionedTransaction.deserialize(txBytes);
+      // Update blockhash for freshness
+      versionedTx.message.recentBlockhash = latestBlockhash.blockhash;
 
       if (provider.signAndSendTransaction) {
         const result = await provider.signAndSendTransaction(versionedTx);
