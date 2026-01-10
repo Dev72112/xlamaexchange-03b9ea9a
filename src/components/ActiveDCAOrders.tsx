@@ -34,6 +34,7 @@ import {
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 import { DCADashboard } from './DCADashboard';
+import { SUPPORTED_CHAINS } from '@/data/chains';
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -82,6 +83,11 @@ const getFrequencyLabel = (freq: string) => {
   }
 };
 
+// Get chain info helper
+const getChainInfo = (chainIndex: string) => {
+  return SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
+};
+
 interface DCAOrderCardProps {
   order: DCAOrder;
   onPause: (id: string) => void;
@@ -102,6 +108,8 @@ const DCAOrderCard = memo(function DCAOrderCard({
   const progress = order.total_intervals 
     ? (order.completed_intervals / order.total_intervals) * 100 
     : null;
+  
+  const chainInfo = getChainInfo(order.chain_index);
 
   return (
     <div 
@@ -112,6 +120,14 @@ const DCAOrderCard = memo(function DCAOrderCard({
         <div className="flex-1 min-w-0">
           {/* Token pair and amount */}
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
+            {chainInfo && (
+              <img 
+                src={chainInfo.icon} 
+                alt={chainInfo.name} 
+                className="w-4 h-4 rounded-full shrink-0"
+                title={chainInfo.name}
+              />
+            )}
             <span className="font-medium text-sm sm:text-base truncate">{order.from_token_symbol}</span>
             <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
             <span className="font-medium text-sm sm:text-base truncate">{order.to_token_symbol}</span>

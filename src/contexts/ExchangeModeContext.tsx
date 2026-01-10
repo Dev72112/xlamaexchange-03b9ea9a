@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback, useRef, useEffect } from 'react';
 import { Chain, getPrimaryChain } from '@/data/chains';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 
 export type ExchangeMode = 'instant' | 'dex';
 export type SwapMode = 'swap' | 'bridge';
@@ -18,6 +19,8 @@ interface ExchangeModeContextType {
   // Global chain filter for data pages (Portfolio, Analytics, History)
   globalChainFilter: ChainFilterValue;
   setGlobalChainFilter: (filter: ChainFilterValue) => void;
+  // Reset chain to default
+  resetChainToDefault: () => void;
 }
 
 const ExchangeModeContext = createContext<ExchangeModeContextType | undefined>(undefined);
@@ -29,12 +32,24 @@ interface ExchangeModeProviderProps {
 const TRANSITION_DURATION = 200;
 
 export function ExchangeModeProvider({ children }: ExchangeModeProviderProps) {
+  const { isConnected } = useMultiWallet();
   const [mode, setModeState] = useState<ExchangeMode>('instant');
   const [swapMode, setSwapMode] = useState<SwapMode>('swap');
   const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [globalChainFilter, setGlobalChainFilter] = useState<ChainFilterValue>('all');
   const transitionTimeoutRef = useRef<number | null>(null);
+  const wasConnectedRef = useRef(isConnected);
+
+  // Reset chain to default when wallet disconnects
+  useEffect(() => {
+    if (wasConnectedRef.current && !isConnected) {
+      console.log('[ExchangeModeContext] Wallet disconnected, resetting chain to default');
+      setSelectedChain(getPrimaryChain());
+      setGlobalChainFilter('all');
+    }
+    wasConnectedRef.current = isConnected;
+  }, [isConnected]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -72,6 +87,12 @@ export function ExchangeModeProvider({ children }: ExchangeModeProviderProps) {
     setGlobalChainFilter(chain.chainIndex);
   }, []);
 
+  // Reset chain to default (useful for manual reset)
+  const resetChainToDefault = useCallback(() => {
+    setSelectedChain(getPrimaryChain());
+    setGlobalChainFilter('all');
+  }, []);
+
   const value: ExchangeModeContextType = {
     mode,
     setMode,
@@ -84,6 +105,7 @@ export function ExchangeModeProvider({ children }: ExchangeModeProviderProps) {
     isTransitioning,
     globalChainFilter,
     setGlobalChainFilter,
+    resetChainToDefault,
   };
 
   return (
