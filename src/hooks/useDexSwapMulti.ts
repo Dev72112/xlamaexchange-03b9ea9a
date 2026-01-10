@@ -19,6 +19,7 @@ interface UseDexSwapOptions {
   onError?: (error: string) => void;
 }
 
+
 // Convert amount to smallest unit without scientific notation
 function toSmallestUnit(amount: string, decimals: number): string {
   if (!amount || isNaN(parseFloat(amount))) return '0';
@@ -26,6 +27,18 @@ function toSmallestUnit(amount: string, decimals: number): string {
   const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
   const combined = whole + paddedFraction;
   return combined.replace(/^0+/, '') || '0';
+}
+
+function decodeBase64ToBytes(base64: string): Uint8Array {
+  // OKX responses may be unpadded base64 and sometimes base64url.
+  const normalized = base64.replace(/-/g, '+').replace(/_/g, '/');
+  const padLength = (4 - (normalized.length % 4)) % 4;
+  const padded = normalized + '='.repeat(padLength);
+
+  const binary = globalThis.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
 const ERC20_ALLOWANCE_ABI = '0xdd62ed3e';
@@ -271,15 +284,15 @@ export function useDexSwapMulti() {
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your wallet' });
 
-    // Decode and sign the transaction
-    const txBuffer = Buffer.from(swapData.tx.data, 'base64');
+    // Decode and sign the transaction (Buffer is not available in the browser)
+    const txBytes = decodeBase64ToBytes(swapData.tx.data);
     let signature: string;
-    const connection = new Connection('https://api.mainnet-beta.solana.com');
+    const connection = new Connection(chain.rpcUrl || 'https://api.mainnet-beta.solana.com');
 
     try {
       // Try as versioned transaction first
-      const versionedTx = VersionedTransaction.deserialize(txBuffer);
-      
+      const versionedTx = VersionedTransaction.deserialize(txBytes);
+
       if (provider.signAndSendTransaction) {
         const result = await provider.signAndSendTransaction(versionedTx);
         signature = typeof result === 'string' ? result : result.signature;
@@ -298,8 +311,8 @@ export function useDexSwapMulti() {
       console.log('Falling back to legacy transaction:', versionedErr?.message);
       
       // Fallback to legacy transaction
-      const legacyTx = Transaction.from(txBuffer);
-      
+      const legacyTx = Transaction.from(txBytes);
+
       if (provider.signAndSendTransaction) {
         const result = await provider.signAndSendTransaction(legacyTx);
         signature = typeof result === 'string' ? result : result.signature;

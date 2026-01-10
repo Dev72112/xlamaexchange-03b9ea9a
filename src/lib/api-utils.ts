@@ -143,12 +143,33 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "Price moved too much. Increase slippage tolerance or try a smaller amount.";
   }
 
+  // Some non-EVM APIs mention "approve transaction" even when approvals are not required.
+  if (
+    message.includes("doesn't require an approve transaction") ||
+    message.includes("does not require an approve transaction") ||
+    message.includes("doesn’t require an approve transaction")
+  ) {
+    return "No token approval is required for this chain. Please try the swap again.";
+  }
+
   // EVM-specific allowance errors (exclude non-EVM context entirely)
   // This check comes AFTER Solana checks to prevent mislabeling
-  if ((message.includes("allowance") || message.includes("approve")) && 
-      !message.includes("solana") && !message.includes("spl") && 
-      !message.includes("tron") && !message.includes("sui") && !message.includes("ton")) {
-    return "Token approval required. Please approve the token first.";
+  const looksEvmContext =
+    message.includes('0x') ||
+    message.includes('erc20') ||
+    message.includes('allowance') ||
+    message.includes('spender');
+
+  if (
+    looksEvmContext &&
+    (message.includes('allowance') || message.includes('approve')) &&
+    !message.includes('solana') &&
+    !message.includes('spl') &&
+    !message.includes('tron') &&
+    !message.includes('sui') &&
+    !message.includes('ton')
+  ) {
+    return 'Token approval required. Please approve the token first.';
   }
 
   // Specific exchange errors
