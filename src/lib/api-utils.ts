@@ -131,6 +131,28 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "Solana transaction failed. Please try again.";
   }
 
+  // Base58/Base64 decoding and deserialization errors (Solana-specific)
+  if (message.includes("invalid base58") || message.includes("non-base58")) {
+    return "Failed to decode transaction data. Please try again.";
+  }
+  if (message.includes("end of buffer") || message.includes("deserialize") || message.includes("invalid transaction")) {
+    return "Invalid transaction format received. Please try again.";
+  }
+  
+  // OKX DEX specific error codes
+  if (message.includes("82130")) {
+    return "No token approval is required for this swap.";
+  }
+  if (message.includes("82000")) {
+    return "Insufficient liquidity for this swap. Try a smaller amount.";
+  }
+  if (message.includes("82104")) {
+    return "This token is not supported on the DEX.";
+  }
+  if (message.includes("82003")) {
+    return "Swap configuration issue. Please try again.";
+  }
+
   if (message.includes("gas") && message.includes("estimate")) {
     return "Unable to estimate gas. Try increasing slippage or reducing amount.";
   }
