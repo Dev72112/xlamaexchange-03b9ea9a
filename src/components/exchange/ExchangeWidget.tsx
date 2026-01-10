@@ -24,6 +24,7 @@ import { OkxToken } from "@/services/okxdex";
 import { useDexTokens } from "@/hooks/useDexTokens";
 import { useDexQuote } from "@/hooks/useDexQuote";
 import { useDexSwap } from "@/hooks/useDexSwap";
+import { useDexSwapMulti } from "@/hooks/useDexSwapMulti";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
 import { SlippageSettings } from "./SlippageSettings";
@@ -155,14 +156,41 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     enabled: exchangeMode === 'dex' && !!fromDexToken && !!toDexToken,
   });
 
+  // EVM swap hook (for EVM chains only - has approval logic)
   const { 
-    step: swapStep, 
-    txHash, 
-    error: swapError, 
-    isLoading: swapLoading, 
-    executeSwap, 
-    reset: resetSwap 
+    step: evmSwapStep, 
+    txHash: evmTxHash, 
+    error: evmSwapError, 
+    isLoading: evmSwapLoading, 
+    executeSwap: executeEvmSwap, 
+    reset: resetEvmSwap 
   } = useDexSwap();
+
+  // Multi-chain swap hook (for non-EVM chains like Solana, Tron, Sui, TON)
+  const { 
+    step: multiSwapStep, 
+    txHash: multiTxHash, 
+    error: multiSwapError, 
+    isLoading: multiSwapLoading, 
+    executeSwap: executeMultiSwap, 
+    reset: resetMultiSwap 
+  } = useDexSwapMulti();
+
+  // Unified swap state - route based on chain type
+  const isEvmChain = selectedChain.isEvm;
+  const swapStep = isEvmChain ? evmSwapStep : multiSwapStep;
+  const txHash = isEvmChain ? evmTxHash : multiTxHash;
+  const swapError = isEvmChain ? evmSwapError : multiSwapError;
+  const swapLoading = isEvmChain ? evmSwapLoading : multiSwapLoading;
+  
+  // Unified executeSwap that routes to the correct hook
+  const executeSwap = isEvmChain ? executeEvmSwap : executeMultiSwap;
+  
+  // Unified reset
+  const resetSwap = () => {
+    resetEvmSwap();
+    resetMultiSwap();
+  };
 
   // Token balance hook for DEX mode
   const { formatted: fromTokenBalance, loading: balanceLoading, refetch: refetchBalance } = useTokenBalance(
