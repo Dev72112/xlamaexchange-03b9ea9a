@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Chain } from '@/data/chains';
+import { getRpcUrl } from '@/config/rpc';
 
 interface GasPriceData {
   gasPriceGwei: number;
@@ -45,7 +46,8 @@ export function useGasPrice(chain: Chain | null) {
     
     setIsLoading(true);
     try {
-      const gasPriceWei = await fetchGasPrice(chain.rpcUrl);
+      const rpcUrl = getRpcUrl(chain.chainIndex, chain.rpcUrl);
+      const gasPriceWei = await fetchGasPrice(rpcUrl);
       if (gasPriceWei !== null) {
         const gasPriceGwei = Number(gasPriceWei) / 1e9;
         setGasData({

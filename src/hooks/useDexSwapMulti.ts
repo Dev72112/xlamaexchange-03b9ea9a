@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Transaction, VersionedTransaction, Connection } from '@solana/web3.js';
 import { useAppKitProvider } from '@reown/appkit/react';
 import bs58 from 'bs58';
+import { getSolanaRpcEndpoints } from '@/config/rpc';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
@@ -282,13 +283,8 @@ export function useDexSwapMulti() {
     const txBytes = decodeBase58ToBytes(swapData.tx.data);
     let signature: string;
     
-    // Use multiple RPC endpoints with fallback (public endpoints have rate limits)
-    const SOLANA_RPC_ENDPOINTS = [
-      chain.rpcUrl,
-      'https://api.mainnet-beta.solana.com',
-      'https://solana-mainnet.g.alchemy.com/v2/demo',
-      'https://rpc.ankr.com/solana',
-    ].filter(Boolean) as string[];
+    // Use Alchemy RPC with fallbacks (private endpoints = no rate limits)
+    const SOLANA_RPC_ENDPOINTS = getSolanaRpcEndpoints(chain.rpcUrl);
     
     let connection: Connection | null = null;
     let latestBlockhash: { blockhash: string; lastValidBlockHeight: number } | null = null;

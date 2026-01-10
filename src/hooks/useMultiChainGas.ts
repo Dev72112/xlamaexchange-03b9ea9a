@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Chain, SUPPORTED_CHAINS } from '@/data/chains';
+import { getRpcUrl } from '@/config/rpc';
 
 interface GasTier {
   label: 'Slow' | 'Standard' | 'Fast';
@@ -77,7 +78,8 @@ export function useMultiChainGas(chains?: Chain[]) {
     await Promise.all(
       targetChains.map(async (chain) => {
         try {
-          const gasPriceWei = await fetchGasPrice(chain.rpcUrl);
+          const rpcUrl = getRpcUrl(chain.chainIndex, chain.rpcUrl);
+          const gasPriceWei = await fetchGasPrice(rpcUrl);
           if (gasPriceWei !== null) {
             const gasPriceGwei = Number(gasPriceWei) / 1e9;
             const prevPrice = previousPrices.get(chain.chainIndex) || gasPriceGwei;
