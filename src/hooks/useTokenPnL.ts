@@ -1,21 +1,28 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
+import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { okxDexService } from '@/services/okxdex';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface TokenPnLData {
   symbol: string;
   chainIndex: string;
   tokenAddress: string;
   totalBought: number;
+  totalBoughtUsd: number;
   totalSold: number;
+  totalSoldUsd: number;
   avgBuyPrice: number;
   avgSellPrice: number;
   currentPrice: number;
+  currentBalance: number;
+  currentValueUsd: number;
   realizedPnL: number;
   unrealizedPnL: number;
   totalPnL: number;
   pnLPercentage: number;
   trades: number;
+  costBasis: number; // From initial snapshot
 }
 
 export interface TokenPnLAnalytics {
@@ -26,235 +33,260 @@ export interface TokenPnLAnalytics {
   bestPerformer: TokenPnLData | null;
   worstPerformer: TokenPnLData | null;
   isLoading: boolean;
+  hasSnapshot: boolean;
 }
 
-// Unified trade record for P&L calculation
-interface UnifiedTrade {
-  chainIndex: string;
-  fromSymbol: string;
-  fromAddress: string;
-  fromAmount: number;
-  fromAmountUsd: number;
-  toSymbol: string;
-  toAddress: string;
-  toAmount: number;
-  toAmountUsd: number;
-  timestamp: number;
-  type: 'dex' | 'instant' | 'bridge';
+interface InitialHolding {
+  token_address: string;
+  token_symbol: string;
+  chain_index: string;
+  balance: number;
+  price: number;
+  value_usd: number;
+}
+
+// Price cache
+const priceCache = new Map<string, { price: number; timestamp: number }>();
+const CACHE_TTL = 60000;
+
+async function getCachedPrice(chainIndex: string, tokenAddress: string): Promise<number> {
+  const key = `${chainIndex}:${tokenAddress.toLowerCase()}`;
+  const cached = priceCache.get(key);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.price;
+  }
+
+  try {
+    const priceInfo = await okxDexService.getTokenPriceInfo(chainIndex, tokenAddress);
+    const price = parseFloat(priceInfo?.price || '0');
+    
+    if (price > 0) {
+      priceCache.set(key, { price, timestamp: Date.now() });
+    }
+    return price;
+  } catch {
+    return 0;
+  }
 }
 
 export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
   const { transactions: dexTransactions } = useDexTransactions();
-  const [prices, setPrices] = useState<Map<string, number>>(new Map());
-  const [isLoading, setIsLoading] = useState(false);
-  const pricesFetchedRef = useRef(false);
+  const { anyConnectedAddress } = useMultiWallet();
+  
+  const [initialHoldings, setInitialHoldings] = useState<InitialHolding[]>([]);
+  const [currentPrices, setCurrentPrices] = useState<Map<string, number>>(new Map());
+  const [currentBalances, setCurrentBalances] = useState<Map<string, number>>(new Map());
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasSnapshot, setHasSnapshot] = useState(false);
+  
+  const fetchedForRef = useRef<string>('');
 
-  // Unify all trades into a common format
-  // NOTE: Only DEX swaps generate true P&L - Bridge and Instant are asset transfers/conversions
-  const unifiedTrades = useMemo((): UnifiedTrade[] => {
-    const trades: UnifiedTrade[] = [];
-    
-    // Only DEX transactions contribute to actual P&L
-    // Bridge = same asset, different chain (no P&L)
-    // Instant = exchange at market rate (P&L is realized immediately, hard to track)
-    dexTransactions
-      .filter(tx => tx.type === 'swap' && tx.status === 'confirmed')
-      .filter(tx => !chainFilter || chainFilter === 'all' || tx.chainId === chainFilter)
-      .forEach(tx => {
-        trades.push({
-          chainIndex: tx.chainId,
-          fromSymbol: tx.fromTokenSymbol,
-          fromAddress: tx.fromTokenAddress || '',
-          fromAmount: parseFloat(tx.fromTokenAmount) || 0,
-          fromAmountUsd: tx.fromAmountUsd || 0,
-          toSymbol: tx.toTokenSymbol,
-          toAddress: tx.toTokenAddress || '',
-          toAmount: parseFloat(tx.toTokenAmount) || 0,
-          toAmountUsd: tx.toAmountUsd || 0,
-          timestamp: tx.timestamp,
-          type: 'dex',
-        });
-      });
-    
-    return trades;
-  }, [dexTransactions, chainFilter]);
-
-  // Extract unique tokens that need price updates
-  const uniqueTokens = useMemo(() => {
-    const tokens = new Map<string, { chainIndex: string; address: string; symbol: string }>();
-    
-    unifiedTrades.forEach(trade => {
-      // Track "to" tokens (tokens bought) - skip if no address or instant
-      if (trade.toAddress && trade.chainIndex !== 'instant') {
-        const key = `${trade.chainIndex}-${trade.toAddress.toLowerCase()}`;
-        if (!tokens.has(key)) {
-          tokens.set(key, {
-            chainIndex: trade.chainIndex,
-            address: trade.toAddress,
-            symbol: trade.toSymbol,
-          });
-        }
-      }
-    });
-
-    return Array.from(tokens.values());
-  }, [unifiedTrades]);
-
-  // Fetch current prices for tokens - only once per unique token set
+  // Fetch initial snapshot and current balances
   useEffect(() => {
-    if (uniqueTokens.length === 0) return;
-    
-    // Create stable key to prevent re-fetching
-    const tokenKey = uniqueTokens.map(t => `${t.chainIndex}-${t.address}`).sort().join(',');
-    if (pricesFetchedRef.current) return;
+    if (!anyConnectedAddress) {
+      setInitialHoldings([]);
+      setIsLoading(false);
+      return;
+    }
 
-    const fetchPrices = async () => {
+    const addressKey = anyConnectedAddress.toLowerCase();
+    if (fetchedForRef.current === addressKey) return;
+
+    let cancelled = false;
+
+    async function fetchData() {
       setIsLoading(true);
-      const newPrices = new Map<string, number>();
+      
+      try {
+        // Fetch initial snapshot
+        const { data: snapshotData } = await supabase
+          .from('wallet_snapshots')
+          .select('*')
+          .eq('user_address', addressKey)
+          .eq('snapshot_type', 'initial');
 
-      // Batch requests by chain to avoid rate limits
-      const tokensByChain = new Map<string, typeof uniqueTokens>();
-      uniqueTokens.forEach(token => {
-        const existing = tokensByChain.get(token.chainIndex) || [];
-        existing.push(token);
-        tokensByChain.set(token.chainIndex, existing);
-      });
+        if (cancelled) return;
 
-      for (const [chainIndex, tokens] of tokensByChain) {
-        // Limit to 5 tokens per chain to avoid rate limits
-        const limitedTokens = tokens.slice(0, 5);
+        const holdings: InitialHolding[] = (snapshotData || []).map(row => ({
+          token_address: row.token_address,
+          token_symbol: row.token_symbol,
+          chain_index: row.chain_index,
+          balance: parseFloat(row.balance) || 0,
+          price: row.price_at_snapshot || 0,
+          value_usd: row.value_usd || 0,
+        }));
+
+        setInitialHoldings(holdings);
+        setHasSnapshot(holdings.length > 0);
+
+        // Fetch current balances
+        const chains = '1,56,137,42161,10,43114,250,8453,324,59144,534352,196,81457,501';
+        const balances = await okxDexService.getWalletBalances(anyConnectedAddress, chains, true);
         
-        for (const token of limitedTokens) {
-          try {
-            const priceInfo = await okxDexService.getTokenPriceInfo(chainIndex, token.address);
-            if (priceInfo?.price) {
-              const key = `${chainIndex}-${token.address.toLowerCase()}`;
-              newPrices.set(key, parseFloat(priceInfo.price));
-            }
-          } catch (err) {
-            console.error(`Failed to fetch price for ${token.symbol}:`, err);
+        if (cancelled) return;
+
+        const balanceMap = new Map<string, number>();
+        const priceMap = new Map<string, number>();
+        
+        balances.forEach(b => {
+          const key = `${b.chainIndex}:${b.tokenContractAddress?.toLowerCase() || 'native'}`;
+          balanceMap.set(key, parseFloat(b.balance) || 0);
+          const price = parseFloat(b.tokenPrice) || 0;
+          if (price > 0) {
+            priceMap.set(key, price);
           }
-          
-          // Small delay between requests
-          await new Promise(resolve => setTimeout(resolve, 150));
+        });
+
+        setCurrentBalances(balanceMap);
+        setCurrentPrices(priceMap);
+        fetchedForRef.current = addressKey;
+      } catch (err) {
+        console.error('Error fetching P&L data:', err);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
         }
       }
+    }
 
-      pricesFetchedRef.current = true;
-      setPrices(newPrices);
-      setIsLoading(false);
-    };
+    fetchData();
+    return () => { cancelled = true; };
+  }, [anyConnectedAddress]);
 
-    fetchPrices();
-  }, [uniqueTokens]);
-
+  // Process trades and calculate P&L
   const analytics = useMemo((): TokenPnLAnalytics => {
-    // Track buys and sells per token
-    const tokenData = new Map<string, {
+    // Build trade aggregates per token
+    const tokenTrades = new Map<string, {
       symbol: string;
       chainIndex: string;
       tokenAddress: string;
       buyVolume: number;
-      buyValue: number;
+      buyValueUsd: number;
       sellVolume: number;
-      sellValue: number;
+      sellValueUsd: number;
       trades: number;
     }>();
 
-    unifiedTrades.forEach(trade => {
-      // Track tokens received (buys)
-      if (trade.toAddress || trade.type === 'instant') {
-        // For instant trades, use symbol as key since we don't have addresses
-        const key = trade.type === 'instant' 
-          ? `instant-${trade.toSymbol.toLowerCase()}`
-          : `${trade.chainIndex}-${trade.toAddress.toLowerCase()}`;
-        
-        const existing = tokenData.get(key) || {
-          symbol: trade.toSymbol,
-          chainIndex: trade.chainIndex,
-          tokenAddress: trade.toAddress,
-          buyVolume: 0,
-          buyValue: 0,
-          sellVolume: 0,
-          sellValue: 0,
-          trades: 0,
-        };
-        
-        existing.buyVolume += trade.toAmount;
-        existing.buyValue += trade.toAmountUsd;
-        existing.trades += 1;
-        tokenData.set(key, existing);
-      }
-
-      // Track tokens sent (sells)
-      if (trade.fromAddress || trade.type === 'instant') {
-        const key = trade.type === 'instant'
-          ? `instant-${trade.fromSymbol.toLowerCase()}`
-          : `${trade.chainIndex}-${trade.fromAddress.toLowerCase()}`;
-        
-        const existing = tokenData.get(key);
-        if (existing) {
-          existing.sellVolume += trade.fromAmount;
-          existing.sellValue += trade.fromAmountUsd;
+    // Only DEX swaps with prices contribute to P&L
+    dexTransactions
+      .filter(tx => tx.type === 'swap' && tx.status === 'confirmed')
+      .filter(tx => !chainFilter || chainFilter === 'all' || tx.chainId === chainFilter)
+      .forEach(tx => {
+        // Track tokens bought (toToken)
+        if (tx.toTokenAddress) {
+          const key = `${tx.chainId}:${tx.toTokenAddress.toLowerCase()}`;
+          const existing = tokenTrades.get(key) || {
+            symbol: tx.toTokenSymbol,
+            chainIndex: tx.chainId,
+            tokenAddress: tx.toTokenAddress,
+            buyVolume: 0,
+            buyValueUsd: 0,
+            sellVolume: 0,
+            sellValueUsd: 0,
+            trades: 0,
+          };
+          
+          const toAmount = parseFloat(tx.toTokenAmount) || 0;
+          const toValueUsd = tx.toAmountUsd || 0;
+          
+          existing.buyVolume += toAmount;
+          existing.buyValueUsd += toValueUsd;
+          existing.trades += 1;
+          tokenTrades.set(key, existing);
         }
-      }
+
+        // Track tokens sold (fromToken)
+        if (tx.fromTokenAddress) {
+          const key = `${tx.chainId}:${tx.fromTokenAddress.toLowerCase()}`;
+          const existing = tokenTrades.get(key);
+          
+          if (existing) {
+            const fromAmount = parseFloat(tx.fromTokenAmount) || 0;
+            const fromValueUsd = tx.fromAmountUsd || 0;
+            
+            existing.sellVolume += fromAmount;
+            existing.sellValueUsd += fromValueUsd;
+          }
+        }
+      });
+
+    // Build initial holdings map for cost basis
+    const initialCostBasis = new Map<string, { balance: number; price: number; valueUsd: number }>();
+    initialHoldings.forEach(h => {
+      const key = `${h.chain_index}:${h.token_address.toLowerCase()}`;
+      initialCostBasis.set(key, {
+        balance: h.balance,
+        price: h.price,
+        valueUsd: h.value_usd,
+      });
     });
 
     // Calculate P&L for each token
-    const tokens: TokenPnLData[] = Array.from(tokenData.entries())
-      .filter(([_, data]) => data.buyVolume > 0) // Only tokens we actually bought
-      .map(([key, data]) => {
-        const avgBuyPrice = data.buyVolume > 0 ? data.buyValue / data.buyVolume : 0;
-        const avgSellPrice = data.sellVolume > 0 ? data.sellValue / data.sellVolume : 0;
-        const currentPrice = prices.get(key) || avgBuyPrice; // Fallback to avg buy price
-        
-        // Realized P&L = (Sell Value) - (Cost of Sold Tokens)
-        const costOfSold = data.sellVolume * avgBuyPrice;
-        const realizedPnL = data.sellValue - costOfSold;
-        
-        // Unrealized P&L = (Remaining Holdings * Current Price) - (Remaining Holdings * Avg Buy Price)
-        const remainingHoldings = Math.max(0, data.buyVolume - data.sellVolume);
-        const unrealizedPnL = remainingHoldings * (currentPrice - avgBuyPrice);
-        
-        const totalPnL = realizedPnL + unrealizedPnL;
-        const totalInvested = data.buyValue;
-        const pnLPercentage = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
+    const tokens: TokenPnLData[] = [];
+    
+    // Include all traded tokens
+    tokenTrades.forEach((data, key) => {
+      const initial = initialCostBasis.get(key);
+      const currentPrice = currentPrices.get(key) || 0;
+      const currentBalance = currentBalances.get(key) || 0;
+      
+      // Cost basis from initial snapshot or average buy price
+      const costBasisPrice = initial?.price || (data.buyVolume > 0 ? data.buyValueUsd / data.buyVolume : 0);
+      
+      // Realized P&L = (Sell Revenue) - (Cost of Sold Tokens using FIFO)
+      const costOfSold = data.sellVolume * costBasisPrice;
+      const realizedPnL = data.sellValueUsd - costOfSold;
+      
+      // Unrealized P&L = (Current Holdings Value) - (Cost Basis of Current Holdings)
+      const currentValueUsd = currentBalance * currentPrice;
+      const costOfHoldings = currentBalance * costBasisPrice;
+      const unrealizedPnL = currentValueUsd - costOfHoldings;
+      
+      const totalPnL = realizedPnL + unrealizedPnL;
+      const totalInvested = (initial?.valueUsd || 0) + data.buyValueUsd;
+      const pnLPercentage = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
 
-        return {
-          symbol: data.symbol,
-          chainIndex: data.chainIndex,
-          tokenAddress: data.tokenAddress,
-          totalBought: data.buyVolume,
-          totalSold: data.sellVolume,
-          avgBuyPrice,
-          avgSellPrice,
-          currentPrice,
-          realizedPnL,
-          unrealizedPnL,
-          totalPnL,
-          pnLPercentage,
-          trades: data.trades,
-        };
-      })
-      .sort((a, b) => b.totalPnL - a.totalPnL);
+      tokens.push({
+        symbol: data.symbol,
+        chainIndex: data.chainIndex,
+        tokenAddress: data.tokenAddress,
+        totalBought: data.buyVolume,
+        totalBoughtUsd: data.buyValueUsd,
+        totalSold: data.sellVolume,
+        totalSoldUsd: data.sellValueUsd,
+        avgBuyPrice: data.buyVolume > 0 ? data.buyValueUsd / data.buyVolume : 0,
+        avgSellPrice: data.sellVolume > 0 ? data.sellValueUsd / data.sellVolume : 0,
+        currentPrice,
+        currentBalance,
+        currentValueUsd,
+        realizedPnL,
+        unrealizedPnL,
+        totalPnL,
+        pnLPercentage,
+        trades: data.trades,
+        costBasis: costBasisPrice,
+      });
+    });
+
+    // Sort by total P&L descending
+    tokens.sort((a, b) => b.totalPnL - a.totalPnL);
 
     const totalRealizedPnL = tokens.reduce((sum, t) => sum + t.realizedPnL, 0);
     const totalUnrealizedPnL = tokens.reduce((sum, t) => sum + t.unrealizedPnL, 0);
     const totalPnL = totalRealizedPnL + totalUnrealizedPnL;
-
-    const bestPerformer = tokens.length > 0 ? tokens[0] : null;
-    const worstPerformer = tokens.length > 0 ? tokens[tokens.length - 1] : null;
 
     return {
       tokens,
       totalRealizedPnL,
       totalUnrealizedPnL,
       totalPnL,
-      bestPerformer,
-      worstPerformer,
+      bestPerformer: tokens.length > 0 ? tokens[0] : null,
+      worstPerformer: tokens.length > 0 ? tokens[tokens.length - 1] : null,
       isLoading,
+      hasSnapshot,
     };
-  }, [unifiedTrades, prices, isLoading]);
+  }, [dexTransactions, chainFilter, initialHoldings, currentPrices, currentBalances, isLoading, hasSnapshot]);
 
   return analytics;
 }
