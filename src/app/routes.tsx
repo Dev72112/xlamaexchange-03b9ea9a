@@ -30,6 +30,7 @@ const CookiesPolicy = lazy(() => import('@/pages/CookiesPolicy'));
 const Docs = lazy(() => import('@/pages/Docs'));
 const Changelog = lazy(() => import('@/pages/Changelog'));
 const Feedback = lazy(() => import('@/pages/Feedback'));
+const Debug = lazy(() => import('@/pages/Debug'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
 /**
@@ -74,6 +75,7 @@ export const allRoutes: RouteConfig[] = [
   ...primaryRoutes,
   ...secondaryRoutes,
   ...legalRoutes,
+  { path: '/debug', element: Debug, label: 'Debug' },
   { path: '*', element: NotFound },
 ];
 
