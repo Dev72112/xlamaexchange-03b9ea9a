@@ -1,7 +1,16 @@
 // Alchemy RPC Configuration
 // Provides private RPC endpoints with public fallbacks
 
+// IMPORTANT: This variable is injected at BUILD TIME by Vite
+// If it shows undefined, you need to:
+// 1. Ensure VITE_ALCHEMY_API_KEY is set in Lovable Cloud secrets
+// 2. Publish -> Update to trigger a new build
 const ALCHEMY_KEY = import.meta.env.VITE_ALCHEMY_API_KEY;
+
+// Debug log for development only
+if (import.meta.env.DEV) {
+  console.log('[RPC Config] Alchemy key present:', Boolean(ALCHEMY_KEY));
+}
 
 // Alchemy RPC endpoints by chain index
 export const ALCHEMY_RPCS: Record<string, string> = ALCHEMY_KEY ? {
@@ -66,4 +75,19 @@ export function getSolanaRpcEndpoints(chainRpcUrl?: string): string[] {
  */
 export function isAlchemyConfigured(): boolean {
   return Boolean(ALCHEMY_KEY);
+}
+
+/**
+ * Get diagnostic info about the RPC configuration
+ */
+export function getRpcDiagnostics(): {
+  alchemyConfigured: boolean;
+  keyLength: number;
+  buildTime: string;
+} {
+  return {
+    alchemyConfigured: Boolean(ALCHEMY_KEY),
+    keyLength: ALCHEMY_KEY?.length || 0,
+    buildTime: new Date().toISOString(),
+  };
 }

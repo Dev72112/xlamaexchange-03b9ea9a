@@ -7,16 +7,16 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1.5rem",
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        display: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -27,6 +27,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -60,11 +61,21 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        surface: {
+          elevated: "hsl(var(--surface-elevated))",
+          sunken: "hsl(var(--surface-sunken))",
+        },
       },
       borderRadius: {
+        xl: "calc(var(--radius) + 4px)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        'glow': 'var(--shadow-glow)',
+        'glow-sm': '0 0 20px -5px hsl(var(--primary) / 0.2)',
+        'elevated': 'var(--shadow-lg)',
       },
       keyframes: {
         "accordion-down": {
@@ -115,6 +126,15 @@ export default {
           "0%": { opacity: "0", transform: "scale(0.98)" },
           "100%": { opacity: "1", transform: "scale(1)" },
         },
+        "gradient-shift": {
+          "0%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { boxShadow: "0 0 20px -5px hsl(var(--primary) / 0.3)" },
+          "50%": { boxShadow: "0 0 30px -5px hsl(var(--primary) / 0.5)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -129,6 +149,8 @@ export default {
         "page-enter": "page-enter 0.25s ease-out",
         "page-exit": "page-exit 0.15s ease-in",
         "mode-crossfade": "mode-crossfade 0.2s ease-out",
+        "gradient-shift": "gradient-shift 8s ease infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
       },
     },
   },
