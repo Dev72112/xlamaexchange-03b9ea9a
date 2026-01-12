@@ -57,28 +57,29 @@ const Favorites = () => {
       </Helmet>
 
       <div className="container px-4 py-12 sm:py-16 max-w-4xl">
-        {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-xl bg-warning/10">
+        {/* Header with glass styling */}
+        <div className="mb-10 relative">
+          <div className="absolute -inset-4 bg-gradient-to-r from-warning/5 via-transparent to-transparent rounded-2xl blur-xl" />
+          <div className="relative flex items-center gap-3 mb-4">
+            <div className="p-2.5 rounded-xl glass border border-warning/20 shadow-[0_0_15px_rgba(var(--warning),0.2)]">
               <Star className="w-6 h-6 text-warning fill-warning" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold">Favorite Pairs</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Favorite Pairs</h1>
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground relative">
             Your saved trading pairs with live exchange rates. Click any pair to start an exchange.
           </p>
         </div>
 
         {/* Favorites List */}
         {favorites.length === 0 ? (
-          <Card className="p-12 text-center border-dashed">
+          <Card className="p-12 text-center border-dashed glass">
             <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-semibold mb-2">No favorites yet</h3>
             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
               Add your favorite trading pairs from the exchange widget or trending pairs section.
             </p>
-            <Button onClick={() => navigate('/')}>
+            <Button onClick={() => navigate('/')} className="btn-ripple">
               <TrendingUp className="w-4 h-4 mr-2" />
               Explore Pairs
             </Button>
@@ -94,7 +95,7 @@ const Favorites = () => {
               return (
                 <Card
                   key={rateKey}
-                  className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all cursor-pointer group", STAGGER_ITEM_CLASS)}
+                  className={cn("p-4 sm:p-5 glass hover:border-primary/30 hover-lift card-hover-glow transition-all cursor-pointer group", STAGGER_ITEM_CLASS)}
                   style={getStaggerStyle(i, 60)}
                   onClick={() => handleExchange(pair.from, pair.to)}
                 >
@@ -187,10 +188,10 @@ const Favorites = () => {
 
         {/* Quick Stats */}
         {favorites.length > 0 && (
-          <div className="mt-8 p-4 rounded-xl bg-secondary/30 border border-border">
+          <div className="mt-8 p-4 rounded-xl glass border border-border glow-sm">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Total saved pairs</span>
-              <span className="font-medium">{favorites.length}</span>
+              <span className="font-medium text-primary">{favorites.length}</span>
             </div>
           </div>
         )}

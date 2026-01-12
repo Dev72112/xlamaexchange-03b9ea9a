@@ -327,16 +327,17 @@ const History = () => {
       </Helmet>
 
       <div className="container px-4 py-12 sm:py-16 max-w-4xl">
-        {/* Header */}
+        {/* Header with glass styling */}
         <div className="mb-10 flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-xl bg-primary/10">
+          <div className="relative">
+            <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-2xl blur-xl" />
+            <div className="relative flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl glass border border-primary/20 glow-sm">
                 <Clock className="w-6 h-6 text-primary" />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold">Transaction History</h1>
+              <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Transaction History</h1>
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground relative">
               Your cryptocurrency exchanges and on-chain transactions.
             </p>
           </div>
@@ -344,7 +345,7 @@ const History = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-1 glass border-border/30">
             <TabsTrigger value="all" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
               <LayoutList className="w-4 h-4" />
               <span className="text-[10px] sm:text-sm">All</span>

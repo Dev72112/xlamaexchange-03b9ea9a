@@ -56,7 +56,7 @@ function applyStoredColorScheme() {
 
 export function ThemeProvider({
   children,
-  defaultTheme = "system",
+  defaultTheme = "dark",
   storageKey = "cryptoswap-theme",
   ...props
 }: ThemeProviderProps) {
