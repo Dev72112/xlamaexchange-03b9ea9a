@@ -59,19 +59,22 @@ const Tools = memo(function Tools() {
       </Helmet>
 
       <main className="container px-4 sm:px-6 py-8 sm:py-12">
-        {/* Header */}
-        <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-4">
-            <Wrench className="w-4 h-4" />
-            <span>Trading Tools</span>
+        {/* Header with glass styling */}
+        <div className="text-center mb-8 sm:mb-12 relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent rounded-3xl blur-2xl" />
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/20 text-sm text-primary mb-4 glow-sm">
+              <Wrench className="w-4 h-4" />
+              <span>Trading Tools</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
+              Trading Tools
+            </h1>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+              Powerful tools to enhance your trading experience. Monitor gas prices, 
+              track tokens, set alerts, and optimize your portfolio.
+            </p>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
-            Trading Tools
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Powerful tools to enhance your trading experience. Monitor gas prices, 
-            track tokens, set alerts, and optimize your portfolio.
-          </p>
         </div>
 
         {/* Quick Jump Navigation */}
@@ -80,7 +83,7 @@ const Tools = memo(function Tools() {
             <a
               key={tool.id}
               href={`#${tool.id}`}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 border border-border text-sm font-medium hover:bg-secondary hover:border-primary/20 transition-colors ${STAGGER_ITEM_CLASS}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg glass border border-border text-sm font-medium hover:bg-secondary hover:border-primary/20 hover-lift transition-all ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index, 50)}
             >
               <tool.icon className="w-4 h-4 text-primary" />
@@ -119,11 +122,11 @@ const Tools = memo(function Tools() {
           {/* Token Compare Link */}
           <section className="max-w-xl mx-auto">
             <Link to="/compare">
-              <Card className="bg-card/50 border-border hover:border-primary/30 transition-all group cursor-pointer">
+              <Card className="glass border-border hover:border-primary/30 hover-lift card-hover-glow transition-all group cursor-pointer">
                 <CardContent className="pt-6 pb-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-lg glass border border-primary/20 flex items-center justify-center glow-sm">
                         <BarChart3 className="w-6 h-6 text-primary" />
                       </div>
                       <div>
@@ -133,7 +136,7 @@ const Tools = memo(function Tools() {
                         </p>
                       </div>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
                 </CardContent>
               </Card>

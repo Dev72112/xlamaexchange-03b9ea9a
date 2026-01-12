@@ -1,5 +1,5 @@
-import { Palette, Check, RotateCcw, Sun, Moon, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { Palette, Check, RotateCcw, Sun, Moon, Sparkles, Eye } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -28,16 +28,59 @@ export function HeaderThemeCustomizer() {
   const [customSaturation, setCustomSaturation] = useState(71);
   const [customLightness, setCustomLightness] = useState(45);
   const [open, setOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [originalScheme, setOriginalScheme] = useState<typeof currentScheme | null>(null);
+  const [originalTheme, setOriginalTheme] = useState<typeof theme | null>(null);
+
+  // Store original when entering preview mode
+  const startPreview = useCallback(() => {
+    if (!previewMode) {
+      setOriginalScheme({ ...currentScheme });
+      setOriginalTheme(theme);
+      setPreviewMode(true);
+    }
+  }, [previewMode, currentScheme, theme]);
+
+  // Cancel preview and restore original
+  const cancelPreview = useCallback(() => {
+    if (previewMode && originalScheme) {
+      selectPreset(originalScheme.id);
+      if (originalTheme) setTheme(originalTheme);
+      setPreviewMode(false);
+      setOriginalScheme(null);
+      setOriginalTheme(null);
+    }
+  }, [previewMode, originalScheme, originalTheme, selectPreset, setTheme]);
+
+  // Apply preview permanently
+  const confirmPreview = useCallback(() => {
+    setPreviewMode(false);
+    setOriginalScheme(null);
+    setOriginalTheme(null);
+    toast.success('Theme applied');
+  }, []);
+
+  // Cancel preview on close if in preview mode
+  useEffect(() => {
+    if (!open && previewMode) {
+      cancelPreview();
+    }
+  }, [open, previewMode, cancelPreview]);
 
   const handleCustomColorChange = () => {
     const hslValue = `${customHue} ${customSaturation}% ${customLightness}%`;
     setCustomPrimary(hslValue);
-    toast.success('Custom color applied');
+    confirmPreview();
   };
 
   const handlePresetSelect = (schemeId: string) => {
+    startPreview();
     selectPreset(schemeId);
-    toast.success('Theme applied');
+  };
+
+  const handleThemeToggle = (newTheme: 'light' | 'dark') => {
+    startPreview();
+    setTheme(newTheme);
   };
 
   const handleReset = () => {
@@ -45,6 +88,9 @@ export function HeaderThemeCustomizer() {
     setCustomHue(142);
     setCustomSaturation(71);
     setCustomLightness(45);
+    setPreviewMode(false);
+    setOriginalScheme(null);
+    setOriginalTheme(null);
     toast.success('Theme reset to default');
   };
 
@@ -91,6 +137,30 @@ export function HeaderThemeCustomizer() {
             </Button>
           </div>
 
+          {/* Preview Mode Indicator */}
+          {previewMode && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 border border-primary/20 text-xs">
+              <Eye className="w-3.5 h-3.5 text-primary animate-pulse" />
+              <span className="text-primary font-medium">Preview Mode</span>
+              <div className="flex-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={cancelPreview}
+                className="h-6 px-2 text-[10px] hover:bg-destructive/10 hover:text-destructive"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={confirmPreview}
+                className="h-6 px-2 text-[10px]"
+              >
+                Apply
+              </Button>
+            </div>
+          )}
+
           {/* Light/Dark Mode Toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-surface-sunken border border-border/30">
             <span className="text-sm font-medium">Appearance</span>
@@ -98,7 +168,7 @@ export function HeaderThemeCustomizer() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setTheme('light')}
+                onClick={() => handleThemeToggle('light')}
                 className={cn(
                   "h-7 px-3 text-xs transition-all",
                   currentTheme === 'light' && "bg-background shadow-sm text-primary"
@@ -110,7 +180,7 @@ export function HeaderThemeCustomizer() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setTheme('dark')}
+                onClick={() => handleThemeToggle('dark')}
                 className={cn(
                   "h-7 px-3 text-xs transition-all",
                   currentTheme === 'dark' && "bg-background shadow-sm text-primary"
