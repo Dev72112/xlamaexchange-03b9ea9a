@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Wallet, Coins, Shield } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +17,26 @@ interface PortfolioSummaryCardProps {
 
 // Common stablecoins
 const STABLECOINS = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDP', 'USDD', 'GUSD', 'PYUSD'];
+
+// Animated counter for value changes
+function AnimatedValue({ value, prefix = '$' }: { value: number; prefix?: string }) {
+  const formatValue = (val: number) => {
+    if (val >= 1000000) return `${(val / 1000000).toFixed(2)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(2)}K`;
+    return val.toFixed(2);
+  };
+
+  return (
+    <motion.span
+      key={value}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {prefix}{formatValue(value)}
+    </motion.span>
+  );
+}
 
 export function PortfolioSummaryCard({
   totalValue,
@@ -53,19 +74,13 @@ export function PortfolioSummaryCard({
     return { absoluteChange, percentChange };
   }, [totalValue, previousValue]);
 
-  const formatUsd = (value: number) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
-  };
-
   if (isLoading) {
     return (
-      <Card className={cn("bg-card border-border", className)}>
+      <Card className={cn("glass border-border/50", className)}>
         <CardContent className="py-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
-              <Skeleton key={i} className="h-16" />
+              <Skeleton key={i} className="h-20 skeleton-shimmer rounded-xl" />
             ))}
           </div>
         </CardContent>
@@ -73,78 +88,131 @@ export function PortfolioSummaryCard({
     );
   }
 
+  const statItems = [
+    {
+      icon: Wallet,
+      label: 'Total Value',
+      value: totalValue,
+      change,
+      iconColor: 'text-primary',
+      glowColor: 'shadow-primary/20'
+    },
+    {
+      icon: Coins,
+      label: 'Assets',
+      value: balances.length,
+      isCount: true,
+      subtitle: 'tokens tracked',
+      iconColor: 'text-chart-2',
+      glowColor: 'shadow-chart-2/20'
+    },
+    {
+      icon: Shield,
+      label: 'Stablecoins',
+      value: stablecoinValue,
+      percentage: stablecoinPercentage,
+      iconColor: 'text-success',
+      glowColor: 'shadow-success/20'
+    },
+    {
+      icon: TrendingUp,
+      label: 'Volatile',
+      value: otherValue,
+      riskPercentage: 100 - stablecoinPercentage,
+      iconColor: 'text-chart-4',
+      glowColor: 'shadow-chart-4/20'
+    }
+  ];
+
   return (
-    <Card className={cn("bg-gradient-to-br from-card to-secondary/20 border-border", className)}>
+    <Card className={cn("glass border-border/50 overflow-hidden", className)}>
+      {/* Gradient top border */}
+      <div className="h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-4" />
+      
       <CardContent className="py-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {/* Total Value */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Wallet className="w-3.5 h-3.5" />
-              Total Value
-            </div>
-            <p className="text-2xl font-bold">{formatUsd(totalValue)}</p>
-            {change && (
-              <div className={cn(
-                "flex items-center gap-1 text-xs",
-                change.absoluteChange >= 0 ? "text-success" : "text-destructive"
-              )}>
-                {change.absoluteChange >= 0 ? (
-                  <TrendingUp className="w-3 h-3" />
+          {statItems.map((item, index) => (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className={cn(
+                "relative p-4 rounded-xl bg-secondary/30 border border-border/30",
+                "hover:bg-secondary/50 hover:border-border/50 transition-all hover-lift",
+                `hover:${item.glowColor}`
+              )}
+            >
+              {/* Icon with glow */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className={cn("p-1.5 rounded-lg bg-secondary/50", item.iconColor)}>
+                  <item.icon className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs text-muted-foreground font-medium">{item.label}</span>
+              </div>
+
+              {/* Value */}
+              <p className="text-2xl font-bold">
+                {item.isCount ? (
+                  item.value
                 ) : (
-                  <TrendingDown className="w-3 h-3" />
+                  <AnimatedValue value={item.value as number} />
                 )}
-                <span>
-                  {change.absoluteChange >= 0 ? '+' : ''}
-                  {formatUsd(change.absoluteChange)} ({change.percentChange.toFixed(2)}%)
-                </span>
-              </div>
-            )}
-          </div>
+              </p>
 
-          {/* Assets Count */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Coins className="w-3.5 h-3.5" />
-              Assets
-            </div>
-            <p className="text-2xl font-bold">{balances.length}</p>
-            <p className="text-xs text-muted-foreground">
-              tokens tracked
-            </p>
-          </div>
+              {/* Additional info */}
+              {item.change && (
+                <motion.div 
+                  className={cn(
+                    "flex items-center gap-1 text-xs mt-1",
+                    item.change.absoluteChange >= 0 ? "text-success" : "text-destructive"
+                  )}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  {item.change.absoluteChange >= 0 ? (
+                    <TrendingUp className="w-3 h-3" />
+                  ) : (
+                    <TrendingDown className="w-3 h-3" />
+                  )}
+                  <span>
+                    {item.change.absoluteChange >= 0 ? '+' : ''}
+                    <AnimatedValue value={item.change.absoluteChange} />
+                    <span className="text-muted-foreground ml-1">
+                      ({item.change.percentChange.toFixed(1)}%)
+                    </span>
+                  </span>
+                </motion.div>
+              )}
 
-          {/* Stablecoin Split */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Shield className="w-3.5 h-3.5" />
-              Stablecoins
-            </div>
-            <p className="text-2xl font-bold">{formatUsd(stablecoinValue)}</p>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-[10px]">
-                {stablecoinPercentage.toFixed(0)}%
-              </Badge>
-              <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all"
-                  style={{ width: `${stablecoinPercentage}%` }}
-                />
-              </div>
-            </div>
-          </div>
+              {item.subtitle && (
+                <p className="text-xs text-muted-foreground mt-1">{item.subtitle}</p>
+              )}
 
-          {/* Volatile Assets */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <TrendingUp className="w-3.5 h-3.5" />
-              Volatile
-            </div>
-            <p className="text-2xl font-bold">{formatUsd(otherValue)}</p>
-            <Badge variant="secondary" className="text-[10px]">
-              {(100 - stablecoinPercentage).toFixed(0)}% risk exposure
-            </Badge>
-          </div>
+              {item.percentage !== undefined && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="secondary" className="text-[10px] font-medium">
+                    {item.percentage.toFixed(0)}%
+                  </Badge>
+                  <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-success rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${item.percentage}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {item.riskPercentage !== undefined && (
+                <Badge variant="secondary" className="text-[10px] font-medium mt-2">
+                  {item.riskPercentage.toFixed(0)}% risk exposure
+                </Badge>
+              )}
+            </motion.div>
+          ))}
         </div>
       </CardContent>
     </Card>

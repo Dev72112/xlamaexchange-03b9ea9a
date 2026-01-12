@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedback } from '@/hooks/useFeedback';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void> | void;
@@ -63,6 +64,7 @@ export const PullToRefresh = memo(function PullToRefresh({
   const isPullingRef = useRef(false);
   
   const { triggerFeedback } = useFeedback();
+  const { trigger: triggerHaptic } = useHapticFeedback();
 
   const canPull = useCallback(() => {
     if (disabled || isRefreshing) return false;
@@ -106,6 +108,7 @@ export const PullToRefresh = memo(function PullToRefresh({
     if (pullDistance >= PULL_THRESHOLD) {
       // Trigger haptic feedback and sound
       triggerFeedback('refresh', 'medium');
+      triggerHaptic('medium');
       
       setIsRefreshing(true);
       setPullDistance(PULL_THRESHOLD / 2);
