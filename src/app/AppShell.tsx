@@ -8,7 +8,7 @@ import { RouteLoadingProvider } from '@/contexts/RouteLoadingContext';
 import { ScrollToTop } from '@/components/ScrollToTop';
 import { TrackingProvider } from '@/components/TrackingProvider';
 import { PageLoadingSkeleton } from '@/components/PageLoadingSkeleton';
-import { PageTransition } from '@/components/PageTransition';
+import { AnimatedRoutes } from '@/components/AnimatedRoutes';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { BridgeNotificationWatcher } from '@/components/BridgeNotificationWatcher';
 import { FloatingFeedback } from '@/components/FloatingFeedback';
@@ -22,7 +22,7 @@ export function AppShell() {
         <ScrollToTop />
         <TrackingProvider>
           <Suspense fallback={<PageLoadingSkeleton />}>
-            <PageTransition>
+            <AnimatedRoutes>
               <Routes>
                 {allRoutes.map((route) => (
                   <Route
@@ -32,7 +32,7 @@ export function AppShell() {
                   />
                 ))}
               </Routes>
-            </PageTransition>
+            </AnimatedRoutes>
           </Suspense>
           <KeyboardShortcuts />
           <BridgeNotificationWatcher />

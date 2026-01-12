@@ -79,17 +79,23 @@ const Bridge = memo(function Bridge() {
         <link rel="canonical" href="https://xlama.exchange/bridge" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-8 sm:py-12">
+      <main className="container px-4 sm:px-6 py-8 sm:py-12 relative">
+        {/* Animated background accent */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/3 -left-48 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 -right-48 w-[500px] h-[500px] bg-primary/3 rounded-full blur-3xl" />
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary">
               <ArrowRightLeft className="w-4 h-4" />
               <span>Powered by Li.Fi</span>
             </div>
             <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="rounded-full">
+                <Button variant="outline" size="icon" className="rounded-full glass-subtle">
                   <Settings className="w-4 h-4" />
                 </Button>
               </SheetTrigger>
@@ -103,7 +109,7 @@ const Bridge = memo(function Bridge() {
               </SheetContent>
             </Sheet>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
             Cross-Chain Bridge
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
@@ -134,7 +140,7 @@ const Bridge = memo(function Bridge() {
             {supportedChains.map((chain, index) => (
               <div
                 key={chain.chainIndex}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/30 border border-border ${STAGGER_ITEM_CLASS}`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg glass-subtle hover-lift ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index, 30)}
               >
                 <img
@@ -165,7 +171,7 @@ const Bridge = memo(function Bridge() {
             {bridgeSteps.map((step, index) => (
               <Card 
                 key={step.title} 
-                className={`relative bg-card/50 border-border hover:border-primary/20 hover-lift transition-all ${STAGGER_ITEM_CLASS}`}
+                className={`relative glass hover:border-primary/20 hover-lift transition-all ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index, 80)}
               >
                 <div 
@@ -196,7 +202,7 @@ const Bridge = memo(function Bridge() {
             {bridgeFeatures.map((feature, index) => (
               <div 
                 key={feature.label} 
-                className={`flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-card rounded-full border border-border ${STAGGER_ITEM_CLASS}`}
+                className={`flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 glass rounded-full hover-lift ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index + bridgeSteps.length, 60)}
               >
                 <feature.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" aria-hidden="true" />
@@ -209,7 +215,7 @@ const Bridge = memo(function Bridge() {
 
         {/* Li.Fi Credit */}
         <section className="text-center">
-          <Card className="inline-block bg-secondary/30 border-border">
+          <Card className="inline-block glass border-border/50">
             <CardContent className="py-4 px-6">
               <div className="flex items-center gap-3">
                 <img

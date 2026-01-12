@@ -80,62 +80,64 @@ body {
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 20% 98%;
+    /* Core dark palette - pure blacks and greys */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 20% 98%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
 
     --primary: 142 71% 45%;
-    --primary-foreground: 222 47% 6%;
+    --primary-foreground: 0 0% 4%;
 
-    --secondary: 222 47% 12%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 222 47% 14%;
-    --muted-foreground: 220 8% 55%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 142 30% 15%;
+    --accent: 142 30% 12%;
     --accent-foreground: 142 71% 60%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 47% 16%;
-    --input: 222 47% 16%;
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
     --ring: 142 71% 45%;
 
     --success: 142 71% 45%;
-    --success-foreground: 222 47% 6%;
+    --success-foreground: 0 0% 4%;
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 6%;
+    --warning-foreground: 0 0% 4%;
     
-    /* Extended palette - dark mode */
-    --primary-glow: 142 76% 50%;
-    --surface-elevated: 222 47% 10%;
-    --surface-sunken: 222 47% 5%;
+    /* Extended palette - rich dark mode with glow */
+    --primary-glow: 142 80% 55%;
+    --surface-elevated: 0 0% 10%;
+    --surface-sunken: 0 0% 3%;
     
-    /* Chart colors - brighter in dark mode */
-    --chart-1: 142 76% 50%;
-    --chart-2: 217 91% 65%;
-    --chart-3: 262 83% 65%;
-    --chart-4: 38 92% 55%;
-    --chart-5: 340 82% 58%;
-    --chart-6: 180 70% 50%;
+    /* Chart colors - vibrant with glow effect */
+    --chart-1: 142 80% 50%;
+    --chart-2: 217 95% 65%;
+    --chart-3: 262 90% 68%;
+    --chart-4: 38 95% 58%;
+    --chart-5: 340 85% 60%;
+    --chart-6: 180 75% 52%;
     
-    /* Gradient tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 76% 55%));
-    --gradient-accent: linear-gradient(135deg, hsl(142 30% 15%), hsl(142 35% 20%));
-    --gradient-surface: linear-gradient(180deg, hsl(222 47% 8%), hsl(222 47% 6%));
+    /* Gradient tokens - richer depth */
+    --gradient-primary: linear-gradient(135deg, hsl(142 71% 40%), hsl(142 80% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(142 30% 10%), hsl(142 35% 18%));
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 7%), hsl(0 0% 4%));
     
-    /* Shadow tokens - darker mode */
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.15);
-    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.25), 0 2px 4px -2px hsl(0 0% 0% / 0.2);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -4px hsl(0 0% 0% / 0.25);
-    --shadow-glow: 0 0 40px -5px hsl(var(--primary) / 0.35);
+    /* Shadow tokens - enhanced with glow */
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.4);
+    --shadow-md: 0 4px 8px -1px hsl(0 0% 0% / 0.5), 0 2px 4px -2px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 12px 20px -4px hsl(0 0% 0% / 0.6), 0 4px 8px -4px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 50px -8px hsl(var(--primary) / 0.4);
+    --shadow-glow-accent: 0 0 30px -5px hsl(var(--primary) / 0.25);
   }
 }
 

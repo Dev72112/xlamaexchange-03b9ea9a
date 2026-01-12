@@ -257,12 +257,18 @@ const Analytics = () => {
         <meta name="description" content="View your trading analytics, volume history, and performance metrics." />
       </Helmet>
 
-      <div className="container px-4 py-8 max-w-7xl mx-auto">
+      <div className="container px-4 py-8 max-w-7xl mx-auto relative">
+        {/* Animated background accent */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
+        </div>
+
         {/* Header */}
         <div className="flex flex-col gap-4 mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Trading Analytics</h1>
+              <h1 className="text-3xl font-bold mb-2 gradient-text">Trading Analytics</h1>
               <p className="text-muted-foreground">
                 Track your trading performance and patterns
               </p>
@@ -337,7 +343,7 @@ const Analytics = () => {
 
         {/* Connection check */}
         {!isConnected && (
-          <Card className="bg-primary/5 border-primary/20 mb-8">
+          <Card className="glass border-primary/20 mb-8 glow-sm">
             <CardContent className="p-4 flex items-center gap-3">
               <Wallet className="w-5 h-5 text-primary" />
               <p className="text-sm">

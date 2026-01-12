@@ -52,14 +52,20 @@ const Portfolio = memo(function Portfolio() {
       </Helmet>
 
       <main className="container px-4 sm:px-6 py-8 sm:py-12">
+        {/* Animated background accent */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
             <Wallet className="w-4 h-4" />
             <span>Portfolio Dashboard</span>
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
             Portfolio Dashboard
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
@@ -71,9 +77,9 @@ const Portfolio = memo(function Portfolio() {
         {/* Connect wallet prompt if not connected */}
         {!isConnected ? (
           <div className="max-w-xl mx-auto">
-            <Card variant="glass" className="bg-card/50">
+            <Card className="glass glow-sm border-primary/10">
               <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
                   <Wallet className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
@@ -86,13 +92,13 @@ const Portfolio = memo(function Portfolio() {
                 <MultiWalletButton />
 
                 {/* Feature Preview */}
-                <div className="mt-8 pt-8 border-t border-border">
+                <div className="mt-8 pt-8 border-t border-border/50">
                   <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
                   <div className="grid grid-cols-2 gap-4">
                     {portfolioFeatures.map((feature, index) => (
                       <div
                         key={feature.title}
-                        className={`p-3 rounded-lg bg-secondary/30 border border-border text-left ${STAGGER_ITEM_CLASS}`}
+                        className={`p-3 rounded-lg glass-subtle hover-lift ${STAGGER_ITEM_CLASS}`}
                         style={getStaggerStyle(index, 80)}
                       >
                         <feature.icon className="w-5 h-5 text-primary mb-2" />
@@ -115,10 +121,10 @@ const Portfolio = memo(function Portfolio() {
 
               {/* Standalone P&L Chart section */}
               <section id="pnl" className="scroll-mt-20">
-                <Card variant="glass" className="bg-card/50 border-border">
+                <Card className="glass glow-sm border-border/50">
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center glow-sm">
                         <TrendingUp className="w-4 h-4 text-primary" />
                       </div>
                       <h2 className="text-lg font-semibold">Performance History</h2>
@@ -137,7 +143,7 @@ const Portfolio = memo(function Portfolio() {
 
               {/* Tips Section */}
               <section className="mt-8">
-                <Card className="bg-secondary/30 border-border">
+                <Card className="glass-subtle border-border/50">
                   <CardContent className="pt-6">
                     <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                       <BarChart3 className="w-4 h-4 text-primary" />
