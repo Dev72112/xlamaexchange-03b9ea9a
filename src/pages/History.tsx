@@ -26,6 +26,7 @@ import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } 
 import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -305,6 +306,23 @@ const History = () => {
 
   const hasActiveFilters = searchQuery || typeFilter !== 'all' || dateRange.from || dateRange.to || globalChainFilter !== 'all';
 
+  // Pull to refresh handler
+  const handleRefresh = useCallback(async () => {
+    // Refresh on-chain history if on that tab
+    if (activeTab === 'onchain' && isConnected && activeAddress) {
+      setOnchainLoading(true);
+      try {
+        const chains = getEvmChains().slice(0, 6).map(c => c.chainIndex).join(',');
+        const result = await okxDexService.getTransactionHistory(activeAddress, chains, { limit: 20 });
+        setOnchainHistory(result.transactions);
+      } catch (err) {
+        console.error('Refresh failed:', err);
+      } finally {
+        setOnchainLoading(false);
+      }
+    }
+  }, [activeTab, isConnected, activeAddress]);
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -326,22 +344,23 @@ const History = () => {
         <meta name="description" content="View your cryptocurrency exchange transaction history." />
       </Helmet>
 
-      <div className="container px-4 py-12 sm:py-16 max-w-4xl">
-        {/* Header with glass styling */}
-        <div className="mb-10 flex items-start justify-between flex-wrap gap-4">
-          <div className="relative">
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-2xl blur-xl" />
-            <div className="relative flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-xl glass border border-primary/20 glow-sm">
-                <Clock className="w-6 h-6 text-primary" />
+      <PullToRefresh onRefresh={handleRefresh} showSkeleton={false}>
+        <div className="container px-4 py-12 sm:py-16 max-w-4xl">
+          {/* Header with glass styling */}
+          <div className="mb-10 flex items-start justify-between flex-wrap gap-4">
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-2xl blur-xl" />
+              <div className="relative flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-xl glass border border-primary/20 glow-sm">
+                  <Clock className="w-6 h-6 text-primary" />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Transaction History</h1>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Transaction History</h1>
+              <p className="text-muted-foreground relative">
+                Your cryptocurrency exchanges and on-chain transactions.
+              </p>
             </div>
-            <p className="text-muted-foreground relative">
-              Your cryptocurrency exchanges and on-chain transactions.
-            </p>
           </div>
-        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
@@ -1164,7 +1183,8 @@ const History = () => {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </PullToRefresh>
     </Layout>
   );
 };

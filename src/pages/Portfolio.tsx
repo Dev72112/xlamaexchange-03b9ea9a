@@ -1,4 +1,4 @@
-import { memo, Suspense, lazy } from "react";
+import { memo, Suspense, lazy, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { MultiWalletButton } from "@/features/wallet";
 import { PortfolioOverview, PortfolioRebalancer } from "@/features/portfolio";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { PortfolioSkeleton } from "@/components/skeletons";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
@@ -37,6 +39,14 @@ const portfolioFeatures = [
 
 const Portfolio = memo(function Portfolio() {
   const { isConnected } = useMultiWallet();
+  const queryClient = useQueryClient();
+
+  const handleRefresh = useCallback(async () => {
+    // Invalidate portfolio-related queries
+    await queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+    await queryClient.invalidateQueries({ queryKey: ['token-balances'] });
+    await queryClient.invalidateQueries({ queryKey: ['portfolio-snapshots'] });
+  }, [queryClient]);
 
   return (
     <Layout>
@@ -112,8 +122,9 @@ const Portfolio = memo(function Portfolio() {
             </Card>
           </div>
         ) : (
-          <Suspense fallback={<PortfolioSkeleton />}>
-            <div className="space-y-8 max-w-4xl mx-auto">
+          <PullToRefresh onRefresh={handleRefresh} showSkeleton={false}>
+            <Suspense fallback={<PortfolioSkeleton />}>
+              <div className="space-y-8 max-w-4xl mx-auto">
               {/* Portfolio Overview with P&L Chart */}
               <section id="overview" className="scroll-mt-20">
                 <PortfolioOverview />
@@ -172,6 +183,7 @@ const Portfolio = memo(function Portfolio() {
               </section>
             </div>
           </Suspense>
+        </PullToRefresh>
         )}
       </main>
     </Layout>

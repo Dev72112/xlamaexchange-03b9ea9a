@@ -1,4 +1,4 @@
-import { memo, useState, useMemo, useEffect } from 'react';
+import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Layout } from '@/shared/components';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -59,6 +59,8 @@ import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 
 // Import analytics components from feature module
 import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings } from '@/features/analytics';
+import { PullToRefresh } from '@/components/PullToRefresh';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Analytics features for the connect prompt
 const analyticsFeatures = [
@@ -238,6 +240,7 @@ const Analytics = () => {
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
   
   // Use global chain filter for analytics
   const chainFilter = globalChainFilter === 'all-evm' ? 'all' : globalChainFilter;
@@ -251,9 +254,17 @@ const Analytics = () => {
   const evmChains = useMemo(() => getEvmChains(), []);
   const nonEvmChains = useMemo(() => getNonEvmChains(), []);
 
+  const handlePullRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['trade-analytics'] });
+    await queryClient.invalidateQueries({ queryKey: ['gas-analytics'] });
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setIsRefreshing(false);
+  }, [queryClient]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await queryClient.invalidateQueries({ queryKey: ['trade-analytics'] });
     setIsRefreshing(false);
   };
 
@@ -283,12 +294,13 @@ const Analytics = () => {
         <meta name="description" content="View your trading analytics, volume history, and performance metrics." />
       </Helmet>
 
-      <div className="container px-4 py-8 max-w-7xl mx-auto relative">
-        {/* Animated background accent */}
-        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
-        </div>
+      <PullToRefresh onRefresh={handlePullRefresh} showSkeleton={false} disabled={!isConnected}>
+        <div className="container px-4 py-8 max-w-7xl mx-auto relative">
+          {/* Animated background accent */}
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
+          </div>
 
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
@@ -1121,7 +1133,8 @@ const Analytics = () => {
         )}
           </>
         )}
-      </div>
+        </div>
+      </PullToRefresh>
     </Layout>
   );
 };
