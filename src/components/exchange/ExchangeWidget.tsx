@@ -699,13 +699,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   // Skeleton loading state
   if (currenciesLoading) {
     return (
-      <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+      <Card className="w-full glass border border-border/50 rounded-2xl overflow-hidden shadow-lg">
         <CardContent className="p-0">
           <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex items-center justify-between">
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-7 w-7 rounded-lg" />
           </div>
-          <div className="p-4 sm:p-5 pt-2 border-b border-border">
+          <div className="p-4 sm:p-5 pt-2 border-b border-border/50">
             <div className="flex items-center justify-between gap-4">
               <Skeleton className="h-12 w-32 rounded-xl" />
               <Skeleton className="h-10 w-24" />
@@ -815,7 +815,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
   return (
     <>
-      <Card className="w-full bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+      <Card className="w-full glass border border-border/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
         <CardContent className="p-0">
           {/* Mode Toggle and Wallet Button Header */}
           <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3 overflow-hidden">
