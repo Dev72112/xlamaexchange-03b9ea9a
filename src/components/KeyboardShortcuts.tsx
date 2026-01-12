@@ -96,33 +96,36 @@ export const KeyboardShortcuts = memo(function KeyboardShortcuts() {
       {/* Floating hint button */}
       <button
         onClick={() => setShowHelp(true)}
-        className="fixed bottom-4 right-4 z-40 p-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border shadow-lg hover:bg-accent transition-colors group"
+        className="fixed bottom-6 right-6 z-40 p-3 rounded-xl glass border border-border/50 shadow-lg hover:border-primary/30 hover-lift transition-all group"
         aria-label="Show keyboard shortcuts"
       >
-        <Keyboard className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+        <Keyboard className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
       </button>
 
       {/* Shortcuts help dialog */}
       <Dialog open={showHelp} onOpenChange={setShowHelp}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md glass border-border/50">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Keyboard className="w-5 h-5" />
-              Keyboard Shortcuts
+              <div className="w-8 h-8 rounded-lg glass border border-primary/20 flex items-center justify-center glow-sm">
+                <Keyboard className="w-4 h-4 text-primary" />
+              </div>
+              <span className="gradient-text">Keyboard Shortcuts</span>
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 pt-2">
-            {shortcuts.map((shortcut) => (
+          <div className="space-y-2 pt-4">
+            {shortcuts.map((shortcut, index) => (
               <div
                 key={shortcut.description}
-                className="flex items-center justify-between text-sm"
+                className="flex items-center justify-between p-3 rounded-lg glass border border-border/30 hover:border-primary/20 transition-colors"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
-                <span className="text-muted-foreground">{shortcut.description}</span>
+                <span className="text-sm text-muted-foreground">{shortcut.description}</span>
                 <div className="flex items-center gap-1">
                   {shortcut.keys.map((key, i) => (
                     <span key={i} className="flex items-center gap-1">
-                      {i > 0 && <span className="text-muted-foreground text-xs">+</span>}
-                      <kbd className="px-2 py-1 rounded bg-muted border border-border text-xs font-mono">
+                      {i > 0 && <span className="text-muted-foreground/50 text-xs">+</span>}
+                      <kbd className="px-2.5 py-1 rounded-md bg-secondary/50 border border-border text-xs font-mono text-foreground">
                         {key}
                       </kbd>
                     </span>
@@ -131,9 +134,12 @@ export const KeyboardShortcuts = memo(function KeyboardShortcuts() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground pt-2">
-            Press <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-xs">Esc</kbd> to close
-          </p>
+          <div className="flex items-center justify-between pt-4 border-t border-border/30">
+            <p className="text-xs text-muted-foreground">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-secondary/50 border border-border text-xs font-mono">Esc</kbd> to close
+            </p>
+            <span className="text-xs text-muted-foreground/50">Desktop only</span>
+          </div>
         </DialogContent>
       </Dialog>
     </>

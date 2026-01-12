@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
 import { HeaderThemeCustomizer } from "./HeaderThemeCustomizer";
+import { NotificationCenter } from "./NotificationCenter";
 import { Menu, X, Search, Clock, ArrowRightLeft, BarChart3, LineChart, Link2, Wrench, ListOrdered } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState, useCallback } from "react";
@@ -130,6 +131,7 @@ export function Header() {
               <Search className="w-5 h-5" aria-hidden="true" />
             </Button>
 
+            <NotificationCenter />
             <HeaderThemeCustomizer />
             <ThemeToggle />
 

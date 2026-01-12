@@ -6,6 +6,7 @@ import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { X } from "lucide-react";
 
 interface LayoutProps {
@@ -50,6 +51,9 @@ export const Layout = memo(function Layout({ children }: LayoutProps) {
 
       {/* Mobile Bottom Navigation */}
       {isMobile && <MobileBottomNav />}
+      
+      {/* Mobile Floating Action Button */}
+      <FloatingActionButton />
 
       {/* Mobile Connect Wallet Bar - Shows for first-time mobile visitors */}
       {showMobileConnectBar && (
