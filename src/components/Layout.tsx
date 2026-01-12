@@ -5,6 +5,7 @@ import { RouteLoadComplete } from "@/contexts/RouteLoadingContext";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { X } from "lucide-react";
 
 interface LayoutProps {
@@ -36,15 +37,23 @@ export const Layout = memo(function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden max-w-[100vw]">
       <Header />
-      <main id="main-content" className="flex-1 overflow-x-hidden min-w-0" role="main" tabIndex={-1}>
+      <main 
+        id="main-content" 
+        className="flex-1 overflow-x-hidden min-w-0 pb-20 md:pb-0" 
+        role="main" 
+        tabIndex={-1}
+      >
         <RouteLoadComplete />
         {children}
       </main>
       <Footer />
 
+      {/* Mobile Bottom Navigation */}
+      {isMobile && <MobileBottomNav />}
+
       {/* Mobile Connect Wallet Bar - Shows for first-time mobile visitors */}
       {showMobileConnectBar && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-3 bg-card/95 backdrop-blur-lg border-t border-border mobile-connect-bar safe-area-bottom">
+        <div className="fixed bottom-[72px] left-0 right-0 z-40 p-3 glass border-t border-border/50 mobile-connect-bar">
           <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
             <span className="text-sm font-medium text-foreground">Ready to swap?</span>
             <div className="flex items-center gap-2">
