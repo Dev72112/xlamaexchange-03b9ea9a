@@ -17,6 +17,7 @@ import {
   TransactionTrackerSkeleton 
 } from "@/components/IndexSectionSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/shared/lib";
+import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
 
 // Lazy load heavier sections for better initial load
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
@@ -89,6 +90,10 @@ const Index = () => {
   const navigate = useNavigate();
   const widgetRef = useRef<HTMLDivElement>(null);
   const [currentMode, setCurrentMode] = useState<ExchangeMode>('instant');
+  
+  // Scroll reveal refs
+  const { ref: exchangeRef, isVisible: exchangeVisible } = useScrollReveal<HTMLElement>();
+  const { ref: featuresRef, isVisible: featuresVisible } = useScrollReveal<HTMLDivElement>();
 
   const handleSelectPair = useCallback((from: string, to: string) => {
     navigate(`/?from=${from}&to=${to}`, { replace: true });
@@ -137,7 +142,11 @@ const Index = () => {
 
 
       {/* Exchange Section */}
-      <section className="py-12 sm:py-16 lg:py-20" aria-labelledby="exchange-heading">
+      <section 
+        ref={exchangeRef}
+        className={`py-12 sm:py-16 lg:py-20 ${getScrollRevealClass(exchangeVisible, 'fade')}`} 
+        aria-labelledby="exchange-heading"
+      >
         <div className="container px-4 sm:px-6">
           {/* Title */}
           <div className="text-center mb-10 sm:mb-12">
@@ -158,7 +167,7 @@ const Index = () => {
           </div>
 
           {/* Feature Cards */}
-          <div className="max-w-4xl mx-auto">
+          <div ref={featuresRef} className={`max-w-4xl mx-auto ${getScrollRevealClass(featuresVisible, 'slide-up')}`}>
             <h3 className="text-xl sm:text-2xl font-semibold mb-6">{sectionTitle}</h3>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {features.map((feature, index) => (
