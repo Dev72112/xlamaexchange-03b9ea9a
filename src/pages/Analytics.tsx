@@ -54,9 +54,35 @@ import {
   Line,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { MultiWalletButton } from '@/features/wallet';
+import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 
 // Import analytics components from feature module
 import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings } from '@/features/analytics';
+
+// Analytics features for the connect prompt
+const analyticsFeatures = [
+  {
+    icon: DollarSign,
+    title: "Volume Tracking",
+    description: "Track your total trading volume across all chains with USD conversion.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Performance Metrics",
+    description: "See your success rate, trade streaks, and week-over-week changes.",
+  },
+  {
+    icon: PieChart,
+    title: "Chain Distribution",
+    description: "Visualize your trading activity across different blockchains.",
+  },
+  {
+    icon: Clock,
+    title: "Trading Patterns",
+    description: "Discover when you trade the most with hourly activity heatmaps.",
+  },
+];
 
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
@@ -265,126 +291,155 @@ const Analytics = () => {
         </div>
 
         {/* Header */}
-        <div className="flex flex-col gap-4 mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2 gradient-text">Trading Analytics</h1>
-              <p className="text-muted-foreground">
-                Track your trading performance and patterns
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="h-9 w-9"
-              >
-                <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={handleExport}
-                className="h-9 w-9"
-                disabled={analytics.dailyVolume.length === 0}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
+            <BarChart3 className="w-4 h-4" />
+            <span>Trading Analytics</span>
           </div>
-
-          {/* Filters Row */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            {/* Chain Filter - Unified Selector */}
-            <UnifiedChainSelector
-              value={globalChainFilter}
-              onChange={(value) => setGlobalChainFilter(value)}
-              showAllOption={true}
-              showEvmOnlyOption={true}
-            />
-
-            {/* Time Period */}
-            <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
-              <TabsList className="bg-secondary/50 h-9">
-                <TabsTrigger value="24h" className="text-xs min-h-[36px]">24H</TabsTrigger>
-                <TabsTrigger value="3d" className="text-xs min-h-[36px]">3D</TabsTrigger>
-                <TabsTrigger value="7d" className="text-xs min-h-[36px]">7D</TabsTrigger>
-                <TabsTrigger value="30d" className="text-xs min-h-[36px]">30D</TabsTrigger>
-                <TabsTrigger value="90d" className="text-xs min-h-[36px]">90D</TabsTrigger>
-                <TabsTrigger value="all" className="text-xs min-h-[36px]">All</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {/* Trade Source Badge */}
-            <div className="flex items-center gap-2 ml-auto flex-wrap">
-              <Badge variant="outline" className="text-xs gap-1">
-                <ArrowRightLeft className="w-3 h-3" />
-                DEX: {analytics.dexTradesCount}
-              </Badge>
-              {analytics.instantTradesCount > 0 && (
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Zap className="w-3 h-3" />
-                  Instant: {analytics.instantTradesCount}
-                </Badge>
-              )}
-              {analytics.bridgeTradesCount > 0 && (
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Layers className="w-3 h-3" />
-                  Bridge: {analytics.bridgeTradesCount}
-                </Badge>
-              )}
-            </div>
-          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
+            Trading Analytics
+          </h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+            Track your trading performance and patterns across all chains
+          </p>
         </div>
 
-        {/* Connection check */}
-        {!isConnected && (
-          <Card className="glass border-primary/20 mb-8 glow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <Wallet className="w-5 h-5 text-primary" />
-              <p className="text-sm">
-                Connect your wallet to see personalized trading analytics
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Connect wallet prompt if not connected */}
+        {!isConnected ? (
+          <div className="max-w-xl mx-auto">
+            <Card className="glass glow-sm border-primary/10">
+              <CardContent className="pt-8 pb-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
+                  <BarChart3 className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  We recommend <strong className="text-primary">OKX Wallet</strong> for the best multi-chain experience.
+                </p>
+                <p className="text-xs text-muted-foreground mb-6">
+                  Connect to view your trading analytics, performance metrics, and patterns.
+                </p>
+                <MultiWalletButton />
 
-        {/* Primary Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard 
-            icon={DollarSign} 
-            label="Total Volume (USD)" 
-            value={formatUsd(analytics.totalVolumeUsd)} 
-            subValue={`${analytics.totalTrades} trades`}
-            trend={weekTrend}
-            trendValue={`${Math.abs(analytics.weekOverWeekChange).toFixed(0)}% WoW`}
-          />
-          <StatCard 
-            icon={BarChart3} 
-            label="Total Trades" 
-            value={analytics.totalTrades.toLocaleString()} 
-            subValue={`Avg ${formatUsd(analytics.avgTradeSizeUsd)}/trade`}
-            trend={analytics.last7DaysTrades > 0 ? 'up' : 'neutral'}
-          />
-          <StatCard 
-            icon={Target} 
-            label="Success Rate" 
-            value={`${analytics.successRate.toFixed(1)}%`}
-            subValue={`${analytics.failedTrades} failed`}
-            trend={analytics.successRate >= 95 ? 'up' : analytics.successRate < 80 ? 'down' : 'neutral'}
-            variant={analytics.successRate >= 95 ? 'success' : analytics.successRate < 80 ? 'danger' : 'default'}
-          />
-          <StatCard 
-            icon={Flame} 
-            label="Trading Streak" 
-            value={`${analytics.tradingStreak} days`}
-            subValue={analytics.tradingStreak >= 7 ? "🔥 On fire!" : analytics.tradingStreak >= 3 ? "Keep it up!" : undefined}
-            variant={analytics.tradingStreak >= 7 ? 'success' : 'default'}
-          />
+                {/* Feature Preview */}
+                <div className="mt-8 pt-8 border-t border-border/50">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {analyticsFeatures.map((feature, index) => (
+                      <div
+                        key={feature.title}
+                        className={`p-3 rounded-lg glass-subtle hover-lift ${STAGGER_ITEM_CLASS}`}
+                        style={getStaggerStyle(index, 80)}
+                      >
+                        <feature.icon className="w-5 h-5 text-primary mb-2" />
+                        <p className="text-sm font-medium">{feature.title}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <>
+            {/* Filters Row - Only show when connected */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                {/* Chain Filter - Unified Selector */}
+                <UnifiedChainSelector
+                  value={globalChainFilter}
+                  onChange={(value) => setGlobalChainFilter(value)}
+                  showAllOption={true}
+                  showEvmOnlyOption={true}
+                />
+
+                {/* Time Period */}
+                <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
+                  <TabsList className="bg-secondary/50 h-9">
+                    <TabsTrigger value="24h" className="text-xs min-h-[36px]">24H</TabsTrigger>
+                    <TabsTrigger value="3d" className="text-xs min-h-[36px]">3D</TabsTrigger>
+                    <TabsTrigger value="7d" className="text-xs min-h-[36px]">7D</TabsTrigger>
+                    <TabsTrigger value="30d" className="text-xs min-h-[36px]">30D</TabsTrigger>
+                    <TabsTrigger value="90d" className="text-xs min-h-[36px]">90D</TabsTrigger>
+                    <TabsTrigger value="all" className="text-xs min-h-[36px]">All</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Trade Source Badge */}
+                <Badge variant="outline" className="text-xs gap-1">
+                  <ArrowRightLeft className="w-3 h-3" />
+                  DEX: {analytics.dexTradesCount}
+                </Badge>
+                {analytics.instantTradesCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Zap className="w-3 h-3" />
+                    Instant: {analytics.instantTradesCount}
+                  </Badge>
+                )}
+                {analytics.bridgeTradesCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Layers className="w-3 h-3" />
+                    Bridge: {analytics.bridgeTradesCount}
+                  </Badge>
+                )}
+                
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="h-9 w-9"
+                >
+                  <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={handleExport}
+                  className="h-9 w-9"
+                  disabled={analytics.dailyVolume.length === 0}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Primary Stats Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <StatCard 
+                icon={DollarSign} 
+                label="Total Volume (USD)" 
+                value={formatUsd(analytics.totalVolumeUsd)} 
+                subValue={`${analytics.totalTrades} trades`}
+                trend={weekTrend}
+                trendValue={`${Math.abs(analytics.weekOverWeekChange).toFixed(0)}% WoW`}
+              />
+              <StatCard 
+                icon={BarChart3} 
+                label="Total Trades" 
+                value={analytics.totalTrades.toLocaleString()} 
+                subValue={`Avg ${formatUsd(analytics.avgTradeSizeUsd)}/trade`}
+                trend={analytics.last7DaysTrades > 0 ? 'up' : 'neutral'}
+              />
+              <StatCard 
+                icon={Target} 
+                label="Success Rate" 
+                value={`${analytics.successRate.toFixed(1)}%`}
+                subValue={`${analytics.failedTrades} failed`}
+                trend={analytics.successRate >= 95 ? 'up' : analytics.successRate < 80 ? 'down' : 'neutral'}
+                variant={analytics.successRate >= 95 ? 'success' : analytics.successRate < 80 ? 'danger' : 'default'}
+              />
+              <StatCard 
+                icon={Flame} 
+                label="Trading Streak" 
+                value={`${analytics.tradingStreak} days`}
+                subValue={analytics.tradingStreak >= 7 ? "🔥 On fire!" : analytics.tradingStreak >= 3 ? "Keep it up!" : undefined}
+                variant={analytics.tradingStreak >= 7 ? 'success' : 'default'}
+              />
         </div>
 
         {/* Secondary Stats Row */}
@@ -1063,6 +1118,8 @@ const Analytics = () => {
               </div>
             </CardContent>
           </Card>
+        )}
+          </>
         )}
       </div>
     </Layout>

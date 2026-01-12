@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -10,6 +10,7 @@ import { PriceAlerts } from "@/components/PriceAlerts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+import { hapticFeedback } from "@/hooks/useHapticFeedback";
 
 const toolsConfig = [
   {
@@ -45,6 +46,23 @@ const toolsConfig = [
 ];
 
 const Tools = memo(function Tools() {
+  // Smooth scroll handler with haptic feedback
+  const handleSmoothScroll = useCallback((e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    e.preventDefault();
+    hapticFeedback('light');
+    
+    const targetElement = document.getElementById(targetId);
+    if (targetElement) {
+      targetElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+      
+      // Update URL hash without jumping
+      window.history.pushState(null, '', `#${targetId}`);
+    }
+  }, []);
+
   return (
     <Layout>
       <Helmet>
@@ -59,6 +77,12 @@ const Tools = memo(function Tools() {
       </Helmet>
 
       <main className="container px-4 sm:px-6 py-8 sm:py-12">
+        {/* Animated background accent */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
+        </div>
+
         {/* Header with glass styling */}
         <div className="text-center mb-8 sm:mb-12 relative">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent rounded-3xl blur-2xl" />
@@ -77,13 +101,14 @@ const Tools = memo(function Tools() {
           </div>
         </div>
 
-        {/* Quick Jump Navigation */}
+        {/* Quick Jump Navigation with smooth scroll */}
         <nav className="flex flex-wrap justify-center gap-2 mb-10">
           {toolsConfig.map((tool, index) => (
             <a
               key={tool.id}
               href={`#${tool.id}`}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg glass border border-border text-sm font-medium hover:bg-secondary hover:border-primary/20 hover-lift transition-all ${STAGGER_ITEM_CLASS}`}
+              onClick={(e) => handleSmoothScroll(e, tool.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg glass border border-border text-sm font-medium hover:bg-secondary hover:border-primary/20 hover-lift transition-all active:scale-95 ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index, 50)}
             >
               <tool.icon className="w-4 h-4 text-primary" />
