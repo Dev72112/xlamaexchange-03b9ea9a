@@ -25,7 +25,7 @@ export const PRESET_SCHEMES: ColorScheme[] = [
   },
   {
     id: 'sunset',
-    name: 'Sunset Orange',
+    name: 'Sunset',
     primary: '25 95% 53%',
     accent: '25 40% 95%',
     chartColors: ['25 95% 53%', '45 90% 50%', '0 80% 55%', '350 85% 60%', '280 60% 55%'],
@@ -64,6 +64,35 @@ export const PRESET_SCHEMES: ColorScheme[] = [
     primary: '0 72% 51%',
     accent: '0 40% 95%',
     chartColors: ['0 72% 51%', '350 80% 55%', '10 75% 50%', '340 70% 50%', '20 65% 55%'],
+  },
+  // New premium presets
+  {
+    id: 'neon',
+    name: 'Neon',
+    primary: '280 100% 65%',
+    accent: '280 60% 95%',
+    chartColors: ['280 100% 65%', '320 100% 60%', '180 100% 50%', '60 100% 50%', '200 100% 55%'],
+  },
+  {
+    id: 'midnight',
+    name: 'Midnight',
+    primary: '230 80% 55%',
+    accent: '230 40% 95%',
+    chartColors: ['230 80% 55%', '250 70% 60%', '210 75% 50%', '270 65% 55%', '190 60% 50%'],
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    primary: '160 60% 40%',
+    accent: '160 35% 95%',
+    chartColors: ['160 60% 40%', '140 55% 45%', '180 50% 40%', '120 45% 45%', '200 50% 45%'],
+  },
+  {
+    id: 'coral',
+    name: 'Coral',
+    primary: '16 85% 60%',
+    accent: '16 50% 95%',
+    chartColors: ['16 85% 60%', '0 75% 55%', '30 80% 55%', '350 70% 55%', '45 75% 55%'],
   },
 ];
 

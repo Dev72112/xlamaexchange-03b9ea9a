@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
-import { Star, Menu, X, Search, Clock, ArrowRightLeft, Info, BarChart3, LineChart, Link2, Wrench, ListOrdered } from "lucide-react";
+import { HeaderThemeCustomizer } from "./HeaderThemeCustomizer";
+import { Menu, X, Search, Clock, ArrowRightLeft, BarChart3, LineChart, Link2, Wrench, ListOrdered } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -37,18 +38,18 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-xl border-b border-border">
+      <header className="sticky top-0 z-50 w-full glass border-b border-border/50 shadow-sm">
         <div className="container flex h-14 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl group">
-            <div className="relative w-9 h-9 rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+          <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl group hover-lift">
+            <div className="relative w-9 h-9 rounded-lg overflow-hidden transition-transform group-hover:scale-105 ring-2 ring-primary/20">
               <img 
                 src={xlamaMascot} 
                 alt="xLama mascot" 
                 className="w-full h-full object-cover"
               />
             </div>
-            <span className="text-foreground hidden sm:inline">xlama</span>
+            <span className="text-foreground hidden sm:inline bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">xlama</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -129,6 +130,7 @@ export function Header() {
               <Search className="w-5 h-5" aria-hidden="true" />
             </Button>
 
+            <HeaderThemeCustomizer />
             <ThemeToggle />
 
             {/* Mobile menu button */}
