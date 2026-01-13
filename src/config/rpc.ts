@@ -71,28 +71,19 @@ export function getRpcUrl(chainIndex: string, fallbackRpc?: string): string {
 }
 
 /**
- * Get Solana RPC endpoints with Alchemy priority and public fallbacks
+ * Get Solana RPC endpoints - ALCHEMY ONLY (no public fallbacks for easier debugging)
+ * If Alchemy key is not configured, returns empty array to surface the issue clearly
  */
-export function getSolanaRpcEndpoints(chainRpcUrl?: string): string[] {
-  const endpoints: string[] = [];
-  
-  // Alchemy first (private, no rate limits)
+export function getSolanaRpcEndpoints(_chainRpcUrl?: string): string[] {
   if (ALCHEMY_KEY) {
-    endpoints.push(`https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`);
+    // Return ONLY Alchemy - no fallbacks for clear debugging
+    return [`https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`];
   }
   
-  // Chain-configured RPC
-  if (chainRpcUrl) {
-    endpoints.push(chainRpcUrl);
-  }
-  
-  // Public fallbacks
-  endpoints.push(
-    'https://api.mainnet-beta.solana.com',
-    'https://rpc.ankr.com/solana'
-  );
-  
-  return endpoints;
+  // No fallbacks - this makes debugging clear: if Alchemy fails, we know immediately
+  console.error('[RPC] VITE_ALCHEMY_API_KEY not configured. Solana swaps will fail.');
+  console.error('[RPC] To fix: 1) Add secret in Lovable Cloud, 2) Click Publish → Update to rebuild');
+  return [];
 }
 
 /**

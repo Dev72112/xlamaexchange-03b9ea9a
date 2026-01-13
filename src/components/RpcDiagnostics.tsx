@@ -290,15 +290,16 @@ export function RpcDiagnostics() {
           )}
           
           <div className="space-y-1.5">
-            <span className="text-sm font-medium">Solana RPC Endpoints (priority order):</span>
-            <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono space-y-1.5">
-              {endpoints.map((ep, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-muted-foreground w-4">{i + 1}.</span>
-                  <span className="truncate">{maskEndpoint(ep)}</span>
-                </div>
-              ))}
-            </div>
+            <span className="text-sm font-medium">Solana RPC (Alchemy Only):</span>
+            {endpoints.length > 0 ? (
+              <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono">
+                <span className="truncate">{maskEndpoint(endpoints[0])}</span>
+              </div>
+            ) : (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-xs text-destructive">
+                No RPC configured. Solana swaps will fail until VITE_ALCHEMY_API_KEY is added and app is rebuilt.
+              </div>
+            )}
           </div>
         </div>
 
@@ -427,12 +428,12 @@ export function RpcDiagnostics() {
 
         {/* Help Text */}
         <div className="p-3 rounded-lg bg-muted/30 text-xs text-muted-foreground space-y-1.5">
-          <p className="font-medium text-foreground">Troubleshooting:</p>
+          <p className="font-medium text-foreground">Troubleshooting (Alchemy-Only Mode):</p>
           <p>• <strong>Alchemy "No":</strong> Secret not set or app needs rebuild (Publish → Update)</p>
+          <p>• <strong>No RPC configured:</strong> Add VITE_ALCHEMY_API_KEY, then Publish → Update</p>
           <p>• <strong>401 error:</strong> API key is invalid or wrong</p>
           <p>• <strong>403 error:</strong> Key not enabled for Solana (enable in Alchemy dashboard)</p>
           <p>• <strong>429 error:</strong> Rate limiting, wait and retry</p>
-          <p>• <strong>CORS/Network:</strong> Browser blocking, try different network</p>
         </div>
       </CardContent>
     </Card>
