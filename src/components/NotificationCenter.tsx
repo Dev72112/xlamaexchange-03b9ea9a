@@ -1,4 +1,4 @@
-import { useState, memo, useCallback } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { Bell, Check, CheckCheck, X, ArrowUpRight, TrendingUp, AlertTriangle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { hapticFeedback } from "@/hooks/useHapticFeedback";
+import { notificationService, type AppNotification } from "@/services/notificationService";
 
 interface Notification {
   id: string;
@@ -23,9 +24,6 @@ interface Notification {
   read: boolean;
   link?: string;
 }
-
-// Empty initial state - real notifications will come from user actions
-const initialNotifications: Notification[] = [];
 
 const getNotificationIcon = (type: Notification["type"]) => {
   switch (type) {
@@ -54,31 +52,37 @@ const getNotificationColor = (type: Notification["type"]) => {
 };
 
 export const NotificationCenter = memo(function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+
+  // Subscribe to notification service updates
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe((newNotifications) => {
+      setNotifications(newNotifications);
+    });
+    return unsubscribe;
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAsRead = useCallback((id: string) => {
     hapticFeedback("light");
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    notificationService.markAsRead(id);
   }, []);
 
   const markAllAsRead = useCallback(() => {
     hapticFeedback("medium");
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    notificationService.markAllAsRead();
   }, []);
 
   const dismissNotification = useCallback((id: string) => {
     hapticFeedback("light");
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    notificationService.dismiss(id);
   }, []);
 
   const clearAll = useCallback(() => {
     hapticFeedback("medium");
-    setNotifications([]);
+    notificationService.clearAll();
   }, []);
 
   return (

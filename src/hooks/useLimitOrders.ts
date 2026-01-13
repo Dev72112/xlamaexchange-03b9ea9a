@@ -9,6 +9,7 @@ import { createSignedOrderRequest, createSignedCancelRequest } from '@/lib/reque
 import { useSignPersonalMessage } from '@mysten/dapp-kit';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { trackOrderCreated } from '@/lib/tracking';
+import { notificationService } from '@/services/notificationService';
 
 export interface LimitOrder {
   id: string;
@@ -341,6 +342,17 @@ export function useLimitOrders() {
       
       if (error) throw error;
       
+      // Find order details for notification
+      const executedOrder = orders.find(o => o.id === orderId);
+      if (executedOrder) {
+        notificationService.notifyOrderExecuted(
+          executedOrder.from_token_symbol,
+          executedOrder.to_token_symbol,
+          executedOrder.amount,
+          txHash
+        );
+      }
+      
       toast({
         title: '✅ Order Executed',
         description: 'Limit order has been successfully executed',
@@ -409,6 +421,14 @@ export function useLimitOrders() {
         if (triggered && !notifiedOrdersRef.current.has(order.id)) {
           notifiedOrdersRef.current.add(order.id);
           await markTriggered(order.id);
+          
+          // Push to Notification Center
+          notificationService.notifyOrderTriggered(
+            order.from_token_symbol,
+            order.to_token_symbol,
+            order.condition,
+            targetPrice
+          );
           
           // Play notification sound using user's selected alert sound
           if (settings.soundEnabled) {

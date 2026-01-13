@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { okxDexService } from '@/services/okxdex';
 import { useToast } from '@/hooks/use-toast';
 import { playSuccessSound } from '@/lib/sounds';
+import { notificationService } from '@/services/notificationService';
 
 const ALERTS_KEY = 'xlama_dex_price_alerts';
 
@@ -64,6 +65,14 @@ export function useDexPriceAlerts() {
               (alert.condition === 'below' && currentPrice <= alert.targetPrice);
 
             if (shouldTrigger) {
+              // Push to Notification Center
+              notificationService.notifyPriceAlert(
+                alert.tokenSymbol,
+                alert.condition,
+                alert.targetPrice,
+                currentPrice
+              );
+              
               // Show notification
               toast({
                 title: `🔔 Price Alert: ${alert.tokenSymbol}`,

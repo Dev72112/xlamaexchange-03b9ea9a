@@ -7,6 +7,7 @@ import { Transaction, VersionedTransaction, Connection } from '@solana/web3.js';
 import { useAppKitProvider } from '@reown/appkit/react';
 import bs58 from 'bs58';
 import { getSolanaRpcEndpoints } from '@/config/rpc';
+import { notificationService } from '@/services/notificationService';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
@@ -244,6 +245,7 @@ export function useDexSwapMulti() {
 
     await waitForEvmTransaction(provider, hash);
     setStep('complete');
+    notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, hash);
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(hash);
   };
@@ -352,6 +354,7 @@ export function useDexSwapMulti() {
     await connection.confirmTransaction(signature, 'confirmed');
 
     setStep('complete');
+    notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(signature);
   };
@@ -403,6 +406,7 @@ export function useDexSwapMulti() {
         setStep('confirming');
         await waitForTronConfirmation(tronWeb, result.txid);
         setStep('complete');
+        notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, result.txid);
         toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
         onSuccess?.(result.txid);
         return;
@@ -423,6 +427,7 @@ export function useDexSwapMulti() {
     await waitForTronConfirmation(tronWeb, hash);
 
     setStep('complete');
+    notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, hash);
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(hash);
   };
@@ -467,6 +472,7 @@ export function useDexSwapMulti() {
     await suiClient.waitForTransaction({ digest, options: { showEffects: true } });
 
     setStep('complete');
+    notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, digest);
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(digest);
   };
@@ -518,6 +524,7 @@ export function useDexSwapMulti() {
     await new Promise(resolve => setTimeout(resolve, 8000));
 
     setStep('complete');
+    notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, txHash);
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(txHash);
   };
