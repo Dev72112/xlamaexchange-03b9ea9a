@@ -56,6 +56,7 @@ import {
 import { cn } from '@/lib/utils';
 import { MultiWalletButton } from '@/features/wallet';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
+import { useScrollReveal, getScrollRevealClass } from '@/hooks/useScrollReveal';
 
 // Import analytics components from feature module
 import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings } from '@/features/analytics';

@@ -62,8 +62,8 @@ export const FloatingActionButton = memo(function FloatingActionButton() {
     }
   }, []);
 
-  // Only show on mobile
-  if (!isMobile) return null;
+  // FAB is now DESKTOP ONLY - mobile users have MobileBottomNav
+  if (isMobile) return null;
 
   return (
     <>
@@ -81,11 +81,10 @@ export const FloatingActionButton = memo(function FloatingActionButton() {
       </AnimatePresence>
 
       {/* FAB Container */}
+      {/* FAB Container - Desktop position */}
       <div
         className={cn(
-          "fixed right-4 z-50 flex flex-col-reverse items-center gap-3 transition-all duration-300",
-          // Position above mobile nav (h-16 = 64px + safe area + padding)
-          "bottom-[calc(4rem+env(safe-area-inset-bottom)+1rem)]",
+          "fixed right-6 bottom-8 z-50 flex flex-col-reverse items-center gap-3 transition-all duration-300",
           !isVisible && "translate-y-32 opacity-0 pointer-events-none"
         )}
       >

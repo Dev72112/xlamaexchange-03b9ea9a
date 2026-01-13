@@ -10,6 +10,7 @@ import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { PortfolioSkeleton } from "@/components/skeletons";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
+import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
 
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
@@ -41,6 +42,10 @@ const Portfolio = memo(function Portfolio() {
   const { isConnected } = useMultiWallet();
   const queryClient = useQueryClient();
 
+  // Scroll reveal hooks
+  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>();
+  const { ref: contentRef, isVisible: contentVisible } = useScrollReveal<HTMLDivElement>();
+
   const handleRefresh = useCallback(async () => {
     // Invalidate portfolio-related queries
     await queryClient.invalidateQueries({ queryKey: ['portfolio'] });
@@ -68,9 +73,12 @@ const Portfolio = memo(function Portfolio() {
           <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
+        {/* Header with scroll reveal */}
+        <div 
+          ref={headerRef}
+          className={`text-center mb-8 sm:mb-12 ${getScrollRevealClass(headerVisible, 'slide-up')}`}
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4" data-tour="portfolio-link">
             <Wallet className="w-4 h-4" />
             <span>Portfolio Dashboard</span>
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -86,7 +94,7 @@ const Portfolio = memo(function Portfolio() {
 
         {/* Connect wallet prompt if not connected */}
         {!isConnected ? (
-          <div className="max-w-xl mx-auto">
+          <div ref={contentRef} className={`max-w-xl mx-auto ${getScrollRevealClass(contentVisible, 'scale')}`}>
             <Card className="glass glow-sm border-primary/10">
               <CardContent className="pt-8 pb-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
