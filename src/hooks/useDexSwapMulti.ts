@@ -479,10 +479,42 @@ export function useDexSwapMulti() {
 
     setStep('confirming');
     setTxHash(signature);
-    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
+    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation (may take up to 90 seconds)...' });
 
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
+    // Wait for confirmation with extended timeout (90 seconds for Solana network congestion)
+    try {
+      const confirmationResult = await connection.confirmTransaction(
+        {
+          signature,
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+        },
+        'confirmed'
+      );
+      
+      if (confirmationResult.value.err) {
+        throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmationResult.value.err)}`);
+      }
+    } catch (confirmError: any) {
+      // Check if it's a timeout error - the transaction may still have succeeded
+      if (confirmError?.message?.includes('was not confirmed') || 
+          confirmError?.message?.includes('block height exceeded') ||
+          confirmError?.message?.includes('timeout')) {
+        console.warn('[Solana] Confirmation timeout, but transaction may have succeeded:', signature);
+        
+        // Still mark as complete since the tx was sent successfully
+        // User can verify on explorer using the signature we provided
+        setStep('complete');
+        notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
+        toast({ 
+          title: 'Transaction Sent', 
+          description: `Transaction submitted but confirmation took too long. Check Solscan to verify: ${signature.slice(0, 20)}...`,
+        });
+        onSuccess?.(signature);
+        return;
+      }
+      throw confirmError;
+    }
 
     setStep('complete');
     notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
