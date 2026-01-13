@@ -137,6 +137,17 @@ export const OnboardingTour = memo(function OnboardingTour() {
 
   if (!isOpen) return null;
 
+  // Calculate safe left position that keeps tooltip within viewport
+  const getTooltipLeft = () => {
+    if (!targetRect) return undefined;
+    const cardWidth = 320; // max-w-sm = 384px, but actual is ~320px with padding
+    const margin = 16;
+    const targetCenter = targetRect.left + targetRect.width / 2;
+    const idealLeft = targetCenter - cardWidth / 2;
+    // Clamp to viewport bounds
+    return Math.min(Math.max(margin, idealLeft), window.innerWidth - cardWidth - margin);
+  };
+
   const tooltipContent = (
     <motion.div
       key={step.id}
@@ -145,23 +156,24 @@ export const OnboardingTour = memo(function OnboardingTour() {
       exit={{ opacity: 0, scale: 0.95, y: 10 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "fixed z-[60] w-[90vw] max-w-sm p-5 rounded-xl glass border border-primary/30 shadow-2xl",
-        isCentered && "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+        // Mobile-first: full width with margins, then fixed width on larger screens
+        "fixed z-[60] p-5 rounded-xl glass border border-primary/30 shadow-2xl",
+        "left-4 right-4 sm:left-auto sm:right-auto sm:w-96 max-w-[calc(100vw-2rem)]",
+        // Center positioning for welcome/complete steps
+        isCentered && "!left-4 !right-4 sm:!left-1/2 sm:!right-auto top-1/2 sm:-translate-x-1/2 -translate-y-1/2",
+        // Bottom margin to clear mobile nav bar
         !isCentered && step.position === 'bottom' && "mt-3",
         !isCentered && step.position === 'top' && "mb-3"
       )}
       style={
         !isCentered && targetRect
           ? {
-              left: Math.min(
-                Math.max(16, targetRect.left + targetRect.width / 2 - 160),
-                window.innerWidth - 336
-              ),
+              left: window.innerWidth >= 640 ? getTooltipLeft() : undefined, // Only apply on sm+
               top:
                 step.position === 'bottom'
-                  ? targetRect.bottom + 12
+                  ? Math.min(targetRect.bottom + 12, window.innerHeight - 320) // Prevent overflow at bottom
                   : step.position === 'top'
-                  ? targetRect.top - 200
+                  ? Math.max(80, targetRect.top - 240) // Account for taller mobile cards
                   : targetRect.top,
             }
           : undefined
@@ -187,9 +199,9 @@ export const OnboardingTour = memo(function OnboardingTour() {
         </Button>
       </div>
 
-      {/* Content */}
-      <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-      <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+      {/* Content - with overflow protection */}
+      <h3 className="text-lg font-semibold mb-2 break-words">{step.title}</h3>
+      <p className="text-sm text-muted-foreground mb-5 leading-relaxed break-words overflow-hidden">
         {step.description}
       </p>
 

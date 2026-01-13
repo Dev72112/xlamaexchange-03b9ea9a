@@ -285,50 +285,44 @@ export function useDexSwapMulti() {
     const txBytes = decodeBase58ToBytes(swapData.tx.data);
     let signature: string;
     
-    // Use Alchemy RPC with fallbacks (private endpoints = no rate limits)
+    // Use Alchemy RPC ONLY (no public fallbacks for easier debugging)
     const SOLANA_RPC_ENDPOINTS = getSolanaRpcEndpoints(chain.rpcUrl);
     
-    let connection: Connection | null = null;
-    let latestBlockhash: { blockhash: string; lastValidBlockHeight: number } | null = null;
-    
-    // Try each RPC endpoint until one works
-    let lastRpcError: any = null;
-    for (const rpcUrl of SOLANA_RPC_ENDPOINTS) {
-      try {
-        const testConnection = new Connection(rpcUrl, 'confirmed');
-        latestBlockhash = await testConnection.getLatestBlockhash('finalized');
-        connection = testConnection;
-        console.log('Using Solana RPC:', rpcUrl);
-        break;
-      } catch (rpcError: any) {
-        lastRpcError = rpcError;
-        const isAlchemy = rpcUrl.includes('alchemy.com');
-        const errorMsg = rpcError?.message || '';
-        const status = rpcError?.status || rpcError?.statusCode;
-        
-        // Log with context for debugging
-        console.warn(`RPC ${isAlchemy ? 'Alchemy' : 'Public'} failed:`, {
-          url: rpcUrl.replace(/\/v2\/.+$/, '/v2/***'),
-          error: errorMsg.slice(0, 100),
-          status,
-        });
-        
-        // Provide specific hints for Alchemy failures
-        if (isAlchemy && (status === 401 || status === 403 || errorMsg.includes('401') || errorMsg.includes('403'))) {
-          console.error('[Alchemy] API key rejected (401/403). Check: 1) Key is valid, 2) Solana is enabled in Alchemy dashboard');
-        }
-        continue;
-      }
+    // Check if Alchemy is configured - fail fast with clear message
+    if (SOLANA_RPC_ENDPOINTS.length === 0) {
+      throw new Error(
+        'Alchemy RPC not configured. To fix: 1) Add VITE_ALCHEMY_API_KEY in Lovable Cloud secrets, 2) Click Publish → Update to rebuild the app.'
+      );
     }
     
-    if (!connection || !latestBlockhash) {
-      // Provide actionable error based on last failure
-      const isAuthError = lastRpcError?.status === 401 || lastRpcError?.status === 403 || 
-                          lastRpcError?.message?.includes('401') || lastRpcError?.message?.includes('403');
-      if (isAuthError) {
-        throw new Error('Alchemy RPC rejected the API key (401/403). Please verify the key is valid and enabled for Solana in your Alchemy dashboard.');
+    const rpcUrl = SOLANA_RPC_ENDPOINTS[0]; // Only Alchemy, no fallback loop
+    let connection: Connection;
+    let latestBlockhash: { blockhash: string; lastValidBlockHeight: number };
+    
+    try {
+      connection = new Connection(rpcUrl, 'confirmed');
+      latestBlockhash = await connection.getLatestBlockhash('finalized');
+      console.log('[Solana] Connected to Alchemy RPC');
+    } catch (rpcError: any) {
+      const errorMsg = rpcError?.message || '';
+      const status = rpcError?.status || rpcError?.statusCode;
+      
+      console.error('[Alchemy RPC] Connection failed:', {
+        error: errorMsg.slice(0, 100),
+        status,
+      });
+      
+      // Provide specific, actionable error messages
+      if (status === 401 || status === 403 || errorMsg.includes('401') || errorMsg.includes('403')) {
+        throw new Error(
+          'Alchemy API key rejected (401/403). Please verify: 1) The key is correct, 2) Solana is enabled in your Alchemy dashboard.'
+        );
       }
-      throw new Error('Unable to connect to Solana network. All RPC endpoints failed. Please try again later.');
+      if (status === 429 || errorMsg.includes('429')) {
+        throw new Error('Alchemy rate limited (429). Please wait a moment and try again.');
+      }
+      
+      throw new Error(`Solana RPC connection failed: ${errorMsg.slice(0, 80)}`);
     }
 
     try {
