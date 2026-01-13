@@ -258,10 +258,56 @@ export function useDexSwapMulti() {
 
     // Get Solana wallet provider - prioritize OKX injected wallet
     const okxSolanaWallet = getSolanaWallet();
-    const provider = okxSolanaWallet || appKitSolanaProvider;
+    let provider = okxSolanaWallet || appKitSolanaProvider;
     
     if (!provider) {
       throw new Error('No Solana wallet provider available. Please connect OKX Wallet or Phantom.');
+    }
+
+    // CRITICAL: Ensure the provider is actually connected with a valid publicKey
+    // This is the root cause of "Cannot read properties of null (reading 'toBase58')"
+    console.log('[Solana] Provider check:', {
+      hasProvider: !!provider,
+      providerType: provider.isOkxWallet ? 'OKX' : (provider.isPhantom ? 'Phantom' : 'Other'),
+      hasPublicKey: !!provider.publicKey,
+      publicKeyValue: provider.publicKey?.toBase58?.() || provider.publicKey?.toString?.() || 'null',
+      hasConnect: typeof provider.connect === 'function',
+      expectedAddress: solanaAddress,
+    });
+
+    // If provider.publicKey is null, try to connect
+    if (!provider.publicKey) {
+      console.log('[Solana] Provider publicKey is null, attempting to connect...');
+      
+      if (typeof provider.connect === 'function') {
+        try {
+          const connectResult = await provider.connect();
+          console.log('[Solana] Connect result:', connectResult);
+          
+          // Re-check publicKey after connect
+          if (!provider.publicKey) {
+            throw new Error(
+              'Wallet connection incomplete. Please disconnect and reconnect your Solana wallet, then try again.'
+            );
+          }
+        } catch (connectErr: any) {
+          console.error('[Solana] Connect failed:', connectErr);
+          throw new Error(
+            `Failed to connect Solana wallet: ${connectErr?.message?.slice(0, 50) || 'Unknown error'}. Please reconnect and try again.`
+          );
+        }
+      } else {
+        throw new Error(
+          'Solana wallet is not fully connected (missing publicKey). Please disconnect and reconnect your wallet.'
+        );
+      }
+    }
+
+    // Validate the provider's publicKey matches expected address
+    const providerPubkey = provider.publicKey?.toBase58?.() || provider.publicKey?.toString?.();
+    if (providerPubkey && providerPubkey !== solanaAddress) {
+      console.warn('[Solana] Address mismatch:', { providerPubkey, expectedAddress: solanaAddress });
+      // Use provider's actual address for the swap
     }
 
     setStep('swapping');
@@ -273,7 +319,7 @@ export function useDexSwapMulti() {
       fromToken.tokenContractAddress,
       toToken.tokenContractAddress,
       amountInSmallestUnit,
-      solanaAddress,
+      providerPubkey || solanaAddress, // Use provider's actual address
       slippage
     );
 
@@ -377,41 +423,55 @@ export function useDexSwapMulti() {
     
     try {
       console.log('[Solana] Signing versioned transaction...');
+      console.log('[Solana] Provider state before signing:', {
+        hasPublicKey: !!provider.publicKey,
+        publicKeyBase58: provider.publicKey?.toBase58?.() || 'null',
+        isConnected: provider.isConnected,
+      });
       
-      // Detect provider type for appropriate signing method
-      const isOkxWallet = provider.isOkxWallet || (window as any).okxwallet?.solana === provider;
-      
-      if (provider.signAndSendTransaction) {
-        console.log('[Solana] Using signAndSendTransaction', isOkxWallet ? '(OKX)' : '(Other)');
+      // PREFER signTransaction + sendRawTransaction for broader wallet compatibility
+      // This avoids internal wallet assumptions about tx.feePayer
+      if (provider.signTransaction) {
+        console.log('[Solana] Using signTransaction + sendRawTransaction (most compatible)');
         
-        // Some wallets need the transaction passed differently
+        const signedTx = await provider.signTransaction(tx);
+        console.log('[Solana] Transaction signed successfully');
+        
+        signature = await connection.sendRawTransaction(signedTx.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+        });
+      } else if (provider.signAndSendTransaction) {
+        console.log('[Solana] Fallback to signAndSendTransaction');
+        
         const result = await provider.signAndSendTransaction(tx, {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
         });
         signature = typeof result === 'string' ? result : result.signature;
-      } else if (provider.signTransaction) {
-        console.log('[Solana] Using signTransaction + sendRawTransaction');
-        const signedTx = await provider.signTransaction(tx);
-        signature = await connection.sendRawTransaction(signedTx.serialize(), {
-          skipPreflight: false,
-          preflightCommitment: 'confirmed',
-        });
       } else {
         throw new Error('Solana wallet does not support transaction signing');
       }
       
-      console.log('[Solana] Transaction signed, signature:', signature?.slice(0, 20) + '...');
+      console.log('[Solana] Transaction sent, signature:', signature?.slice(0, 20) + '...');
     } catch (signError: any) {
       // Re-throw user rejections without modification
       if (signError?.message?.includes('rejected') || signError?.code === 4001) {
         throw signError;
       }
       
+      // Check for the specific toBase58 null error
+      if (signError?.message?.includes('toBase58') || signError?.message?.includes("null")) {
+        console.error('[Solana] Null reference error during signing:', signError);
+        throw new Error(
+          'Wallet connection is incomplete. Please disconnect your Solana wallet, refresh the page, and reconnect.'
+        );
+      }
+      
       console.error('[Solana] Signing error:', {
         message: signError?.message?.slice(0, 150),
         name: signError?.name,
-        txBytesLength: txBytes.length,
+        stack: signError?.stack?.slice(0, 200),
       });
       
       throw signError;
