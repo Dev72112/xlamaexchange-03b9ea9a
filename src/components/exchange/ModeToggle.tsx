@@ -34,7 +34,7 @@ export const ModeToggle = memo(function ModeToggle({ mode, onModeChange }: ModeT
   }, [mode, onModeChange, triggerFeedback]);
 
   return (
-    <div className="relative flex items-center gap-1 p-1 bg-muted rounded-lg">
+    <div className="relative flex items-center gap-1 p-1 bg-muted rounded-lg" data-tour="mode-toggle">
       {/* Sliding background indicator */}
       <div 
         className="absolute h-[calc(100%-8px)] bg-background rounded-md shadow-sm transition-all duration-200 ease-out"

@@ -280,7 +280,7 @@ export function MultiWalletButton() {
   return (
     <>
       {/* Primary: OKX Connect Button */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" data-tour="wallet-button">
         <Button 
           onClick={handleOkxConnect} 
           disabled={isConnectingAny}
