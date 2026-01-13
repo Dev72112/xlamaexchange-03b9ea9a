@@ -292,6 +292,7 @@ export function useDexSwapMulti() {
     let latestBlockhash: { blockhash: string; lastValidBlockHeight: number } | null = null;
     
     // Try each RPC endpoint until one works
+    let lastRpcError: any = null;
     for (const rpcUrl of SOLANA_RPC_ENDPOINTS) {
       try {
         const testConnection = new Connection(rpcUrl, 'confirmed');
@@ -299,14 +300,35 @@ export function useDexSwapMulti() {
         connection = testConnection;
         console.log('Using Solana RPC:', rpcUrl);
         break;
-      } catch (rpcError) {
-        console.warn(`RPC ${rpcUrl} failed:`, rpcError);
+      } catch (rpcError: any) {
+        lastRpcError = rpcError;
+        const isAlchemy = rpcUrl.includes('alchemy.com');
+        const errorMsg = rpcError?.message || '';
+        const status = rpcError?.status || rpcError?.statusCode;
+        
+        // Log with context for debugging
+        console.warn(`RPC ${isAlchemy ? 'Alchemy' : 'Public'} failed:`, {
+          url: rpcUrl.replace(/\/v2\/.+$/, '/v2/***'),
+          error: errorMsg.slice(0, 100),
+          status,
+        });
+        
+        // Provide specific hints for Alchemy failures
+        if (isAlchemy && (status === 401 || status === 403 || errorMsg.includes('401') || errorMsg.includes('403'))) {
+          console.error('[Alchemy] API key rejected (401/403). Check: 1) Key is valid, 2) Solana is enabled in Alchemy dashboard');
+        }
         continue;
       }
     }
     
     if (!connection || !latestBlockhash) {
-      throw new Error('Unable to connect to Solana network. Please try again later.');
+      // Provide actionable error based on last failure
+      const isAuthError = lastRpcError?.status === 401 || lastRpcError?.status === 403 || 
+                          lastRpcError?.message?.includes('401') || lastRpcError?.message?.includes('403');
+      if (isAuthError) {
+        throw new Error('Alchemy RPC rejected the API key (401/403). Please verify the key is valid and enabled for Solana in your Alchemy dashboard.');
+      }
+      throw new Error('Unable to connect to Solana network. All RPC endpoints failed. Please try again later.');
     }
 
     try {
