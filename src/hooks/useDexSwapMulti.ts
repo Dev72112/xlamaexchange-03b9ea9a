@@ -325,41 +325,69 @@ export function useDexSwapMulti() {
       throw new Error(`Solana RPC connection failed: ${errorMsg.slice(0, 80)}`);
     }
 
+    // Detect transaction type by checking version byte
+    // Versioned transactions have a version byte prefix (0x80 = version 0)
+    const isVersionedTx = txBytes[0] >= 0x80;
+    
+    console.log('[Solana] Transaction type:', isVersionedTx ? 'Versioned' : 'Legacy', 'First byte:', txBytes[0].toString(16));
+    
     try {
-      // Try as versioned transaction first
-      const versionedTx = VersionedTransaction.deserialize(txBytes);
-      // Update blockhash for freshness
-      versionedTx.message.recentBlockhash = latestBlockhash.blockhash;
+      if (isVersionedTx) {
+        // Versioned transaction (V0)
+        const versionedTx = VersionedTransaction.deserialize(txBytes);
+        
+        // For versioned transactions, we cannot modify the blockhash directly
+        // as the message is compiled. The OKX API should provide a fresh tx.
+        console.log('[Solana] Signing versioned transaction...');
 
-      if (provider.signAndSendTransaction) {
-        const result = await provider.signAndSendTransaction(versionedTx);
-        signature = typeof result === 'string' ? result : result.signature;
-      } else if (provider.signTransaction) {
-        const signedTx = await provider.signTransaction(versionedTx);
-        signature = await connection.sendRawTransaction(signedTx.serialize());
+        if (provider.signAndSendTransaction) {
+          const result = await provider.signAndSendTransaction(versionedTx);
+          signature = typeof result === 'string' ? result : result.signature;
+        } else if (provider.signTransaction) {
+          const signedTx = await provider.signTransaction(versionedTx);
+          signature = await connection.sendRawTransaction(signedTx.serialize(), {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+          });
+        } else {
+          throw new Error('Solana wallet does not support transaction signing');
+        }
       } else {
-        throw new Error('Solana wallet does not support transaction signing');
+        // Legacy transaction
+        const legacyTx = Transaction.from(txBytes);
+        legacyTx.recentBlockhash = latestBlockhash.blockhash;
+        
+        console.log('[Solana] Signing legacy transaction...');
+
+        if (provider.signAndSendTransaction) {
+          const result = await provider.signAndSendTransaction(legacyTx);
+          signature = typeof result === 'string' ? result : result.signature;
+        } else if (provider.signTransaction) {
+          const signedTx = await provider.signTransaction(legacyTx);
+          signature = await connection.sendRawTransaction(signedTx.serialize());
+        } else {
+          throw new Error('Solana wallet does not support transaction signing');
+        }
       }
-    } catch (versionedErr: any) {
-      // Only fallback to legacy if it's a deserialization error, not a user rejection
-      if (versionedErr?.message?.includes('rejected') || versionedErr?.code === 4001) {
-        throw versionedErr;
+    } catch (txError: any) {
+      // Re-throw user rejections without modification
+      if (txError?.message?.includes('rejected') || txError?.code === 4001) {
+        throw txError;
       }
       
-      console.log('Falling back to legacy transaction:', versionedErr?.message);
+      // Log detailed error for debugging
+      console.error('[Solana] Transaction error:', {
+        message: txError?.message?.slice(0, 150),
+        isVersioned: isVersionedTx,
+        txBytesLength: txBytes.length,
+      });
       
-      // Fallback to legacy transaction
-      const legacyTx = Transaction.from(txBytes);
-
-      if (provider.signAndSendTransaction) {
-        const result = await provider.signAndSendTransaction(legacyTx);
-        signature = typeof result === 'string' ? result : result.signature;
-      } else if (provider.signTransaction) {
-        const signedTx = await provider.signTransaction(legacyTx);
-        signature = await connection.sendRawTransaction(signedTx.serialize());
-      } else {
-        throw new Error('Solana wallet does not support transaction signing');
+      // Provide user-friendly error
+      if (txError?.message?.includes('VersionedMessage')) {
+        throw new Error('Transaction format error. The DEX may have returned an incompatible transaction.');
       }
+      
+      throw txError;
     }
 
     setStep('confirming');
