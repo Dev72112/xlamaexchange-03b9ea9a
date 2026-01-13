@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { Volume2, VolumeX, Vibrate, Bell, Play, Settings } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, Bell, Play, Settings, HelpCircle, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -25,9 +25,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useTriggerTour } from '@/components/OnboardingTour';
+import { toast } from 'sonner';
 
 export const FeedbackSettings = memo(function FeedbackSettings() {
   const { settings, toggleSound, toggleHaptic, triggerFeedback, updateSettings, previewSound } = useFeedback();
+  const { resetTour } = useTriggerTour();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleRestartTour = () => {
+    setDialogOpen(false);
+    toast.info('Tour will restart on next page load');
+    localStorage.removeItem('xlama-tour-completed');
+    // Give toast time to show before reload
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 500);
+  };
 
   const handleSoundToggle = () => {
     toggleSound();
@@ -55,7 +69,7 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
   };
 
   return (
-    <Dialog>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
@@ -76,14 +90,18 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
         </DialogHeader>
         
         <Tabs defaultValue="sounds" className="w-full">
-          <TabsList className="w-full grid grid-cols-2">
+          <TabsList className="w-full grid grid-cols-3">
             <TabsTrigger value="sounds" className="text-xs">
               <Volume2 className="w-3.5 h-3.5 mr-1.5" />
-              Sound & Feedback
+              Sound
             </TabsTrigger>
             <TabsTrigger value="theme" className="text-xs">
               <Settings className="w-3.5 h-3.5 mr-1.5" />
               Theme
+            </TabsTrigger>
+            <TabsTrigger value="help" className="text-xs">
+              <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
+              Help
             </TabsTrigger>
           </TabsList>
 
@@ -187,6 +205,60 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
 
           <TabsContent value="theme" className="mt-4">
             <ThemeCustomizer />
+          </TabsContent>
+
+          <TabsContent value="help" className="mt-4 space-y-4">
+            {/* Restart Tour */}
+            <div className="p-4 rounded-lg glass border border-border/50">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-sm">Restart Onboarding Tour</h4>
+                  <p className="text-xs text-muted-foreground mt-1 mb-3">
+                    Review the guided tour that shows you how to use xlama's key features.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRestartTour}
+                    className="gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Restart Tour
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground">Quick Links</h4>
+              <div className="grid gap-2">
+                <a 
+                  href="/docs" 
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
+                  onClick={() => setDialogOpen(false)}
+                >
+                  📚 Documentation
+                </a>
+                <a 
+                  href="/faq" 
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
+                  onClick={() => setDialogOpen(false)}
+                >
+                  ❓ FAQ
+                </a>
+                <a 
+                  href="/feedback" 
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
+                  onClick={() => setDialogOpen(false)}
+                >
+                  💬 Send Feedback
+                </a>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>

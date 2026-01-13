@@ -24,44 +24,8 @@ interface Notification {
   link?: string;
 }
 
-// Demo notifications - in production, these would come from a real source
-const demoNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "transaction",
-    title: "Swap Completed",
-    message: "Successfully swapped 1.5 ETH for 2,850 USDC",
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    read: false,
-    link: "/history",
-  },
-  {
-    id: "2",
-    type: "alert",
-    title: "Price Alert Triggered",
-    message: "BTC reached your target price of $68,000",
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    read: false,
-    link: "/tools#alerts",
-  },
-  {
-    id: "3",
-    type: "order",
-    title: "Limit Order Filled",
-    message: "Your limit order for 0.5 ETH at $3,200 was executed",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    read: true,
-    link: "/orders",
-  },
-  {
-    id: "4",
-    type: "system",
-    title: "New Feature Available",
-    message: "Cross-chain bridging now supports Solana",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    read: true,
-  },
-];
+// Empty initial state - real notifications will come from user actions
+const initialNotifications: Notification[] = [];
 
 const getNotificationIcon = (type: Notification["type"]) => {
   switch (type) {
@@ -90,7 +54,7 @@ const getNotificationColor = (type: Notification["type"]) => {
 };
 
 export const NotificationCenter = memo(function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(demoNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [open, setOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
