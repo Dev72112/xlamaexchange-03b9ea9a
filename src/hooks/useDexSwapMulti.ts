@@ -3,7 +3,7 @@ import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
-import { Transaction, VersionedTransaction, Connection } from '@solana/web3.js';
+import { Transaction, VersionedTransaction, Connection, PublicKey } from '@solana/web3.js';
 import { useAppKitProvider } from '@reown/appkit/react';
 import bs58 from 'bs58';
 import { getSolanaRpcEndpoints } from '@/config/rpc';
@@ -351,6 +351,13 @@ export function useDexSwapMulti() {
       try {
         tx = Transaction.from(txBytes);
         tx.recentBlockhash = latestBlockhash.blockhash;
+        
+        // CRITICAL: Set feePayer for legacy transactions to prevent "toBase58" error
+        if (!tx.feePayer && solanaAddress) {
+          tx.feePayer = new PublicKey(solanaAddress);
+          console.log('[Solana] Set feePayer to:', solanaAddress);
+        }
+        
         console.log('[Solana] Successfully created legacy transaction');
       } catch (legacyError: any) {
         console.error('[Solana] Both transaction formats failed:', {
