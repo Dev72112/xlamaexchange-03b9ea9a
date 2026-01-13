@@ -5,6 +5,7 @@ import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
 import { trackSwapInitiated, trackSwapCompleted } from '@/lib/tracking';
 import { getUserFriendlyErrorMessage } from '@/lib/api-utils';
+import { notificationService } from '@/services/notificationService';
 
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
@@ -245,6 +246,9 @@ export function useDexSwap() {
       // Track swap completed
       trackSwapCompleted('dex', chain.name, fromToken.tokenSymbol, toToken.tokenSymbol);
       
+      // Push to Notification Center
+      notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, hash as string);
+      
       toast({
         title: "Swap Complete! 🎉",
         description: `Successfully swapped ${amount} ${fromToken.tokenSymbol} for ${toToken.tokenSymbol}`,
@@ -259,6 +263,9 @@ export function useDexSwap() {
       
       setError(errorMessage);
       setStep('error');
+      
+      // Push failure to Notification Center
+      notificationService.notifySwapFailed(fromToken.tokenSymbol, toToken.tokenSymbol, errorMessage);
       
       toast({
         title: "Swap Failed",
