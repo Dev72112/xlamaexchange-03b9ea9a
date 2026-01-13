@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { hapticFeedback } from "@/hooks/useHapticFeedback";
+import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
 
 const toolsConfig = [
   {
@@ -46,6 +47,15 @@ const toolsConfig = [
 ];
 
 const Tools = memo(function Tools() {
+  // Scroll reveal hooks
+  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>();
+  const { ref: navRef, isVisible: navVisible } = useScrollReveal<HTMLElement>();
+  const { ref: watchlistRef, isVisible: watchlistVisible } = useScrollReveal<HTMLElement>();
+  const { ref: gasRef, isVisible: gasVisible } = useScrollReveal<HTMLElement>();
+  const { ref: rebalancerRef, isVisible: rebalancerVisible } = useScrollReveal<HTMLElement>();
+  const { ref: alertsRef, isVisible: alertsVisible } = useScrollReveal<HTMLElement>();
+  const { ref: compareRef, isVisible: compareVisible } = useScrollReveal<HTMLElement>();
+
   // Smooth scroll handler with haptic feedback
   const handleSmoothScroll = useCallback((e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
@@ -83,8 +93,11 @@ const Tools = memo(function Tools() {
           <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
         </div>
 
-        {/* Header with glass styling */}
-        <div className="text-center mb-8 sm:mb-12 relative">
+        {/* Header with glass styling and scroll reveal */}
+        <div 
+          ref={headerRef}
+          className={`text-center mb-8 sm:mb-12 relative ${getScrollRevealClass(headerVisible, 'slide-up')}`}
+        >
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent rounded-3xl blur-2xl" />
           <div className="relative">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/20 text-sm text-primary mb-4 glow-sm">
@@ -101,8 +114,11 @@ const Tools = memo(function Tools() {
           </div>
         </div>
 
-        {/* Quick Jump Navigation with smooth scroll */}
-        <nav className="flex flex-wrap justify-center gap-2 mb-10">
+        {/* Quick Jump Navigation with smooth scroll and scroll reveal */}
+        <nav 
+          ref={navRef}
+          className={`flex flex-wrap justify-center gap-2 mb-10 ${getScrollRevealClass(navVisible, 'fade')}`}
+        >
           {toolsConfig.map((tool, index) => (
             <a
               key={tool.id}
@@ -117,15 +133,22 @@ const Tools = memo(function Tools() {
           ))}
         </nav>
 
-        {/* Tools Sections */}
+        {/* Tools Sections with scroll reveals */}
         <div className="space-y-8 max-w-4xl mx-auto">
           {/* Token Watchlist */}
-          <section id="watchlist" className="scroll-mt-20">
+          <section 
+            ref={watchlistRef}
+            id="watchlist" 
+            className={`scroll-mt-20 ${getScrollRevealClass(watchlistVisible, 'slide-up')}`}
+          >
             <TokenWatchlist />
           </section>
 
           {/* Gas & Prediction side by side */}
-          <section className="grid md:grid-cols-2 gap-6">
+          <section 
+            ref={gasRef}
+            className={`grid md:grid-cols-2 gap-6 ${getScrollRevealClass(gasVisible, 'slide-up')}`}
+          >
             <div id="gas" className="scroll-mt-20">
               <GasEstimator />
             </div>
@@ -135,17 +158,28 @@ const Tools = memo(function Tools() {
           </section>
 
           {/* Portfolio Rebalancer */}
-          <section id="rebalancer" className="scroll-mt-20 max-w-xl mx-auto">
+          <section 
+            ref={rebalancerRef}
+            id="rebalancer" 
+            className={`scroll-mt-20 max-w-xl mx-auto ${getScrollRevealClass(rebalancerVisible, 'scale')}`}
+          >
             <PortfolioRebalancer />
           </section>
 
           {/* Price Alerts */}
-          <section id="alerts" className="scroll-mt-20">
+          <section 
+            ref={alertsRef}
+            id="alerts" 
+            className={`scroll-mt-20 ${getScrollRevealClass(alertsVisible, 'slide-up')}`}
+          >
             <PriceAlerts />
           </section>
 
           {/* Token Compare Link */}
-          <section className="max-w-xl mx-auto">
+          <section 
+            ref={compareRef}
+            className={`max-w-xl mx-auto ${getScrollRevealClass(compareVisible, 'scale')}`}
+          >
             <Link to="/compare">
               <Card className="glass border-border hover:border-primary/30 hover-lift card-hover-glow transition-all group cursor-pointer">
                 <CardContent className="pt-6 pb-6">

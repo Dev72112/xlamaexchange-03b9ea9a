@@ -20,7 +20,7 @@ export const Footer = memo(function Footer() {
   }, []);
 
   return (
-    <footer className="relative border-t border-border/50 bg-gradient-to-b from-background to-secondary/10" role="contentinfo">
+    <footer className="relative border-t border-border/50 bg-gradient-to-b from-background to-secondary/10 pb-20 md:pb-0" role="contentinfo">
       {/* Subtle glow effect at top */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
       

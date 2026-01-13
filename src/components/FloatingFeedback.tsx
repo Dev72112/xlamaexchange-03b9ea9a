@@ -155,7 +155,14 @@ export const FloatingFeedback = forwardRef<HTMLDivElement>(function FloatingFeed
   };
 
   return (
-    <div ref={ref} className="fixed bottom-4 right-4 z-50">
+    <div 
+      ref={ref} 
+      className="fixed z-50 bottom-6 right-6 md:bottom-8 md:right-24"
+      style={{
+        // On mobile, position above the bottom nav (avoid overlap)
+        bottom: 'max(1.5rem, calc(env(safe-area-inset-bottom) + 5rem))',
+      }}
+    >
       <Popover open={open} onOpenChange={(isOpen) => {
         setOpen(isOpen);
         if (!isOpen) resetForm();

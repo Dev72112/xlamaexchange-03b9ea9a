@@ -133,25 +133,25 @@ export const HeroSection = memo(function HeroSection() {
             </Button>
           </div>
 
-          {/* Features Grid with premium glass cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 xl:gap-6">
+          {/* Features Grid with premium glass cards - fixed mobile overflow */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 xl:gap-6 px-1">
             {features.map((feature, index) => (
               <article 
                 key={feature.label}
-                className={`group relative p-3 sm:p-4 lg:p-5 xl:p-6 rounded-xl glass border border-border/50 hover:border-primary/40 hover-lift transition-all duration-300 ${STAGGER_ITEM_CLASS}`}
+                className={`group relative p-3 sm:p-4 lg:p-5 xl:p-6 rounded-xl glass border border-border/50 hover:border-primary/40 hover-lift transition-all duration-300 overflow-hidden ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index, 80)}
               >
                 {/* Subtle glow on hover */}
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 
-                <div className="relative">
+                <div className="relative z-10">
                   <div className="flex items-center justify-center gap-2 text-primary mb-1.5 sm:mb-2 group-hover:scale-110 transition-transform" aria-hidden="true">
-                    <feature.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   </div>
-                  <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold">
+                  <div className="text-sm sm:text-lg lg:text-xl xl:text-2xl font-bold text-center leading-tight">
                     {feature.label}
                   </div>
-                  <div className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                  <div className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground mt-0.5 sm:mt-1 text-center leading-tight">
                     {feature.description}
                   </div>
                 </div>
