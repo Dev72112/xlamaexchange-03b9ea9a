@@ -1,36 +1,86 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/shared/components";
 import { RpcDiagnostics } from "@/components/RpcDiagnostics";
+import { CacheControls } from "@/components/CacheControls";
 import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Terminal, Info, Settings, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Terminal, Info, Settings, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 
-const BUILD_VERSION = "1.3.0";
+const BUILD_VERSION = "1.4.0";
 const BUILD_DATE = new Date().toISOString().split('T')[0];
 
-// Check if these env vars are truly required or optional
-const envVarConfig = [
-  { 
-    label: 'VITE_ALCHEMY_API_KEY', 
-    value: import.meta.env.VITE_ALCHEMY_API_KEY,
-    required: false,
-    description: 'Enables private Alchemy RPC for better reliability. Falls back to public RPCs if not set.'
-  },
-  { 
-    label: 'VITE_WALLETCONNECT_PROJECT_ID', 
-    value: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
-    required: false,
-    description: 'Enables WalletConnect. OKX Direct connection works without this.'
-  },
-  { 
-    label: 'VITE_GA_MEASUREMENT_ID', 
-    value: import.meta.env.VITE_GA_MEASUREMENT_ID,
-    required: false,
-    description: 'Google Analytics tracking. Optional for analytics.'
-  },
-];
+interface WalletConnectStatus {
+  loading: boolean;
+  configured: boolean;
+  projectIdPreview: string | null;
+  error: string | null;
+}
 
 const Debug = () => {
+  const [walletConnectStatus, setWalletConnectStatus] = useState<WalletConnectStatus>({
+    loading: true,
+    configured: false,
+    projectIdPreview: null,
+    error: null,
+  });
+
+  // Fetch WalletConnect config from backend (matches how appkit.ts actually works)
+  useEffect(() => {
+    const checkWalletConnect = async () => {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        if (!supabaseUrl) {
+          setWalletConnectStatus({
+            loading: false,
+            configured: false,
+            projectIdPreview: null,
+            error: 'VITE_SUPABASE_URL not set',
+          });
+          return;
+        }
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/walletconnect-config`);
+        const data = await response.json();
+        
+        const projectId = data.projectId;
+        const isConfigured = Boolean(projectId && projectId.length > 0);
+        
+        setWalletConnectStatus({
+          loading: false,
+          configured: isConfigured,
+          projectIdPreview: isConfigured ? `${projectId.slice(0, 4)}...${projectId.slice(-4)}` : null,
+          error: null,
+        });
+      } catch (err: any) {
+        setWalletConnectStatus({
+          loading: false,
+          configured: false,
+          projectIdPreview: null,
+          error: err.message || 'Failed to check',
+        });
+      }
+    };
+
+    checkWalletConnect();
+  }, []);
+
+  // Client-side env vars (these are injected at build time)
+  const envVarConfig = [
+    { 
+      label: 'VITE_ALCHEMY_API_KEY', 
+      value: import.meta.env.VITE_ALCHEMY_API_KEY,
+      source: 'client',
+      description: 'Enables private Alchemy RPC for better reliability. Falls back to public RPCs if not set.'
+    },
+    { 
+      label: 'VITE_GA_MEASUREMENT_ID', 
+      value: import.meta.env.VITE_GA_MEASUREMENT_ID,
+      source: 'client',
+      description: 'Google Analytics tracking. Optional for analytics.'
+    },
+  ];
+
   return (
     <Layout>
       <Helmet>
@@ -51,6 +101,8 @@ const Debug = () => {
         
         <div className="space-y-6">
           <RpcDiagnostics />
+          
+          <CacheControls />
           
           {/* Build Info */}
           <Card>
@@ -80,6 +132,7 @@ const Debug = () => {
               {/* Environment Variables with status */}
               <h4 className="text-sm font-medium mb-3 text-muted-foreground">Optional Environment Variables</h4>
               <div className="space-y-3">
+                {/* Client-side env vars */}
                 {envVarConfig.map((item) => {
                   const isSet = Boolean(item.value);
                   return (
@@ -101,6 +154,36 @@ const Debug = () => {
                     </div>
                   );
                 })}
+
+                {/* WalletConnect - fetched from backend */}
+                <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">VITE_WALLETCONNECT_PROJECT_ID</span>
+                    {walletConnectStatus.loading ? (
+                      <Badge variant="secondary" className="text-xs">
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Checking...
+                      </Badge>
+                    ) : walletConnectStatus.configured ? (
+                      <Badge 
+                        variant="default"
+                        className="text-xs bg-green-500/10 text-green-500 border-green-500/30"
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-1" /> 
+                        {walletConnectStatus.projectIdPreview}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        <AlertTriangle className="w-3 h-3 mr-1" /> Not Set
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enables WalletConnect (fetched from backend). OKX Direct connection works without this.
+                    {walletConnectStatus.error && (
+                      <span className="text-destructive block mt-1">Error: {walletConnectStatus.error}</span>
+                    )}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

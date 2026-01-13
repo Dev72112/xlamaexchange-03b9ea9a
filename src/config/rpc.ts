@@ -5,11 +5,36 @@
 // If it shows undefined, you need to:
 // 1. Ensure VITE_ALCHEMY_API_KEY is set in Lovable Cloud secrets
 // 2. Publish -> Update to trigger a new build
-const ALCHEMY_KEY = import.meta.env.VITE_ALCHEMY_API_KEY;
+const RAW_ALCHEMY_KEY = import.meta.env.VITE_ALCHEMY_API_KEY || '';
+
+// Sanitize the key: trim whitespace and strip surrounding quotes
+// (common issue when copying from dashboards or config files)
+function sanitizeApiKey(key: string): string {
+  if (!key) return '';
+  let sanitized = key.trim();
+  // Strip surrounding quotes (single or double)
+  if ((sanitized.startsWith('"') && sanitized.endsWith('"')) ||
+      (sanitized.startsWith("'") && sanitized.endsWith("'"))) {
+    sanitized = sanitized.slice(1, -1);
+  }
+  return sanitized.trim();
+}
+
+const ALCHEMY_KEY = sanitizeApiKey(RAW_ALCHEMY_KEY);
+
+// Key sanity diagnostics (never expose actual key)
+export const KEY_DIAGNOSTICS = {
+  rawLength: RAW_ALCHEMY_KEY?.length || 0,
+  sanitizedLength: ALCHEMY_KEY?.length || 0,
+  hasQuotes: RAW_ALCHEMY_KEY?.startsWith('"') || RAW_ALCHEMY_KEY?.startsWith("'") || false,
+  hasWhitespace: RAW_ALCHEMY_KEY !== RAW_ALCHEMY_KEY?.trim(),
+  isValid: ALCHEMY_KEY.length >= 20 && ALCHEMY_KEY.length <= 64,
+};
 
 // Debug log for development only
 if (import.meta.env.DEV) {
   console.log('[RPC Config] Alchemy key present:', Boolean(ALCHEMY_KEY));
+  console.log('[RPC Config] Key diagnostics:', KEY_DIAGNOSTICS);
 }
 
 // Alchemy RPC endpoints by chain index
@@ -84,10 +109,28 @@ export function getRpcDiagnostics(): {
   alchemyConfigured: boolean;
   keyLength: number;
   buildTime: string;
+  keyDiagnostics: typeof KEY_DIAGNOSTICS;
 } {
   return {
     alchemyConfigured: Boolean(ALCHEMY_KEY),
     keyLength: ALCHEMY_KEY?.length || 0,
     buildTime: new Date().toISOString(),
+    keyDiagnostics: KEY_DIAGNOSTICS,
   };
+}
+
+/**
+ * Get the Solana Alchemy endpoint URL (for diagnostics)
+ */
+export function getSolanaAlchemyEndpoint(): string | null {
+  if (!ALCHEMY_KEY) return null;
+  return `https://solana-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
+}
+
+/**
+ * Get the Ethereum Alchemy endpoint URL (for diagnostics)
+ */
+export function getEvmAlchemyEndpoint(): string | null {
+  if (!ALCHEMY_KEY) return null;
+  return `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
 }

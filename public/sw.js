@@ -1,5 +1,5 @@
-// xlama Service Worker v5 - Optimized Caching Strategies
-const CACHE_VERSION = 'v5';
+// xlama Service Worker v6 - Optimized Caching Strategies + Force Refresh Support
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `xlama-fonts-${CACHE_VERSION}`;
