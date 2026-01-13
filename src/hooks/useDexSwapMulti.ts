@@ -325,56 +325,73 @@ export function useDexSwapMulti() {
       throw new Error(`Solana RPC connection failed: ${errorMsg.slice(0, 80)}`);
     }
 
-    // Follow OKX's official approach: try versioned first, fall back to legacy
-    // https://web3.okx.com/build/dev-docs/dex-api/dex-use-swap-solana-quick-start
+    // OKX DEX ALWAYS returns VersionedTransaction for Solana
+    // DO NOT fall back to legacy Transaction.from() - it causes null key errors
     console.log('[Solana] Transaction bytes length:', txBytes.length, 'First bytes:', Array.from(txBytes.slice(0, 4)).map(b => b.toString(16)).join(' '));
     
-    let tx: VersionedTransaction | Transaction;
-    let isVersioned = false;
+    let tx: VersionedTransaction;
     
-    // Try to deserialize as a versioned transaction first
     try {
       tx = VersionedTransaction.deserialize(txBytes);
-      isVersioned = true;
-      console.log('[Solana] Successfully created versioned transaction');
+      console.log('[Solana] Successfully deserialized versioned transaction');
       
-      // For versioned transactions, update blockhash if possible
-      // Note: Some versioned txs have read-only message, handle gracefully
+      // CRITICAL: Validate all account keys are valid (not null)
+      const accountKeys = tx.message.staticAccountKeys;
+      console.log('[Solana] Transaction details:', {
+        numSignatures: tx.signatures.length,
+        numAccountKeys: accountKeys.length,
+        recentBlockhash: tx.message.recentBlockhash,
+      });
+      
+      for (let i = 0; i < accountKeys.length; i++) {
+        if (!accountKeys[i]) {
+          throw new Error(`Invalid transaction: null account key at index ${i}`);
+        }
+      }
+      
+      // Log first few account keys for debugging
+      if (accountKeys.length > 0) {
+        console.log('[Solana] First account key:', accountKeys[0].toBase58());
+      }
+      
+      // Update blockhash if possible (some versioned txs have read-only messages)
       try {
         (tx as VersionedTransaction).message.recentBlockhash = latestBlockhash.blockhash;
+        console.log('[Solana] Updated blockhash to:', latestBlockhash.blockhash.slice(0, 20) + '...');
       } catch (blockhashErr) {
         console.log('[Solana] Could not update versioned tx blockhash (read-only), using original');
       }
-    } catch (versionedError: any) {
-      // Fall back to legacy transaction
-      console.log('[Solana] Versioned deserialize failed, trying legacy:', versionedError?.message?.slice(0, 60));
-      try {
-        tx = Transaction.from(txBytes);
-        tx.recentBlockhash = latestBlockhash.blockhash;
-        
-        // CRITICAL: Set feePayer for legacy transactions to prevent "toBase58" error
-        if (!tx.feePayer && solanaAddress) {
-          tx.feePayer = new PublicKey(solanaAddress);
-          console.log('[Solana] Set feePayer to:', solanaAddress);
-        }
-        
-        console.log('[Solana] Successfully created legacy transaction');
-      } catch (legacyError: any) {
-        console.error('[Solana] Both transaction formats failed:', {
-          versionedError: versionedError?.message?.slice(0, 100),
-          legacyError: legacyError?.message?.slice(0, 100),
-        });
-        throw new Error(`Unable to parse transaction: ${legacyError?.message || versionedError?.message}`);
-      }
+    } catch (deserError: any) {
+      console.error('[Solana] Transaction deserialization failed:', {
+        error: deserError?.message?.slice(0, 150),
+        txBytesLength: txBytes.length,
+        firstBytes: Array.from(txBytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '),
+      });
+      
+      // DO NOT fall back to legacy - throw a clear error instead
+      throw new Error(
+        `Transaction format error. The DEX may have returned an incompatible transaction. ` +
+        `Please try again or use a smaller amount. (${deserError?.message?.slice(0, 50)})`
+      );
     }
     
     try {
-      console.log('[Solana] Signing', isVersioned ? 'versioned' : 'legacy', 'transaction...');
+      console.log('[Solana] Signing versioned transaction...');
+      
+      // Detect provider type for appropriate signing method
+      const isOkxWallet = provider.isOkxWallet || (window as any).okxwallet?.solana === provider;
       
       if (provider.signAndSendTransaction) {
-        const result = await provider.signAndSendTransaction(tx);
+        console.log('[Solana] Using signAndSendTransaction', isOkxWallet ? '(OKX)' : '(Other)');
+        
+        // Some wallets need the transaction passed differently
+        const result = await provider.signAndSendTransaction(tx, {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+        });
         signature = typeof result === 'string' ? result : result.signature;
       } else if (provider.signTransaction) {
+        console.log('[Solana] Using signTransaction + sendRawTransaction');
         const signedTx = await provider.signTransaction(tx);
         signature = await connection.sendRawTransaction(signedTx.serialize(), {
           skipPreflight: false,
@@ -383,6 +400,8 @@ export function useDexSwapMulti() {
       } else {
         throw new Error('Solana wallet does not support transaction signing');
       }
+      
+      console.log('[Solana] Transaction signed, signature:', signature?.slice(0, 20) + '...');
     } catch (signError: any) {
       // Re-throw user rejections without modification
       if (signError?.message?.includes('rejected') || signError?.code === 4001) {
@@ -391,7 +410,7 @@ export function useDexSwapMulti() {
       
       console.error('[Solana] Signing error:', {
         message: signError?.message?.slice(0, 150),
-        isVersioned,
+        name: signError?.name,
         txBytesLength: txBytes.length,
       });
       
