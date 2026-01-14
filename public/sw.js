@@ -1,9 +1,10 @@
-// xlama Service Worker v6 - Optimized Caching Strategies + Force Refresh Support
-const CACHE_VERSION = 'v6';
+// xlama Service Worker v7 - Optimized Caching + Background Price Sync + RPC Failover
+const CACHE_VERSION = 'v7';
 const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `xlama-fonts-${CACHE_VERSION}`;
 const IMAGE_CACHE = `xlama-images-${CACHE_VERSION}`;
+const PRICE_CACHE = `xlama-prices-${CACHE_VERSION}`;
 
 // Static assets to precache (excluding / to ensure fresh HTML)
 const STATIC_ASSETS = [
@@ -25,9 +26,15 @@ const TOKEN_IMAGE_HOSTS = [
   'raw.githubusercontent.com',
 ];
 
+// Price API endpoints to cache
+const PRICE_API_PATTERNS = [
+  /api\.coingecko\.com\/api\/v3\/simple\/price/,
+  /min-api\.cryptocompare\.com\/data\/price/,
+];
+
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v5...');
+  console.log('[SW] Installing service worker v7...');
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch((err) => {
@@ -40,7 +47,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches and enable navigation preload
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v5...');
+  console.log('[SW] Activating service worker v7...');
   event.waitUntil(
     Promise.all([
       // Enable navigation preload if supported
@@ -56,6 +63,8 @@ self.addEventListener('activate', (event) => {
             })
         );
       }),
+      // Open price cache for background sync
+      caches.open(PRICE_CACHE),
     ]).then(() => clients.claim())
   );
 });
@@ -278,7 +287,46 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-transactions') {
     // Handle offline transaction sync
   }
+  
+  if (event.tag === 'sync-prices') {
+    event.waitUntil(syncPrices());
+  }
 });
+
+// Periodic background sync for price updates
+self.addEventListener('periodicsync', (event) => {
+  console.log('[SW] Periodic sync event:', event.tag);
+  
+  if (event.tag === 'price-sync') {
+    event.waitUntil(syncPrices());
+  }
+});
+
+// Background price sync function
+async function syncPrices() {
+  console.log('[SW] Syncing prices in background...');
+  
+  const priceEndpoints = [
+    'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd',
+  ];
+  
+  const cache = await caches.open(PRICE_CACHE);
+  
+  for (const url of priceEndpoints) {
+    try {
+      const response = await fetch(url, { 
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (response.ok) {
+        await cache.put(url, response.clone());
+        console.log('[SW] Cached price data from:', url);
+      }
+    } catch (err) {
+      console.warn('[SW] Failed to sync prices from:', url, err.message);
+    }
+  }
+}
 
 // Message handler for communication with main app
 self.addEventListener('message', (event) => {
@@ -291,5 +339,37 @@ self.addEventListener('message', (event) => {
   // Clear runtime cache on request
   if (event.data && event.data.type === 'CLEAR_CACHE') {
     caches.delete(RUNTIME_CACHE);
+    caches.delete(PRICE_CACHE);
+  }
+  
+  // Trigger price sync
+  if (event.data && event.data.type === 'SYNC_PRICES') {
+    syncPrices();
+  }
+  
+  // Warmup RPC connections
+  if (event.data && event.data.type === 'WARMUP_RPC') {
+    warmupRpcConnections(event.data.endpoints);
   }
 });
+
+// RPC connection warmup
+async function warmupRpcConnections(endpoints = []) {
+  console.log('[SW] Warming up RPC connections...');
+  
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getSlot' }),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (response.ok) {
+        console.log('[SW] RPC warmup OK:', endpoint.slice(0, 40));
+      }
+    } catch (err) {
+      console.warn('[SW] RPC warmup failed:', endpoint.slice(0, 40), err.message);
+    }
+  }
+}
