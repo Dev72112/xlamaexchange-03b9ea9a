@@ -53,7 +53,10 @@ export const SwapActions = memo(function SwapActions({
       <Button
         size="lg"
         onClick={onSwitchChain}
-        className={cn("w-full gradient-primary text-primary-foreground", className)}
+        className={cn(
+          "w-full gradient-primary text-primary-foreground sweep-effect sweep-effect-fast",
+          className
+        )}
       >
         <Lock className="w-4 h-4 mr-2" />
         Switch to {chainName}
@@ -105,7 +108,7 @@ export const SwapActions = memo(function SwapActions({
     );
   }
 
-  // Main swap button
+  // Main swap button with premium sweep animation
   return (
     <Button
       size="lg"
@@ -113,12 +116,14 @@ export const SwapActions = memo(function SwapActions({
       disabled={!canSwap || isLoading}
       className={cn(
         "w-full gradient-primary text-primary-foreground disabled:opacity-50",
+        "sweep-effect sweep-effect-fast shadow-premium-hover",
+        "transition-all duration-200",
         className
       )}
     >
       {isLoading ? (
         <>
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" style={{ willChange: 'transform' }} />
           Swapping...
         </>
       ) : (
