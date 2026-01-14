@@ -121,7 +121,7 @@ const FAQ = () => {
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="bg-card border border-border rounded-lg px-6"
+                className="bg-card border border-border rounded-lg px-6 sweep-effect performance-critical"
               >
                 <AccordionTrigger className="text-left font-medium hover:no-underline">
                   {faq.question}
@@ -133,7 +133,7 @@ const FAQ = () => {
             ))}
           </Accordion>
 
-          <div className="mt-12 text-center p-8 bg-secondary/30 rounded-2xl">
+          <div className="mt-12 text-center p-8 bg-secondary/30 rounded-2xl sweep-effect">
             <h3 className="text-xl font-semibold mb-2">Still have questions?</h3>
             <p className="text-muted-foreground mb-4">
               Can't find the answer you're looking for? Reach out to our support team.

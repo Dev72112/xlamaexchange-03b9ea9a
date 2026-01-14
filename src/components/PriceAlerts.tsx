@@ -151,7 +151,7 @@ export function PriceAlerts() {
   return (
     <section className="py-8 sm:py-12 lg:py-16">
       <div className="container px-4 sm:px-6 overflow-hidden">
-        <Card className="bg-card border-border overflow-hidden w-full">
+        <Card className="bg-card border-border overflow-hidden w-full sweep-effect">
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <div className="min-w-0 flex-1">
               <CardTitle className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold flex items-center gap-2">

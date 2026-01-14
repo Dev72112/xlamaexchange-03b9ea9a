@@ -124,7 +124,7 @@ const Tools = memo(function Tools() {
               key={tool.id}
               href={`#${tool.id}`}
               onClick={(e) => handleSmoothScroll(e, tool.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg glass border border-border text-sm font-medium hover:bg-secondary hover:border-primary/20 hover-lift transition-all active:scale-95 ${STAGGER_ITEM_CLASS}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg glass border border-border text-sm font-medium hover:bg-secondary hover:border-primary/20 hover-lift transition-all active:scale-95 sweep-effect ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index, 50)}
             >
               <tool.icon className="w-4 h-4 text-primary" />
@@ -181,7 +181,7 @@ const Tools = memo(function Tools() {
             className={`max-w-xl mx-auto ${getScrollRevealClass(compareVisible, 'scale')}`}
           >
             <Link to="/compare">
-              <Card className="glass border-border hover:border-primary/30 hover-lift card-hover-glow transition-all group cursor-pointer">
+              <Card className="glass border-border hover:border-primary/30 hover-lift card-hover-glow transition-all group cursor-pointer sweep-effect glow-border-animated">
                 <CardContent className="pt-6 pb-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">

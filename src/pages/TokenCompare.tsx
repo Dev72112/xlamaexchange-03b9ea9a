@@ -262,7 +262,7 @@ export default function TokenCompare() {
                   const isPositive = change24h && parseFloat(change24h) >= 0;
                   
                   return (
-                    <Card key={`${token.chainIndex}-${token.tokenContractAddress}`} className="relative">
+                    <Card key={`${token.chainIndex}-${token.tokenContractAddress}`} className="relative sweep-effect shadow-premium-hover">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -352,7 +352,7 @@ export default function TokenCompare() {
 
               {/* Comparison table */}
               {tokens.length >= 2 && (
-                <Card>
+                <Card className="sweep-effect shadow-premium-hover">
                   <CardHeader>
                     <CardTitle className="text-lg">Comparison Table</CardTitle>
                   </CardHeader>

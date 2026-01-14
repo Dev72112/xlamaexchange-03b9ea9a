@@ -224,7 +224,7 @@ export function PricePrediction({
   };
 
   return (
-    <Card className={cn("bg-card border-border", className)}>
+    <Card className={cn("bg-card border-border sweep-effect glow-border-animated", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">

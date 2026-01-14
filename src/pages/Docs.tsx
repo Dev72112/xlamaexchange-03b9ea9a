@@ -49,7 +49,7 @@ const QuickNavCard = memo(({ icon: Icon, title, description, section }: {
   section: string;
 }) => (
   <Card
-    className={`cursor-pointer hover:border-primary/50 transition-colors ${STAGGER_ITEM_CLASS}`}
+    className={`cursor-pointer hover:border-primary/50 transition-colors sweep-effect shadow-premium-hover glow-border-animated ${STAGGER_ITEM_CLASS}`}
     onClick={() => document.getElementById(section)?.scrollIntoView({ behavior: "smooth" })}
   >
     <CardHeader className="pb-2">
@@ -82,7 +82,7 @@ const ChainGrid = memo(() => {
           {evmChains.map((chain) => (
             <div
               key={chain.chainIndex}
-              className="flex flex-col items-center gap-1 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              className="flex flex-col items-center gap-1 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors sweep-effect"
             >
               <img
                 src={getChainIcon(chain)}
@@ -104,7 +104,7 @@ const ChainGrid = memo(() => {
           {nonEvmChains.map((chain) => (
             <div
               key={chain.chainIndex}
-              className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors sweep-effect"
             >
               <img
                 src={getChainIcon(chain)}
@@ -196,7 +196,7 @@ const Docs = () => {
         {/* Documentation Sections */}
         <Accordion type="multiple" defaultValue={["getting-started"]} className="space-y-4">
           {/* Getting Started */}
-          <AccordionItem value="getting-started" id="getting-started" className="border rounded-lg px-4">
+          <AccordionItem value="getting-started" id="getting-started" className="border rounded-lg px-4 sweep-effect performance-critical">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
                 <Wallet className="h-5 w-5 text-primary" />
@@ -245,7 +245,7 @@ const Docs = () => {
           </AccordionItem>
 
           {/* Supported Networks */}
-          <AccordionItem value="networks" id="networks" className="border rounded-lg px-4">
+          <AccordionItem value="networks" id="networks" className="border rounded-lg px-4 sweep-effect performance-critical">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
                 <Globe className="h-5 w-5 text-primary" />
@@ -263,7 +263,7 @@ const Docs = () => {
           </AccordionItem>
 
           {/* Exchange Modes */}
-          <AccordionItem value="exchange-modes" id="exchange-modes" className="border rounded-lg px-4">
+          <AccordionItem value="exchange-modes" id="exchange-modes" className="border rounded-lg px-4 sweep-effect performance-critical">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
                 <ArrowLeftRight className="h-5 w-5 text-primary" />
@@ -272,7 +272,7 @@ const Docs = () => {
             </AccordionTrigger>
             <AccordionContent className="space-y-6 pb-6">
               <div className="grid gap-4">
-                <Card className="border-green-500/30 bg-green-500/5">
+                <Card className="border-green-500/30 bg-green-500/5 sweep-effect">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-2">
                       <Zap className="h-5 w-5 text-green-500" />
@@ -290,7 +290,7 @@ const Docs = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="border-blue-500/30 bg-blue-500/5">
+                <Card className="border-blue-500/30 bg-blue-500/5 sweep-effect">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-2">
                       <Layers className="h-5 w-5 text-blue-500" />
@@ -308,7 +308,7 @@ const Docs = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="border-purple-500/30 bg-purple-500/5">
+                <Card className="border-purple-500/30 bg-purple-500/5 sweep-effect">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-2">
                       <Globe className="h-5 w-5 text-purple-500" />
@@ -330,7 +330,7 @@ const Docs = () => {
           </AccordionItem>
 
           {/* Trading Features */}
-          <AccordionItem value="trading-features" id="trading-features" className="border rounded-lg px-4">
+          <AccordionItem value="trading-features" id="trading-features" className="border rounded-lg px-4 sweep-effect performance-critical">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
                 <TrendingUp className="h-5 w-5 text-primary" />
@@ -409,7 +409,7 @@ const Docs = () => {
           </AccordionItem>
 
           {/* Wallet Support */}
-          <AccordionItem value="wallets" id="wallets" className="border rounded-lg px-4">
+          <AccordionItem value="wallets" id="wallets" className="border rounded-lg px-4 sweep-effect performance-critical">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
                 <Wallet className="h-5 w-5 text-primary" />

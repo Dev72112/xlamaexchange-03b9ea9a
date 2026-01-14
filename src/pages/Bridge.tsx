@@ -171,7 +171,7 @@ const Bridge = memo(function Bridge() {
             {bridgeSteps.map((step, index) => (
               <Card 
                 key={step.title} 
-                className={`relative glass hover:border-primary/20 hover-lift transition-all ${STAGGER_ITEM_CLASS}`}
+                className={`relative glass hover:border-primary/20 hover-lift transition-all sweep-effect shadow-premium-hover glow-border-animated ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index, 80)}
               >
                 <div 
@@ -202,7 +202,7 @@ const Bridge = memo(function Bridge() {
             {bridgeFeatures.map((feature, index) => (
               <div 
                 key={feature.label} 
-                className={`flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 glass rounded-full hover-lift ${STAGGER_ITEM_CLASS}`}
+                className={`flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 glass rounded-full hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index + bridgeSteps.length, 60)}
               >
                 <feature.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" aria-hidden="true" />
@@ -215,7 +215,7 @@ const Bridge = memo(function Bridge() {
 
         {/* Li.Fi Credit */}
         <section className="text-center">
-          <Card className="inline-block glass border-border/50">
+          <Card className="inline-block glass border-border/50 sweep-effect">
             <CardContent className="py-4 px-6">
               <div className="flex items-center gap-3">
                 <img

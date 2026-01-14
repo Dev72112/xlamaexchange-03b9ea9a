@@ -77,7 +77,7 @@ const Orders = memo(function Orders() {
         {/* Connect wallet prompt if not connected */}
         {!isConnected ? (
           <div className="max-w-xl mx-auto">
-            <Card className="glass glow-sm border-primary/10">
+            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
               <CardContent className="pt-8 pb-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
                   <ListOrdered className="w-8 h-8 text-primary" />
@@ -98,7 +98,7 @@ const Orders = memo(function Orders() {
                     {ordersFeatures.map((feature, index) => (
                       <div
                         key={feature.title}
-                        className={`p-3 rounded-lg glass-subtle hover-lift ${STAGGER_ITEM_CLASS}`}
+                        className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`}
                         style={getStaggerStyle(index, 80)}
                       >
                         <feature.icon className="w-5 h-5 text-primary mb-2" />
@@ -116,21 +116,21 @@ const Orders = memo(function Orders() {
             <div className="space-y-8 max-w-4xl mx-auto">
               {/* Order Stats */}
               <div className="grid grid-cols-3 gap-4">
-                <Card className="glass border-border/50 hover-lift transition-all">
+                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover">
                   <CardContent className="pt-4 pb-4 text-center">
                     <TrendingUp className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">Limit Orders</p>
                     <p className="text-lg font-bold">Active</p>
                   </CardContent>
                 </Card>
-                <Card className="glass border-border/50 hover-lift transition-all">
+                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover">
                   <CardContent className="pt-4 pb-4 text-center">
                     <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">DCA Orders</p>
                     <p className="text-lg font-bold">Scheduled</p>
                   </CardContent>
                 </Card>
-                <Card className="glass border-border/50 hover-lift transition-all">
+                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover">
                   <CardContent className="pt-4 pb-4 text-center">
                     <ArrowRightLeft className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">History</p>

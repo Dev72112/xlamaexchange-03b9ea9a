@@ -151,7 +151,7 @@ const StatCard = memo(function StatCard({
   };
 
   return (
-    <Card className="bg-card/50 border-border/50 hover-lift transition-all group">
+    <Card className="bg-card/50 border-border/50 hover-lift transition-all group sweep-effect shadow-premium-hover">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1 min-w-0 flex-1">
@@ -320,7 +320,7 @@ const Analytics = () => {
         {/* Connect wallet prompt if not connected */}
         {!isConnected ? (
           <div className="max-w-xl mx-auto">
-            <Card className="glass glow-sm border-primary/10">
+            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
               <CardContent className="pt-8 pb-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
                   <BarChart3 className="w-8 h-8 text-primary" />
@@ -341,7 +341,7 @@ const Analytics = () => {
                     {analyticsFeatures.map((feature, index) => (
                       <div
                         key={feature.title}
-                        className={`p-3 rounded-lg glass-subtle hover-lift ${STAGGER_ITEM_CLASS}`}
+                        className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`}
                         style={getStaggerStyle(index, 80)}
                       >
                         <feature.icon className="w-5 h-5 text-primary mb-2" />

@@ -1100,3 +1100,109 @@ body {
     0 0 0 2px hsl(var(--background)),
     0 0 0 4px hsl(var(--primary));
 }
+
+/* ====== MOBILE-FIRST TOUCH ANIMATIONS ====== */
+
+/* Touch devices - disable hover sweep for performance */
+@media (hover: none) and (pointer: coarse) {
+  /* Disable hover-only sweep on touch devices */
+  .sweep-effect::before {
+    display: none;
+  }
+  
+  /* Use tap feedback instead of sweep */
+  .sweep-effect:active {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary) / 0.12), 
+      transparent);
+    transition: background 0.1s ease-out;
+  }
+  
+  /* Reduce will-change on mobile to save GPU memory */
+  .gpu-accelerated {
+    will-change: auto;
+  }
+  
+  /* Simpler hover-lift for touch */
+  .hover-lift:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .hover-lift:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  /* Reduce shadow-premium-hover complexity on touch */
+  .shadow-premium-hover:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .shadow-premium-hover:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  /* Simplified glow border on touch */
+  .glow-border-animated::after {
+    animation: none;
+    opacity: 0;
+  }
+  
+  .glow-border-animated:active::after {
+    opacity: 0.5;
+    background: hsl(var(--primary) / 0.3);
+  }
+}
+
+/* Desktop-only full sweep effect */
+@media (hover: hover) and (pointer: fine) {
+  .sweep-effect::before {
+    /* Full sweep animation for desktop */
+    display: block;
+  }
+}
+
+/* Battery-saving mode for users with reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .sweep-effect::before,
+  .glow-border-animated::after {
+    animation: none !important;
+    opacity: 0 !important;
+    display: none !important;
+  }
+  
+  .shadow-premium-hover,
+  .hover-lift {
+    transition: none !important;
+  }
+}
+
+/* Touch target minimum size for accessibility */
+.touch-target-area {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Touch ripple effect for mobile */
+.touch-ripple {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, hsl(var(--primary) / 0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.touch-ripple:active::after {
+  opacity: 1;
+}

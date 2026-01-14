@@ -123,7 +123,7 @@ const About = () => {
             {values.map((value, index) => (
               <article 
                 key={index}
-                className="p-6 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
+                className="p-6 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors sweep-effect shadow-premium-hover performance-critical"
               >
                 <value.icon className="w-8 h-8 text-primary mb-4" aria-hidden="true" />
                 <h3 className="font-semibold text-lg mb-2">{value.title}</h3>
@@ -156,7 +156,7 @@ const About = () => {
             {principles.map((principle, index) => (
               <div 
                 key={index}
-                className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border"
+                className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border sweep-effect"
               >
                 <principle.icon className="w-5 h-5 text-primary flex-shrink-0" aria-hidden="true" />
                 <span className="font-medium">{principle.text}</span>
@@ -180,7 +180,7 @@ const About = () => {
                 rel="noopener noreferrer"
                 className="group"
               >
-                <Card className="h-full bg-card/50 border-border hover:border-primary/30 transition-all group-hover:shadow-lg">
+                <Card className="h-full bg-card/50 border-border hover:border-primary/30 transition-all group-hover:shadow-lg sweep-effect glow-border-animated">
                   <CardContent className="pt-6 text-center">
                     <div className="w-16 h-16 rounded-xl bg-secondary/50 flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform">
                       <img 
@@ -230,7 +230,7 @@ const About = () => {
               href={SOCIAL_LINKS.x.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-foreground text-background font-medium hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-foreground text-background font-medium hover:opacity-90 transition-opacity sweep-effect sweep-effect-fast"
               aria-label={SOCIAL_LINKS.x.label}
             >
               <XIcon className="w-5 h-5" />
@@ -240,7 +240,7 @@ const About = () => {
               href={SOCIAL_LINKS.telegram.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity sweep-effect sweep-effect-fast"
               aria-label={SOCIAL_LINKS.telegram.label}
             >
               <TelegramIcon className="w-5 h-5" />
