@@ -99,11 +99,11 @@ export const HeroSection = memo(function HeroSection() {
             Swap 900+ cryptocurrencies instantly, trade on-chain across 400+ DEXs, or bridge assets across 20+ chains. Best rates, no registration.
           </p>
 
-          {/* CTA Buttons with premium styling */}
+          {/* CTA Buttons with premium sweep animation */}
           <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 lg:gap-4 justify-center mb-8 sm:mb-10 lg:mb-12 px-2 animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <Button 
               size="lg" 
-              className="text-sm sm:text-base px-6 sm:px-8 hover-lift press-effect w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 border-0"
+              className="text-sm sm:text-base px-6 sm:px-8 press-effect w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 border-0 sweep-effect sweep-effect-fast shadow-premium-hover"
               onClick={() => document.getElementById('exchange-widget')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Start Trading
@@ -112,7 +112,7 @@ export const HeroSection = memo(function HeroSection() {
             <Button 
               variant="outline" 
               size="lg" 
-              className="text-sm sm:text-base px-6 sm:px-8 hover-lift press-effect w-full sm:w-auto glass border-primary/30 hover:border-primary/50 hover:bg-primary/5"
+              className="text-sm sm:text-base px-6 sm:px-8 press-effect w-full sm:w-auto glass border-primary/30 hover:border-primary/50 hover:bg-primary/5 sweep-effect"
               asChild
             >
               <a href="https://xlama.fun" target="_blank" rel="noopener noreferrer">
@@ -123,7 +123,7 @@ export const HeroSection = memo(function HeroSection() {
             <Button 
               variant="ghost" 
               size="lg" 
-              className="text-sm sm:text-base px-6 sm:px-8 hover-lift press-effect w-full sm:w-auto hover:bg-surface-elevated"
+              className="text-sm sm:text-base px-6 sm:px-8 press-effect w-full sm:w-auto hover:bg-surface-elevated sweep-effect"
               asChild
             >
               <a href="https://defixlama.com" target="_blank" rel="noopener noreferrer">
@@ -133,19 +133,19 @@ export const HeroSection = memo(function HeroSection() {
             </Button>
           </div>
 
-          {/* Features Grid with premium glass cards - fixed mobile overflow */}
+          {/* Features Grid with premium glass cards + sweep effect */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 xl:gap-6 px-1">
             {features.map((feature, index) => (
               <article 
                 key={feature.label}
-                className={`group relative p-3 sm:p-4 lg:p-5 xl:p-6 rounded-xl glass border border-border/50 hover:border-primary/40 hover-lift transition-all duration-300 overflow-hidden ${STAGGER_ITEM_CLASS}`}
+                className={`group relative p-3 sm:p-4 lg:p-5 xl:p-6 rounded-xl glass border border-border/50 hover:border-primary/40 transition-all duration-300 overflow-hidden sweep-effect shadow-premium-hover glow-border-animated performance-critical ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index, 80)}
               >
-                {/* Subtle glow on hover */}
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                {/* Enhanced glow on hover */}
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 
                 <div className="relative z-10">
-                  <div className="flex items-center justify-center gap-2 text-primary mb-1.5 sm:mb-2 group-hover:scale-110 transition-transform" aria-hidden="true">
+                  <div className="flex items-center justify-center gap-2 text-primary mb-1.5 sm:mb-2 group-hover:scale-110 transition-transform duration-200" aria-hidden="true">
                     <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   </div>
                   <div className="text-sm sm:text-lg lg:text-xl xl:text-2xl font-bold text-center leading-tight">
