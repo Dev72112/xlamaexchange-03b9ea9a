@@ -95,52 +95,111 @@ export function DexSwapProgress({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-      className="p-6 space-y-5"
+      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+      className="p-6 space-y-5 gpu-accelerated"
     >
-      {/* Progress indicator with animation */}
+      {/* Progress indicator with enhanced GPU-accelerated animation */}
       <div className="flex items-center justify-center">
         <motion.div 
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
           className={cn(
-            "w-20 h-20 rounded-full flex items-center justify-center relative",
-            isComplete && "bg-success/20",
-            isError && "bg-destructive/20",
+            "w-20 h-20 rounded-full flex items-center justify-center relative performance-critical",
+            isComplete && "bg-success/20 market-bullish",
+            isError && "bg-destructive/20 market-bearish",
             isActive && "bg-primary/20"
           )}
         >
-          {/* Animated ring for active state */}
-          {isActive && (
+          {/* Outer glow ring */}
+          {(isActive || isComplete) && (
             <motion.div
-              className="absolute inset-0 rounded-full border-2 border-primary/30"
-              animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.2, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className={cn(
+                "absolute inset-[-4px] rounded-full",
+                isComplete ? "bg-success/10" : "bg-primary/10"
+              )}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
             />
+          )}
+          
+          {/* Animated ring for active state - GPU optimized */}
+          {isActive && (
+            <>
+              <motion.div
+                className="absolute inset-0 rounded-full border-2 border-primary/40"
+                style={{ willChange: 'transform, opacity' }}
+                animate={{ 
+                  scale: [1, 1.15, 1], 
+                  opacity: [0.6, 0.2, 0.6] 
+                }}
+                transition={{ 
+                  duration: 2, 
+                  repeat: Infinity, 
+                  ease: [0.4, 0, 0.2, 1]
+                }}
+              />
+              <motion.div
+                className="absolute inset-[-2px] rounded-full border border-primary/20"
+                style={{ willChange: 'transform, opacity' }}
+                animate={{ 
+                  scale: [1, 1.25, 1], 
+                  opacity: [0.4, 0, 0.4] 
+                }}
+                transition={{ 
+                  duration: 2.5, 
+                  repeat: Infinity, 
+                  ease: [0.4, 0, 0.2, 1],
+                  delay: 0.2
+                }}
+              />
+            </>
           )}
           
           <AnimatePresence mode="wait">
             {isComplete ? (
               <motion.div
                 key="complete"
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                initial={{ scale: 0, rotate: -180, opacity: 0 }}
+                animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                className="relative"
               >
-                <Check className="w-10 h-10 text-success" />
+                <motion.div
+                  className="absolute inset-0 bg-success/30 rounded-full blur-xl"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 2 }}
+                  transition={{ duration: 0.5 }}
+                />
+                <Check className="w-10 h-10 text-success relative z-10" />
               </motion.div>
             ) : isError ? (
               <motion.div
                 key="error"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 15 }}
               >
                 <X className="w-10 h-10 text-destructive" />
               </motion.div>
             ) : (
-              <motion.div key="loading" className="relative">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <Sparkles className="w-4 h-4 text-primary absolute -top-1 -right-1 animate-pulse" />
+              <motion.div 
+                key="loading" 
+                className="relative"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <Loader2 className="w-10 h-10 text-primary animate-spin" style={{ willChange: 'transform' }} />
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    opacity: [0.7, 1, 0.7]
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  <Sparkles className="w-4 h-4 text-primary absolute -top-1 -right-1" />
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
