@@ -80,7 +80,7 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
   }
 
   return (
-    <Card className={cn("bg-card/50 backdrop-blur-sm border-border overflow-hidden", className)}>
+    <Card className={cn("bg-card/50 backdrop-blur-sm border-border overflow-hidden sweep-effect", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2 min-w-0">
@@ -122,7 +122,7 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
                 return (
                   <div
                     key={`${token.chainIndex}-${token.tokenContractAddress}`}
-                    className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group gap-2"
+                    className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group gap-2 sweep-effect-fast"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                       <div className="relative shrink-0">

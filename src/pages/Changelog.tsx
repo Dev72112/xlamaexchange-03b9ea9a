@@ -259,7 +259,7 @@ const FeatureItem = memo(function FeatureItem({ feature, color, vote, hasVoted, 
   };
 
   return (
-    <div className="space-y-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+    <div className="space-y-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors sweep-effect-fast">
       <div className="flex items-start gap-3">
         <feature.icon className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
         <div className="flex-1 min-w-0">
@@ -323,28 +323,28 @@ const Changelog = () => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          <Card className={STAGGER_ITEM_CLASS}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
             <CardContent className="pt-6 text-center">
               <Globe className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">25+</p>
               <p className="text-sm text-muted-foreground">Chains</p>
             </CardContent>
           </Card>
-          <Card className={STAGGER_ITEM_CLASS}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
             <CardContent className="pt-6 text-center">
               <ArrowLeftRight className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">400+</p>
               <p className="text-sm text-muted-foreground">DEX Sources</p>
             </CardContent>
           </Card>
-          <Card className={STAGGER_ITEM_CLASS}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
             <CardContent className="pt-6 text-center">
               <Layers className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">20+</p>
               <p className="text-sm text-muted-foreground">Bridge Protocols</p>
             </CardContent>
           </Card>
-          <Card className={STAGGER_ITEM_CLASS}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
             <CardContent className="pt-6 text-center">
               <TrendingUp className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">900+</p>
@@ -372,7 +372,7 @@ const Changelog = () => {
               const QuarterIcon = quarter.icon;
 
               return (
-                <Card key={quarter.quarter} className={`${colors.border} ${STAGGER_ITEM_CLASS}`}>
+                <Card key={quarter.quarter} className={`${colors.border} ${STAGGER_ITEM_CLASS} sweep-effect glow-border-animated`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2 mb-2">
                       <QuarterIcon className={`h-5 w-5 ${colors.icon}`} />

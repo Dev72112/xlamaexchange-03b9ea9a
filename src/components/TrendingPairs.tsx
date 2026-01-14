@@ -201,7 +201,7 @@ export function TrendingPairs({ onSelectPair }: TrendingPairsProps = {}) {
                     onClick={() => onSelectPair?.(pair.from, pair.to)}
                     onKeyDown={(e) => e.key === 'Enter' && onSelectPair?.(pair.from, pair.to)}
                     className={cn(
-                      "group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 overflow-hidden text-left w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
+                      "group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 overflow-hidden text-left w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 sweep-effect shadow-premium-hover",
                       STAGGER_ITEM_CLASS
                     )}
                     style={getStaggerStyle(index)}

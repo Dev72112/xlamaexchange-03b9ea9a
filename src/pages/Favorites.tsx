@@ -95,7 +95,7 @@ const Favorites = () => {
               return (
                 <Card
                   key={rateKey}
-                  className={cn("p-4 sm:p-5 glass hover:border-primary/30 hover-lift card-hover-glow transition-all cursor-pointer group", STAGGER_ITEM_CLASS)}
+                  className={cn("p-4 sm:p-5 glass hover:border-primary/30 hover-lift card-hover-glow transition-all cursor-pointer group sweep-effect shadow-premium-hover", STAGGER_ITEM_CLASS)}
                   style={getStaggerStyle(i, 60)}
                   onClick={() => handleExchange(pair.from, pair.to)}
                 >
@@ -188,7 +188,7 @@ const Favorites = () => {
 
         {/* Quick Stats */}
         {favorites.length > 0 && (
-          <div className="mt-8 p-4 rounded-xl glass border border-border glow-sm">
+          <div className="mt-8 p-4 rounded-xl glass border border-border glow-sm sweep-effect glow-border-animated">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Total saved pairs</span>
               <span className="font-medium text-primary">{favorites.length}</span>

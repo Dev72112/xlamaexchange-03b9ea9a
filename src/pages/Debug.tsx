@@ -105,7 +105,7 @@ const Debug = () => {
           <CacheControls />
           
           {/* Build Info */}
-          <Card>
+          <Card className="sweep-effect">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Settings className="h-5 w-5" />
@@ -189,7 +189,7 @@ const Debug = () => {
           </Card>
 
           {/* Info Notice */}
-          <Card className="bg-primary/5 border-primary/20">
+          <Card className="bg-primary/5 border-primary/20 sweep-effect">
             <CardContent className="p-4">
               <div className="flex gap-3">
                 <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />

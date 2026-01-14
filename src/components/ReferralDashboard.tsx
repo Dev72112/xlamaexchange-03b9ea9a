@@ -134,7 +134,7 @@ export const ReferralDashboard = memo(function ReferralDashboard() {
 
   return (
     <>
-      <Card className="border-border/50 bg-card/50 overflow-hidden">
+      <Card className="border-border/50 bg-card/50 overflow-hidden sweep-effect">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-secondary/30 transition-colors">
@@ -159,7 +159,7 @@ export const ReferralDashboard = memo(function ReferralDashboard() {
             <CardContent className="pt-0 space-y-6">
               {/* Stats */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 border border-border/30">
+                <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 border border-border/30 sweep-effect shadow-premium-hover">
                   <div className="flex items-center gap-2 mb-1">
                     <Users className="w-4 h-4 text-primary shrink-0" />
                     <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Total Referrals</span>
@@ -168,7 +168,7 @@ export const ReferralDashboard = memo(function ReferralDashboard() {
                     {data?.totalReferrals || 0}
                   </p>
                 </div>
-                <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 border border-border/30">
+                <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 border border-border/30 sweep-effect shadow-premium-hover">
                   <div className="flex items-center gap-2 mb-1">
                     <DollarSign className="w-4 h-4 text-primary shrink-0" />
                     <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Total Earnings</span>

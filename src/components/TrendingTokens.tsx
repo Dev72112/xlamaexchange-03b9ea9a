@@ -201,7 +201,7 @@ export function TrendingTokens({ onSelectToken }: TrendingTokensProps) {
                     <button
                       key={`${token.tokenContractAddress}-${index}`}
                       onClick={() => onSelectToken?.(token.tokenSymbol, token.tokenContractAddress, token.chainIndex)}
-                      className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 text-left w-full cursor-pointer"
+                      className="group relative flex items-center justify-between p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/50 transition-all duration-200 text-left w-full cursor-pointer sweep-effect"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative">
