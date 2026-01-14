@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { changeNowService } from '@/services/changenow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,6 +30,12 @@ export function usePriceAlerts() {
     }
     return [];
   });
+
+  // CRITICAL: Use ref to avoid infinite re-render loops in checkAlerts
+  const alertsRef = useRef<PriceAlert[]>(alerts);
+  useEffect(() => {
+    alertsRef.current = alerts;
+  }, [alerts]);
 
   // Save alerts to localStorage
   useEffect(() => {
@@ -93,7 +99,9 @@ export function usePriceAlerts() {
   }, [toast]);
 
   const checkAlerts = useCallback(async () => {
-    const activeAlerts = alerts.filter((a) => !a.triggered);
+    // Use ref to avoid stale closure and infinite loops
+    const currentAlerts = alertsRef.current;
+    const activeAlerts = currentAlerts.filter((a) => !a.triggered);
 
     if (activeAlerts.length === 0) return;
 
@@ -152,25 +160,44 @@ export function usePriceAlerts() {
         console.error("Failed to check alert:", error);
       }
     }
-  }, [alerts, triggerAlert]);
+  }, [triggerAlert]); // Remove alerts from deps - use ref instead
 
-  // Check alerts periodically
+  // Check alerts periodically - use ref to avoid dependency issues
   useEffect(() => {
-    const hasActiveAlerts = alerts.some(a => !a.triggered);
-    if (!hasActiveAlerts) return;
+    const checkForActiveAlerts = () => alertsRef.current.some(a => !a.triggered);
+    
+    if (!checkForActiveAlerts()) return;
 
     // Initial check
     checkAlerts();
 
     // Check every 30 seconds
-    const interval = setInterval(checkAlerts, 30000);
+    const interval = setInterval(() => {
+      if (checkForActiveAlerts()) {
+        checkAlerts();
+      }
+    }, 30000);
+    
     return () => clearInterval(interval);
-  }, [alerts, checkAlerts]);
+  }, [checkAlerts]);
+
+  // Clear all triggered alerts at once
+  const clearAllTriggered = useCallback(() => {
+    setAlerts(prev => prev.filter(a => !a.triggered));
+    // Immediately persist to localStorage
+    const remaining = alertsRef.current.filter(a => !a.triggered);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
+    toast({
+      title: "Cleared",
+      description: "All triggered alerts have been removed.",
+    });
+  }, [toast]);
 
   return {
     alerts,
     addAlert,
     removeAlert,
+    clearAllTriggered,
     activeAlerts: alerts.filter(a => !a.triggered),
     triggeredAlerts: alerts.filter(a => a.triggered),
   };

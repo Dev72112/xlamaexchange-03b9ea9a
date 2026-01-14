@@ -500,15 +500,16 @@ export function useDexSwapMulti() {
       if (confirmError?.message?.includes('was not confirmed') || 
           confirmError?.message?.includes('block height exceeded') ||
           confirmError?.message?.includes('timeout')) {
-        console.warn('[Solana] Confirmation timeout, but transaction may have succeeded:', signature);
+        console.warn('[Solana] Confirmation timeout, starting background polling:', signature);
         
-        // Still mark as complete since the tx was sent successfully
-        // User can verify on explorer using the signature we provided
+        // Start background polling to check status
+        startSolanaStatusPolling(connection, signature, fromToken, toToken, amount, onSuccess);
+        
+        // Mark as complete with pending status - user can track via notification
         setStep('complete');
-        notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
         toast({ 
-          title: 'Transaction Sent', 
-          description: `Transaction submitted but confirmation took too long. Check Solscan to verify: ${signature.slice(0, 20)}...`,
+          title: 'Transaction Submitted', 
+          description: `Swap sent! Confirming in background... Check Solscan: ${signature.slice(0, 12)}...`,
         });
         onSuccess?.(signature);
         return;
@@ -520,6 +521,72 @@ export function useDexSwapMulti() {
     notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(signature);
+  };
+
+  // Background polling for Solana transactions that timeout
+  const startSolanaStatusPolling = (
+    connection: Connection, 
+    signature: string, 
+    fromToken: OkxToken, 
+    toToken: OkxToken, 
+    amount: string,
+    onSuccess?: (txHash: string) => void
+  ) => {
+    let attempts = 0;
+    const maxAttempts = 12; // 2 minutes total (10s intervals)
+    
+    const pollStatus = async () => {
+      attempts++;
+      console.log(`[Solana] Polling tx status (attempt ${attempts}/${maxAttempts}):`, signature.slice(0, 20));
+      
+      try {
+        const status = await connection.getSignatureStatus(signature);
+        
+        if (status?.value?.confirmationStatus === 'confirmed' || 
+            status?.value?.confirmationStatus === 'finalized') {
+          console.log('[Solana] Transaction confirmed via polling!', status.value);
+          
+          notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
+          toast({ 
+            title: 'Swap Confirmed! 🎉', 
+            description: `${fromToken.tokenSymbol} → ${toToken.tokenSymbol} swap confirmed on Solana`,
+          });
+          return; // Stop polling
+        }
+        
+        if (status?.value?.err) {
+          console.error('[Solana] Transaction failed on-chain:', status.value.err);
+          notificationService.addNotification({
+            type: 'transaction',
+            title: 'Swap Failed',
+            message: `${fromToken.tokenSymbol} → ${toToken.tokenSymbol} transaction failed on-chain`,
+          });
+          return; // Stop polling
+        }
+        
+        // Continue polling if not yet confirmed and under max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(pollStatus, 10000); // 10 second intervals
+        } else {
+          console.warn('[Solana] Polling stopped after max attempts');
+          // Final notification - check manually
+          notificationService.addNotification({
+            type: 'system',
+            title: 'Check Transaction',
+            message: `Could not confirm swap. Please verify on Solscan: ${signature.slice(0, 12)}...`,
+            link: `https://solscan.io/tx/${signature}`,
+          });
+        }
+      } catch (pollError) {
+        console.error('[Solana] Polling error:', pollError);
+        if (attempts < maxAttempts) {
+          setTimeout(pollStatus, 10000);
+        }
+      }
+    };
+    
+    // Start polling after 10 seconds
+    setTimeout(pollStatus, 10000);
   };
 
   // Tron Swap - Fixed implementation using raw transaction data from OKX

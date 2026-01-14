@@ -8,20 +8,38 @@ import { Connection, PublicKey } from '@solana/web3.js';
 const BALANCE_OF_ABI = '0x70a08231';
 
 // Native token addresses for non-EVM chains
+// CRITICAL: Solana addresses are base58 (like FdKwV...), NOT 0x like EVM!
 const SOLANA_NATIVE_ADDRESS = 'So11111111111111111111111111111111111111112';
+const WRAPPED_SOL_ADDRESS = 'So11111111111111111111111111111111111111112'; // wSOL is the same
 const SUI_NATIVE_ADDRESS = '0x2::sui::SUI';
 const TRON_NATIVE_ADDRESS = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'; // TRX
 const TON_NATIVE_ADDRESS = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c'; // TON
 
 // Helper to check if an address represents native SOL
+// Note: OKX DEX uses the actual Solana address format (base58), NOT 0x...
 function isSolanaNativeToken(address: string): boolean {
+  if (!address) return false;
+  
+  // Case-sensitive check for Solana addresses (they're base58, case matters!)
+  if (address === SOLANA_NATIVE_ADDRESS || address === WRAPPED_SOL_ADDRESS) {
+    return true;
+  }
+  
+  // Check symbol-based identification (from OKX token data)
+  // Some APIs might return 'SOL' token with special addresses
+  const upper = address.toUpperCase();
+  if (upper === 'SOL' || upper === 'WSOL') {
+    return true;
+  }
+  
+  // Also check for the EVM-style native address that some bridges use
+  // BUT only for actual 0x-prefixed addresses (not Solana base58)
   const lower = address.toLowerCase();
-  return (
-    address === SOLANA_NATIVE_ADDRESS ||
-    lower === 'so11111111111111111111111111111111111111112' ||
-    lower === NATIVE_TOKEN_ADDRESS.toLowerCase() || // 0xeee...
-    lower === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
-  );
+  if (lower === NATIVE_TOKEN_ADDRESS.toLowerCase() && address.startsWith('0x')) {
+    return true;
+  }
+  
+  return false;
 }
 
 interface TokenBalance {
