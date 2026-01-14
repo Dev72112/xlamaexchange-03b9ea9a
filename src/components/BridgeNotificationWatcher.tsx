@@ -7,6 +7,7 @@ import { useFeedback } from '@/hooks/useFeedback';
 
 const POLL_INTERVAL = 15000;
 const MAX_POLL_TIME = 30 * 60 * 1000;
+const NOTIFIED_TXS_KEY = 'xlama_bridge_notified_txs';
 
 interface PollState {
   intervalId: NodeJS.Timeout | null;
@@ -31,15 +32,45 @@ function getExplorerUrl(chainId: number, txHash: string): string | null {
   return base ? `${base}${txHash}` : null;
 }
 
+// Load notified txs from localStorage to persist across page reloads
+function loadNotifiedTxs(): Set<string> {
+  try {
+    const stored = localStorage.getItem(NOTIFIED_TXS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return new Set(Array.isArray(parsed) ? parsed : []);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return new Set();
+}
+
+function saveNotifiedTxs(txs: Set<string>) {
+  try {
+    // Only keep the last 100 transaction IDs to prevent unbounded growth
+    const arr = Array.from(txs).slice(-100);
+    localStorage.setItem(NOTIFIED_TXS_KEY, JSON.stringify(arr));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function BridgeNotificationWatcher() {
   const { transactions, updateTransaction } = useBridgeTransactions();
   const pollStates = useRef<Map<string, PollState>>(new Map());
   const { playSound } = useFeedback();
-  const notifiedTxs = useRef<Set<string>>(new Set());
+  // Persist notified txs to localStorage to avoid showing on every login
+  const notifiedTxs = useRef<Set<string>>(loadNotifiedTxs());
+
+  const markAsNotified = useCallback((txId: string) => {
+    notifiedTxs.current.add(txId);
+    saveNotifiedTxs(notifiedTxs.current);
+  }, []);
 
   const showCompletedNotification = useCallback((tx: typeof transactions[0]) => {
     if (notifiedTxs.current.has(tx.id)) return;
-    notifiedTxs.current.add(tx.id);
+    markAsNotified(tx.id);
     
     playSound('success');
     
@@ -69,11 +100,11 @@ export function BridgeNotificationWatcher() {
       </div>,
       { duration: 8000 }
     );
-  }, [playSound]);
+  }, [playSound, markAsNotified]);
 
   const showFailedNotification = useCallback((tx: typeof transactions[0]) => {
     if (notifiedTxs.current.has(tx.id)) return;
-    notifiedTxs.current.add(tx.id);
+    markAsNotified(tx.id);
     
     playSound('click'); // Use click as a fallback for error sound
     
@@ -92,7 +123,7 @@ export function BridgeNotificationWatcher() {
       </div>,
       { duration: 8000 }
     );
-  }, [playSound]);
+  }, [playSound, markAsNotified]);
 
   const pollTransaction = useCallback(async (tx: typeof transactions[0]) => {
     if (!tx.sourceTxHash) return;
@@ -179,17 +210,14 @@ export function BridgeNotificationWatcher() {
     const pendingStatuses: BridgeStatus[] = ['pending-source', 'bridging'];
     
     transactions.forEach(tx => {
-      // Start polling for pending transactions
+      // Start polling for pending transactions only
       if (pendingStatuses.includes(tx.status) && tx.sourceTxHash) {
         startPolling(tx);
       }
       
-      // Check if status changed to completed/failed and we haven't notified yet
-      if (tx.status === 'completed' && !notifiedTxs.current.has(tx.id)) {
-        showCompletedNotification(tx);
-      } else if (tx.status === 'failed' && !notifiedTxs.current.has(tx.id)) {
-        showFailedNotification(tx);
-      }
+      // DON'T show notifications for already-completed/failed transactions on mount
+      // Only show notifications for status changes that happen DURING this session
+      // The polling callbacks handle notifications for real-time status changes
     });
     
     return () => {
@@ -200,7 +228,7 @@ export function BridgeNotificationWatcher() {
       });
       pollStates.current.clear();
     };
-  }, [transactions, startPolling, showCompletedNotification, showFailedNotification]);
+  }, [transactions, startPolling]);
 
   // This component doesn't render anything visible
   return null;

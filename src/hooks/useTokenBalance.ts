@@ -13,6 +13,17 @@ const SUI_NATIVE_ADDRESS = '0x2::sui::SUI';
 const TRON_NATIVE_ADDRESS = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'; // TRX
 const TON_NATIVE_ADDRESS = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c'; // TON
 
+// Helper to check if an address represents native SOL
+function isSolanaNativeToken(address: string): boolean {
+  const lower = address.toLowerCase();
+  return (
+    address === SOLANA_NATIVE_ADDRESS ||
+    lower === 'so11111111111111111111111111111111111111112' ||
+    lower === NATIVE_TOKEN_ADDRESS.toLowerCase() || // 0xeee...
+    lower === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  );
+}
+
 interface TokenBalance {
   balance: string;
   formatted: string;
@@ -173,11 +184,12 @@ async function fetchSolanaBalance(token: OkxToken, address: string, getSolanaCon
 async function fetchSolanaBalanceWithConnection(token: OkxToken, address: string, connection: Connection): Promise<string> {
   try {
     const pubkey = new PublicKey(address);
-    const isNative = token.tokenContractAddress === SOLANA_NATIVE_ADDRESS || 
-                     token.tokenContractAddress.toLowerCase() === 'so11111111111111111111111111111111111111112';
+    const isNative = isSolanaNativeToken(token.tokenContractAddress);
 
     if (isNative) {
+      console.log('[Solana] Fetching native SOL balance for:', address);
       const balance = await connection.getBalance(pubkey);
+      console.log('[Solana] Native SOL balance (lamports):', balance);
       return balance.toString();
     }
 

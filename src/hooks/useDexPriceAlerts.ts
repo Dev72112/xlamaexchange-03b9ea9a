@@ -33,22 +33,30 @@ export function useDexPriceAlerts() {
   
   const [isChecking, setIsChecking] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Track alerts length separately to avoid re-creating checkPrices
+  const alertsRef = useRef<DexPriceAlert[]>(alerts);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    alertsRef.current = alerts;
+  }, [alerts]);
 
   // Persist to localStorage
   useEffect(() => {
     localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
   }, [alerts]);
 
-  // Check prices and trigger alerts
+  // Check prices and trigger alerts - use ref to avoid infinite loop
   const checkPrices = useCallback(async () => {
-    const activeAlerts = alerts.filter(a => !a.triggered);
+    const currentAlerts = alertsRef.current;
+    const activeAlerts = currentAlerts.filter(a => !a.triggered);
     if (activeAlerts.length === 0) return;
 
     setIsChecking(true);
 
     try {
       const updatedAlerts = await Promise.all(
-        alerts.map(async (alert) => {
+        currentAlerts.map(async (alert) => {
           if (alert.triggered) return alert;
 
           try {
@@ -83,7 +91,7 @@ export function useDexPriceAlerts() {
               playSuccessSound();
 
               // Request browser notification if permitted
-              if (Notification.permission === 'granted') {
+              if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
                 new Notification(`Price Alert: ${alert.tokenSymbol}`, {
                   body: `${alert.tokenSymbol} is now ${alert.condition} $${alert.targetPrice.toFixed(4)}`,
                   icon: alert.tokenLogoUrl,
@@ -109,17 +117,19 @@ export function useDexPriceAlerts() {
     } finally {
       setIsChecking(false);
     }
-  }, [alerts, toast]);
+  }, [toast]); // Remove alerts from dependencies - use ref instead
 
-  // Start price checking interval
+  // Start price checking interval - only depend on activeAlerts count
   useEffect(() => {
-    const activeAlerts = alerts.filter(a => !a.triggered);
+    const activeCount = alerts.filter(a => !a.triggered).length;
     
-    if (activeAlerts.length === 0) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+    // Clear existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    if (activeCount === 0) {
       return;
     }
 
@@ -135,11 +145,11 @@ export function useDexPriceAlerts() {
         intervalRef.current = null;
       }
     };
-  }, [checkPrices, alerts.length]);
+  }, [checkPrices, alerts.filter(a => !a.triggered).length]);
 
   // Request notification permission
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, []);
@@ -177,11 +187,25 @@ export function useDexPriceAlerts() {
   }, [toast]);
 
   const deleteAlert = useCallback((alertId: string) => {
-    setAlerts(prev => prev.filter(a => a.id !== alertId));
-  }, []);
+    setAlerts(prev => {
+      const updated = prev.filter(a => a.id !== alertId);
+      // Immediately persist to localStorage
+      localStorage.setItem(ALERTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    
+    toast({
+      title: "Alert Deleted",
+      description: "Price alert has been removed.",
+    });
+  }, [toast]);
 
   const clearTriggeredAlerts = useCallback(() => {
-    setAlerts(prev => prev.filter(a => !a.triggered));
+    setAlerts(prev => {
+      const updated = prev.filter(a => !a.triggered);
+      localStorage.setItem(ALERTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
   }, []);
 
   const getAlertsForToken = useCallback((chainIndex: string, tokenContractAddress: string) => {
