@@ -14,26 +14,41 @@ interface SuccessCelebrationProps {
 }
 
 // Confetti particle component
+// GPU-optimized confetti particle component
 const Particle = memo(function Particle({ delay, x }: { delay: number; x: number }) {
-  const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const colors = ['hsl(142 71% 45%)', 'hsl(217 91% 60%)', 'hsl(38 92% 50%)', 'hsl(340 82% 52%)', 'hsl(262 83% 58%)'];
   const color = colors[Math.floor(Math.random() * colors.length)];
+  const size = 6 + Math.random() * 6;
+  const rotation = Math.random() * 720;
+  const xOffset = (Math.random() - 0.5) * 200;
   
   return (
     <motion.div
-      className="absolute w-2 h-2 rounded-full"
-      style={{ backgroundColor: color, left: `${x}%` }}
-      initial={{ y: -20, opacity: 1, scale: 1 }}
+      className="absolute rounded-full particle-optimized"
+      style={{ 
+        backgroundColor: color, 
+        left: `${x}%`,
+        width: size,
+        height: size,
+        willChange: 'transform, opacity'
+      }}
+      initial={{ 
+        y: -20, 
+        opacity: 1, 
+        scale: 1,
+        rotate: 0
+      }}
       animate={{ 
         y: 400, 
         opacity: 0, 
         scale: 0,
-        x: (Math.random() - 0.5) * 200,
-        rotate: Math.random() * 720
+        x: xOffset,
+        rotate: rotation
       }}
       transition={{ 
         duration: 2 + Math.random(), 
         delay: delay,
-        ease: "easeOut"
+        ease: [0.25, 0.46, 0.45, 0.94]
       }}
     />
   );
@@ -94,13 +109,13 @@ export const SuccessCelebration = memo(function SuccessCelebration({
             ))}
           </div>
 
-          {/* Modal */}
+          {/* Modal with premium glow border */}
           <motion.div
-            className="relative glass border border-border rounded-2xl p-6 max-w-sm w-full gradient-border"
+            className="relative glass border border-border rounded-2xl p-6 max-w-sm w-full glow-border-animated active shadow-premium gpu-accelerated"
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 20 }}
-            transition={{ type: "spring", duration: 0.5 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
             {/* Close button */}
             <button

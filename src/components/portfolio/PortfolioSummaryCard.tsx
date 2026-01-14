@@ -125,22 +125,31 @@ export function PortfolioSummaryCard({
   ];
 
   return (
-    <Card className={cn("glass border-border/50 overflow-hidden", className)}>
-      {/* Gradient top border */}
-      <div className="h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-4" />
+    <Card className={cn("glass border-border/50 overflow-hidden glow-border-animated shadow-premium gpu-accelerated", className)}>
+      {/* Animated gradient top border */}
+      <motion.div 
+        className="h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-4"
+        initial={{ scaleX: 0, originX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+      />
       
       <CardContent className="py-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {statItems.map((item, index) => (
             <motion.div
               key={item.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ 
+                delay: index * 0.08,
+                duration: 0.4,
+                ease: [0.25, 0.46, 0.45, 0.94]
+              }}
               className={cn(
                 "relative p-4 rounded-xl bg-secondary/30 border border-border/30",
-                "hover:bg-secondary/50 hover:border-border/50 transition-all hover-lift",
-                `hover:${item.glowColor}`
+                "hover:bg-secondary/50 hover:border-border/50 transition-all",
+                "sweep-effect shadow-premium-hover performance-critical"
               )}
             >
               {/* Icon with glow */}
