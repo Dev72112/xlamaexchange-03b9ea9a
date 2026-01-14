@@ -43,7 +43,7 @@ export function DexTransactionHistory() {
   return (
     <section className="py-12 border-t border-border">
       <div className="container px-4 sm:px-6">
-        <Card className="bg-card border-border max-w-2xl mx-auto overflow-hidden">
+        <Card className="bg-card border-border max-w-2xl mx-auto overflow-hidden sweep-effect shadow-premium-hover performance-critical">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 min-w-0">
@@ -77,10 +77,10 @@ export function DexTransactionHistory() {
             ) : (
               <ScrollArea className="h-[350px] pr-2">
                 <div className="space-y-3">
-                  {transactions.slice(0, 20).map((tx) => (
+                    {transactions.slice(0, 20).map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between gap-2 p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-border/80 transition-colors overflow-hidden"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 sm:p-4 bg-secondary/30 rounded-xl border border-border hover:border-border/80 transition-colors overflow-hidden sweep-effect-fast"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
                     <div className="flex items-center -space-x-2 shrink-0">

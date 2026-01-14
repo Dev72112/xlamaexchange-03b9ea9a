@@ -99,7 +99,7 @@ const RouteCard = memo(function RouteCard({
   return (
     <div
       className={cn(
-        "relative p-4 rounded-xl border-2 transition-all cursor-pointer hover:border-primary/50",
+        "relative p-4 rounded-xl border-2 transition-all cursor-pointer hover:border-primary/50 sweep-effect performance-critical overflow-hidden",
         isSelected 
           ? "border-primary bg-primary/5" 
           : "border-border bg-card/50 hover:bg-card"
@@ -293,7 +293,7 @@ export const RouteComparison = memo(function RouteComparison({
   }
 
   return (
-    <Card className="bg-card/50 border-border overflow-hidden">
+    <Card className="bg-card/50 border-border overflow-hidden sweep-effect shadow-premium-hover">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">

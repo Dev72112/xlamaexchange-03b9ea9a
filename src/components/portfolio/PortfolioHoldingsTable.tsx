@@ -154,7 +154,7 @@ export function PortfolioHoldingsTable({ balances, isLoading, className }: Portf
   }
 
   return (
-    <Card className={cn("bg-card border-border", className)}>
+    <Card className={cn("bg-card border-border sweep-effect shadow-premium-hover performance-critical overflow-hidden", className)}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">Holdings</CardTitle>
@@ -163,14 +163,16 @@ export function PortfolioHoldingsTable({ balances, isLoading, className }: Portf
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        {/* Sort Headers */}
-        <div className="grid grid-cols-[1fr,auto,auto,auto] gap-2 px-2 pb-2 border-b border-border mb-2">
-          <SortButton field="symbol" label="Token" />
-          <SortButton field="balance" label="Balance" />
-          <SortButton field="price" label="Price" />
-          <SortButton field="value" label="Value" />
-        </div>
+      <CardContent className="overflow-hidden">
+        {/* Mobile-friendly table scroll wrapper */}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          {/* Sort Headers */}
+          <div className="grid grid-cols-[minmax(100px,1fr),auto,auto,auto] gap-2 px-2 pb-2 border-b border-border mb-2 min-w-[320px]">
+            <SortButton field="symbol" label="Token" />
+            <SortButton field="balance" label="Balance" />
+            <SortButton field="price" label="Price" />
+            <SortButton field="value" label="Value" />
+          </div>
 
         <ScrollArea className="h-[350px]">
           <div className="space-y-1">
@@ -182,7 +184,7 @@ export function PortfolioHoldingsTable({ balances, isLoading, className }: Portf
               return (
                 <div
                   key={`${balance.chainIndex}-${balance.tokenContractAddress}-${idx}`}
-                  className="group grid grid-cols-[1fr,auto,auto,auto] gap-2 items-center p-2 rounded-lg hover:bg-secondary/30 transition-colors"
+                  className="group grid grid-cols-[minmax(100px,1fr),auto,auto,auto] gap-2 items-center p-2 rounded-lg hover:bg-secondary/30 transition-colors min-w-[320px]"
                 >
                   {/* Token Info */}
                   <div className="flex items-center gap-2 min-w-0">
@@ -274,6 +276,7 @@ export function PortfolioHoldingsTable({ balances, isLoading, className }: Portf
             })}
           </div>
         </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );

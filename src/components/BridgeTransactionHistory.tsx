@@ -60,36 +60,36 @@ const TransactionRow = memo(function TransactionRow({ tx, onRemove, onRefresh }:
   const isLoading = tx.status === 'bridging' || tx.status === 'pending-source' || tx.status === 'approving' || tx.status === 'checking-approval';
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-secondary/30 border border-border sweep-effect performance-critical overflow-hidden">
       {/* Status */}
-      <Badge variant="outline" className={`${config.color} border-0 flex-shrink-0`}>
+      <Badge variant="outline" className={`${config.color} border-0 shrink-0`}>
         <StatusIcon className={`w-3 h-3 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
         {config.label}
       </Badge>
 
-      {/* Tokens */}
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <div className="flex items-center gap-1">
+      {/* Tokens - wrap on mobile */}
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+        <div className="flex items-center gap-1 min-w-0">
           {tx.fromToken.logoURI && (
-            <img src={tx.fromToken.logoURI} alt="" className="w-5 h-5 rounded-full" />
+            <img src={tx.fromToken.logoURI} alt="" className="w-5 h-5 rounded-full shrink-0" />
           )}
-          <span className="font-medium text-sm truncate">
+          <span className="font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">
             {parseFloat(tx.fromAmount).toFixed(4)} {tx.fromToken.symbol}
           </span>
         </div>
-        <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        <div className="flex items-center gap-1">
+        <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
+        <div className="flex items-center gap-1 min-w-0">
           {tx.toToken.logoURI && (
-            <img src={tx.toToken.logoURI} alt="" className="w-5 h-5 rounded-full" />
+            <img src={tx.toToken.logoURI} alt="" className="w-5 h-5 rounded-full shrink-0" />
           )}
-          <span className="font-medium text-sm truncate">
+          <span className="font-medium text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">
             {parseFloat(tx.toAmount).toFixed(4)} {tx.toToken.symbol}
           </span>
         </div>
       </div>
 
       {/* Chains - Always visible */}
-      <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
         <img src={tx.fromChain.icon} alt="" className="w-4 h-4 rounded-full" 
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
@@ -178,7 +178,7 @@ export const BridgeTransactionHistory = memo(function BridgeTransactionHistory()
   }
 
   return (
-    <Card className="bg-card/50 border-border overflow-hidden">
+    <Card className="bg-card/50 border-border overflow-hidden sweep-effect shadow-premium-hover">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">

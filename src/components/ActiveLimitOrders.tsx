@@ -54,7 +54,7 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className={cn("bg-card border-border", className)}>
+      <Card className={cn("bg-card border-border sweep-effect shadow-premium-hover performance-critical", className)}>
         <CollapsibleTrigger asChild>
           <button className="w-full text-left">
             <CardHeader className="py-3 px-4">
