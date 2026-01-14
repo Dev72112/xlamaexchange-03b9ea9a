@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { OkxToken } from '@/services/okxdex';
 import { NATIVE_TOKEN_ADDRESS, Chain } from '@/data/chains';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { getSolanaConnection, withSolanaRpcFailover } from '@/lib/solanaRpc';
 
 // ERC20 balanceOf function signature
 const BALANCE_OF_ABI = '0x70a08231';
@@ -15,29 +16,43 @@ const SUI_NATIVE_ADDRESS = '0x2::sui::SUI';
 const TRON_NATIVE_ADDRESS = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'; // TRX
 const TON_NATIVE_ADDRESS = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c'; // TON
 
-// Helper to check if an address represents native SOL
-// Note: OKX DEX uses the actual Solana address format (base58), NOT 0x...
-function isSolanaNativeToken(address: string): boolean {
+/**
+ * Check if a token address represents native SOL on Solana
+ * 
+ * CRITICAL LOGIC:
+ * - OKX DEX uses the actual Solana wrapped SOL address (So11111111111111111111111111111111111111112)
+ * - Solana addresses are base58 format (like FdKwV...), NOT 0x prefixed like EVM
+ * - We MUST check the chain context to avoid confusing EVM native with Solana native
+ */
+export function isSolanaNativeToken(address: string, chainIndex?: string): boolean {
   if (!address) return false;
+  
+  // If we know we're on Solana chain (chainIndex 501), check Solana addresses
+  const isOnSolana = chainIndex === '501';
   
   // Case-sensitive check for Solana addresses (they're base58, case matters!)
   if (address === SOLANA_NATIVE_ADDRESS || address === WRAPPED_SOL_ADDRESS) {
     return true;
   }
   
-  // Check symbol-based identification (from OKX token data)
-  // Some APIs might return 'SOL' token with special addresses
-  const upper = address.toUpperCase();
-  if (upper === 'SOL' || upper === 'WSOL') {
+  // Check for lowercase variant (some APIs normalize to lowercase)
+  const lower = address.toLowerCase();
+  if (lower === 'so11111111111111111111111111111111111111112') {
     return true;
   }
   
-  // Also check for the EVM-style native address that some bridges use
-  // BUT only for actual 0x-prefixed addresses (not Solana base58)
-  const lower = address.toLowerCase();
-  if (lower === NATIVE_TOKEN_ADDRESS.toLowerCase() && address.startsWith('0x')) {
-    return true;
+  // Check symbol-based identification (from OKX token data)
+  // Only treat 'SOL' as native if we're explicitly on Solana chain
+  if (isOnSolana) {
+    const upper = address.toUpperCase();
+    if (upper === 'SOL' || upper === 'WSOL') {
+      return true;
+    }
   }
+  
+  // IMPORTANT: EVM native address (0xeee...) should NOT match for Solana
+  // This is the key fix - EVM uses 0xeee... for native, Solana uses So111...
+  // We explicitly do NOT check NATIVE_TOKEN_ADDRESS here for Solana
   
   return false;
 }
@@ -118,12 +133,58 @@ export function useTokenBalance(token: OkxToken | null, chainOrIndex?: Chain | s
     }
   }, [isConnected, address, token, chain, chainOrIndex, activeChainType, getEvmProvider, getSolanaConnection, getSuiClient, getTronWeb]);
 
+  // Real-time Solana balance subscription (WebSocket)
+  const subscriptionRef = useRef<number | null>(null);
+  
   // Fetch on mount and when dependencies change
   useEffect(() => {
     fetchBalance();
-  }, [fetchBalance, chainId]);
+    
+    // Set up WebSocket subscription for Solana tokens
+    const chainName = chain?.name?.toLowerCase() || '';
+    const isSolana = chainName.includes('solana') || activeChainType === 'solana';
+    
+    if (isSolana && token && address) {
+      try {
+        const connection = getSolanaConnection();
+        if (connection) {
+          const pubkey = new PublicKey(address);
+          
+          // Subscribe to account changes for instant balance updates
+          subscriptionRef.current = connection.onAccountChange(
+            pubkey,
+            () => {
+              console.log('[Solana] Account changed, refetching balance');
+              fetchBalance();
+            },
+            'confirmed'
+          );
+          
+          console.log('[Solana] WebSocket subscription active for:', address.slice(0, 8));
+        }
+      } catch (err) {
+        console.warn('[Solana] WebSocket subscription failed, using polling:', err);
+      }
+    }
+    
+    return () => {
+      // Cleanup WebSocket subscription
+      if (subscriptionRef.current !== null) {
+        try {
+          const connection = getSolanaConnection();
+          if (connection) {
+            connection.removeAccountChangeListener(subscriptionRef.current);
+            console.log('[Solana] WebSocket subscription removed');
+          }
+        } catch (err) {
+          // Ignore cleanup errors
+        }
+        subscriptionRef.current = null;
+      }
+    };
+  }, [fetchBalance, chainId, token, address, chain, activeChainType]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds (fallback for non-Solana or if WebSocket fails)
   useEffect(() => {
     if (!isConnected || !token) return;
     
@@ -188,21 +249,34 @@ async function fetchEvmBalance(token: OkxToken, address: string, getEvmProvider:
   return BigInt(rawBalance || '0x0').toString();
 }
 
-// Solana balance fetching
-async function fetchSolanaBalance(token: OkxToken, address: string, getSolanaConnection: () => any): Promise<string> {
-  const connection = getSolanaConnection();
-  if (!connection) {
-    // Fallback to public RPC
-    const fallbackConnection = new Connection('https://api.mainnet-beta.solana.com');
-    return fetchSolanaBalanceWithConnection(token, address, fallbackConnection);
+// Solana balance fetching with RPC failover
+async function fetchSolanaBalance(token: OkxToken, address: string, _getSolanaConnection: () => any): Promise<string> {
+  // Use the RPC failover manager for resilience
+  try {
+    return await withSolanaRpcFailover(async (connection) => {
+      return fetchSolanaBalanceWithConnection(token, address, connection);
+    });
+  } catch (err) {
+    console.error('[Solana] All RPC endpoints failed for balance fetch:', err);
+    return '0';
   }
-  return fetchSolanaBalanceWithConnection(token, address, connection);
 }
 
 async function fetchSolanaBalanceWithConnection(token: OkxToken, address: string, connection: Connection): Promise<string> {
   try {
     const pubkey = new PublicKey(address);
-    const isNative = isSolanaNativeToken(token.tokenContractAddress);
+    
+    // Check if this is native SOL - pass chainIndex '501' to indicate we're on Solana
+    const isNative = isSolanaNativeToken(token.tokenContractAddress, '501') ||
+                     token.tokenSymbol?.toUpperCase() === 'SOL' ||
+                     token.tokenSymbol?.toUpperCase() === 'WSOL';
+
+    console.log('[Solana] Balance check for:', {
+      tokenAddress: token.tokenContractAddress?.slice(0, 12),
+      symbol: token.tokenSymbol,
+      isNative,
+      walletAddress: address?.slice(0, 12),
+    });
 
     if (isNative) {
       console.log('[Solana] Fetching native SOL balance for:', address);
