@@ -55,7 +55,7 @@ export function SwapReviewModal({
       </div>
 
       {/* Token swap visual */}
-      <div className="bg-secondary/30 rounded-xl p-4 space-y-3">
+      <div className="bg-secondary/30 rounded-xl p-4 space-y-3 sweep-effect overflow-hidden">
         {/* From */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">

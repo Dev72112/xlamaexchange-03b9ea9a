@@ -33,7 +33,7 @@ export const FavoritePairsSection = memo(function FavoritePairsSection() {
           {favorites.slice(0, 5).map((pair, index) => (
             <Card 
               key={`${pair.from}-${pair.to}`}
-              className={`group relative bg-card border border-border hover:border-primary/30 hover-lift transition-all ${STAGGER_ITEM_CLASS}`}
+              className={`group relative bg-card border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index, 60)}
             >
               <button

@@ -1206,3 +1206,114 @@ body {
 .touch-ripple:active::after {
   opacity: 1;
 }
+
+/* =====================================================
+   Section & Layout Organization Utilities
+   ===================================================== */
+
+/* Consistent section containers */
+.section-container {
+  @apply py-12 md:py-16 lg:py-20;
+  @apply px-4 md:px-6;
+  @apply max-w-7xl mx-auto;
+}
+
+/* Responsive card grids */
+.card-grid-2 {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6;
+}
+
+.card-grid-3 {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6;
+}
+
+.card-grid-4 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+/* Mobile table scroll wrapper */
+.table-scroll-mobile {
+  @apply overflow-x-auto -mx-4 px-4;
+  @apply md:mx-0 md:px-0;
+}
+
+/* Prevent overflow on mobile */
+.mobile-safe {
+  @apply overflow-hidden;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Text truncation with ellipsis - safe version */
+.truncate-safe {
+  @apply truncate;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* =====================================================
+   Mobile Touch-First Animations
+   ===================================================== */
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Disable hover sweep on touch - save GPU/battery */
+  .sweep-effect::before {
+    display: none;
+  }
+  
+  /* Use simpler tap feedback instead */
+  .sweep-effect:active {
+    background-image: linear-gradient(135deg, 
+      hsl(var(--primary) / 0.12), 
+      transparent 60%);
+    transition: background-image 0.1s ease-out;
+  }
+  
+  /* Reduce will-change usage on mobile */
+  .gpu-accelerated,
+  .performance-critical {
+    will-change: auto;
+  }
+  
+  /* Simpler hover-lift for touch */
+  .hover-lift:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-sm);
+  }
+  
+  /* Simplified glow-border for mobile */
+  .glow-border-animated::before,
+  .glow-border-animated::after {
+    animation: none !important;
+    opacity: 0.5 !important;
+  }
+  
+  /* Reduce shadow complexity on mobile */
+  .shadow-premium-hover:active {
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* Touch target area - ensure 44x44 minimum */
+.touch-target-area {
+  @apply min-h-[44px] min-w-[44px];
+  @apply flex items-center justify-center;
+}
+
+/* Battery/performance saving for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sweep-effect::before,
+  .glow-border-animated::before,
+  .glow-border-animated::after,
+  .animated-gradient,
+  .pulse-glow {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  
+  .skeleton-shimmer::after,
+  .skeleton-loading::after {
+    animation: none !important;
+  }
+}

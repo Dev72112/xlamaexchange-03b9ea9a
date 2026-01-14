@@ -147,7 +147,7 @@ export const NotificationCenter = memo(function NotificationCenter() {
                 <div
                   key={notification.id}
                   className={cn(
-                    "group relative p-4 rounded-xl glass border transition-all",
+                    "group relative p-4 rounded-xl glass border transition-all sweep-effect-fast",
                     notification.read
                       ? "border-border/30 opacity-70"
                       : "border-primary/20 glow-sm"

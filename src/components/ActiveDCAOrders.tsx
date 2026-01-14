@@ -105,7 +105,7 @@ const DCAOrderCard = memo(function DCAOrderCard({
 
   return (
     <div 
-      className={`p-3 sm:p-4 border border-border rounded-lg hover:border-primary/20 transition-colors ${STAGGER_ITEM_CLASS}`}
+      className={`p-3 sm:p-4 border border-border rounded-lg hover:border-primary/20 transition-colors sweep-effect performance-critical ${STAGGER_ITEM_CLASS}`}
       style={getStaggerStyle(index, 50)}
     >
       <div className="flex items-start justify-between gap-2 sm:gap-4">
@@ -211,7 +211,7 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-border overflow-hidden">
+      <Card className="border-border overflow-hidden sweep-effect shadow-premium-hover performance-critical">
         <CardHeader className="pb-2 sm:pb-3 p-4 sm:p-6">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">

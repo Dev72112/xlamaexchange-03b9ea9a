@@ -101,7 +101,7 @@ export const CryptoNews = memo(function CryptoNews() {
     <section className="py-6 sm:py-8 lg:py-12" aria-labelledby="news-heading">
       <div className="container px-4 sm:px-6 overflow-hidden">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <Card className="border-border overflow-hidden w-full">
+          <Card className="border-border overflow-hidden w-full sweep-effect shadow-premium-hover performance-critical">
             <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">

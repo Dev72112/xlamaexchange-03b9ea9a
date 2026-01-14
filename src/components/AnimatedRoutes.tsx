@@ -24,7 +24,7 @@ const pageVariants = {
 const pageTransition: Transition = {
   type: 'tween',
   ease: [0.25, 0.46, 0.45, 0.94],
-  duration: 0.25,
+  duration: 0.15, // Faster for perceived performance
 };
 
 export function AnimatedRoutes({ children }: AnimatedRoutesProps) {

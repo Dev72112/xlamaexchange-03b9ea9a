@@ -39,10 +39,10 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full glass border-b border-border/50 shadow-sm">
-        <div className="container flex h-14 items-center justify-between">
+      <header className="sticky top-0 z-50 w-full glass border-b border-border/50 shadow-sm overflow-hidden">
+        <div className="container flex h-14 items-center justify-between gap-2 overflow-hidden max-w-full">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl group hover-lift">
+          <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl group hover-lift shrink-0">
             <div className="relative w-9 h-9 rounded-lg overflow-hidden transition-transform group-hover:scale-105 ring-2 ring-primary/20">
               <img 
                 src={xlamaMascot} 
@@ -53,8 +53,8 @@ export function Header() {
             <span className="text-foreground hidden sm:inline bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">xlama</span>
           </Link>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1" role="navigation" aria-label="Main navigation">
+          {/* Desktop Nav - with overflow protection */}
+          <nav className="hidden lg:flex items-center gap-0.5 min-w-0 flex-shrink overflow-hidden" role="navigation" aria-label="Main navigation">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
@@ -63,28 +63,28 @@ export function Header() {
                 onTouchStart={() => handleLinkHover(link.path)}
                 onFocus={() => handleLinkHover(link.path)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-1 px-2.5 xl:px-3.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                   isActive(link.path)
                     ? "bg-secondary text-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                 )}
                 aria-current={isActive(link.path) ? "page" : undefined}
               >
-                {link.icon && <link.icon className="w-4 h-4" aria-hidden="true" />}
-                {link.label}
+                {link.icon && <link.icon className="w-4 h-4 shrink-0" aria-hidden="true" />}
+                <span className="hidden xl:inline">{link.label}</span>
               </Link>
             ))}
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Wallet Button */}
             <div className="hidden sm:block">
               <MultiWalletButton />
             </div>
 
             {/* Social Links */}
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="hidden xl:flex items-center gap-1">
               <a
                 href={SOCIAL_LINKS.x.url}
                 target="_blank"
@@ -135,11 +135,11 @@ export function Header() {
             <HeaderThemeCustomizer />
             <ThemeToggle />
 
-            {/* Mobile menu button */}
+            {/* Mobile menu button - show on tablets too */}
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="lg:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-menu"
@@ -161,11 +161,11 @@ export function Header() {
           </div>
         )}
 
-        {/* Mobile Nav */}
+        {/* Mobile Nav - show on tablets too */}
         {mobileMenuOpen && (
           <nav
             id="mobile-menu"
-            className="md:hidden border-t border-border bg-background p-4"
+            className="lg:hidden border-t border-border bg-background p-4"
             role="navigation"
             aria-label="Mobile navigation"
           >

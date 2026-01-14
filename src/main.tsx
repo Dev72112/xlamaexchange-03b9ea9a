@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { wagmiConfig, initializeAppKit } from "./config/appkit";
 import { startTokenPrefetch } from "./lib/tokenPrefetch";
+import { prefetchCriticalRoutes } from "./lib/routePrefetch";
 import { queryClient } from "./lib/queryClient";
 import { initWebVitals } from "./lib/performance";
 import { initErrorTracking } from "./lib/errorTracking";
@@ -55,8 +56,9 @@ const renderApp = () => {
     </React.StrictMode>
   );
   
-  // Start prefetching token lists (non-blocking)
+  // Start prefetching (non-blocking)
   startTokenPrefetch();
+  prefetchCriticalRoutes();
 };
 
 // Initialize AppKit then render

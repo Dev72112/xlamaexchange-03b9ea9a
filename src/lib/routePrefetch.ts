@@ -1,4 +1,4 @@
-import { lazy, ComponentType } from 'react';
+import { ComponentType } from 'react';
 
 // Map of routes to their lazy-loaded components
 const routeComponents: Record<string, () => Promise<{ default: ComponentType<unknown> }>> = {
@@ -20,6 +20,9 @@ const routeComponents: Record<string, () => Promise<{ default: ComponentType<unk
   '/changelog': () => import('@/pages/Changelog'),
   '/feedback': () => import('@/pages/Feedback'),
 };
+
+// Critical routes to prefetch on app mount
+const CRITICAL_ROUTES = ['/bridge', '/portfolio', '/orders', '/history'];
 
 // Track which routes have been prefetched to avoid duplicate requests
 const prefetchedRoutes = new Set<string>();
@@ -79,4 +82,21 @@ export function isRoutePrefetched(path: string): boolean {
  */
 export function clearPrefetchCache(): void {
   prefetchedRoutes.clear();
+}
+
+/**
+ * Prefetch critical routes on app mount for faster initial navigation
+ */
+export function prefetchCriticalRoutes(): void {
+  // Use requestIdleCallback for non-blocking prefetch
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => {
+      CRITICAL_ROUTES.forEach(route => prefetchRoute(route));
+    }, { timeout: 3000 });
+  } else {
+    // Fallback with delay
+    setTimeout(() => {
+      CRITICAL_ROUTES.forEach(route => prefetchRoute(route));
+    }, 1500);
+  }
 }
