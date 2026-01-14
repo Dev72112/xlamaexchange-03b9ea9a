@@ -37,7 +37,7 @@ const popularPairs = [
 ];
 
 export function PriceAlerts() {
-  const { alerts, addAlert, removeAlert, activeAlerts, triggeredAlerts } = usePriceAlerts();
+  const { alerts, addAlert, removeAlert, clearAllTriggered, activeAlerts, triggeredAlerts } = usePriceAlerts();
   const { currencies: allCurrencies, isLoading: currenciesLoading } = useChangeNowCurrencies();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPair, setSelectedPair] = useState("");
@@ -416,10 +416,21 @@ export function PriceAlerts() {
                 {/* Triggered Alerts */}
                 {triggeredAlerts.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <BellRing className="w-3 h-3 sm:w-4 sm:h-4 text-warning shrink-0" />
-                      Triggered ({triggeredAlerts.length})
-                    </h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <BellRing className="w-3 h-3 sm:w-4 sm:h-4 text-warning shrink-0" />
+                        Triggered ({triggeredAlerts.length})
+                      </h3>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={clearAllTriggered}
+                        className="text-xs text-muted-foreground hover:text-destructive gap-1.5 h-7"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Clear All
+                      </Button>
+                    </div>
                     <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                       {triggeredAlerts.map((alert) => (
                         <AlertCard 

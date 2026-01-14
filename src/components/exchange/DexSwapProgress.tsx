@@ -1,9 +1,10 @@
-import { Check, Loader2, X, ExternalLink, Clock } from "lucide-react";
+import { Check, Loader2, X, ExternalLink, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chain } from "@/data/chains";
 import { cn } from "@/lib/utils";
 import { SwapStep } from "@/hooks/useDexSwap";
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface DexSwapProgressProps {
   step: SwapStep;
@@ -19,7 +20,7 @@ const STEP_CONFIG: Record<SwapStep, { label: string; description: string }> = {
   'checking-allowance': { label: 'Checking Allowance', description: 'Verifying token approval...' },
   'approving': { label: 'Approving', description: 'Please approve the token spend in your wallet' },
   'swapping': { label: 'Swapping', description: 'Please confirm the swap in your wallet' },
-  'confirming': { label: 'Confirming', description: 'Waiting for transaction confirmation...' },
+  'confirming': { label: 'Confirming', description: 'Waiting for blockchain confirmation...' },
   'complete': { label: 'Complete', description: 'Swap completed successfully!' },
   'error': { label: 'Error', description: 'Something went wrong' },
 };
@@ -51,7 +52,7 @@ function getExplorerInfo(chain: Chain, txHash: string | null): { url: string | n
 
 function getEstimatedTime(chain: Chain): string {
   const chainName = chain.name.toLowerCase();
-  if (chainName.includes('solana')) return '~1s';
+  if (chainName.includes('solana')) return '~15-60s';
   if (chainName.includes('sui')) return '~2s';
   if (chainName.includes('ton')) return '~5s';
   if (chainName.includes('tron')) return '~3s';
@@ -90,59 +91,118 @@ export function DexSwapProgress({
   }, [isConfirming]);
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Progress indicator */}
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="p-6 space-y-5"
+    >
+      {/* Progress indicator with animation */}
       <div className="flex items-center justify-center">
-        <div className={cn(
-          "w-16 h-16 rounded-full flex items-center justify-center",
-          isComplete && "bg-success/20",
-          isError && "bg-destructive/20",
-          isActive && "bg-primary/20"
-        )}>
-          {isComplete ? (
-            <Check className="w-8 h-8 text-success" />
-          ) : isError ? (
-            <X className="w-8 h-8 text-destructive" />
-          ) : (
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <motion.div 
+          initial={{ scale: 0.8 }}
+          animate={{ scale: 1 }}
+          className={cn(
+            "w-20 h-20 rounded-full flex items-center justify-center relative",
+            isComplete && "bg-success/20",
+            isError && "bg-destructive/20",
+            isActive && "bg-primary/20"
           )}
-        </div>
+        >
+          {/* Animated ring for active state */}
+          {isActive && (
+            <motion.div
+              className="absolute inset-0 rounded-full border-2 border-primary/30"
+              animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.2, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            />
+          )}
+          
+          <AnimatePresence mode="wait">
+            {isComplete ? (
+              <motion.div
+                key="complete"
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              >
+                <Check className="w-10 h-10 text-success" />
+              </motion.div>
+            ) : isError ? (
+              <motion.div
+                key="error"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+              >
+                <X className="w-10 h-10 text-destructive" />
+              </motion.div>
+            ) : (
+              <motion.div key="loading" className="relative">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <Sparkles className="w-4 h-4 text-primary absolute -top-1 -right-1 animate-pulse" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
 
-      {/* Status text */}
-      <div className="text-center space-y-1">
-        <h3 className="font-semibold text-lg">{config.label}</h3>
+      {/* Status text with animation */}
+      <motion.div 
+        key={step}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center space-y-2"
+      >
+        <h3 className="font-semibold text-xl">{config.label}</h3>
         <p className="text-sm text-muted-foreground">{config.description}</p>
-      </div>
+      </motion.div>
 
-      {/* Confirmation timer for non-EVM */}
+      {/* Confirmation timer for Solana */}
       {isConfirming && (
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Clock className="w-4 h-4" />
-          <span>{elapsedTime}s elapsed • Est. {estimatedTime}</span>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-center gap-2 text-sm text-muted-foreground bg-secondary/30 py-2 px-4 rounded-lg mx-auto w-fit"
+        >
+          <Clock className="w-4 h-4 animate-pulse" />
+          <span className="font-mono">{elapsedTime}s</span>
+          <span className="text-xs">• Est. {estimatedTime}</span>
+        </motion.div>
       )}
 
       {/* Chain badge */}
       {isActive && (
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-full text-xs">
-            {chain.icon && <img src={chain.icon} alt={chain.name} className="w-4 h-4 rounded-full" />}
-            <span className="text-muted-foreground">{chain.name}</span>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex justify-center"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full text-sm border border-border/50">
+            {chain.icon && <img src={chain.icon} alt={chain.name} className="w-5 h-5 rounded-full" />}
+            <span className="font-medium">{chain.name}</span>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Error message */}
       {isError && error && (
-        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive"
+        >
           {error}
-        </div>
+        </motion.div>
       )}
 
       {/* Transaction hash with explorer link */}
       {txHash && (
-        <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-secondary/50 rounded-xl space-y-2 border border-border/50"
+        >
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Transaction</span>
             {explorerUrl ? (
@@ -150,26 +210,26 @@ export function DexSwapProgress({
                 href={explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-primary hover:underline font-mono text-xs"
+                className="flex items-center gap-1.5 text-primary hover:text-primary/80 font-mono text-xs transition-colors"
               >
                 {txHash.slice(0, 10)}...{txHash.slice(-8)}
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             ) : (
               <span className="font-mono text-xs">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
             )}
           </div>
           {explorerUrl && (
-            <div className="text-xs text-muted-foreground text-center">
+            <div className="text-xs text-muted-foreground text-center pt-1">
               View on {explorerName}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
-      {/* Step progress dots */}
+      {/* Step progress dots with animation */}
       {isActive && (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-3 pt-2">
           {['checking-allowance', 'approving', 'swapping', 'confirming'].map((s, i) => {
             const steps = ['checking-allowance', 'approving', 'swapping', 'confirming'];
             const currentIndex = steps.indexOf(step);
@@ -177,12 +237,17 @@ export function DexSwapProgress({
             const isStepActive = i === currentIndex;
 
             return (
-              <div
+              <motion.div
                 key={s}
+                initial={false}
+                animate={{
+                  scale: isStepActive ? 1.3 : 1,
+                  opacity: isStepComplete || isStepActive ? 1 : 0.3,
+                }}
                 className={cn(
-                  "w-2 h-2 rounded-full transition-all",
+                  "w-2.5 h-2.5 rounded-full transition-colors",
                   isStepComplete && "bg-primary",
-                  isStepActive && "bg-primary animate-pulse w-3",
+                  isStepActive && "bg-primary",
                   !isStepComplete && !isStepActive && "bg-muted"
                 )}
               />
@@ -192,35 +257,35 @@ export function DexSwapProgress({
       )}
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className="flex gap-3 pt-2">
         {isComplete && (
           <>
             {explorerUrl && (
               <Button
                 variant="outline"
-                className="flex-1"
+                className="flex-1 h-11"
                 onClick={() => window.open(explorerUrl, '_blank')}
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 View on {explorerName}
               </Button>
             )}
-            <Button className="flex-1" onClick={onClose}>
+            <Button className="flex-1 h-11 gradient-primary text-primary-foreground" onClick={onClose}>
               Done
             </Button>
           </>
         )}
         {isError && (
           <>
-            <Button variant="outline" className="flex-1" onClick={onClose}>
+            <Button variant="outline" className="flex-1 h-11" onClick={onClose}>
               Cancel
             </Button>
-            <Button className="flex-1" onClick={onRetry}>
+            <Button className="flex-1 h-11" onClick={onRetry}>
               Try Again
             </Button>
           </>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
