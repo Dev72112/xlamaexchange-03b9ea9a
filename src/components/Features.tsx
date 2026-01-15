@@ -62,7 +62,7 @@ export const Features = memo(function Features() {
           {features.map((feature, index) => (
             <article
               key={feature.title}
-              className={`group p-5 sm:p-6 rounded-xl bg-card border border-border hover:border-primary/20 hover-lift transition-all duration-300 ${STAGGER_ITEM_CLASS}`}
+              className={`group p-5 sm:p-6 rounded-xl bg-card border border-border hover:border-primary/20 hover-lift transition-all duration-300 sweep-effect shadow-premium-hover performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index, 60)}
             >
               <div 

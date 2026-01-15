@@ -45,7 +45,7 @@ export const HowItWorks = memo(function HowItWorks() {
               className={`relative group ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index, 100)}
             >
-              <div className="bg-card rounded-xl p-5 sm:p-6 border border-border hover:border-primary/20 hover-lift transition-all duration-300 h-full">
+              <div className="bg-card rounded-xl p-5 sm:p-6 border border-border hover:border-primary/20 hover-lift transition-all duration-300 h-full sweep-effect shadow-premium-hover performance-critical overflow-hidden">
                 <div 
                   className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:scale-105 transition-transform"
                   aria-hidden="true"
@@ -53,7 +53,7 @@ export const HowItWorks = memo(function HowItWorks() {
                   <step.icon className="w-6 h-6 sm:w-7 sm:h-7 text-foreground" />
                 </div>
                 <div 
-                  className="absolute -top-2.5 -right-2.5 sm:-top-3 sm:-right-3 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-foreground text-background font-bold flex items-center justify-center text-xs sm:text-sm"
+                  className="absolute -top-2.5 -right-2.5 sm:-top-3 sm:-right-3 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-foreground text-background font-bold flex items-center justify-center text-xs sm:text-sm z-10"
                   aria-label={`Step ${index + 1}`}
                 >
                   {index + 1}

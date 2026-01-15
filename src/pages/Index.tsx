@@ -137,143 +137,173 @@ const Index = () => {
         </script>
       </Helmet>
 
-      {/* Hero Section */}
-      <HeroSection />
+      <main className="flex flex-col">
+        {/* Section 1: Hero */}
+        <HeroSection />
 
-
-      {/* Exchange Section */}
-      <section 
-        ref={exchangeRef}
-        className={`py-12 sm:py-16 lg:py-20 ${getScrollRevealClass(exchangeVisible, 'fade')}`} 
-        aria-labelledby="exchange-heading"
-      >
-        <div className="container px-4 sm:px-6">
-          {/* Title */}
-          <div className="text-center mb-10 sm:mb-12">
-            <h2 id="exchange-heading" className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 tracking-tight">
-              {currentMode === 'instant' ? 'Crypto converter and calculator' : 'DEX Swap Aggregator'}
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-              {currentMode === 'instant' 
-                ? 'This page displays the real-time conversion rate of crypto against its cash equivalent. You can instantly convert 900+ popular cryptocurrencies with the best available rates.'
-                : 'Swap tokens directly from your wallet with the best rates from 400+ DEXs. Connect your wallet, select tokens, and swap on-chain across 25+ networks.'
-              }
-            </p>
-          </div>
-
-          {/* Exchange Widget */}
-          <div id="exchange-widget" ref={widgetRef} className="max-w-xl mx-auto mb-16">
-            <ExchangeWidget onModeChange={handleModeChange} />
-          </div>
-
-          {/* Feature Cards */}
-          <div ref={featuresRef} className={`max-w-4xl mx-auto ${getScrollRevealClass(featuresVisible, 'slide-up')}`}>
-            <h3 className="text-xl sm:text-2xl font-semibold mb-6">{sectionTitle}</h3>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {features.map((feature, index) => (
-                <FeatureCard key={feature.title} index={index} {...feature} />
-              ))}
+        {/* Section 2: Exchange Widget */}
+        <section 
+          ref={exchangeRef}
+          id="exchange"
+          className={`section-container ${getScrollRevealClass(exchangeVisible, 'fade')}`} 
+          aria-labelledby="exchange-heading"
+        >
+          <div className="max-w-7xl mx-auto">
+            {/* Title */}
+            <div className="text-center mb-10 sm:mb-12">
+              <h2 id="exchange-heading" className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 tracking-tight">
+                {currentMode === 'instant' ? 'Crypto converter and calculator' : 'DEX Swap Aggregator'}
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+                {currentMode === 'instant' 
+                  ? 'This page displays the real-time conversion rate of crypto against its cash equivalent. You can instantly convert 900+ popular cryptocurrencies with the best available rates.'
+                  : 'Swap tokens directly from your wallet with the best rates from 400+ DEXs. Connect your wallet, select tokens, and swap on-chain across 25+ networks.'
+                }
+              </p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Mode-aware sections */}
-      {currentMode === 'instant' ? (
-        <>
-          <FavoritePairsSection />
-          <Suspense fallback={<TrendingPairsSkeleton />}>
-            <TrendingPairs onSelectPair={handleSelectPair} />
-          </Suspense>
-          <Suspense fallback={<TransactionTrackerSkeleton />}>
-            <TransactionTracker />
-          </Suspense>
-        </>
-      ) : (
-        <>
-          {/* Quick Links for DEX Mode */}
-          <section className="py-6">
-            <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
-              <div className="grid sm:grid-cols-3 gap-4">
-                <Link 
-                  to="/bridge"
-                  className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-card/80 transition-all ${STAGGER_ITEM_CLASS}`}
-                  style={getStaggerStyle(0, 80)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Link2 className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Bridge</p>
-                      <p className="text-xs text-muted-foreground">Cross-chain transfers</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                </Link>
+            {/* Exchange Widget */}
+            <div id="exchange-widget" ref={widgetRef} className="max-w-xl mx-auto mb-12 sm:mb-16">
+              <ExchangeWidget onModeChange={handleModeChange} />
+            </div>
 
-                <Link 
-                  to="/orders"
-                  className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-card/80 transition-all ${STAGGER_ITEM_CLASS}`}
-                  style={getStaggerStyle(1, 80)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <ListOrdered className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Orders</p>
-                      <p className="text-xs text-muted-foreground">Limit & DCA orders</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                </Link>
-
-                <Link 
-                  to="/tools"
-                  className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-card/80 transition-all ${STAGGER_ITEM_CLASS}`}
-                  style={getStaggerStyle(2, 80)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Wrench className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Tools</p>
-                      <p className="text-xs text-muted-foreground">Gas, predictions, alerts</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                </Link>
+            {/* Feature Cards */}
+            <div ref={featuresRef} className={`max-w-4xl mx-auto ${getScrollRevealClass(featuresVisible, 'slide-up')}`}>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-6">{sectionTitle}</h3>
+              <div className="card-grid-4">
+                {features.map((feature, index) => (
+                  <FeatureCard key={feature.title} index={index} {...feature} />
+                ))}
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* Token Watchlist for DEX mode */}
-          <section className="py-6">
-            <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
-              <TokenWatchlist />
-            </div>
-          </section>
+        {/* Section 3: Mode-specific Content */}
+        {currentMode === 'instant' ? (
+          <>
+            {/* Favorites & Trending */}
+            <section className="section-container bg-secondary/30">
+              <div className="max-w-7xl mx-auto space-y-8">
+                <FavoritePairsSection />
+                <Suspense fallback={<TrendingPairsSkeleton />}>
+                  <TrendingPairs onSelectPair={handleSelectPair} />
+                </Suspense>
+              </div>
+            </section>
 
-          <Suspense fallback={<TransactionTrackerSkeleton />}>
-            <DexTransactionHistory />
-          </Suspense>
-        </>
-      )}
+            {/* Transaction Tracker */}
+            <section className="section-container">
+              <div className="max-w-7xl mx-auto">
+                <Suspense fallback={<TransactionTrackerSkeleton />}>
+                  <TransactionTracker />
+                </Suspense>
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            {/* Quick Links for DEX Mode */}
+            <section className="py-8 sm:py-10">
+              <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
+                <div className="card-grid-3">
+                  <Link 
+                    to="/bridge"
+                    className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}
+                    style={getStaggerStyle(0, 80)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Link2 className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">Bridge</p>
+                        <p className="text-xs text-muted-foreground truncate">Cross-chain transfers</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                  </Link>
 
-      {/* Crypto News Section */}
-      <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg mx-4" />}>
-        <CryptoNews />
-      </Suspense>
-      
-      <PriceAlerts />
-      
-      {/* Mode-aware How It Works */}
-      {currentMode === 'instant' ? <HowItWorks /> : <DexHowItWorks />}
-      
-      <Features />
-      <Partners />
+                  <Link 
+                    to="/orders"
+                    className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}
+                    style={getStaggerStyle(1, 80)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <ListOrdered className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">Orders</p>
+                        <p className="text-xs text-muted-foreground truncate">Limit & DCA orders</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                  </Link>
+
+                  <Link 
+                    to="/tools"
+                    className={`group flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}
+                    style={getStaggerStyle(2, 80)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Wrench className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">Tools</p>
+                        <p className="text-xs text-muted-foreground truncate">Gas, predictions, alerts</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {/* Token Watchlist */}
+            <section className="py-6 sm:py-8 bg-secondary/30">
+              <div className="container px-4 sm:px-6 max-w-4xl mx-auto">
+                <TokenWatchlist />
+              </div>
+            </section>
+
+            {/* DEX Transaction History */}
+            <section className="section-container">
+              <div className="max-w-7xl mx-auto">
+                <Suspense fallback={<TransactionTrackerSkeleton />}>
+                  <DexTransactionHistory />
+                </Suspense>
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Section 4: Crypto News */}
+        <section className="py-8 sm:py-12 bg-secondary/20">
+          <div className="container px-4 sm:px-6 max-w-7xl mx-auto">
+            <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+              <CryptoNews />
+            </Suspense>
+          </div>
+        </section>
+        
+        {/* Section 5: Price Alerts */}
+        <section className="section-container">
+          <div className="max-w-7xl mx-auto">
+            <PriceAlerts />
+          </div>
+        </section>
+        
+        {/* Section 6: How It Works */}
+        {currentMode === 'instant' ? <HowItWorks /> : <DexHowItWorks />}
+        
+        {/* Section 7: Features */}
+        <Features />
+        
+        {/* Section 8: Partners */}
+        <Partners />
+      </main>
     </Layout>
   );
 };
