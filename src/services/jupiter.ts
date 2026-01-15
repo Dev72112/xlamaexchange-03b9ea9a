@@ -59,6 +59,73 @@ export interface JupiterQuoteResponse {
   }>;
 }
 
+// Limit Order Types
+export interface JupiterLimitOrderParams {
+  inputMint: string;
+  outputMint: string;
+  maker: string;
+  makingAmount: string;    // Amount to sell (in smallest units)
+  takingAmount: string;    // Minimum amount to receive (in smallest units)
+  expiredAt?: number;      // Unix timestamp in seconds
+  feeAccount?: string;     // Referral token account for output mint
+  computeUnitPrice?: string | 'auto';
+}
+
+export interface JupiterLimitOrderResponse {
+  tx: string;              // Base64 encoded transaction
+  order: string;           // Order public key
+}
+
+export interface JupiterOpenOrder {
+  order: string;
+  inputMint: string;
+  outputMint: string;
+  makingAmount: string;
+  takingAmount: string;
+  remainingMakingAmount: string;
+  remainingTakingAmount: string;
+  expiredAt: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// DCA Types
+export interface JupiterDCAParams {
+  user: string;
+  inputMint: string;
+  outputMint: string;
+  inAmount: string;        // Total amount to invest (in smallest units)
+  numberOfOrders: number;  // Number of DCA orders
+  interval: number;        // Seconds between orders
+  minPrice?: number | null;
+  maxPrice?: number | null;
+  startAt?: number | null; // Unix timestamp, null = start immediately
+}
+
+export interface JupiterDCAResponse {
+  tx: string;              // Base64 encoded transaction
+  order: string;           // DCA order public key
+}
+
+export interface JupiterDCAOrder {
+  order: string;
+  user: string;
+  inputMint: string;
+  outputMint: string;
+  inAmount: string;
+  inDeposited: string;
+  inWithdrawn: string;
+  outWithdrawn: string;
+  inUsed: string;
+  outReceived: string;
+  inAmountPerCycle: string;
+  cycleFrequency: number;
+  nextCycleAt: number;
+  minOutAmount: string | null;
+  maxOutAmount: string | null;
+  createdAt: string;
+}
+
 class JupiterService {
   private edgeFunctionUrl: string;
 
@@ -202,6 +269,206 @@ class JupiterService {
     return data;
   }
 
+  // ============ LIMIT ORDERS ============
+
+  /**
+   * Create a limit order on Jupiter
+   * Returns transaction to sign and order public key
+   */
+  async createLimitOrder(params: JupiterLimitOrderParams): Promise<JupiterLimitOrderResponse> {
+    console.log('[Jupiter] Creating limit order:', {
+      inputMint: params.inputMint.slice(0, 8) + '...',
+      outputMint: params.outputMint.slice(0, 8) + '...',
+      makingAmount: params.makingAmount,
+      takingAmount: params.takingAmount,
+    });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=limit-create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Limit order creation failed:', errorData);
+      throw new Error(errorData.error || `Failed to create limit order: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get open limit orders for a wallet
+   */
+  async getOpenLimitOrders(wallet: string): Promise<JupiterOpenOrder[]> {
+    console.log('[Jupiter] Getting open limit orders:', { wallet: wallet.slice(0, 8) + '...' });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=limit-orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Failed to get limit orders:', errorData);
+      throw new Error(errorData.error || `Failed to get limit orders: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.orders || data || [];
+  }
+
+  /**
+   * Cancel limit orders
+   * Returns transaction to sign
+   */
+  async cancelLimitOrders(maker: string, orders: string[]): Promise<{ tx: string }> {
+    console.log('[Jupiter] Cancelling limit orders:', {
+      maker: maker.slice(0, 8) + '...',
+      orderCount: orders.length,
+    });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=limit-cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ maker, orders }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Failed to cancel limit orders:', errorData);
+      throw new Error(errorData.error || `Failed to cancel limit orders: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get limit order history
+   */
+  async getLimitOrderHistory(wallet: string): Promise<JupiterOpenOrder[]> {
+    console.log('[Jupiter] Getting limit order history:', { wallet: wallet.slice(0, 8) + '...' });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=limit-history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Failed to get limit order history:', errorData);
+      throw new Error(errorData.error || `Failed to get limit order history: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.orders || data || [];
+  }
+
+  // ============ DCA ORDERS ============
+
+  /**
+   * Create a DCA order on Jupiter
+   * Returns transaction to sign and order public key
+   */
+  async createDCAOrder(params: JupiterDCAParams): Promise<JupiterDCAResponse> {
+    console.log('[Jupiter] Creating DCA order:', {
+      user: params.user.slice(0, 8) + '...',
+      inputMint: params.inputMint.slice(0, 8) + '...',
+      outputMint: params.outputMint.slice(0, 8) + '...',
+      inAmount: params.inAmount,
+      numberOfOrders: params.numberOfOrders,
+      interval: params.interval,
+    });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=dca-create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] DCA order creation failed:', errorData);
+      throw new Error(errorData.error || `Failed to create DCA order: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get open DCA orders for a wallet
+   */
+  async getOpenDCAOrders(wallet: string): Promise<JupiterDCAOrder[]> {
+    console.log('[Jupiter] Getting open DCA orders:', { wallet: wallet.slice(0, 8) + '...' });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=dca-orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Failed to get DCA orders:', errorData);
+      throw new Error(errorData.error || `Failed to get DCA orders: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.orders || data || [];
+  }
+
+  /**
+   * Cancel a DCA order
+   * Returns transaction to sign
+   */
+  async cancelDCAOrder(user: string, order: string): Promise<{ tx: string }> {
+    console.log('[Jupiter] Cancelling DCA order:', {
+      user: user.slice(0, 8) + '...',
+      order: order.slice(0, 8) + '...',
+    });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=dca-cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user, order }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Failed to cancel DCA order:', errorData);
+      throw new Error(errorData.error || `Failed to cancel DCA order: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get DCA order history
+   */
+  async getDCAOrderHistory(wallet: string): Promise<JupiterDCAOrder[]> {
+    console.log('[Jupiter] Getting DCA order history:', { wallet: wallet.slice(0, 8) + '...' });
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=dca-history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Failed to get DCA order history:', errorData);
+      throw new Error(errorData.error || `Failed to get DCA order history: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.orders || data || [];
+  }
+
+  // ============ UTILITIES ============
+
   /**
    * Convert human-readable amount to lamports/smallest unit
    */
@@ -211,6 +478,29 @@ class JupiterService {
     const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
     const combined = whole + paddedFraction;
     return combined.replace(/^0+/, '') || '0';
+  }
+
+  /**
+   * Calculate taking amount for limit orders based on target price
+   * @param makingAmount Amount to sell (in smallest units)
+   * @param currentPrice Current price of input token in terms of output token
+   * @param targetPrice Target price to execute at
+   * @param inputDecimals Decimals of input token
+   * @param outputDecimals Decimals of output token
+   */
+  calculateTakingAmount(
+    makingAmount: string,
+    targetPrice: number,
+    inputDecimals: number,
+    outputDecimals: number
+  ): string {
+    const making = BigInt(makingAmount);
+    const scaleFactor = BigInt(10 ** outputDecimals);
+    const priceScaled = BigInt(Math.floor(targetPrice * 10 ** 9)); // Use 9 decimal precision
+    
+    // takingAmount = makingAmount * targetPrice * (10^outputDecimals) / (10^inputDecimals) / 10^9
+    const taking = (making * priceScaled * scaleFactor) / BigInt(10 ** inputDecimals) / BigInt(10 ** 9);
+    return taking.toString();
   }
 }
 
