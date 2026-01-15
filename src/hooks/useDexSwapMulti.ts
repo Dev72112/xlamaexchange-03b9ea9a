@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { okxDexService, OkxToken } from '@/services/okxdex';
+import { jupiterService, JupiterOrderResponse } from '@/services/jupiter';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
@@ -9,6 +10,8 @@ import bs58 from 'bs58';
 import { getSolanaRpcEndpoints } from '@/config/rpc';
 import { notificationService } from '@/services/notificationService';
 
+// Wrapped SOL mint address (used by Jupiter for native SOL)
+const WRAPPED_SOL_MINT = 'So11111111111111111111111111111111111111112';
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
 interface UseDexSwapOptions {
@@ -250,7 +253,7 @@ export function useDexSwapMulti() {
     onSuccess?.(hash);
   };
 
-  // Solana Swap - prioritizes OKX injected provider, falls back to AppKit
+  // Solana Swap - Jupiter Primary with OKX Fallback
   const executeSolanaSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
     if (!solanaAddress) {
       throw new Error('Solana wallet not connected');
@@ -264,54 +267,148 @@ export function useDexSwapMulti() {
       throw new Error('No Solana wallet provider available. Please connect OKX Wallet or Phantom.');
     }
 
-    // CRITICAL: Ensure the provider is actually connected with a valid publicKey
-    // This is the root cause of "Cannot read properties of null (reading 'toBase58')"
-    console.log('[Solana] Provider check:', {
-      hasProvider: !!provider,
-      providerType: provider.isOkxWallet ? 'OKX' : (provider.isPhantom ? 'Phantom' : 'Other'),
-      hasPublicKey: !!provider.publicKey,
-      publicKeyValue: provider.publicKey?.toBase58?.() || provider.publicKey?.toString?.() || 'null',
-      hasConnect: typeof provider.connect === 'function',
-      expectedAddress: solanaAddress,
-    });
-
-    // If provider.publicKey is null, try to connect
+    // Ensure provider is connected
     if (!provider.publicKey) {
       console.log('[Solana] Provider publicKey is null, attempting to connect...');
-      
       if (typeof provider.connect === 'function') {
-        try {
-          const connectResult = await provider.connect();
-          console.log('[Solana] Connect result:', connectResult);
-          
-          // Re-check publicKey after connect
-          if (!provider.publicKey) {
-            throw new Error(
-              'Wallet connection incomplete. Please disconnect and reconnect your Solana wallet, then try again.'
-            );
-          }
-        } catch (connectErr: any) {
-          console.error('[Solana] Connect failed:', connectErr);
-          throw new Error(
-            `Failed to connect Solana wallet: ${connectErr?.message?.slice(0, 50) || 'Unknown error'}. Please reconnect and try again.`
-          );
+        await provider.connect();
+        if (!provider.publicKey) {
+          throw new Error('Wallet connection incomplete. Please disconnect and reconnect your Solana wallet.');
         }
       } else {
-        throw new Error(
-          'Solana wallet is not fully connected (missing publicKey). Please disconnect and reconnect your wallet.'
-        );
+        throw new Error('Solana wallet not fully connected. Please reconnect your wallet.');
       }
     }
 
-    // Validate the provider's publicKey matches expected address
     const providerPubkey = provider.publicKey?.toBase58?.() || provider.publicKey?.toString?.();
-    if (providerPubkey && providerPubkey !== solanaAddress) {
-      console.warn('[Solana] Address mismatch:', { providerPubkey, expectedAddress: solanaAddress });
-      // Use provider's actual address for the swap
+    console.log('[Solana] Provider ready:', { pubkey: providerPubkey?.slice(0, 12) + '...' });
+
+    // TRY JUPITER FIRST (for commission earnings)
+    try {
+      console.log('[Solana] Attempting Jupiter Ultra swap (primary)...');
+      const result = await executeJupiterSwap({
+        fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey
+      });
+      return result;
+    } catch (jupiterError: any) {
+      console.warn('[Jupiter] Swap failed, falling back to OKX:', jupiterError?.message?.slice(0, 100));
+      
+      // Check if user rejected - don't fallback for user rejections
+      if (jupiterError?.message?.includes('rejected') || jupiterError?.code === 4001) {
+        throw jupiterError;
+      }
+      
+      toast({
+        title: 'Jupiter Unavailable',
+        description: 'Using OKX DEX as fallback...',
+      });
     }
 
+    // FALLBACK TO OKX DEX
+    console.log('[Solana] Falling back to OKX DEX...');
+    return await executeOkxSolanaSwap({
+      chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey
+    });
+  };
+
+  // Jupiter Ultra API Swap Implementation
+  const executeJupiterSwap = async ({ 
+    fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey 
+  }: any) => {
     setStep('swapping');
-    toast({ title: 'Preparing Swap', description: 'Getting best route for Solana...' });
+    toast({ title: 'Preparing Swap', description: 'Getting best route via Jupiter...' });
+
+    // Convert token addresses to Solana mint format
+    // Native SOL uses wrapped SOL mint in Jupiter
+    const inputMint = fromToken.tokenContractAddress?.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase()
+      ? WRAPPED_SOL_MINT
+      : fromToken.tokenContractAddress;
+    const outputMint = toToken.tokenContractAddress?.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase()
+      ? WRAPPED_SOL_MINT
+      : toToken.tokenContractAddress;
+
+    // Get order from Jupiter Ultra API (includes transaction)
+    const orderResponse = await jupiterService.getSwapOrder({
+      inputMint,
+      outputMint,
+      amount: amountInSmallestUnit,
+      takerAddress: providerPubkey,
+      slippageBps: Math.round(parseFloat(slippage) * 100), // Convert 0.5 -> 50 bps
+    });
+
+    if (!orderResponse.transaction) {
+      throw new Error('Jupiter did not return a transaction');
+    }
+
+    toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your wallet' });
+
+    // CRITICAL: Jupiter returns BASE64 encoded transactions (not base58 like OKX!)
+    const txBytes = Uint8Array.from(atob(orderResponse.transaction), c => c.charCodeAt(0));
+    
+    // Deserialize the versioned transaction
+    let tx: VersionedTransaction;
+    try {
+      tx = VersionedTransaction.deserialize(txBytes);
+      console.log('[Jupiter] Transaction deserialized:', {
+        numAccountKeys: tx.message.staticAccountKeys.length,
+        recentBlockhash: tx.message.recentBlockhash?.slice(0, 12) + '...',
+      });
+    } catch (deserError: any) {
+      console.error('[Jupiter] Transaction deserialize error:', deserError);
+      throw new Error(`Failed to parse Jupiter transaction: ${deserError?.message?.slice(0, 50)}`);
+    }
+
+    // Sign with wallet provider
+    let signedTx: VersionedTransaction;
+    try {
+      console.log('[Jupiter] Signing transaction...');
+      signedTx = await provider.signTransaction(tx);
+      console.log('[Jupiter] Transaction signed successfully');
+    } catch (signError: any) {
+      if (signError?.message?.includes('rejected') || signError?.code === 4001) {
+        throw signError;
+      }
+      throw new Error(`Failed to sign transaction: ${signError?.message?.slice(0, 50)}`);
+    }
+
+    // Convert to base64 for Jupiter execute endpoint
+    const signedBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
+
+    // Execute via Jupiter API (they handle RPC submission for reliability)
+    console.log('[Jupiter] Submitting to Jupiter execute endpoint...');
+    const executeResponse = await jupiterService.executeSwap({
+      signedTransaction: signedBase64,
+      requestId: orderResponse.requestId,
+    });
+
+    if (executeResponse.status === 'Failed') {
+      throw new Error(executeResponse.error || 'Jupiter execution failed');
+    }
+
+    const signature = executeResponse.signature;
+    setStep('confirming');
+    setTxHash(signature);
+    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
+
+    // Jupiter handles confirmation - wait briefly for UI update
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    setStep('complete');
+    notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
+    toast({ 
+      title: 'Swap Complete! 🎉', 
+      description: `Successfully swapped ${amount} ${fromToken.tokenSymbol} via Jupiter` 
+    });
+    onSuccess?.(signature);
+    return signature;
+  };
+
+  // OKX DEX Solana Swap (Fallback)
+  const executeOkxSolanaSwap = async ({ 
+    chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey 
+  }: any) => {
+    setStep('swapping');
+    toast({ title: 'Preparing Swap', description: 'Getting best route for Solana (OKX)...' });
 
     // Get swap data from OKX DEX API
     const swapData = await okxDexService.getSwapData(
@@ -319,7 +416,7 @@ export function useDexSwapMulti() {
       fromToken.tokenContractAddress,
       toToken.tokenContractAddress,
       amountInSmallestUnit,
-      providerPubkey || solanaAddress, // Use provider's actual address
+      providerPubkey || solanaAddress,
       slippage
     );
 
@@ -327,123 +424,61 @@ export function useDexSwapMulti() {
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your wallet' });
 
-    // CRITICAL: OKX returns base58-encoded transaction data for Solana
+    // OKX returns base58-encoded transaction data for Solana
     const txBytes = decodeBase58ToBytes(swapData.tx.data);
     let signature: string;
     
-    // Use Alchemy RPC ONLY (no public fallbacks for easier debugging)
+    // Use Alchemy RPC
     const SOLANA_RPC_ENDPOINTS = getSolanaRpcEndpoints(chain.rpcUrl);
     
-    // Check if Alchemy is configured - fail fast with clear message
     if (SOLANA_RPC_ENDPOINTS.length === 0) {
-      throw new Error(
-        'Alchemy RPC not configured. To fix: 1) Add VITE_ALCHEMY_API_KEY in Lovable Cloud secrets, 2) Click Publish → Update to rebuild the app.'
-      );
+      throw new Error('Alchemy RPC not configured. Please add VITE_ALCHEMY_API_KEY in secrets.');
     }
     
-    const rpcUrl = SOLANA_RPC_ENDPOINTS[0]; // Only Alchemy, no fallback loop
+    const rpcUrl = SOLANA_RPC_ENDPOINTS[0];
     let connection: Connection;
     let latestBlockhash: { blockhash: string; lastValidBlockHeight: number };
     
     try {
       connection = new Connection(rpcUrl, 'confirmed');
       latestBlockhash = await connection.getLatestBlockhash('finalized');
-      console.log('[Solana] Connected to Alchemy RPC');
+      console.log('[OKX Solana] Connected to RPC');
     } catch (rpcError: any) {
-      const errorMsg = rpcError?.message || '';
-      const status = rpcError?.status || rpcError?.statusCode;
-      
-      console.error('[Alchemy RPC] Connection failed:', {
-        error: errorMsg.slice(0, 100),
-        status,
-      });
-      
-      // Provide specific, actionable error messages
-      if (status === 401 || status === 403 || errorMsg.includes('401') || errorMsg.includes('403')) {
-        throw new Error(
-          'Alchemy API key rejected (401/403). Please verify: 1) The key is correct, 2) Solana is enabled in your Alchemy dashboard.'
-        );
-      }
-      if (status === 429 || errorMsg.includes('429')) {
-        throw new Error('Alchemy rate limited (429). Please wait a moment and try again.');
-      }
-      
-      throw new Error(`Solana RPC connection failed: ${errorMsg.slice(0, 80)}`);
+      throw new Error(`Solana RPC connection failed: ${rpcError?.message?.slice(0, 80)}`);
     }
 
-    // OKX DEX ALWAYS returns VersionedTransaction for Solana
-    // DO NOT fall back to legacy Transaction.from() - it causes null key errors
-    console.log('[Solana] Transaction bytes length:', txBytes.length, 'First bytes:', Array.from(txBytes.slice(0, 4)).map(b => b.toString(16)).join(' '));
-    
+    // Deserialize versioned transaction
     let tx: VersionedTransaction;
-    
     try {
       tx = VersionedTransaction.deserialize(txBytes);
-      console.log('[Solana] Successfully deserialized versioned transaction');
+      console.log('[OKX Solana] Transaction deserialized');
       
-      // CRITICAL: Validate all account keys are valid (not null)
-      const accountKeys = tx.message.staticAccountKeys;
-      console.log('[Solana] Transaction details:', {
-        numSignatures: tx.signatures.length,
-        numAccountKeys: accountKeys.length,
-        recentBlockhash: tx.message.recentBlockhash,
-      });
-      
-      for (let i = 0; i < accountKeys.length; i++) {
-        if (!accountKeys[i]) {
+      // Validate account keys
+      for (let i = 0; i < tx.message.staticAccountKeys.length; i++) {
+        if (!tx.message.staticAccountKeys[i]) {
           throw new Error(`Invalid transaction: null account key at index ${i}`);
         }
       }
       
-      // Log first few account keys for debugging
-      if (accountKeys.length > 0) {
-        console.log('[Solana] First account key:', accountKeys[0].toBase58());
-      }
-      
-      // Update blockhash if possible (some versioned txs have read-only messages)
+      // Update blockhash
       try {
-        (tx as VersionedTransaction).message.recentBlockhash = latestBlockhash.blockhash;
-        console.log('[Solana] Updated blockhash to:', latestBlockhash.blockhash.slice(0, 20) + '...');
-      } catch (blockhashErr) {
-        console.log('[Solana] Could not update versioned tx blockhash (read-only), using original');
+        tx.message.recentBlockhash = latestBlockhash.blockhash;
+      } catch {
+        console.log('[OKX Solana] Could not update blockhash (read-only)');
       }
     } catch (deserError: any) {
-      console.error('[Solana] Transaction deserialization failed:', {
-        error: deserError?.message?.slice(0, 150),
-        txBytesLength: txBytes.length,
-        firstBytes: Array.from(txBytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '),
-      });
-      
-      // DO NOT fall back to legacy - throw a clear error instead
-      throw new Error(
-        `Transaction format error. The DEX may have returned an incompatible transaction. ` +
-        `Please try again or use a smaller amount. (${deserError?.message?.slice(0, 50)})`
-      );
+      throw new Error(`Transaction format error: ${deserError?.message?.slice(0, 50)}`);
     }
     
+    // Sign and send
     try {
-      console.log('[Solana] Signing versioned transaction...');
-      console.log('[Solana] Provider state before signing:', {
-        hasPublicKey: !!provider.publicKey,
-        publicKeyBase58: provider.publicKey?.toBase58?.() || 'null',
-        isConnected: provider.isConnected,
-      });
-      
-      // PREFER signTransaction + sendRawTransaction for broader wallet compatibility
-      // This avoids internal wallet assumptions about tx.feePayer
       if (provider.signTransaction) {
-        console.log('[Solana] Using signTransaction + sendRawTransaction (most compatible)');
-        
         const signedTx = await provider.signTransaction(tx);
-        console.log('[Solana] Transaction signed successfully');
-        
         signature = await connection.sendRawTransaction(signedTx.serialize(), {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
         });
       } else if (provider.signAndSendTransaction) {
-        console.log('[Solana] Fallback to signAndSendTransaction');
-        
         const result = await provider.signAndSendTransaction(tx, {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
@@ -453,66 +488,40 @@ export function useDexSwapMulti() {
         throw new Error('Solana wallet does not support transaction signing');
       }
       
-      console.log('[Solana] Transaction sent, signature:', signature?.slice(0, 20) + '...');
+      console.log('[OKX Solana] Transaction sent:', signature?.slice(0, 20) + '...');
     } catch (signError: any) {
-      // Re-throw user rejections without modification
       if (signError?.message?.includes('rejected') || signError?.code === 4001) {
         throw signError;
       }
-      
-      // Check for the specific toBase58 null error
       if (signError?.message?.includes('toBase58') || signError?.message?.includes("null")) {
-        console.error('[Solana] Null reference error during signing:', signError);
-        throw new Error(
-          'Wallet connection is incomplete. Please disconnect your Solana wallet, refresh the page, and reconnect.'
-        );
+        throw new Error('Wallet connection incomplete. Please reconnect your wallet.');
       }
-      
-      console.error('[Solana] Signing error:', {
-        message: signError?.message?.slice(0, 150),
-        name: signError?.name,
-        stack: signError?.stack?.slice(0, 200),
-      });
-      
       throw signError;
     }
 
     setStep('confirming');
     setTxHash(signature);
-    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation (may take up to 90 seconds)...' });
+    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
 
-    // Wait for confirmation with extended timeout (90 seconds for Solana network congestion)
+    // Wait for confirmation
     try {
       const confirmationResult = await connection.confirmTransaction(
-        {
-          signature,
-          blockhash: latestBlockhash.blockhash,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-        },
+        { signature, blockhash: latestBlockhash.blockhash, lastValidBlockHeight: latestBlockhash.lastValidBlockHeight },
         'confirmed'
       );
-      
       if (confirmationResult.value.err) {
-        throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmationResult.value.err)}`);
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmationResult.value.err)}`);
       }
     } catch (confirmError: any) {
-      // Check if it's a timeout error - the transaction may still have succeeded
       if (confirmError?.message?.includes('was not confirmed') || 
           confirmError?.message?.includes('block height exceeded') ||
           confirmError?.message?.includes('timeout')) {
-        console.warn('[Solana] Confirmation timeout, starting background polling:', signature);
-        
-        // Start background polling to check status
+        console.warn('[OKX Solana] Confirmation timeout, starting background polling');
         startSolanaStatusPolling(connection, signature, fromToken, toToken, amount, onSuccess);
-        
-        // Mark as complete with pending status - user can track via notification
         setStep('complete');
-        toast({ 
-          title: 'Transaction Submitted', 
-          description: `Swap sent! Confirming in background... Check Solscan: ${signature.slice(0, 12)}...`,
-        });
+        toast({ title: 'Transaction Submitted', description: 'Confirming in background...' });
         onSuccess?.(signature);
-        return;
+        return signature;
       }
       throw confirmError;
     }
@@ -521,6 +530,7 @@ export function useDexSwapMulti() {
     notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
     toast({ title: 'Swap Complete! 🎉', description: `Successfully swapped ${amount} ${fromToken.tokenSymbol}` });
     onSuccess?.(signature);
+    return signature;
   };
 
   // Background polling for Solana transactions that timeout
