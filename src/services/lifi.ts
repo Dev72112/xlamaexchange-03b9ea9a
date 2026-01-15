@@ -75,12 +75,25 @@ const chainIndexToLiFiId: Record<string, number> = {
   '5000': 5000,  // Mantle
   '81457': 81457, // Blast
   '7777777': 7777777, // Zora
-  '196': 196,    // X Layer
+  '196': 196,    // X Layer (limited support)
   '1101': 1101,  // Polygon zkEVM
   '169': 169,    // Manta Pacific
   '34443': 34443, // Mode
   '167000': 167000, // Taiko
-  '501': 1151111081099710, // Solana (Li.Fi uses this ID)
+  '25': 25,      // Cronos
+  '7000': 7000,  // ZetaChain
+  '146': 146,    // Sonic
+  '130': 130,    // Unichain
+  '501': 1151111081099710, // Solana (Li.Fi uses this ID - limited support)
+};
+
+// Chains with known limited or no Li.Fi support - show specific warnings
+const CHAINS_WITH_LIMITED_SUPPORT: Record<string, string> = {
+  '196': 'X Layer has limited bridge routes. Consider using OKX Web3 Bridge.',
+  '501': 'Solana bridging is limited. Try deBridge or Wormhole for better routes.',
+  '195': 'TRON is not supported by Li.Fi. Use native TRON bridges.',
+  '784': 'Sui is not supported by Li.Fi. Try Wormhole for Sui bridges.',
+  '607': 'TON is not supported by Li.Fi. Use native TON bridges.',
 };
 
 // Map Li.Fi chain ID back to our chain index
@@ -448,6 +461,20 @@ export const lifiService = {
    */
   isChainSupported(chainIndex: string): boolean {
     return chainIndex in chainIndexToLiFiId;
+  },
+
+  /**
+   * Get warning message for chains with limited support
+   */
+  getLimitedSupportWarning(chainIndex: string): string | null {
+    return CHAINS_WITH_LIMITED_SUPPORT[chainIndex] || null;
+  },
+
+  /**
+   * Check if chain has limited support (may return no routes)
+   */
+  hasLimitedSupport(chainIndex: string): boolean {
+    return chainIndex in CHAINS_WITH_LIMITED_SUPPORT;
   },
 };
 

@@ -11,6 +11,8 @@ import {
 import { useSignPersonalMessage } from '@mysten/dapp-kit';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { trackOrderCreated } from '@/lib/tracking';
+import { jupiterService, JupiterDCAOrder } from '@/services/jupiter';
+import { VersionedTransaction } from '@solana/web3.js';
 
 export interface DCAOrder {
   id: string;
@@ -40,15 +42,30 @@ export interface DCAOrder {
   last_execution_error?: string;
 }
 
+// Convert frequency to seconds for Jupiter DCA
+function frequencyToSeconds(frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly'): number {
+  switch (frequency) {
+    case 'daily': return 86400;        // 24 hours
+    case 'weekly': return 604800;      // 7 days
+    case 'biweekly': return 1209600;   // 14 days
+    case 'monthly': return 2592000;    // 30 days
+    default: return 86400;
+  }
+}
+
 export function useDCAOrders() {
-  const { activeAddress, isConnected, activeChainType, getSolanaWallet, getTronWeb, getTonConnectUI: getContextTonConnectUI } = useMultiWallet();
+  const { activeAddress, isConnected, activeChainType, getSolanaWallet, getTronWeb, getTonConnectUI: getContextTonConnectUI, activeChain } = useMultiWallet();
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
   const [tonConnectUI] = useTonConnectUI();
   const { toast } = useToast();
   const { playAlert, settings } = useFeedback();
   const [orders, setOrders] = useState<DCAOrder[]>([]);
+  const [jupiterOrders, setJupiterOrders] = useState<JupiterDCAOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
+  
+  // Check if current chain is Solana
+  const isSolana = activeChainType === 'solana' || activeChain?.chainIndex === '501';
   
   // Create wallet-authenticated Supabase client
   const walletSupabase = useMemo(() => createWalletClient(activeAddress), [activeAddress]);
@@ -102,12 +119,13 @@ export function useDCAOrders() {
     URL.revokeObjectURL(link.href);
   }, [orders]);
 
-  // Fetch user's DCA orders
+  // Fetch user's DCA orders (both database and Jupiter on-chain)
   const fetchOrders = useCallback(async () => {
     if (!activeAddress) return;
     
     setIsLoading(true);
     try {
+      // Fetch from database
       const { data, error } = await walletSupabase
         .from('dca_orders')
         .select('*')
@@ -116,12 +134,23 @@ export function useDCAOrders() {
       
       if (error) throw error;
       setOrders((data as DCAOrder[]) || []);
+      
+      // If on Solana, also fetch Jupiter on-chain DCA orders
+      if (isSolana) {
+        try {
+          const jupOrders = await jupiterService.getOpenDCAOrders(activeAddress);
+          setJupiterOrders(jupOrders);
+        } catch (jupErr) {
+          console.warn('[DCA] Failed to fetch Jupiter DCA orders:', jupErr);
+          setJupiterOrders([]);
+        }
+      }
     } catch {
       // Silently handle fetch errors
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress, walletSupabase]);
+  }, [activeAddress, walletSupabase, isSolana]);
 
   // Create new DCA order with signature verification
   const createOrder = useCallback(async (order: {
@@ -404,26 +433,205 @@ export function useDCAOrders() {
     }
   }, [activeAddress, getChainType, getProviders, fetchOrders, toast]);
 
+  // ============ JUPITER DCA (SOLANA-NATIVE) ============
+  
+  /**
+   * Create a Jupiter DCA order (on-chain, Solana only)
+   * Jupiter handles recurring buys automatically
+   */
+  const createJupiterDCA = useCallback(async (params: {
+    inputMint: string;
+    outputMint: string;
+    totalAmount: string;      // Total amount to invest (human readable)
+    numberOfOrders: number;   // Number of DCA cycles
+    inputDecimals: number;
+    frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+    fromSymbol: string;
+    toSymbol: string;
+  }): Promise<{ signature: string; order: string } | null> => {
+    if (!activeAddress || !isSolana) {
+      toast({
+        title: 'Solana Required',
+        description: 'Jupiter DCA orders are only available on Solana',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const solanaWallet = getSolanaWallet();
+    if (!solanaWallet) {
+      toast({
+        title: 'Wallet Not Available',
+        description: 'Please connect a Solana wallet to create Jupiter DCA orders',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    setIsSigning(true);
+
+    try {
+      toast({
+        title: 'Creating Jupiter DCA',
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      // Convert amount to smallest units
+      const inAmount = jupiterService.toSmallestUnit(params.totalAmount, params.inputDecimals);
+      const interval = frequencyToSeconds(params.frequency);
+
+      // Create DCA order via Jupiter
+      const response = await jupiterService.createDCAOrder({
+        user: activeAddress,
+        inputMint: params.inputMint,
+        outputMint: params.outputMint,
+        inAmount,
+        numberOfOrders: params.numberOfOrders,
+        interval,
+      });
+
+      // Decode and sign the transaction
+      const txBuffer = Uint8Array.from(atob(response.tx), c => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBuffer);
+
+      // Sign and send
+      const signed = await solanaWallet.signTransaction(transaction);
+      const serialized = signed.serialize();
+      
+      // Submit via Jupiter for reliability
+      const { default: bs58 } = await import('bs58');
+      const signedBase64 = btoa(String.fromCharCode(...serialized));
+      
+      // Use standard RPC submission
+      const { Connection } = await import('@solana/web3.js');
+      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/demo');
+      const signature = await connection.sendRawTransaction(serialized, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      if (settings.soundEnabled) {
+        playAlert();
+      }
+
+      toast({
+        title: '✅ Jupiter DCA Created',
+        description: `Will buy ${params.toSymbol} ${params.numberOfOrders}x ${params.frequency} with ${params.totalAmount} ${params.fromSymbol}`,
+      });
+
+      trackOrderCreated('dca', '501', params.fromSymbol, params.toSymbol);
+      
+      // Refresh orders
+      fetchOrders();
+
+      return { signature, order: response.order };
+    } catch (err) {
+      console.error('[DCA] Jupiter DCA creation failed:', err);
+      toast({
+        title: 'DCA Creation Failed',
+        description: err instanceof Error ? err.message : 'Failed to create Jupiter DCA',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsSigning(false);
+    }
+  }, [activeAddress, isSolana, getSolanaWallet, toast, settings.soundEnabled, playAlert, fetchOrders]);
+
+  /**
+   * Cancel a Jupiter DCA order (on-chain)
+   */
+  const cancelJupiterDCA = useCallback(async (orderPubkey: string): Promise<string | null> => {
+    if (!activeAddress || !isSolana) {
+      toast({
+        title: 'Solana Required',
+        description: 'Jupiter DCA orders are only available on Solana',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const solanaWallet = getSolanaWallet();
+    if (!solanaWallet) {
+      toast({
+        title: 'Wallet Not Available',
+        description: 'Please connect a Solana wallet',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    setIsSigning(true);
+
+    try {
+      toast({
+        title: 'Cancelling Jupiter DCA',
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      // Get cancel transaction
+      const response = await jupiterService.cancelDCAOrder(activeAddress, orderPubkey);
+
+      // Decode and sign
+      const txBuffer = Uint8Array.from(atob(response.tx), c => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBuffer);
+
+      const signed = await solanaWallet.signTransaction(transaction);
+      const serialized = signed.serialize();
+
+      // Submit
+      const { Connection } = await import('@solana/web3.js');
+      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/demo');
+      const signature = await connection.sendRawTransaction(serialized, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      toast({
+        title: '✅ Jupiter DCA Cancelled',
+        description: 'Your recurring order has been cancelled',
+      });
+
+      fetchOrders();
+      return signature;
+    } catch (err) {
+      console.error('[DCA] Jupiter DCA cancellation failed:', err);
+      toast({
+        title: 'Cancellation Failed',
+        description: err instanceof Error ? err.message : 'Failed to cancel DCA order',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsSigning(false);
+    }
+  }, [activeAddress, isSolana, getSolanaWallet, toast, fetchOrders]);
+
   // Load orders when wallet connects
   useEffect(() => {
     if (isConnected && activeAddress) {
       fetchOrders();
     } else {
       setOrders([]);
+      setJupiterOrders([]);
     }
   }, [isConnected, activeAddress, fetchOrders]);
 
   return {
     orders,
+    jupiterOrders,
     activeOrders: orders.filter(o => o.status === 'active'),
     pausedOrders: orders.filter(o => o.status === 'paused'),
     completedOrders: orders.filter(o => o.status === 'completed' || o.status === 'cancelled'),
     isLoading,
     isSigning,
+    isSolana,
     createOrder,
+    createJupiterDCA,
     pauseOrder,
     resumeOrder,
     cancelOrder,
+    cancelJupiterDCA,
     refetch: fetchOrders,
     fetchOrders,
     exportToCSV,
