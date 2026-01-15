@@ -908,8 +908,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
           {/* From Section */}
           <div className="p-4 sm:p-5 pt-2 border-b border-border overflow-hidden">
-            <div className="flex items-center justify-between gap-2 sm:gap-3">
-              <div className="shrink-0 min-w-0 max-w-[45%]">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="shrink-0">
                 {exchangeMode === 'instant' ? (
                   <CurrencySelector
                     value={fromCurrency}
@@ -930,13 +930,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   />
                 )}
               </div>
-              <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex-1 min-w-0">
                 <Input
                   type="number"
                   value={fromAmount}
                   onChange={(e) => setFromAmount(e.target.value)}
                   placeholder="0"
-                  className="border-0 bg-transparent text-right text-xl sm:text-2xl md:text-3xl font-medium focus-visible:ring-0 p-0 h-auto w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="border-0 bg-transparent text-right text-lg sm:text-xl md:text-2xl font-medium focus-visible:ring-0 p-0 h-auto w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 {exchangeMode === 'dex' && fromUsdValue && (
                   <div className="text-right text-xs text-muted-foreground mt-0.5 truncate">
@@ -989,8 +989,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
           {/* To Section */}
           <div className={`p-4 sm:p-5 overflow-hidden ${pairUnavailable ? 'bg-warning/5' : ''}`}>
-            <div className="flex items-center justify-between gap-2 sm:gap-3">
-              <div className="shrink-0 min-w-0 max-w-[45%]">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="shrink-0">
                 {exchangeMode === 'instant' ? (
                   <CurrencySelector
                     value={toCurrency}
@@ -1011,19 +1011,19 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   />
                 )}
               </div>
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <div className="text-right text-xl sm:text-2xl md:text-3xl font-medium font-mono truncate">
+              <div className="flex-1 min-w-0">
+                <div className="text-right text-lg sm:text-xl md:text-2xl font-medium font-mono overflow-hidden">
                   {currentLoading ? (
                     <div className="flex items-center justify-end gap-2">
-                      <div className="h-8 w-24 sm:w-28 skeleton-shimmer rounded-md" />
+                      <div className="h-6 w-20 sm:w-24 skeleton-shimmer rounded-md" />
                     </div>
                   ) : pairUnavailable ? (
-                    <span className="text-warning text-base sm:text-lg flex items-center justify-end gap-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span className="text-warning text-sm sm:text-base flex items-center justify-end gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                       <span>Unavailable</span>
                     </span>
                   ) : currentOutputAmount ? (
-                    <span className="animate-fade-in truncate block">
+                    <span className="animate-fade-in block truncate" title={currentOutputAmount}>
                       {parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
                     </span>
                   ) : (
@@ -1195,11 +1195,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
           {/* Convert Button */}
           <div className="p-4 sm:p-5 pt-0 space-y-3">
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 sm:gap-2">
               <Button
                 size="lg"
                 className={cn(
-                  "flex-1 h-12 font-medium rounded-xl",
+                  "flex-1 h-11 sm:h-12 font-medium rounded-xl text-sm sm:text-base min-w-0",
                   hasInsufficientBalance && exchangeMode === 'dex'
                     ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     : "bg-foreground text-background hover:bg-foreground/90"
@@ -1212,7 +1212,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               
               {/* Limit Order Button - DEX mode only */}
               {exchangeMode === 'dex' && (
-                <Suspense fallback={<Skeleton className="h-10 w-10 rounded-lg" />}>
+                <Suspense fallback={<Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg shrink-0" />}>
                   <LimitOrderForm
                     fromToken={fromDexToken}
                     toToken={toDexToken}
@@ -1224,7 +1224,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               
               {/* DCA Order Button - DEX mode only */}
               {exchangeMode === 'dex' && (
-                <Suspense fallback={<Skeleton className="h-10 w-10 rounded-lg" />}>
+                <Suspense fallback={<Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg shrink-0" />}>
                   <DCAOrderForm
                     fromToken={fromDexToken ? { address: fromDexToken.tokenContractAddress, symbol: fromDexToken.tokenSymbol } : undefined}
                     toToken={toDexToken ? { address: toDexToken.tokenContractAddress, symbol: toDexToken.tokenSymbol } : undefined}

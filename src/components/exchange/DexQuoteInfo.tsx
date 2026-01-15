@@ -45,11 +45,11 @@ export function DexQuoteInfo({
     : 'Best route';
 
   return (
-    <div className="space-y-2 p-3 bg-secondary/30 rounded-lg border border-border text-sm">
+    <div className="space-y-2 p-3 bg-secondary/30 rounded-lg border border-border text-sm overflow-hidden">
       {/* Exchange Rate */}
-      <div className="flex items-center justify-between">
-        <span className="text-muted-foreground">Rate</span>
-        <span className="font-mono text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground shrink-0">Rate</span>
+        <span className="font-mono text-xs truncate min-w-0">
           {isLoading ? (
             <Loader2 className="w-3 h-3 animate-spin" />
           ) : inputAmount && outputAmount ? (
@@ -97,8 +97,8 @@ export function DexQuoteInfo({
       </div>
 
       {/* Minimum Received */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 shrink-0">
           <span className="text-muted-foreground">Min. Received</span>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -111,7 +111,7 @@ export function DexQuoteInfo({
             </TooltipContent>
           </Tooltip>
         </div>
-        <span className="font-mono text-xs">
+        <span className="font-mono text-xs truncate min-w-0">
           {minReceived} {toToken.tokenSymbol}
         </span>
       </div>
