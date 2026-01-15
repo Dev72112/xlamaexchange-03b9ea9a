@@ -44,6 +44,8 @@ const CHAIN_ICONS: Record<string, string> = {
   merlin: 'https://assets.coingecko.com/coins/images/35449/small/merlin.png',
   zetachain: 'https://assets.coingecko.com/coins/images/26718/small/zetachain.png',
   unichain: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/unichain/info/logo.png',
+  monad: 'https://assets.coingecko.com/coins/images/39498/small/monad.png',
+  plasma: 'https://ui-avatars.com/api/?name=PL&background=7c3aed&color=fff&size=128',
 };
 
 // OKX DEX Supported Chains - Based on official docs
@@ -302,6 +304,29 @@ export const SUPPORTED_CHAINS: Chain[] = [
     rpcUrl: 'https://mainnet.unichain.org',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     blockExplorer: 'https://uniscan.xyz',
+    isEvm: true,
+  },
+  // New EVM chains from OKX DEX API (January 2025)
+  {
+    chainIndex: '143',
+    chainId: 143,
+    name: 'Monad',
+    shortName: 'MONAD',
+    icon: CHAIN_ICONS.monad,
+    rpcUrl: 'https://rpc.monad.xyz',
+    nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
+    blockExplorer: 'https://explorer.monad.xyz',
+    isEvm: true,
+  },
+  {
+    chainIndex: '9745',
+    chainId: 9745,
+    name: 'Plasma',
+    shortName: 'PLASMA',
+    icon: CHAIN_ICONS.plasma,
+    rpcUrl: 'https://rpc.plasma.io',
+    nativeCurrency: { name: 'Plasma', symbol: 'PLASMA', decimals: 18 },
+    blockExplorer: 'https://explorer.plasma.io',
     isEvm: true,
   },
   // Non-EVM chains from OKX docs

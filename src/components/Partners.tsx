@@ -43,7 +43,7 @@ export const Partners = memo(function Partners() {
             href="https://changenow.io"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover performance-critical overflow-hidden"
           >
             <div className="flex items-center gap-3">
               <img
@@ -53,13 +53,13 @@ export const Partners = memo(function Partners() {
                 decoding="async"
                 width="48"
                 height="48"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0"
               />
-              <div className="text-left">
+              <div className="text-left min-w-0">
                 <span className="font-bold text-lg sm:text-xl">ChangeNOW</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   Instant Exchange
-                  <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                  <ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -73,7 +73,7 @@ export const Partners = memo(function Partners() {
             href="https://www.okx.com/web3/dex"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover performance-critical overflow-hidden"
           >
             <div className="flex items-center gap-3">
               <img
@@ -83,13 +83,13 @@ export const Partners = memo(function Partners() {
                 decoding="async"
                 width="48"
                 height="48"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0"
               />
-              <div className="text-left">
+              <div className="text-left min-w-0">
                 <span className="font-bold text-lg sm:text-xl">OKX DEX</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   DEX Aggregator
-                  <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                  <ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -103,7 +103,7 @@ export const Partners = memo(function Partners() {
             href="https://li.fi"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover performance-critical overflow-hidden"
           >
             <div className="flex items-center gap-3">
               <img
@@ -113,13 +113,13 @@ export const Partners = memo(function Partners() {
                 decoding="async"
                 width="48"
                 height="48"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-background"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-background shrink-0"
               />
-              <div className="text-left">
+              <div className="text-left min-w-0">
                 <span className="font-bold text-lg sm:text-xl">Li.Fi</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   Cross-Chain Bridge
-                  <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                  <ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -155,7 +155,7 @@ export const Partners = memo(function Partners() {
               href={wallet.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={`group flex items-center gap-2.5 px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg bg-secondary/20 border border-border hover:border-primary/30 hover-lift transition-all ${STAGGER_ITEM_CLASS}`}
+              className={`group flex items-center gap-2.5 px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg bg-secondary/20 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index, 50)}
             >
               <img
@@ -165,14 +165,14 @@ export const Partners = memo(function Partners() {
                 decoding="async"
                 width="32"
                 height="32"
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover shrink-0"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(wallet.name.slice(0, 2))}&background=6366f1&color=fff&size=64`;
                 }}
               />
-              <div className="text-left">
-                <span className="font-medium text-xs sm:text-sm">{wallet.name}</span>
-                <div className="text-[10px] text-muted-foreground">{wallet.chain}</div>
+              <div className="text-left min-w-0">
+                <span className="font-medium text-xs sm:text-sm truncate block">{wallet.name}</span>
+                <div className="text-[10px] text-muted-foreground truncate">{wallet.chain}</div>
               </div>
             </a>
           ))}
@@ -183,15 +183,15 @@ export const Partners = memo(function Partners() {
           {trustBadges.map((badge, index) => (
             <div 
               key={badge.label}
-              className={`flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50 ${STAGGER_ITEM_CLASS}`}
+              className={`flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50 sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}
               style={getStaggerStyle(index + walletPartners.length, 50)}
             >
-              <badge.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary mb-1" aria-hidden="true" />
+              <badge.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary mb-1 shrink-0" aria-hidden="true" />
               <span className="text-xs font-medium text-center">{badge.label}</span>
             </div>
           ))}
-          <div className={`flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50 col-span-2 sm:col-span-1 ${STAGGER_ITEM_CLASS}`}>
-            <span className="w-2 h-2 rounded-full bg-success mb-2" aria-hidden="true" />
+          <div className={`flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50 col-span-2 sm:col-span-1 sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}>
+            <span className="w-2 h-2 rounded-full bg-success mb-2 shrink-0" aria-hidden="true" />
             <span className="text-xs font-medium text-center">No KYC</span>
           </div>
         </div>
