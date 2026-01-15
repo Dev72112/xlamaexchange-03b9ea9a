@@ -10,6 +10,8 @@ import { useSignPersonalMessage } from '@mysten/dapp-kit';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { trackOrderCreated } from '@/lib/tracking';
 import { notificationService } from '@/services/notificationService';
+import { jupiterService, JupiterOpenOrder } from '@/services/jupiter';
+import { VersionedTransaction } from '@solana/web3.js';
 
 export interface LimitOrder {
   id: string;
@@ -34,6 +36,15 @@ export interface LimitOrder {
   // Trigger timeout fields
   trigger_expires_at?: string;
   user_dismissed?: boolean;
+  // Jupiter on-chain order (Solana only)
+  jupiter_order_key?: string;
+  is_jupiter_order?: boolean;
+}
+
+// Jupiter order mapped to our interface
+export interface JupiterLimitOrderUI extends LimitOrder {
+  jupiter_order_key: string;
+  is_jupiter_order: true;
 }
 
 export function useLimitOrders() {
@@ -43,11 +54,15 @@ export function useLimitOrders() {
   const { toast } = useToast();
   const { playAlert, settings } = useFeedback();
   const [orders, setOrders] = useState<LimitOrder[]>([]);
+  const [jupiterOrders, setJupiterOrders] = useState<JupiterOpenOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const notifiedOrdersRef = useRef<Set<string>>(new Set());
+
+  // Check if Solana is selected
+  const isSolana = activeChainType === 'solana';
   
   // Create wallet-authenticated Supabase client for reads
   const walletSupabase = useMemo(() => createWalletClient(activeAddress), [activeAddress]);
@@ -117,12 +132,13 @@ export function useLimitOrders() {
     URL.revokeObjectURL(link.href);
   }, [orders]);
 
-  // Fetch user's orders
+  // Fetch user's orders (includes Jupiter on-chain orders for Solana)
   const fetchOrders = useCallback(async () => {
     if (!activeAddress) return;
     
     setIsLoading(true);
     try {
+      // Fetch off-chain monitored orders from Supabase
       const { data, error } = await walletSupabase
         .from('limit_orders')
         .select('*')
@@ -131,12 +147,133 @@ export function useLimitOrders() {
       
       if (error) throw error;
       setOrders((data as LimitOrder[]) || []);
+
+      // For Solana, also fetch Jupiter on-chain orders
+      if (isSolana) {
+        try {
+          const jupOrders = await jupiterService.getOpenLimitOrders(activeAddress);
+          setJupiterOrders(jupOrders);
+          console.log('[LimitOrders] Fetched Jupiter orders:', jupOrders.length);
+        } catch (jupErr) {
+          console.warn('[LimitOrders] Failed to fetch Jupiter orders:', jupErr);
+        }
+      }
     } catch {
       // Silently handle fetch errors
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress, walletSupabase]);
+  }, [activeAddress, walletSupabase, isSolana]);
+
+  // Create Jupiter on-chain limit order (Solana only)
+  const createJupiterOrder = useCallback(async (params: {
+    inputMint: string;
+    outputMint: string;
+    makingAmount: string;
+    takingAmount: string;
+    expiredAt?: number;
+  }) => {
+    if (!activeAddress || !isSolana) return null;
+
+    const solanaWallet = getSolanaWallet();
+    if (!solanaWallet?.signTransaction) {
+      toast({
+        title: 'Wallet Required',
+        description: 'Please connect a Solana wallet to create Jupiter limit orders',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    setIsSigning(true);
+    try {
+      toast({
+        title: 'Creating Order',
+        description: 'Getting transaction from Jupiter...',
+      });
+
+      // Get the order transaction from Jupiter
+      const orderResponse = await jupiterService.createLimitOrder({
+        inputMint: params.inputMint,
+        outputMint: params.outputMint,
+        maker: activeAddress,
+        makingAmount: params.makingAmount,
+        takingAmount: params.takingAmount,
+        expiredAt: params.expiredAt,
+      });
+
+      toast({
+        title: 'Sign Transaction',
+        description: 'Please approve the transaction in your wallet',
+      });
+
+      // Decode and sign the transaction
+      const txBytes = Uint8Array.from(atob(orderResponse.tx), c => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBytes);
+      const signedTx = await solanaWallet.signTransaction(transaction);
+
+      // Serialize and submit
+      const signedTxBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
+      
+      // For limit orders, Jupiter handles submission differently - the signed tx creates the on-chain order
+      // We just need to broadcast it
+      const { Connection } = await import('@solana/web3.js');
+      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/' + import.meta.env.VITE_ALCHEMY_API_KEY);
+      const signature = await connection.sendRawTransaction(signedTx.serialize());
+      
+      toast({
+        title: '✅ Jupiter Limit Order Created',
+        description: `Order placed on-chain. Jupiter keepers will execute when price is reached.`,
+      });
+
+      trackOrderCreated('limit', '501', params.inputMint.slice(0, 6), params.outputMint.slice(0, 6));
+      fetchOrders();
+      
+      return { order: orderResponse.order, signature };
+    } catch (err) {
+      console.error('[LimitOrders] Jupiter order creation failed:', err);
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to create Jupiter limit order',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsSigning(false);
+    }
+  }, [activeAddress, isSolana, getSolanaWallet, toast, fetchOrders]);
+
+  // Cancel Jupiter on-chain order (Solana only)
+  const cancelJupiterOrder = useCallback(async (orderKey: string) => {
+    if (!activeAddress || !isSolana) return;
+
+    const solanaWallet = getSolanaWallet();
+    if (!solanaWallet?.signTransaction) return;
+
+    setIsSigning(true);
+    try {
+      const cancelResponse = await jupiterService.cancelLimitOrders(activeAddress, [orderKey]);
+      
+      const txBytes = Uint8Array.from(atob(cancelResponse.tx), c => c.charCodeAt(0));
+      const transaction = VersionedTransaction.deserialize(txBytes);
+      const signedTx = await solanaWallet.signTransaction(transaction);
+
+      const { Connection } = await import('@solana/web3.js');
+      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/' + import.meta.env.VITE_ALCHEMY_API_KEY);
+      await connection.sendRawTransaction(signedTx.serialize());
+
+      toast({ title: '✅ Order Cancelled', description: 'Jupiter limit order has been cancelled' });
+      fetchOrders();
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to cancel order',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSigning(false);
+    }
+  }, [activeAddress, isSolana, getSolanaWallet, toast, fetchOrders]);
 
   // Create new limit order with signature verification for all chains
   const createOrder = useCallback(async (order: Omit<LimitOrder, 'id' | 'user_address' | 'status' | 'created_at' | 'triggered_at'>) => {
@@ -482,14 +619,18 @@ export function useLimitOrders() {
 
   return {
     orders,
+    jupiterOrders,
     activeOrders: orders.filter(o => o.status === 'active'),
     triggeredOrders: orders.filter(o => o.status === 'triggered'),
     executedOrders: orders.filter(o => o.status === 'executed'),
     isLoading,
     isSigning,
+    isSolana,
     notificationPermission,
     createOrder,
+    createJupiterOrder,
     cancelOrder,
+    cancelJupiterOrder,
     dismissOrder,
     markExecuted,
     refetch: fetchOrders,
