@@ -907,8 +907,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </div>
 
           {/* From Section */}
-          <div className="p-4 sm:p-5 pt-2 border-b border-border overflow-hidden">
-            <div className="flex items-center gap-2 sm:gap-3">
+          <div className="p-4 sm:p-5 pt-2 border-b border-border overflow-hidden max-w-full">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="shrink-0">
                 {exchangeMode === 'instant' ? (
                   <CurrencySelector
@@ -930,16 +930,16 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   />
                 )}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <Input
                   type="number"
                   value={fromAmount}
                   onChange={(e) => setFromAmount(e.target.value)}
                   placeholder="0"
-                  className="border-0 bg-transparent text-right text-lg sm:text-xl md:text-2xl font-medium focus-visible:ring-0 p-0 h-auto w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="border-0 bg-transparent text-right text-base sm:text-lg md:text-xl font-medium focus-visible:ring-0 p-0 h-auto w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none truncate"
                 />
                 {exchangeMode === 'dex' && fromUsdValue && (
-                  <div className="text-right text-xs text-muted-foreground mt-0.5 truncate">
+                  <div className="text-right text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate">
                     {fromUsdValue}
                   </div>
                 )}
@@ -988,8 +988,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </div>
 
           {/* To Section */}
-          <div className={`p-4 sm:p-5 overflow-hidden ${pairUnavailable ? 'bg-warning/5' : ''}`}>
-            <div className="flex items-center gap-2 sm:gap-3">
+          <div className={`p-4 sm:p-5 overflow-hidden max-w-full ${pairUnavailable ? 'bg-warning/5' : ''}`}>
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="shrink-0">
                 {exchangeMode === 'instant' ? (
                   <CurrencySelector
@@ -1011,15 +1011,15 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   />
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-right text-lg sm:text-xl md:text-2xl font-medium font-mono overflow-hidden">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="text-right text-base sm:text-lg md:text-xl font-medium font-mono overflow-hidden">
                   {currentLoading ? (
                     <div className="flex items-center justify-end gap-2">
-                      <div className="h-6 w-20 sm:w-24 skeleton-shimmer rounded-md" />
+                      <div className="h-5 w-16 sm:w-20 skeleton-shimmer rounded-md" />
                     </div>
                   ) : pairUnavailable ? (
-                    <span className="text-warning text-sm sm:text-base flex items-center justify-end gap-1.5">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-warning text-xs sm:text-sm flex items-center justify-end gap-1">
+                      <AlertTriangle className="w-3 h-3 shrink-0" />
                       <span>Unavailable</span>
                     </span>
                   ) : currentOutputAmount ? (
@@ -1031,7 +1031,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   )}
                 </div>
                 {exchangeMode === 'dex' && toUsdValue && !currentLoading && currentOutputAmount && (
-                  <div className="text-right text-xs text-muted-foreground mt-0.5 truncate">
+                  <div className="text-right text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate">
                     {toUsdValue}
                   </div>
                 )}
