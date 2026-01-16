@@ -113,6 +113,8 @@ serve(async (req) => {
         return await handleLimitOrders(req);
       case 'limit-cancel':
         return await handleLimitCancel(req);
+      case 'limit-execute':
+        return await handleLimitExecute(req);
       case 'limit-history':
         return await handleLimitHistory(req);
       
@@ -419,6 +421,46 @@ async function handleLimitCancel(req: Request): Promise<Response> {
 
   const data = await response.json();
   console.log(`[Jupiter] Limit orders cancelled`);
+  
+  return secureJsonResponse(data);
+}
+
+async function handleLimitExecute(req: Request): Promise<Response> {
+  const body = await req.json();
+  const { signedTransaction, requestId } = body;
+  
+  if (!signedTransaction) {
+    return secureErrorResponse('Missing signedTransaction', 400);
+  }
+
+  // Jupiter Trigger API execute endpoint for limit orders
+  const jupiterUrl = `${JUPITER_TRIGGER_BASE}/execute`;
+  console.log(`[Jupiter] Executing trigger order...`);
+
+  const response = await fetch(jupiterUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': JUPITER_API_KEY,
+    },
+    body: JSON.stringify({
+      signedTransaction,
+      requestId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[Jupiter] Trigger execute error: ${response.status} - ${errorText.slice(0, 200)}`);
+    return secureErrorResponse(
+      `Jupiter trigger execute error: ${errorText.slice(0, 100)}`,
+      response.status,
+      'JUPITER_TRIGGER_EXECUTE_ERROR'
+    );
+  }
+
+  const data = await response.json();
+  console.log(`[Jupiter] Trigger execute success: signature=${data.signature?.slice(0, 20)}...`);
   
   return secureJsonResponse(data);
 }

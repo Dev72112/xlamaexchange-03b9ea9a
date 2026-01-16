@@ -51,7 +51,7 @@ function toSmallestUnit(amount: string, decimals: number): string {
 
 export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const { toast } = useToast();
-  const { isConnected, activeAddress, getEvmProvider } = useMultiWallet();
+  const { isConnected, activeAddress, getEvmProvider, evmChainId, switchEvmChain, isOkxConnected, switchChainByIndex } = useMultiWallet();
 
   // Chain states - default to Ethereum and Polygon (both Li.Fi supported)
   const [fromChain, setFromChain] = useState<Chain>(
@@ -66,6 +66,11 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
   const [toToken, setToToken] = useState<OkxToken | null>(null);
   const [fromAmount, setFromAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<string>('1.0');
+  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+  
+  // Check if wallet is on the correct chain for bridging (EVM only)
+  const isOnCorrectChain = !fromChain.isEvm || !evmChainId || evmChainId === fromChain.chainId;
+  const needsNetworkSwitch = isConnected && fromChain.isEvm && fromChain.chainId && evmChainId !== fromChain.chainId;
   const [showBridgeProgress, setShowBridgeProgress] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
@@ -383,10 +388,40 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
 
   const canSwap = isConnected && fromToken && toToken && 
     parseFloat(fromAmount) > 0 && quote && !quoteLoading && !hasInsufficientBalance &&
-    !isBelowMinimum && bothChainsSupported;
+    !isBelowMinimum && bothChainsSupported && isOnCorrectChain;
 
   // Show quote error but not when it's just a minimum amount issue (we handle that separately)
   const shouldShowQuoteError = quoteError && !isRetrying && !minimumAmount;
+
+  // Handle network switch for bridge
+  const handleNetworkSwitch = async () => {
+    if (!fromChain.isEvm || !fromChain.chainId) return;
+    
+    try {
+      setIsSwitchingNetwork(true);
+      
+      if (isOkxConnected) {
+        await switchChainByIndex(fromChain.chainIndex);
+      } else {
+        await switchEvmChain(fromChain.chainId);
+      }
+      
+      toast({
+        title: 'Network Switched',
+        description: `Now connected to ${fromChain.name}`,
+      });
+    } catch (err: any) {
+      if (err?.code !== 4001) {
+        toast({
+          title: 'Switch Failed',
+          description: `Please switch to ${fromChain.name} in your wallet`,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsSwitchingNetwork(false);
+    }
+  };
 
   const getButtonText = () => {
     if (!isConnected) {
@@ -396,6 +431,9 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
           Connect Wallet to Bridge
         </>
       );
+    }
+    if (needsNetworkSwitch) {
+      return isSwitchingNetwork ? 'Switching Network...' : `Switch to ${fromChain.name}`;
     }
     if (!fromChainSupported || !toChainSupported) {
       return 'Chain Not Supported';
@@ -703,12 +741,22 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             </div>
           )}
 
+          {/* Network switch prompt */}
+          {needsNetworkSwitch && (
+            <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-center justify-between text-sm text-warning">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>Switch to {fromChain.name} to bridge</span>
+              </div>
+            </div>
+          )}
+
           {/* Swap Button */}
           <Button
             className="w-full"
             size="lg"
-            disabled={!canSwap}
-            onClick={handleBridge}
+            disabled={needsNetworkSwitch ? isSwitchingNetwork : !canSwap}
+            onClick={needsNetworkSwitch ? handleNetworkSwitch : handleBridge}
           >
             {getButtonText()}
           </Button>
