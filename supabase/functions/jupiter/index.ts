@@ -125,6 +125,8 @@ serve(async (req) => {
         return await handleDCAOrders(req);
       case 'dca-cancel':
         return await handleDCACancel(req);
+      case 'dca-execute':
+        return await handleDCAExecute(req);
       case 'dca-history':
         return await handleDCAHistory(req);
       
@@ -631,6 +633,46 @@ async function handleDCACancel(req: Request): Promise<Response> {
 
   const data = await response.json();
   console.log(`[Jupiter] DCA order cancelled`);
+  
+  return secureJsonResponse(data);
+}
+
+async function handleDCAExecute(req: Request): Promise<Response> {
+  const body = await req.json();
+  const { signedTransaction, requestId } = body;
+  
+  if (!signedTransaction) {
+    return secureErrorResponse('Missing signedTransaction', 400);
+  }
+
+  // Jupiter Recurring API execute endpoint for DCA orders
+  const jupiterUrl = `${JUPITER_RECURRING_BASE}/execute`;
+  console.log(`[Jupiter] Executing DCA order...`);
+
+  const response = await fetch(jupiterUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': JUPITER_API_KEY,
+    },
+    body: JSON.stringify({
+      signedTransaction,
+      requestId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[Jupiter] DCA execute error: ${response.status} - ${errorText.slice(0, 200)}`);
+    return secureErrorResponse(
+      `Jupiter DCA execute error: ${errorText.slice(0, 100)}`,
+      response.status,
+      'JUPITER_DCA_EXECUTE_ERROR'
+    );
+  }
+
+  const data = await response.json();
+  console.log(`[Jupiter] DCA execute success: signature=${data.signature?.slice(0, 20)}...`);
   
   return secureJsonResponse(data);
 }

@@ -494,21 +494,23 @@ export function useDCAOrders() {
       const txBuffer = Uint8Array.from(atob(response.tx), c => c.charCodeAt(0));
       const transaction = VersionedTransaction.deserialize(txBuffer);
 
-      // Sign and send
+      // Sign the transaction
       const signed = await solanaWallet.signTransaction(transaction);
       const serialized = signed.serialize();
       
-      // Submit via Jupiter for reliability
-      const { default: bs58 } = await import('bs58');
+      // Convert to base64 for Jupiter execute endpoint
       const signedBase64 = btoa(String.fromCharCode(...serialized));
       
-      // Use standard RPC submission
-      const { Connection } = await import('@solana/web3.js');
-      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/demo');
-      const signature = await connection.sendRawTransaction(serialized, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
+      // Submit via Jupiter's execute endpoint (no direct RPC needed)
+      const executeResult = await jupiterService.executeDCAOrder({
+        signedTransaction: signedBase64,
       });
+      
+      if (executeResult.error) {
+        throw new Error(executeResult.error);
+      }
+      
+      const signature = executeResult.signature;
 
       if (settings.soundEnabled) {
         playAlert();
@@ -579,13 +581,20 @@ export function useDCAOrders() {
       const signed = await solanaWallet.signTransaction(transaction);
       const serialized = signed.serialize();
 
-      // Submit
-      const { Connection } = await import('@solana/web3.js');
-      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/demo');
-      const signature = await connection.sendRawTransaction(serialized, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
+      // Convert to base64 for Jupiter execute endpoint
+      const signedBase64 = btoa(String.fromCharCode(...serialized));
+      
+      // Submit via Jupiter's execute endpoint (no direct RPC needed)
+      const executeResult = await jupiterService.executeDCAOrder({
+        signedTransaction: signedBase64,
+        requestId: response.requestId,
       });
+      
+      if (executeResult.error) {
+        throw new Error(executeResult.error);
+      }
+      
+      const signature = executeResult.signature;
 
       toast({
         title: '✅ Jupiter DCA Cancelled',
