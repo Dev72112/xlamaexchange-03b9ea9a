@@ -12,6 +12,7 @@ import { LimitOrderCountdown } from '@/components/LimitOrderCountdown';
 import { cn } from '@/shared/lib';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import type { JupiterOpenOrder } from '@/services/jupiter';
+import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 
 interface ActiveLimitOrdersProps {
   className?: string;
@@ -88,6 +89,16 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
     }
   };
 
+  // Get chain info helper
+  const getChainInfo = (chainIndex: string) => {
+    const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
+    return chain ? { icon: getChainIcon(chain), name: chain.name } : null;
+  };
+
+  // Solana chain info for Jupiter orders
+  const solanaChain = SUPPORTED_CHAINS.find(c => c.chainIndex === '501');
+  const solanaIcon = solanaChain ? getChainIcon(solanaChain) : null;
+
   // Render Jupiter on-chain order card
   const renderJupiterOrderCard = (order: JupiterOpenOrder) => {
     const remainingPercent = order.remainingMakingAmount && order.makingAmount 
@@ -103,7 +114,10 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
         <div className="flex items-start justify-between gap-2 min-w-0">
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-              <Zap className="w-3 h-3 text-primary shrink-0" />
+              {/* Solana chain icon */}
+              {solanaIcon && (
+                <img src={solanaIcon} alt="Solana" className="w-4 h-4 rounded-full shrink-0" />
+              )}
               <span className="font-medium text-xs sm:text-sm truncate">
                 {order.inputMint.slice(0, 4)}...{order.inputMint.slice(-4)} → {order.outputMint.slice(0, 4)}...{order.outputMint.slice(-4)}
               </span>
@@ -259,6 +273,13 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                         <div className="flex items-start justify-between gap-2 min-w-0">
                           <div className="min-w-0 flex-1 overflow-hidden">
                             <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                              {/* Chain icon */}
+                              {(() => {
+                                const chainInfo = getChainInfo(order.chain_index);
+                                return chainInfo ? (
+                                  <img src={chainInfo.icon} alt={chainInfo.name} className="w-4 h-4 rounded-full shrink-0" title={chainInfo.name} />
+                                ) : null;
+                              })()}
                               <span className="font-medium text-xs sm:text-sm truncate">
                                 {order.from_token_symbol} → {order.to_token_symbol}
                               </span>
