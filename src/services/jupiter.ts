@@ -452,7 +452,7 @@ class JupiterService {
    * Cancel a DCA order
    * Returns transaction to sign
    */
-  async cancelDCAOrder(user: string, order: string): Promise<{ tx: string }> {
+  async cancelDCAOrder(user: string, order: string): Promise<{ tx: string; requestId?: string }> {
     console.log('[Jupiter] Cancelling DCA order:', {
       user: user.slice(0, 8) + '...',
       order: order.slice(0, 8) + '...',
@@ -471,6 +471,34 @@ class JupiterService {
     }
 
     return response.json();
+  }
+
+  /**
+   * Execute a signed Recurring API transaction (DCA create/cancel)
+   * This is the Jupiter-recommended way to submit DCA transactions
+   */
+  async executeDCAOrder(params: {
+    signedTransaction: string;
+    requestId?: string;
+  }): Promise<{ signature: string; status: string; error?: string }> {
+    console.log('[Jupiter] Executing DCA order...');
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=dca-execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] DCA execute failed:', errorData);
+      throw new Error(errorData.error || `Failed to execute DCA order: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('[Jupiter] DCA execute result:', { signature: data.signature?.slice(0, 12) + '...', status: data.status });
+    
+    return data;
   }
 
   /**
