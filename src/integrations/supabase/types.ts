@@ -683,6 +683,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_feature_votes: {
+        Row: {
+          feature_id: string
+          id: string
+          voted_at: string | null
+          voter_id: string
+        }
+        Insert: {
+          feature_id: string
+          id?: string
+          voted_at?: string | null
+          voter_id: string
+        }
+        Update: {
+          feature_id?: string
+          id?: string
+          voted_at?: string | null
+          voter_id?: string
+        }
+        Relationships: []
+      }
       wallet_snapshots: {
         Row: {
           balance: string
@@ -761,10 +782,12 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: number }
-      increment_feature_vote: {
-        Args: { p_feature_id: string }
-        Returns: number
-      }
+      increment_feature_vote:
+        | { Args: { p_feature_id: string }; Returns: number }
+        | {
+            Args: { p_feature_id: string; p_voter_id?: string }
+            Returns: number
+          }
     }
     Enums: {
       [_ in never]: never

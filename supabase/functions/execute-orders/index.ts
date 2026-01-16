@@ -12,6 +12,7 @@ const OKX_API_KEY = Deno.env.get('OKX_API_KEY')!;
 const OKX_SECRET_KEY = Deno.env.get('OKX_SECRET_KEY')!;
 const OKX_API_PASSPHRASE = Deno.env.get('OKX_API_PASSPHRASE')!;
 const OKX_PROJECT_ID = Deno.env.get('OKX_PROJECT_ID')!;
+const CRON_SECRET = Deno.env.get('CRON_SECRET');
 
 // Create HMAC signature for OKX API
 async function createOkxSignature(
@@ -68,6 +69,16 @@ async function getTokenPrice(chainIndex: string, tokenAddress: string): Promise<
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Authenticate cron/admin requests
+  const authHeader = req.headers.get('authorization');
+  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+    console.error('[execute-orders] Unauthorized request - invalid or missing CRON_SECRET');
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
