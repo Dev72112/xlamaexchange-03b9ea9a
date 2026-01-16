@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Target, Clock, AlertTriangle, Loader2, Shield, Info } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Target, Clock, AlertTriangle, Loader2, Shield, Info, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,11 +21,13 @@ import { useLimitOrders } from '@/features/orders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { OkxToken } from '@/services/okxdex';
-import { Chain, getChainByIndex } from '@/data/chains';
+import { Chain } from '@/data/chains';
 import { cn } from '@/shared/lib';
+import { useTokenBalance } from '@/hooks/useTokenBalance';
+import { Badge } from '@/components/ui/badge';
 
-// Non-EVM chains don't support signed limit orders yet
-const NON_EVM_CHAIN_INDEXES = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
+// Solana chain index
+const SOLANA_CHAIN_INDEX = '501';
 
 interface LimitOrderFormProps {
   fromToken?: OkxToken | null;
@@ -49,8 +51,8 @@ export function LimitOrderForm({
   currentPrice,
   className 
 }: LimitOrderFormProps) {
-  const { isConnected, isOkxConnected } = useMultiWallet();
-  const { createOrder, isSigning } = useLimitOrders();
+  const { isConnected, isOkxConnected, activeChainType } = useMultiWallet();
+  const { createOrder, createJupiterOrder, isSigning } = useLimitOrders();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
@@ -58,32 +60,87 @@ export function LimitOrderForm({
   const [expirationHours, setExpirationHours] = useState<number | null>(168);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Check if this is a Solana order
+  const isSolana = chain?.chainIndex === SOLANA_CHAIN_INDEX || activeChainType === 'solana';
+
+  // Get token balance for validation
+  const { formatted: fromTokenBalance } = useTokenBalance(
+    fromToken,
+    chain?.chainIndex || ''
+  );
+
+  // Check for insufficient balance
+  const hasInsufficientBalance = useMemo(() => {
+    if (!fromTokenBalance || !amount) return false;
+    if (fromTokenBalance === '< 0.000001' || fromTokenBalance === '0') return parseFloat(amount) > 0;
+    const balance = parseFloat(fromTokenBalance);
+    const amountNum = parseFloat(amount);
+    return !isNaN(balance) && !isNaN(amountNum) && amountNum > balance;
+  }, [fromTokenBalance, amount]);
+
   const handleSubmit = async () => {
     if (!fromToken || !toToken || !chain || !amount || !targetPrice) return;
     
     setIsSubmitting(true);
     
-    const expiresAt = expirationHours 
-      ? new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString()
-      : null;
-    
-    await createOrder({
-      chain_index: chain.chainIndex,
-      from_token_address: fromToken.tokenContractAddress,
-      to_token_address: toToken.tokenContractAddress,
-      from_token_symbol: fromToken.tokenSymbol,
-      to_token_symbol: toToken.tokenSymbol,
-      amount,
-      target_price: parseFloat(targetPrice),
-      condition,
-      slippage: '0.5',
-      expires_at: expiresAt,
-    });
-    
-    setIsSubmitting(false);
-    setOpen(false);
-    setAmount('');
-    setTargetPrice('');
+    try {
+      // For Solana, use Jupiter on-chain limit orders
+      if (isSolana) {
+        // Calculate taking amount based on target price
+        // makingAmount = amount in smallest units
+        // takingAmount = expected output based on target price
+        const decimals = fromToken.decimals ?? 9;
+        const outputDecimals = toToken.decimals ?? 6;
+        const amountInSmallest = convertToSmallestUnits(amount, decimals);
+        const takingAmount = calculateTakingAmount(
+          parseFloat(amount),
+          parseFloat(targetPrice),
+          outputDecimals as number
+        );
+
+        const expiresAt = expirationHours 
+          ? Math.floor(Date.now() / 1000) + (expirationHours * 60 * 60)
+          : undefined;
+
+        const result = await createJupiterOrder({
+          inputMint: fromToken.tokenContractAddress,
+          outputMint: toToken.tokenContractAddress,
+          makingAmount: amountInSmallest,
+          takingAmount,
+          expiredAt: expiresAt,
+        });
+
+        if (result) {
+          setOpen(false);
+          setAmount('');
+          setTargetPrice('');
+        }
+      } else {
+        // For EVM chains, use database monitoring
+        const expiresAt = expirationHours 
+          ? new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString()
+          : null;
+        
+        await createOrder({
+          chain_index: chain.chainIndex,
+          from_token_address: fromToken.tokenContractAddress,
+          to_token_address: toToken.tokenContractAddress,
+          from_token_symbol: fromToken.tokenSymbol,
+          to_token_symbol: toToken.tokenSymbol,
+          amount,
+          target_price: parseFloat(targetPrice),
+          condition,
+          slippage: '0.5',
+          expires_at: expiresAt,
+        });
+        
+        setOpen(false);
+        setAmount('');
+        setTargetPrice('');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const adjustPrice = (percent: number) => {
@@ -96,11 +153,8 @@ export function LimitOrderForm({
     return null;
   }
 
-  const isNonEvmChain = NON_EVM_CHAIN_INDEXES.includes(chain.chainIndex);
-  const chainName = chain.name;
-
-  // Show disabled state for non-EVM chains when NOT connected via OKX
-  if (isNonEvmChain && !isOkxConnected) {
+  // For Solana without OKX wallet, show coming soon (we need a Solana wallet to sign)
+  if (isSolana && !isOkxConnected && activeChainType !== 'solana') {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -115,8 +169,7 @@ export function LimitOrderForm({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Limit orders for {chainName} coming soon</p>
-          <p className="text-xs text-muted-foreground">Connect OKX Wallet for full support</p>
+          <p>Connect a Solana wallet for Jupiter limit orders</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -135,6 +188,12 @@ export function LimitOrderForm({
           <DialogTitle className="flex items-center gap-2">
             <Target className="w-5 h-5" />
             Create Limit Order
+            {isSolana && (
+              <Badge variant="secondary" className="ml-2 gap-1 bg-primary/10 text-primary">
+                <Zap className="w-3 h-3" />
+                Jupiter On-Chain
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
         
@@ -144,6 +203,32 @@ export function LimitOrderForm({
             <span className="text-sm">{fromToken.tokenSymbol} → {toToken.tokenSymbol}</span>
             <span className="text-sm text-muted-foreground">{chain.name}</span>
           </div>
+
+          {/* Balance info for Solana */}
+          {isSolana && fromTokenBalance && (
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Available Balance:</span>
+                <span className="font-mono font-medium">{fromTokenBalance} {fromToken.tokenSymbol}</span>
+              </div>
+              {isSolana && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <Zap className="w-3 h-3 inline mr-1" />
+                  Tokens will be locked in Jupiter until filled or cancelled
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Insufficient balance warning */}
+          {hasInsufficientBalance && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex gap-2 text-sm">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-destructive">
+                Insufficient balance. You have {fromTokenBalance} {fromToken.tokenSymbol}.
+              </p>
+            </div>
+          )}
 
           {/* Amount */}
           <div className="space-y-2">
@@ -157,32 +242,34 @@ export function LimitOrderForm({
             />
           </div>
 
-          {/* Condition */}
-          <div className="space-y-2">
-            <Label>Trigger When Price Is</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={condition === 'above' ? 'default' : 'outline'}
-                className="flex-1"
-                onClick={() => setCondition('above')}
-              >
-                Above
-              </Button>
-              <Button
-                type="button"
-                variant={condition === 'below' ? 'default' : 'outline'}
-                className="flex-1"
-                onClick={() => setCondition('below')}
-              >
-                Below
-              </Button>
+          {/* Condition - Only show for non-Solana (Jupiter uses takingAmount for price) */}
+          {!isSolana && (
+            <div className="space-y-2">
+              <Label>Trigger When Price Is</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={condition === 'above' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setCondition('above')}
+                >
+                  Above
+                </Button>
+                <Button
+                  type="button"
+                  variant={condition === 'below' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setCondition('below')}
+                >
+                  Below
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Target Price */}
           <div className="space-y-2">
-            <Label>Target Price (USD)</Label>
+            <Label>{isSolana ? 'Minimum Price per Token (USD)' : 'Target Price (USD)'}</Label>
             <Input
               type="number"
               placeholder="0.00"
@@ -269,31 +356,36 @@ export function LimitOrderForm({
             </Select>
           </div>
 
-          {/* Signature Info */}
+          {/* Execution Info */}
           <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex gap-2 text-sm">
             <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <p className="text-primary">
-              You'll sign a message with your wallet to verify order creation.
+              {isSolana 
+                ? 'Jupiter keepers will automatically execute when your price is reached.'
+                : 'You\'ll sign a message with your wallet to verify order creation.'
+              }
             </p>
           </div>
 
-          {/* Warning */}
-          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex gap-2 text-sm">
-            <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0 mt-0.5" />
-            <p className="text-yellow-700 dark:text-yellow-500">
-              You'll receive a notification when triggered. Manual execution required.
-            </p>
-          </div>
+          {/* Warning for EVM */}
+          {!isSolana && (
+            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex gap-2 text-sm">
+              <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0 mt-0.5" />
+              <p className="text-yellow-700 dark:text-yellow-500">
+                You'll receive a notification when triggered. Manual execution required.
+              </p>
+            </div>
+          )}
 
           <Button 
             className="w-full" 
             onClick={handleSubmit}
-            disabled={!amount || !targetPrice || isSubmitting || isSigning}
+            disabled={!amount || !targetPrice || isSubmitting || isSigning || hasInsufficientBalance}
           >
             {isSigning ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Sign in Wallet...
+                {isSolana ? 'Sign Transaction...' : 'Sign in Wallet...'}
               </>
             ) : isSubmitting ? (
               <>
@@ -302,8 +394,8 @@ export function LimitOrderForm({
               </>
             ) : (
               <>
-                <Shield className="w-4 h-4 mr-2" />
-                Create Signed Order
+                {isSolana ? <Zap className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
+                {isSolana ? 'Create Jupiter Order' : 'Create Signed Order'}
               </>
             )}
           </Button>
@@ -311,4 +403,21 @@ export function LimitOrderForm({
       </DialogContent>
     </Dialog>
   );
+}
+
+// Helper: Convert human amount to smallest units
+function convertToSmallestUnits(amount: string, decimals: number): string {
+  if (!amount || isNaN(parseFloat(amount))) return '0';
+  const [whole, fraction = ''] = amount.split('.');
+  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
+  const combined = whole + paddedFraction;
+  return combined.replace(/^0+/, '') || '0';
+}
+
+// Helper: Calculate taking amount based on target price
+function calculateTakingAmount(amount: number, targetPrice: number, outputDecimals: number): string {
+  // amount * targetPrice = expected output
+  const expectedOutput = amount * targetPrice;
+  const scaledOutput = Math.floor(expectedOutput * Math.pow(10, outputDecimals));
+  return scaledOutput.toString();
 }
