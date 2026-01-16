@@ -44,16 +44,26 @@ export function DexQuoteInfo({
     ? routes[0].subRoutes?.map(r => r.dexName).join(' → ') || 'Direct swap'
     : 'Best route';
 
+  // Helper to format numbers with max decimals
+  const formatAmount = (amount: string, maxDecimals = 6) => {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return '0';
+    if (num < 0.000001) return '< 0.000001';
+    return num.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });
+  };
+
   return (
-    <div className="space-y-2 p-3 bg-secondary/30 rounded-lg border border-border text-sm overflow-hidden">
+    <div className="space-y-2 p-3 bg-secondary/30 rounded-lg border border-border text-sm overflow-hidden max-w-full">
       {/* Exchange Rate */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground shrink-0">Rate</span>
-        <span className="font-mono text-xs truncate min-w-0">
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="text-muted-foreground shrink-0 text-xs">Rate</span>
+        <span className="font-mono text-[11px] sm:text-xs truncate min-w-0 max-w-[60%]">
           {isLoading ? (
             <Loader2 className="w-3 h-3 animate-spin" />
           ) : inputAmount && outputAmount ? (
-            `1 ${fromToken.tokenSymbol} = ${(parseFloat(outputAmount) / parseFloat(inputAmount)).toFixed(6)} ${toToken.tokenSymbol}`
+            <span className="truncate block" title={`1 ${fromToken.tokenSymbol} = ${(parseFloat(outputAmount) / parseFloat(inputAmount)).toFixed(8)} ${toToken.tokenSymbol}`}>
+              1 {fromToken.tokenSymbol} ≈ {formatAmount((parseFloat(outputAmount) / parseFloat(inputAmount)).toString())} {toToken.tokenSymbol}
+            </span>
           ) : (
             '-'
           )}
@@ -97,9 +107,9 @@ export function DexQuoteInfo({
       </div>
 
       {/* Minimum Received */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-1 shrink-0">
-          <span className="text-muted-foreground">Min. Received</span>
+          <span className="text-muted-foreground text-xs">Min. Received</span>
           <Tooltip>
             <TooltipTrigger asChild>
               <Info className="w-3 h-3 text-muted-foreground cursor-help" />
@@ -111,8 +121,8 @@ export function DexQuoteInfo({
             </TooltipContent>
           </Tooltip>
         </div>
-        <span className="font-mono text-xs truncate min-w-0">
-          {minReceived} {toToken.tokenSymbol}
+        <span className="font-mono text-[11px] sm:text-xs truncate min-w-0 max-w-[50%]" title={`${minReceived} ${toToken.tokenSymbol}`}>
+          {formatAmount(minReceived)} {toToken.tokenSymbol}
         </span>
       </div>
 

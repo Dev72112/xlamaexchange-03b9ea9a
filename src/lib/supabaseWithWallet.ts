@@ -1,6 +1,9 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Singleton cache for wallet-specific clients
 const walletClientCache = new Map<string, SupabaseClient<Database>>();
@@ -22,12 +25,22 @@ export function createWalletClient(walletAddress: string | null): SupabaseClient
     return walletClientCache.get(normalizedAddress)!;
   }
 
-  // For wallet-specific requests, we use the main client but pass headers per-request
-  // This avoids creating multiple GoTrueClient instances
-  // The wallet address header should be passed directly in the request, not via a new client
-  walletClientCache.set(normalizedAddress, supabase);
+  // Create a new client with wallet address header for RLS policies
+  const walletClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        'x-wallet-address': normalizedAddress,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
   
-  return supabase;
+  walletClientCache.set(normalizedAddress, walletClient);
+  
+  return walletClient;
 }
 
 /**
