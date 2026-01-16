@@ -1251,6 +1251,14 @@ body {
   max-width: 100%;
 }
 
+/* Input amount overflow protection for DEX widget */
+input[type="text"][inputmode="decimal"],
+input[type="number"] {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 100%;
+}
+
 /* =====================================================
    Mobile Touch-First Animations
    ===================================================== */
