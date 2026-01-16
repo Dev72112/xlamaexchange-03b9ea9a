@@ -1,10 +1,12 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { useDCAOrders } from '@/features/orders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -26,21 +28,25 @@ import {
   Plus,
   ArrowRight,
   Info,
+  Zap,
+  AlertTriangle,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getChainByIndex } from '@/data/chains';
 
-// Non-EVM chains don't support signed DCA orders yet
-const NON_EVM_CHAIN_INDEXES = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
+// Solana chain index
+const SOLANA_CHAIN_INDEX = '501';
 
 interface DCAOrderFormProps {
   fromToken?: {
     address: string;
     symbol: string;
+    decimals?: number;
   };
   toToken?: {
     address: string;
     symbol: string;
+    decimals?: number;
   };
   chainIndex?: string;
 }
@@ -50,19 +56,66 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   toToken, 
   chainIndex 
 }: DCAOrderFormProps) {
-  const { isConnected, isOkxConnected } = useMultiWallet();
-  const { createOrder, isSigning } = useDCAOrders();
+  const { isConnected, isOkxConnected, activeChainType } = useMultiWallet();
+  const { createOrder, createJupiterDCA, isSigning } = useDCAOrders();
   
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly');
-  const [totalIntervals, setTotalIntervals] = useState<string>('');
+  const [totalIntervals, setTotalIntervals] = useState<string>('10');
   const [slippage, setSlippage] = useState('0.5');
   const [executionHour, setExecutionHour] = useState<string>('9'); // Default 9 AM UTC
+
+  // Check if this is a Solana order
+  const isSolana = chainIndex === SOLANA_CHAIN_INDEX || activeChainType === 'solana';
+
+  // Get token balance for validation
+  const { formatted: fromTokenBalance } = useTokenBalance(
+    fromToken ? { tokenContractAddress: fromToken.address, tokenSymbol: fromToken.symbol, decimals: fromToken.decimals } as any : null,
+    chainIndex || ''
+  );
+
+  // Calculate total investment
+  const totalInvestment = useMemo(() => {
+    if (!amount || !totalIntervals) return null;
+    const total = parseFloat(amount) * parseInt(totalIntervals);
+    return isNaN(total) ? null : total;
+  }, [amount, totalIntervals]);
+
+  // Check for insufficient balance (for Jupiter, total amount is locked)
+  const hasInsufficientBalance = useMemo(() => {
+    if (!fromTokenBalance || !totalInvestment) return false;
+    if (fromTokenBalance === '< 0.000001' || fromTokenBalance === '0') return totalInvestment > 0;
+    const balance = parseFloat(fromTokenBalance);
+    return !isNaN(balance) && totalInvestment > balance;
+  }, [fromTokenBalance, totalInvestment]);
 
   const handleSubmit = useCallback(async () => {
     if (!fromToken || !toToken || !chainIndex || !amount) return;
     
+    // For Solana, use Jupiter on-chain DCA
+    if (isSolana) {
+      const intervals = parseInt(totalIntervals) || 10;
+      const result = await createJupiterDCA({
+        inputMint: fromToken.address,
+        outputMint: toToken.address,
+        totalAmount: (parseFloat(amount) * intervals).toString(),
+        numberOfOrders: intervals,
+        inputDecimals: fromToken.decimals || 9,
+        frequency,
+        fromSymbol: fromToken.symbol,
+        toSymbol: toToken.symbol,
+      });
+      
+      if (result) {
+        setIsOpen(false);
+        setAmount('');
+        setTotalIntervals('10');
+      }
+      return;
+    }
+    
+    // For EVM chains, use database monitoring
     const order = await createOrder({
       chain_index: chainIndex,
       from_token_address: fromToken.address,
@@ -79,9 +132,9 @@ export const DCAOrderForm = memo(function DCAOrderForm({
     if (order) {
       setIsOpen(false);
       setAmount('');
-      setTotalIntervals('');
+      setTotalIntervals('10');
     }
-  }, [fromToken, toToken, chainIndex, amount, frequency, totalIntervals, slippage, executionHour, createOrder]);
+  }, [fromToken, toToken, chainIndex, amount, frequency, totalIntervals, slippage, executionHour, createOrder, createJupiterDCA, isSolana]);
 
   const getFrequencyLabel = (freq: string) => {
     switch (freq) {
@@ -93,22 +146,15 @@ export const DCAOrderForm = memo(function DCAOrderForm({
     }
   };
 
-  const calculateEstimate = () => {
-    if (!amount || !totalIntervals) return null;
-    const total = parseFloat(amount) * parseInt(totalIntervals);
-    return isNaN(total) ? null : total;
-  };
-
   if (!isConnected || !fromToken || !toToken) {
     return null;
   }
 
-  const isNonEvmChain = chainIndex ? NON_EVM_CHAIN_INDEXES.includes(chainIndex) : false;
   const chain = chainIndex ? getChainByIndex(chainIndex) : null;
   const chainName = chain?.name || 'this chain';
 
-  // Show disabled state for non-EVM chains when NOT connected via OKX
-  if (isNonEvmChain && !isOkxConnected) {
+  // For Solana without proper wallet, show coming soon
+  if (isSolana && !isOkxConnected && activeChainType !== 'solana') {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -123,8 +169,7 @@ export const DCAOrderForm = memo(function DCAOrderForm({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>DCA orders for {chainName} coming soon</p>
-          <p className="text-xs text-muted-foreground">Connect OKX Wallet for full support</p>
+          <p>Connect a Solana wallet for Jupiter DCA</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -144,6 +189,12 @@ export const DCAOrderForm = memo(function DCAOrderForm({
           <DialogTitle className="flex items-center gap-2">
             <CalendarClock className="w-5 h-5 text-primary" />
             Create DCA Order
+            {isSolana && (
+              <Badge variant="secondary" className="ml-2 gap-1 bg-primary/10 text-primary">
+                <Zap className="w-3 h-3" />
+                Jupiter On-Chain
+              </Badge>
+            )}
           </DialogTitle>
           <DialogDescription>
             Automatically buy {toToken.symbol} on a schedule with Dollar Cost Averaging.
@@ -157,6 +208,30 @@ export const DCAOrderForm = memo(function DCAOrderForm({
             <ArrowRight className="w-4 h-4 text-muted-foreground" />
             <span className="font-medium">{toToken.symbol}</span>
           </div>
+
+          {/* Balance info for Solana */}
+          {isSolana && fromTokenBalance && (
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Available Balance:</span>
+                <span className="font-mono font-medium">{fromTokenBalance} {fromToken.symbol}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                <Zap className="w-3 h-3 inline mr-1" />
+                Total investment amount will be locked in Jupiter
+              </p>
+            </div>
+          )}
+
+          {/* Insufficient balance warning */}
+          {hasInsufficientBalance && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex gap-2 text-sm">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-destructive">
+                Insufficient balance. You need {totalInvestment?.toFixed(4)} {fromToken.symbol} but have {fromTokenBalance}.
+              </p>
+            </div>
+          )}
           
           {/* Amount per interval */}
           <div className="space-y-2">
@@ -202,66 +277,75 @@ export const DCAOrderForm = memo(function DCAOrderForm({
             </Select>
           </div>
 
-          {/* Execution Time */}
-          <div className="space-y-2">
-            <Label htmlFor="dca-execution-hour" className="flex items-center gap-2">
-              Execution Time (UTC)
-              <Tooltip>
-                <TooltipTrigger>
-                  <Info className="w-3.5 h-3.5 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>What time each day/week/month should the order execute?</p>
-                </TooltipContent>
-              </Tooltip>
-            </Label>
-            <Select value={executionHour} onValueChange={setExecutionHour}>
-              <SelectTrigger id="dca-execution-hour">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 24 }, (_, i) => (
-                  <SelectItem key={i} value={String(i)}>
-                    {String(i).padStart(2, '0')}:00 UTC
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Execution Time - Only for EVM */}
+          {!isSolana && (
+            <div className="space-y-2">
+              <Label htmlFor="dca-execution-hour" className="flex items-center gap-2">
+                Execution Time (UTC)
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>What time each day/week/month should the order execute?</p>
+                  </TooltipContent>
+                </Tooltip>
+              </Label>
+              <Select value={executionHour} onValueChange={setExecutionHour}>
+                <SelectTrigger id="dca-execution-hour">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>
+                      {String(i).padStart(2, '0')}:00 UTC
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
-          {/* Number of purchases (optional) */}
+          {/* Number of purchases */}
           <div className="space-y-2">
             <Label htmlFor="dca-intervals" className="flex items-center gap-2">
               Number of purchases
-              <span className="text-xs text-muted-foreground">(optional)</span>
+              {!isSolana && <span className="text-xs text-muted-foreground">(optional)</span>}
             </Label>
             <Input
               id="dca-intervals"
               type="number"
-              placeholder="Leave empty for ongoing"
+              placeholder={isSolana ? "10" : "Leave empty for ongoing"}
               value={totalIntervals}
               onChange={(e) => setTotalIntervals(e.target.value)}
             />
+            {isSolana && (
+              <p className="text-xs text-muted-foreground">
+                Required for Jupiter DCA - defines how many cycles to execute
+              </p>
+            )}
           </div>
           
-          {/* Slippage */}
-          <div className="space-y-2">
-            <Label htmlFor="dca-slippage">Max Slippage</Label>
-            <Select value={slippage} onValueChange={setSlippage}>
-              <SelectTrigger id="dca-slippage">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.5">0.5%</SelectItem>
-                <SelectItem value="1">1%</SelectItem>
-                <SelectItem value="2">2%</SelectItem>
-                <SelectItem value="3">3%</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Slippage - Only for EVM */}
+          {!isSolana && (
+            <div className="space-y-2">
+              <Label htmlFor="dca-slippage">Max Slippage</Label>
+              <Select value={slippage} onValueChange={setSlippage}>
+                <SelectTrigger id="dca-slippage">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.5">0.5%</SelectItem>
+                  <SelectItem value="1">1%</SelectItem>
+                  <SelectItem value="2">2%</SelectItem>
+                  <SelectItem value="3">3%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
           {/* Summary */}
-          {amount && (
+          {amount && totalIntervals && (
             <Card className="bg-secondary/30 border-border">
               <CardContent className="p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -272,11 +356,21 @@ export const DCAOrderForm = memo(function DCAOrderForm({
                   <span className="text-muted-foreground">Per purchase</span>
                   <span>{amount} {fromToken.symbol}</span>
                 </div>
-                {calculateEstimate() && (
-                  <div className="flex justify-between font-medium">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total cycles</span>
+                  <span>{totalIntervals}</span>
+                </div>
+                {totalInvestment && (
+                  <div className="flex justify-between font-medium pt-2 border-t border-border/50">
                     <span className="text-muted-foreground">Total investment</span>
-                    <span>{calculateEstimate()?.toLocaleString()} {fromToken.symbol}</span>
+                    <span>{totalInvestment.toLocaleString()} {fromToken.symbol}</span>
                   </div>
+                )}
+                {isSolana && (
+                  <p className="text-xs text-primary pt-2">
+                    <Zap className="w-3 h-3 inline mr-1" />
+                    Jupiter keepers will automatically execute each cycle
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -285,24 +379,27 @@ export const DCAOrderForm = memo(function DCAOrderForm({
           {/* Submit */}
           <Button 
             onClick={handleSubmit} 
-            disabled={!amount || isSigning}
+            disabled={!amount || !totalIntervals || isSigning || hasInsufficientBalance}
             className="w-full"
           >
             {isSigning ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Sign to Create...
+                {isSolana ? 'Sign Transaction...' : 'Sign to Create...'}
               </>
             ) : (
               <>
-                <Plus className="w-4 h-4 mr-2" />
-                Create DCA Order
+                {isSolana ? <Zap className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                {isSolana ? 'Create Jupiter DCA' : 'Create DCA Order'}
               </>
             )}
           </Button>
           
           <p className="text-xs text-muted-foreground text-center">
-            You'll need to sign a message to create this order. Your wallet signature proves ownership.
+            {isSolana 
+              ? 'You\'ll sign a transaction to lock funds in Jupiter\'s DCA program.'
+              : 'You\'ll need to sign a message to create this order. Your wallet signature proves ownership.'
+            }
           </p>
         </div>
       </DialogContent>
