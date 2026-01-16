@@ -815,10 +815,10 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
   return (
     <>
-      <Card className="w-full glass border border-border/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-        <CardContent className="p-0">
+      <Card className="w-full max-w-full glass border border-border/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <CardContent className="p-0 overflow-hidden max-w-full">
           {/* Mode Toggle and Wallet Button Header */}
-          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3 overflow-hidden">
+          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3 overflow-hidden max-w-full">
             <div className="shrink-0">
               <ModeToggle mode={exchangeMode} onModeChange={(mode) => { setExchangeMode(mode); onModeChange?.(mode); }} />
             </div>
@@ -907,9 +907,9 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </div>
 
           {/* From Section */}
-          <div className="p-4 sm:p-5 pt-2 border-b border-border overflow-hidden max-w-full">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="shrink-0">
+          <div className="p-4 sm:p-5 pt-2 border-b border-border overflow-hidden">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-full">
+              <div className="shrink-0 flex-none">
                 {exchangeMode === 'instant' ? (
                   <CurrencySelector
                     value={fromCurrency}
@@ -930,16 +930,23 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   />
                 )}
               </div>
-              <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex-1 min-w-0 overflow-hidden max-w-[calc(100%-120px)]">
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={fromAmount}
-                  onChange={(e) => setFromAmount(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setFromAmount(val);
+                    }
+                  }}
                   placeholder="0"
-                  className="border-0 bg-transparent text-right text-base sm:text-lg md:text-xl font-medium focus-visible:ring-0 p-0 h-auto w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none truncate"
+                  className="border-0 bg-transparent text-right text-base sm:text-lg font-medium focus-visible:ring-0 p-0 h-auto w-full truncate overflow-hidden text-ellipsis"
+                  style={{ maxWidth: '100%' }}
                 />
                 {exchangeMode === 'dex' && fromUsdValue && (
-                  <div className="text-right text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+                  <div className="text-right text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate overflow-hidden">
                     {fromUsdValue}
                   </div>
                 )}
@@ -988,9 +995,9 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </div>
 
           {/* To Section */}
-          <div className={`p-4 sm:p-5 overflow-hidden max-w-full ${pairUnavailable ? 'bg-warning/5' : ''}`}>
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="shrink-0">
+          <div className={`p-4 sm:p-5 overflow-hidden ${pairUnavailable ? 'bg-warning/5' : ''}`}>
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-full">
+              <div className="shrink-0 flex-none">
                 {exchangeMode === 'instant' ? (
                   <CurrencySelector
                     value={toCurrency}
@@ -1011,8 +1018,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                   />
                 )}
               </div>
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <div className="text-right text-base sm:text-lg md:text-xl font-medium font-mono overflow-hidden">
+              <div className="flex-1 min-w-0 overflow-hidden max-w-[calc(100%-120px)]">
+                <div className="text-right text-base sm:text-lg font-medium font-mono overflow-hidden text-ellipsis">
                   {currentLoading ? (
                     <div className="flex items-center justify-end gap-2">
                       <div className="h-5 w-16 sm:w-20 skeleton-shimmer rounded-md" />
@@ -1024,14 +1031,18 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                     </span>
                   ) : currentOutputAmount ? (
                     <span className="animate-fade-in block truncate" title={currentOutputAmount}>
-                      {parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                      {parseFloat(currentOutputAmount) >= 1000000 
+                        ? (parseFloat(currentOutputAmount) / 1000000).toFixed(2) + 'M'
+                        : parseFloat(currentOutputAmount) >= 1000 
+                          ? (parseFloat(currentOutputAmount) / 1000).toFixed(2) + 'K'
+                          : parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">0</span>
                   )}
                 </div>
                 {exchangeMode === 'dex' && toUsdValue && !currentLoading && currentOutputAmount && (
-                  <div className="text-right text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+                  <div className="text-right text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate overflow-hidden">
                     {toUsdValue}
                   </div>
                 )}
@@ -1041,21 +1052,27 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
           {/* Rate Info */}
           {currentRate && !currentLoading && !pairUnavailable && (
-            <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
                 {exchangeMode === 'instant' && rateType === "fixed" && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded">
-                    <Lock className="w-3 h-3" />
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-xs font-medium rounded shrink-0">
+                    <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                     Locked
                   </span>
                 )}
-                <span>
-                  1 {exchangeMode === 'instant' ? fromCurrency.ticker.toUpperCase() : fromDexToken?.tokenSymbol || ''} = {currentRate.toLocaleString(undefined, { maximumFractionDigits: 6 })} {exchangeMode === 'instant' ? toCurrency.ticker.toUpperCase() : toDexToken?.tokenSymbol || ''}
+                <span className="truncate max-w-[200px] sm:max-w-none">
+                  1 {exchangeMode === 'instant' ? fromCurrency.ticker.toUpperCase() : (fromDexToken?.tokenSymbol || '').slice(0, 6)} = {
+                    currentRate >= 1000000 
+                      ? (currentRate / 1000000).toFixed(2) + 'M'
+                      : currentRate >= 1000 
+                        ? (currentRate / 1000).toFixed(2) + 'K'
+                        : currentRate.toLocaleString(undefined, { maximumFractionDigits: 6 })
+                  } {exchangeMode === 'instant' ? toCurrency.ticker.toUpperCase() : (toDexToken?.tokenSymbol || '').slice(0, 6)}
                 </span>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex">
-                      <Info className="w-3.5 h-3.5 cursor-help" />
+                    <button type="button" className="inline-flex shrink-0">
+                      <Info className="w-3 h-3 sm:w-3.5 sm:h-3.5 cursor-help" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[280px]">
@@ -1079,14 +1096,14 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 <button
                   onClick={() => currentRefetch()}
                   disabled={currentLoading}
-                  className="p-1 hover:bg-secondary rounded transition-colors"
+                  className="p-1 hover:bg-secondary rounded transition-colors shrink-0"
                   title="Refresh rate"
                 >
-                  <RefreshCw className={cn("w-3.5 h-3.5", currentLoading && "animate-spin")} />
+                  <RefreshCw className={cn("w-3 h-3 sm:w-3.5 sm:h-3.5", currentLoading && "animate-spin")} />
                 </button>
               </div>
               {currentLastUpdated && (
-                <p className="text-center text-xs text-muted-foreground/60 mt-1">
+                <p className="text-center text-[10px] sm:text-xs text-muted-foreground/60 mt-1">
                   Auto-refresh in {autoRefreshCountdown}s
                 </p>
               )}

@@ -1,12 +1,15 @@
-import { memo, Suspense, lazy } from "react";
+import { memo, Suspense, lazy, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
-import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { OrdersSkeleton } from "@/components/skeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
+import { cn } from "@/lib/utils";
 
 // Lazy load order components from feature modules
 const ActiveLimitOrders = lazy(() => import("@/features/orders").then(m => ({ default: m.ActiveLimitOrders })));
@@ -36,8 +39,20 @@ const ordersFeatures = [
   },
 ];
 
+type ChainFilter = 'evm' | 'solana';
+
+const chainFilterOptions: { value: ChainFilter; label: string; description: string }[] = [
+  { value: 'evm', label: 'EVM', description: 'ETH, BSC, Polygon, etc.' },
+  { value: 'solana', label: 'Solana', description: 'SOL & SPL tokens' },
+];
+
 const Orders = memo(function Orders() {
-  const { isConnected } = useMultiWallet();
+  const { isConnected, activeChainType } = useMultiWallet();
+  
+  // Default chain filter based on current wallet connection
+  const [chainFilter, setChainFilter] = useState<ChainFilter>(
+    activeChainType === 'solana' ? 'solana' : 'evm'
+  );
 
   return (
     <Layout>
@@ -113,24 +128,57 @@ const Orders = memo(function Orders() {
           </div>
         ) : (
           <Suspense fallback={<OrdersSkeleton />}>
-            <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {/* Chain Filter Toggle */}
+              <div className="flex items-center justify-center gap-2">
+                <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+                  <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+                  {chainFilterOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      variant={chainFilter === option.value ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setChainFilter(option.value)}
+                      className={cn(
+                        "h-8 px-3 text-xs gap-1.5",
+                        chainFilter === option.value && "bg-primary text-primary-foreground"
+                      )}
+                    >
+                      {option.label}
+                      {chainFilter === option.value && (
+                        <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary-foreground/20">
+                          Active
+                        </Badge>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-center text-xs text-muted-foreground">
+                Viewing {chainFilter === 'solana' ? 'Solana' : 'EVM'} orders • 
+                {chainFilter === 'solana' 
+                  ? ' Including Jupiter on-chain orders' 
+                  : ' ETH, BSC, Polygon, Arbitrum, Base & more'}
+              </p>
+
               {/* Order Stats */}
               <div className="grid grid-cols-3 gap-4">
-                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover">
+                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
                   <CardContent className="pt-4 pb-4 text-center">
                     <TrendingUp className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">Limit Orders</p>
                     <p className="text-lg font-bold">Active</p>
                   </CardContent>
                 </Card>
-                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover">
+                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
                   <CardContent className="pt-4 pb-4 text-center">
                     <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">DCA Orders</p>
                     <p className="text-lg font-bold">Scheduled</p>
                   </CardContent>
                 </Card>
-                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover">
+                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
                   <CardContent className="pt-4 pb-4 text-center">
                     <ArrowRightLeft className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">History</p>
