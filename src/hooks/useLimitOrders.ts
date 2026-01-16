@@ -166,6 +166,7 @@ export function useLimitOrders() {
   }, [activeAddress, walletSupabase, isSolana]);
 
   // Create Jupiter on-chain limit order (Solana only)
+  // Uses Jupiter's Trigger API: create -> sign -> execute (Jupiter handles RPC)
   const createJupiterOrder = useCallback(async (params: {
     inputMint: string;
     outputMint: string;
@@ -192,7 +193,7 @@ export function useLimitOrders() {
         description: 'Getting transaction from Jupiter...',
       });
 
-      // Get the order transaction from Jupiter
+      // Get the order transaction from Jupiter Trigger API
       const orderResponse = await jupiterService.createLimitOrder({
         inputMint: params.inputMint,
         outputMint: params.outputMint,
@@ -202,24 +203,38 @@ export function useLimitOrders() {
         expiredAt: params.expiredAt,
       });
 
+      // Check for transaction - Jupiter returns 'tx' field (base64 encoded)
+      const txBase64 = orderResponse.tx || (orderResponse as any).transaction;
+      if (!txBase64) {
+        throw new Error('Jupiter did not return a transaction');
+      }
+
       toast({
         title: 'Sign Transaction',
         description: 'Please approve the transaction in your wallet',
       });
 
-      // Decode and sign the transaction
-      const txBytes = Uint8Array.from(atob(orderResponse.tx), c => c.charCodeAt(0));
+      // Decode and sign the transaction (Jupiter returns base64)
+      const txBytes = Uint8Array.from(atob(txBase64), c => c.charCodeAt(0));
       const transaction = VersionedTransaction.deserialize(txBytes);
       const signedTx = await solanaWallet.signTransaction(transaction);
 
-      // Serialize and submit
+      // Serialize to base64 for Jupiter execute endpoint
       const signedTxBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
       
-      // For limit orders, Jupiter handles submission differently - the signed tx creates the on-chain order
-      // We just need to broadcast it
-      const { Connection } = await import('@solana/web3.js');
-      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/' + import.meta.env.VITE_ALCHEMY_API_KEY);
-      const signature = await connection.sendRawTransaction(signedTx.serialize());
+      // Execute via Jupiter's execute endpoint (they handle RPC submission reliably)
+      // This avoids "failed to get recent blockhash: Failed to fetch" errors
+      toast({
+        title: 'Submitting Order',
+        description: 'Jupiter is processing your order...',
+      });
+      
+      const executeResult = await jupiterService.executeTriggerOrder({
+        signedTransaction: signedTxBase64,
+        requestId: (orderResponse as any).requestId,
+      });
+      
+      const signature = executeResult.signature;
       
       toast({
         title: '✅ Jupiter Limit Order Created',
@@ -244,6 +259,7 @@ export function useLimitOrders() {
   }, [activeAddress, isSolana, getSolanaWallet, toast, fetchOrders]);
 
   // Cancel Jupiter on-chain order (Solana only)
+  // Uses Jupiter's cancel endpoint + execute for reliable RPC handling
   const cancelJupiterOrder = useCallback(async (orderKey: string) => {
     if (!activeAddress || !isSolana) return;
 
@@ -252,19 +268,40 @@ export function useLimitOrders() {
 
     setIsSigning(true);
     try {
+      toast({
+        title: 'Cancelling Order',
+        description: 'Getting cancel transaction from Jupiter...',
+      });
+      
       const cancelResponse = await jupiterService.cancelLimitOrders(activeAddress, [orderKey]);
       
-      const txBytes = Uint8Array.from(atob(cancelResponse.tx), c => c.charCodeAt(0));
+      // Get transaction from response - Jupiter returns txs array or tx field
+      const txBase64 = cancelResponse.tx || (cancelResponse as any).txs?.[0];
+      if (!txBase64) {
+        throw new Error('Jupiter did not return a cancel transaction');
+      }
+      
+      const txBytes = Uint8Array.from(atob(txBase64), c => c.charCodeAt(0));
       const transaction = VersionedTransaction.deserialize(txBytes);
+      
+      toast({
+        title: 'Sign Transaction',
+        description: 'Please approve the cancellation in your wallet',
+      });
+      
       const signedTx = await solanaWallet.signTransaction(transaction);
+      const signedTxBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
 
-      const { Connection } = await import('@solana/web3.js');
-      const connection = new Connection('https://solana-mainnet.g.alchemy.com/v2/' + import.meta.env.VITE_ALCHEMY_API_KEY);
-      await connection.sendRawTransaction(signedTx.serialize());
+      // Execute via Jupiter for reliable RPC handling
+      const executeResult = await jupiterService.executeTriggerOrder({
+        signedTransaction: signedTxBase64,
+        requestId: (cancelResponse as any).requestId,
+      });
 
       toast({ title: '✅ Order Cancelled', description: 'Jupiter limit order has been cancelled' });
       fetchOrders();
     } catch (err) {
+      console.error('[LimitOrders] Cancel failed:', err);
       toast({
         title: 'Error',
         description: err instanceof Error ? err.message : 'Failed to cancel order',

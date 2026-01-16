@@ -324,7 +324,7 @@ class JupiterService {
    * Cancel limit orders
    * Returns transaction to sign
    */
-  async cancelLimitOrders(maker: string, orders: string[]): Promise<{ tx: string }> {
+  async cancelLimitOrders(maker: string, orders: string[]): Promise<{ tx: string; requestId?: string }> {
     console.log('[Jupiter] Cancelling limit orders:', {
       maker: maker.slice(0, 8) + '...',
       orderCount: orders.length,
@@ -343,6 +343,34 @@ class JupiterService {
     }
 
     return response.json();
+  }
+
+  /**
+   * Execute a signed Trigger API transaction (limit order create/cancel)
+   * This is the Jupiter-recommended way to submit limit order transactions
+   */
+  async executeTriggerOrder(params: {
+    signedTransaction: string;
+    requestId?: string;
+  }): Promise<{ signature: string; status: string; error?: string }> {
+    console.log('[Jupiter] Executing trigger order...');
+
+    const response = await fetch(`${this.edgeFunctionUrl}?action=limit-execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('[Jupiter] Trigger execute failed:', errorData);
+      throw new Error(errorData.error || `Failed to execute trigger order: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('[Jupiter] Trigger execute result:', { signature: data.signature?.slice(0, 12) + '...', status: data.status });
+    
+    return data;
   }
 
   /**

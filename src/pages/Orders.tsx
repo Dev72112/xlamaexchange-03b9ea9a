@@ -1,15 +1,17 @@
-import { memo, Suspense, lazy, useState, useEffect } from "react";
+import { memo, Suspense, lazy, useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap } from "lucide-react";
+import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
+import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { OrdersSkeleton } from "@/components/skeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { cn } from "@/lib/utils";
+import { SUPPORTED_CHAINS } from "@/data/chains";
 
 // Lazy load order components from feature modules
 const ActiveLimitOrders = lazy(() => import("@/features/orders").then(m => ({ default: m.ActiveLimitOrders })));
@@ -47,12 +49,25 @@ const chainFilterOptions: { value: ChainFilter; label: string; description: stri
 ];
 
 const Orders = memo(function Orders() {
-  const { isConnected, activeChainType } = useMultiWallet();
+  const { 
+    isConnected, 
+    activeChainType, 
+    setActiveChain, 
+    switchChainByIndex,
+    isOkxConnected,
+    switchEvmChain,
+    evmChainId,
+  } = useMultiWallet();
+  
+  const { setGlobalChainFilter } = useExchangeMode();
   
   // Default chain filter based on current wallet connection
   const [chainFilter, setChainFilter] = useState<ChainFilter>(
     activeChainType === 'solana' ? 'solana' : 'evm'
   );
+  
+  // Track if we need a network switch
+  const [isSwitching, setIsSwitching] = useState(false);
 
   // Sync chain filter with wallet connection changes
   useEffect(() => {
@@ -62,6 +77,68 @@ const Orders = memo(function Orders() {
       setChainFilter('evm');
     }
   }, [activeChainType]);
+
+  // Handle chain filter change - actually switch the app's active chain
+  const handleChainFilterChange = useCallback(async (newFilter: ChainFilter) => {
+    setChainFilter(newFilter);
+    
+    // Update global chain filter for Analytics/Portfolio/History pages
+    if (newFilter === 'solana') {
+      setGlobalChainFilter('501');
+    } else {
+      setGlobalChainFilter('all-evm');
+    }
+    
+    // Find the target chain
+    const targetChain = newFilter === 'solana'
+      ? SUPPORTED_CHAINS.find(c => c.chainIndex === '501')
+      : SUPPORTED_CHAINS.find(c => c.chainIndex === '1'); // Default to Ethereum for EVM
+    
+    if (!targetChain) return;
+    
+    // Update the app's active chain
+    setActiveChain(targetChain);
+    
+    // For OKX wallet, also switch the wallet's namespace
+    if (isOkxConnected) {
+      try {
+        setIsSwitching(true);
+        await switchChainByIndex(targetChain.chainIndex);
+      } catch (err) {
+        console.warn('[Orders] Chain switch failed:', err);
+      } finally {
+        setIsSwitching(false);
+      }
+    }
+  }, [setActiveChain, switchChainByIndex, isOkxConnected, setGlobalChainFilter]);
+
+  // Handle manual network switch for EVM when not synced
+  const handleNetworkSwitch = useCallback(async () => {
+    if (chainFilter !== 'evm') return;
+    
+    const targetChain = SUPPORTED_CHAINS.find(c => c.chainIndex === '1');
+    if (!targetChain?.chainId) return;
+    
+    try {
+      setIsSwitching(true);
+      
+      if (isOkxConnected) {
+        await switchChainByIndex(targetChain.chainIndex);
+      } else {
+        await switchEvmChain(targetChain.chainId);
+      }
+      
+      setActiveChain(targetChain);
+    } catch (err) {
+      console.warn('[Orders] Network switch failed:', err);
+    } finally {
+      setIsSwitching(false);
+    }
+  }, [chainFilter, isOkxConnected, switchChainByIndex, switchEvmChain, setActiveChain]);
+
+  // Check if wallet is synced with selected filter
+  const isWalletSynced = activeChainType === chainFilter || 
+    (chainFilter === 'evm' && activeChainType !== 'solana' && activeChainType !== 'tron' && activeChainType !== 'sui' && activeChainType !== 'ton');
 
   return (
     <Layout>
@@ -147,7 +224,8 @@ const Orders = memo(function Orders() {
                       key={option.value}
                       variant={chainFilter === option.value ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setChainFilter(option.value)}
+                      onClick={() => handleChainFilterChange(option.value)}
+                      disabled={isSwitching}
                       className={cn(
                         "h-8 px-3 text-xs gap-1.5",
                         chainFilter === option.value && "bg-primary text-primary-foreground"
@@ -167,20 +245,38 @@ const Orders = memo(function Orders() {
                 {/* Connection Indicator */}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className={cn(
-                    "w-2 h-2 rounded-full animate-pulse",
-                    activeChainType === 'solana' ? 'bg-purple-500' : 'bg-success'
+                    "w-2 h-2 rounded-full",
+                    isWalletSynced ? 'bg-success animate-pulse' : 'bg-warning'
                   )} />
                   <span>
                     Connected to <span className="font-medium text-foreground">
                       {activeChainType === 'solana' ? 'Solana' : 'EVM'}
                     </span>
                   </span>
-                  {activeChainType === chainFilter && (
+                  {isWalletSynced ? (
                     <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
                       Synced
                     </Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNetworkSwitch}
+                      disabled={isSwitching}
+                      className="h-5 px-2 text-[10px] border-warning text-warning hover:bg-warning/10"
+                    >
+                      {isSwitching ? 'Switching...' : `Switch to ${chainFilter === 'solana' ? 'Solana' : 'Ethereum'}`}
+                    </Button>
                   )}
                 </div>
+                
+                {/* Network mismatch warning */}
+                {!isWalletSynced && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-xs text-warning">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>Wallet is on a different network than selected filter</span>
+                  </div>
+                )}
               </div>
 
               <p className="text-center text-xs text-muted-foreground">

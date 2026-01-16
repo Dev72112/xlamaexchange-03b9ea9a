@@ -285,6 +285,10 @@ export function useDexSwapMulti() {
     const providerPubkey = provider.publicKey?.toBase58?.() || provider.publicKey?.toString?.();
     console.log('[Solana] Provider ready:', { pubkey: providerPubkey?.slice(0, 12) + '...' });
 
+    // Check if Jupiter-only mode is enabled (for debugging)
+    const jupiterOnlyMode = typeof localStorage !== 'undefined' && 
+      localStorage.getItem('xlama.solanaSwapProvider') === 'jupiter-only';
+
     // TRY JUPITER FIRST (for commission earnings)
     try {
       console.log('[Solana] Attempting Jupiter Ultra swap (primary)...');
@@ -293,11 +297,17 @@ export function useDexSwapMulti() {
       });
       return result;
     } catch (jupiterError: any) {
-      console.warn('[Jupiter] Swap failed, falling back to OKX:', jupiterError?.message?.slice(0, 100));
+      console.error('[Jupiter] Swap failed:', jupiterError?.message || jupiterError);
       
       // Check if user rejected - don't fallback for user rejections
       if (jupiterError?.message?.includes('rejected') || jupiterError?.code === 4001) {
         throw jupiterError;
+      }
+      
+      // In Jupiter-only mode, don't fallback - surface the real error
+      if (jupiterOnlyMode) {
+        console.error('[Jupiter-Only Mode] Not falling back to OKX DEX');
+        throw new Error(`Jupiter swap failed: ${jupiterError?.message?.slice(0, 100) || 'Unknown error'}`);
       }
       
       toast({
@@ -306,7 +316,7 @@ export function useDexSwapMulti() {
       });
     }
 
-    // FALLBACK TO OKX DEX
+    // FALLBACK TO OKX DEX (only if not in jupiter-only mode)
     console.log('[Solana] Falling back to OKX DEX...');
     return await executeOkxSolanaSwap({
       chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey
