@@ -89,13 +89,13 @@ export function LimitOrderForm({
         // Calculate taking amount based on target price
         // makingAmount = amount in smallest units
         // takingAmount = expected output based on target price
-        const decimals = fromToken.decimals ?? 9;
-        const outputDecimals = toToken.decimals ?? 6;
+        const decimals = typeof fromToken.decimals === 'number' ? fromToken.decimals : 9;
+        const outputDecimals = typeof toToken.decimals === 'number' ? toToken.decimals : 6;
         const amountInSmallest = convertToSmallestUnits(amount, decimals);
         const takingAmount = calculateTakingAmount(
           parseFloat(amount),
           parseFloat(targetPrice),
-          outputDecimals as number
+          outputDecimals
         );
 
         const expiresAt = expirationHours 

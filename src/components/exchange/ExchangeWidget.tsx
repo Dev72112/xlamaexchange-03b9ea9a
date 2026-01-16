@@ -815,7 +815,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
 
   return (
     <>
-      <Card className="w-full max-w-full glass border border-border/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <Card className="exchange-widget-container w-full max-w-full glass border border-border/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
         <CardContent className="p-0 overflow-hidden max-w-full">
           {/* Mode Toggle and Wallet Button Header */}
           <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3 overflow-hidden max-w-full">
