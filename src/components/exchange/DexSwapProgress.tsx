@@ -13,6 +13,7 @@ interface DexSwapProgressProps {
   chain: Chain;
   onClose: () => void;
   onRetry: () => void;
+  apiSource?: 'jupiter' | 'okx' | null;
 }
 
 const STEP_CONFIG: Record<SwapStep, { label: string; description: string }> = {
@@ -70,6 +71,7 @@ export function DexSwapProgress({
   chain,
   onClose,
   onRetry,
+  apiSource,
 }: DexSwapProgressProps) {
   const config = STEP_CONFIG[step];
   const isActive = step !== 'idle' && step !== 'complete' && step !== 'error';
@@ -230,7 +232,7 @@ export function DexSwapProgress({
         </motion.div>
       )}
 
-      {/* Chain badge */}
+      {/* Chain badge with API source */}
       {isActive && (
         <motion.div 
           initial={{ opacity: 0 }}
@@ -240,6 +242,16 @@ export function DexSwapProgress({
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full text-sm border border-border/50">
             {chain.icon && <img src={chain.icon} alt={chain.name} className="w-5 h-5 rounded-full" />}
             <span className="font-medium">{chain.name}</span>
+            {apiSource && (
+              <span className={cn(
+                "text-xs px-2 py-0.5 rounded-full font-medium",
+                apiSource === 'jupiter' 
+                  ? "bg-primary/20 text-primary" 
+                  : "bg-orange-500/20 text-orange-500"
+              )}>
+                via {apiSource === 'jupiter' ? 'Jupiter' : 'OKX DEX'}
+              </span>
+            )}
           </div>
         </motion.div>
       )}

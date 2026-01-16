@@ -173,7 +173,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     error: multiSwapError, 
     isLoading: multiSwapLoading, 
     executeSwap: executeMultiSwap, 
-    reset: resetMultiSwap 
+    reset: resetMultiSwap,
+    apiSource: multiApiSource,
   } = useDexSwapMulti();
 
   // Unified swap state - route based on chain type
@@ -1366,6 +1367,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             txHash={txHash}
             error={swapError}
             chain={selectedChain}
+            apiSource={!isEvmChain ? multiApiSource : null}
             onClose={() => {
               setShowSwapProgress(false);
               resetSwap();

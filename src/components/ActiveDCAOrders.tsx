@@ -34,6 +34,7 @@ import {
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 import { DCADashboard } from './DCADashboard';
+import { getChainIcon } from '@/data/chains';
 import { JupiterDCAOrder } from '@/services/jupiter';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 
@@ -108,8 +109,15 @@ const JupiterDCACard = memo(function JupiterDCACard({ order, onCancel, isSigning
     >
       <div className="flex items-start justify-between gap-2 sm:gap-4">
         <div className="flex-1 min-w-0">
-          {/* Token pair and Jupiter badge */}
+          {/* Token pair and Jupiter badge with Solana chain icon */}
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
+            {/* Solana chain icon for Jupiter orders */}
+            {(() => {
+              const solanaChain = SUPPORTED_CHAINS.find(c => c.chainIndex === '501');
+              return solanaChain ? (
+                <img src={getChainIcon(solanaChain)} alt="Solana" className="w-4 h-4 rounded-full shrink-0" title="Solana" />
+              ) : null;
+            })()}
             <span className="font-medium text-sm sm:text-base truncate">{order.inputMint?.slice(0, 6)}...</span>
             <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
             <span className="font-medium text-sm sm:text-base truncate">{order.outputMint?.slice(0, 6)}...</span>
@@ -199,8 +207,15 @@ const DCAOrderCard = memo(function DCAOrderCard({
     >
       <div className="flex items-start justify-between gap-2 sm:gap-4">
         <div className="flex-1 min-w-0">
-          {/* Token pair and amount */}
+          {/* Token pair and amount with chain icon */}
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
+            {/* Chain icon */}
+            {(() => {
+              const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === order.chain_index);
+              return chain ? (
+                <img src={getChainIcon(chain)} alt={chain.name} className="w-4 h-4 rounded-full shrink-0" title={chain.name} />
+              ) : null;
+            })()}
             <span className="font-medium text-sm sm:text-base truncate">{order.from_token_symbol}</span>
             <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
             <span className="font-medium text-sm sm:text-base truncate">{order.to_token_symbol}</span>

@@ -64,6 +64,7 @@ export function useDexSwapMulti() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [apiSource, setApiSource] = useState<'jupiter' | 'okx' | null>(null);
 
   const executeSwap = useCallback(async ({
     chain,
@@ -86,6 +87,7 @@ export function useDexSwapMulti() {
     setError(null);
     setTxHash(null);
     setStep('idle');
+    setApiSource(null);
 
     try {
       const decimals = parseInt(fromToken.decimals);
@@ -315,6 +317,7 @@ export function useDexSwapMulti() {
   const executeJupiterSwap = async ({ 
     fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey 
   }: any) => {
+    setApiSource('jupiter');
     setStep('swapping');
     toast({ title: 'Preparing Swap', description: 'Getting best route via Jupiter...' });
 
@@ -407,6 +410,7 @@ export function useDexSwapMulti() {
   const executeOkxSolanaSwap = async ({ 
     chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey 
   }: any) => {
+    setApiSource('okx');
     setStep('swapping');
     toast({ title: 'Preparing Swap', description: 'Getting best route for Solana (OKX)...' });
 
@@ -774,9 +778,10 @@ export function useDexSwapMulti() {
     setTxHash(null);
     setError(null);
     setIsLoading(false);
+    setApiSource(null);
   }, []);
 
-  return { step, txHash, error, isLoading, executeSwap, reset };
+  return { step, txHash, error, isLoading, executeSwap, reset, apiSource };
 }
 
 // Helper for EVM transaction confirmation
