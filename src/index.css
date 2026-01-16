@@ -448,6 +448,63 @@ body {
   will-change: background-position;
 }
 
+/* ============ DEX WIDGET OVERFLOW PROTECTION ============ */
+/* Prevents horizontal overflow on mobile when large amounts are entered */
+
+.exchange-widget-container {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box;
+}
+
+.exchange-widget-container * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.exchange-widget-container input[type="text"],
+.exchange-widget-container input[type="number"],
+.exchange-widget-container input[inputmode="decimal"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  font-size: clamp(0.75rem, 2.5vw, 1.125rem) !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+.exchange-widget-container .amount-display,
+.exchange-widget-container .rate-display {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Safe truncation for token amounts */
+.truncate-safe {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Amount input container */
+.amount-input-container {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.amount-input-container input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Content fade-in animation */
 .content-fade-in {
   animation: contentFadeIn 0.4s ease-out forwards;
