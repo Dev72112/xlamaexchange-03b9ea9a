@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Shield, Zap, Globe, Lock, Clock, Coins, Target, Bell } from "lucide-react";
+import { Shield, Zap, Globe, Lock, Clock, Coins, Target, Bell, TrendingUp } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 
 const features = [
@@ -17,6 +17,11 @@ const features = [
     icon: Globe,
     title: "25+ Chains",
     description: "Trade across Ethereum, Solana, Sui, TON, Tron, and 20+ more networks.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Perpetual Trading",
+    description: "Long or short with up to 50x leverage on Hyperliquid perpetuals.",
   },
   {
     icon: Target,
@@ -58,7 +63,7 @@ export const Features = memo(function Features() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
             <article
               key={feature.title}

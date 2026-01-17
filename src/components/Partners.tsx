@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { ExternalLink, Wallet, Shield, Zap, Globe } from "lucide-react";
+import { ExternalLink, Wallet, Shield, Zap, Globe, TrendingUp } from "lucide-react";
 import changeNowLogo from "@/assets/changenow-logo.jpg";
 import phantomLogo from '@/assets/wallets/phantom-logo.png';
 import solflareLogo from '@/assets/wallets/solflare-logo.png';
@@ -25,6 +25,7 @@ const trustBadges = [
   { icon: Zap, label: "Instant Swaps" },
   { icon: Globe, label: "25+ Networks" },
   { icon: Wallet, label: "526+ Wallets" },
+  { icon: TrendingUp, label: "50x Leverage" },
 ];
 
 export const Partners = memo(function Partners() {
@@ -37,7 +38,7 @@ export const Partners = memo(function Partners() {
         </div>
 
         {/* Main Partners */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-12 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 mb-12 max-w-6xl mx-auto">
           {/* ChangeNow Partner */}
           <a
             href="https://changenow.io"
@@ -127,6 +128,66 @@ export const Partners = memo(function Partners() {
               Bridge assets across 20+ chains seamlessly
             </p>
           </a>
+
+          {/* Jupiter Partner */}
+          <a
+            href="https://jup.ag"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover performance-critical overflow-hidden"
+          >
+            <div className="flex items-center gap-3">
+              <img
+                src="https://jup.ag/favicon.ico"
+                alt="Jupiter Solana aggregator logo"
+                loading="lazy"
+                decoding="async"
+                width="48"
+                height="48"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0"
+              />
+              <div className="text-left min-w-0">
+                <span className="font-bold text-lg sm:text-xl">Jupiter</span>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  Solana DEX
+                  <ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center max-w-[200px]">
+              Best Solana swap rates via Ultra API
+            </p>
+          </a>
+
+          {/* Hyperliquid Partner */}
+          <a
+            href="https://hyperliquid.xyz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover performance-critical overflow-hidden"
+          >
+            <div className="flex items-center gap-3">
+              <img
+                src="https://hyperliquid.xyz/favicon.ico"
+                alt="Hyperliquid perpetuals logo"
+                loading="lazy"
+                decoding="async"
+                width="48"
+                height="48"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0"
+              />
+              <div className="text-left min-w-0">
+                <span className="font-bold text-lg sm:text-xl">Hyperliquid</span>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  Perpetuals
+                  <ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center max-w-[200px]">
+              50x leverage perpetual futures trading
+            </p>
+          </a>
         </div>
 
         {/* 526+ Wallets Highlight */}
@@ -179,7 +240,7 @@ export const Partners = memo(function Partners() {
         </div>
 
         {/* Trust badges */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 max-w-4xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 max-w-4xl mx-auto">
           {trustBadges.map((badge, index) => (
             <div 
               key={badge.label}
@@ -190,7 +251,7 @@ export const Partners = memo(function Partners() {
               <span className="text-xs font-medium text-center">{badge.label}</span>
             </div>
           ))}
-          <div className={`flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50 col-span-2 sm:col-span-1 sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}>
+          <div className={`flex flex-col items-center p-3 bg-card/50 rounded-lg border border-border/50 sweep-effect performance-critical overflow-hidden ${STAGGER_ITEM_CLASS}`}>
             <span className="w-2 h-2 rounded-full bg-success mb-2 shrink-0" aria-hidden="true" />
             <span className="text-xs font-medium text-center">No KYC</span>
           </div>

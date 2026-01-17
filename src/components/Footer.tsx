@@ -72,11 +72,10 @@ export const Footer = memo(function Footer() {
             <ul className="space-y-2.5 text-sm">
               <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} onTouchStart={() => handleLinkHover('/')} className="text-foreground/80 hover:text-primary transition-colors">Instant Swap</Link></li>
               <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} onTouchStart={() => handleLinkHover('/')} className="text-foreground/80 hover:text-primary transition-colors">DEX Aggregator</Link></li>
+              <li><Link to="/perpetuals" onMouseEnter={() => handleLinkHover('/perpetuals')} onTouchStart={() => handleLinkHover('/perpetuals')} className="text-foreground/80 hover:text-primary transition-colors">Perpetuals</Link></li>
               <li><Link to="/bridge" onMouseEnter={() => handleLinkHover('/bridge')} onTouchStart={() => handleLinkHover('/bridge')} className="text-foreground/80 hover:text-primary transition-colors">Cross-Chain Bridge</Link></li>
               <li><Link to="/orders" onMouseEnter={() => handleLinkHover('/orders')} onTouchStart={() => handleLinkHover('/orders')} className="text-foreground/80 hover:text-primary transition-colors">Orders</Link></li>
-              <li><Link to="/tools" onMouseEnter={() => handleLinkHover('/tools')} onTouchStart={() => handleLinkHover('/tools')} className="text-foreground/80 hover:text-primary transition-colors">Trading Tools</Link></li>
               <li><Link to="/portfolio" onMouseEnter={() => handleLinkHover('/portfolio')} onTouchStart={() => handleLinkHover('/portfolio')} className="text-foreground/80 hover:text-primary transition-colors">Portfolio</Link></li>
-              <li><Link to="/compare" onMouseEnter={() => handleLinkHover('/compare')} onTouchStart={() => handleLinkHover('/compare')} className="text-foreground/80 hover:text-primary transition-colors">Token Compare</Link></li>
             </ul>
           </nav>
 
@@ -132,7 +131,7 @@ export const Footer = memo(function Footer() {
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <FeedbackSettings />
-            <span className="glass px-3 py-1 rounded-full">v2.0 • Powered by ChangeNow, OKX DEX & Li.Fi</span>
+            <span className="glass px-3 py-1 rounded-full">v2.3 • Powered by ChangeNow, OKX DEX, Li.Fi, Jupiter & Hyperliquid</span>
           </div>
         </div>
       </div>

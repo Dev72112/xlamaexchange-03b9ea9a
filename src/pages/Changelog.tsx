@@ -26,6 +26,7 @@ import {
   Bot,
   ThumbsUp,
   Check,
+  Activity,
 } from "lucide-react";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { useFeatureVotes } from "@/hooks/useFeatureVotes";
@@ -61,6 +62,43 @@ interface RoadmapQuarter {
 }
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
+  {
+    version: "2.3.0",
+    date: "2026-01-17",
+    title: "Hyperliquid Perpetuals Trading",
+    description: "Launch perpetual futures trading with up to 50x leverage via Hyperliquid integration.",
+    type: "major",
+    changes: [
+      { category: "feature", text: "Hyperliquid perpetuals trading with up to 50x leverage" },
+      { category: "feature", text: "Real-time orderbook with bid/ask depth visualization" },
+      { category: "feature", text: "Live WebSocket candlestick price charts" },
+      { category: "feature", text: "Position management: close, modify SL/TP, add margin" },
+      { category: "feature", text: "PnL calculator with liquidation price estimation" },
+      { category: "feature", text: "Funding rate history charts and 24h volume display" },
+      { category: "feature", text: "Mobile swipe gestures for quick Long/Short trades" },
+      { category: "improvement", text: "EVM/Solana chain toggle on Portfolio, Analytics, History pages" },
+      { category: "improvement", text: "Perpetuals added to main navigation (desktop + mobile)" },
+      { category: "improvement", text: "Unified chain selector component across all pages" },
+    ],
+  },
+  {
+    version: "2.2.0",
+    date: "2026-01-12",
+    title: "Performance & Jupiter Integration",
+    description: "60fps GPU-accelerated animations, Alchemy RPC integration, and Jupiter Ultra API with commissions.",
+    type: "major",
+    changes: [
+      { category: "feature", text: "Jupiter Ultra API for Solana swaps with 0.8% commission" },
+      { category: "feature", text: "Alchemy RPC integration for reliable EVM/Solana connectivity" },
+      { category: "improvement", text: "60fps GPU-accelerated sweep animations site-wide" },
+      { category: "improvement", text: "GPU-optimized .performance-critical class for high-frequency components" },
+      { category: "improvement", text: "Preconnect/dns-prefetch hints for all API partners" },
+      { category: "improvement", text: "Service worker v5 with cache-first strategies" },
+      { category: "improvement", text: "TokenImage and ChainImage with explicit sizing to prevent CLS" },
+      { category: "improvement", text: "Granular bundle splitting (vendor-wallet, vendor-solana, vendor-lifi)" },
+      { category: "security", text: "Jupiter API key secured via edge function proxy" },
+    ],
+  },
   {
     version: "2.1.0",
     date: "2026-01-07",
@@ -146,9 +184,10 @@ const ROADMAP_DATA: RoadmapQuarter[] = [
     color: "green",
     icon: Clock,
     features: [
-      { id: "mobile-pwa", title: "Mobile App (PWA)", description: "Native-like mobile experience", icon: Smartphone, progress: 65 },
-      { id: "advanced-analytics", title: "Advanced Analytics", description: "Detailed trade history & insights", icon: BarChart3, progress: 40 },
-      { id: "tp-sl", title: "Take Profit / Stop Loss", description: "Automated exit strategies", icon: Target, progress: 25 },
+      { id: "perpetuals-trading", title: "Perpetuals Trading", description: "50x leverage via Hyperliquid", icon: Activity, progress: 100 },
+      { id: "mobile-pwa", title: "Mobile App (PWA)", description: "Native-like mobile experience", icon: Smartphone, progress: 70 },
+      { id: "advanced-analytics", title: "Advanced Analytics", description: "Detailed trade history & insights", icon: BarChart3, progress: 55 },
+      { id: "tp-sl", title: "Take Profit / Stop Loss", description: "Automated exit strategies", icon: Target, progress: 85 },
       { id: "more-chains", title: "More Chains", description: "Aptos, Sei, Injective support", icon: Globe, progress: 15 },
     ],
   },
@@ -158,10 +197,10 @@ const ROADMAP_DATA: RoadmapQuarter[] = [
     color: "blue",
     icon: Target,
     features: [
+      { id: "perpetuals-advanced", title: "Perpetuals Order Types", description: "Stop-limit, trailing stop orders", icon: TrendingUp, progress: 0 },
       { id: "trading-bots", title: "Trading Bots", description: "Automated trading strategies", icon: Bot, progress: 0 },
       { id: "yield-aggregator", title: "Yield Aggregator", description: "Find best DeFi yields across chains", icon: Coins, progress: 0 },
       { id: "social-trading", title: "Social Trading", description: "Copy top traders' strategies", icon: Users, progress: 0 },
-      { id: "nft-bridge", title: "NFT Bridge", description: "Cross-chain NFT transfers", icon: Layers, progress: 0 },
     ],
   },
   {
@@ -170,6 +209,7 @@ const ROADMAP_DATA: RoadmapQuarter[] = [
     color: "purple",
     icon: Rocket,
     features: [
+      { id: "perpetuals-leaderboard", title: "Perpetuals Leaderboard", description: "Top traders rankings", icon: TrendingUp, progress: 0 },
       { id: "account-abstraction", title: "Account Abstraction", description: "Gasless & social recovery", icon: Shield, progress: 0 },
       { id: "intent-trading", title: "Intent-Based Trading", description: "Express intent, we find best execution", icon: Zap, progress: 0 },
       { id: "p2p-trading", title: "P2P Trading", description: "Direct peer-to-peer swaps", icon: ArrowLeftRight, progress: 0 },
@@ -246,10 +286,15 @@ const FeatureItem = memo(function FeatureItem({ feature, color, vote, hasVoted, 
   const colors = getColorClasses(color);
   const voted = hasVoted(feature.id);
   const voteCount = getVoteCount(feature.id);
+  const isComplete = feature.progress === 100;
 
   const handleVote = async () => {
-    if (voted) {
-      toast.info("You already voted for this feature");
+    if (voted || isComplete) {
+      if (isComplete) {
+        toast.info("This feature is already complete!");
+      } else {
+        toast.info("You already voted for this feature");
+      }
       return;
     }
     const success = await vote(feature.id);
@@ -263,23 +308,28 @@ const FeatureItem = memo(function FeatureItem({ feature, color, vote, hasVoted, 
       <div className="flex items-start gap-3">
         <feature.icon className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">{feature.title}</p>
+          <p className="text-sm font-medium flex items-center gap-2">
+            {feature.title}
+            {isComplete && <Badge variant="outline" className="text-xs border-green-500/50 text-green-500">Complete</Badge>}
+          </p>
           <p className="text-xs text-muted-foreground">{feature.description}</p>
         </div>
-        <Button
-          variant={voted ? "secondary" : "outline"}
-          size="sm"
-          className="h-7 px-2 gap-1 flex-shrink-0"
-          onClick={handleVote}
-          disabled={voted}
-        >
-          {voted ? (
-            <Check className="h-3 w-3" />
-          ) : (
-            <ThumbsUp className="h-3 w-3" />
-          )}
-          <span className="text-xs">{voteCount}</span>
-        </Button>
+        {!isComplete && (
+          <Button
+            variant={voted ? "secondary" : "outline"}
+            size="sm"
+            className="h-7 px-2 gap-1 flex-shrink-0"
+            onClick={handleVote}
+            disabled={voted}
+          >
+            {voted ? (
+              <Check className="h-3 w-3" />
+            ) : (
+              <ThumbsUp className="h-3 w-3" />
+            )}
+            <span className="text-xs">{voteCount}</span>
+          </Button>
+        )}
       </div>
       {feature.progress > 0 && (
         <div className="flex items-center gap-2">
@@ -339,9 +389,9 @@ const Changelog = () => {
           </Card>
           <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
             <CardContent className="pt-6 text-center">
-              <Layers className="h-6 w-6 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold">20+</p>
-              <p className="text-sm text-muted-foreground">Bridge Protocols</p>
+              <Activity className="h-6 w-6 text-primary mx-auto mb-2" />
+              <p className="text-2xl font-bold">50x</p>
+              <p className="text-sm text-muted-foreground">Leverage</p>
             </CardContent>
           </Card>
           <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
@@ -430,24 +480,24 @@ const Changelog = () => {
                         <Badge variant={getVersionBadgeVariant(entry.type)}>
                           v{entry.version}
                         </Badge>
-                        <span className="text-sm text-muted-foreground">{entry.date}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {entry.date}
+                        </span>
                       </div>
-                      <h2 className="text-xl font-bold">{entry.title}</h2>
+                      <h3 className="text-xl font-bold">{entry.title}</h3>
                       <p className="text-muted-foreground">{entry.description}</p>
                     </CardHeader>
                     <CardContent>
                       <ul className="space-y-2">
                         {entry.changes.map((change, changeIndex) => (
-                          <li key={changeIndex} className="flex items-start gap-3">
-                            <div className="mt-0.5 flex-shrink-0">
-                              {getCategoryIcon(change.category)}
-                            </div>
-                            <div className="flex-1">
-                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                {getCategoryLabel(change.category)}
-                              </span>
-                              <p className="text-sm">{change.text}</p>
-                            </div>
+                          <li
+                            key={changeIndex}
+                            className="flex items-start gap-2 text-sm"
+                          >
+                            {getCategoryIcon(change.category)}
+                            <span className="text-muted-foreground">
+                              {change.text}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -456,33 +506,6 @@ const Changelog = () => {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-
-        {/* Subscribe CTA */}
-        <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border">
-          <Bell className="h-8 w-8 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Stay Updated</h2>
-          <p className="text-muted-foreground mb-6">
-            Follow us on social media to get notified about new features and updates.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <a
-              href="https://x.com/xlama_exchange"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-            >
-              Follow on X
-            </a>
-            <a
-              href="https://t.me/xlama_exchange"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border hover:bg-muted transition-colors"
-            >
-              Join Telegram
-            </a>
           </div>
         </div>
       </div>

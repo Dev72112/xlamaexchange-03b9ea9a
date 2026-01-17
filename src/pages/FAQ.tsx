@@ -10,7 +10,7 @@ import {
 const faqs = [
   {
     question: "What is xlama?",
-    answer: "xlama is a multi-chain cryptocurrency exchange aggregator that supports 25+ blockchain networks. We offer three core features: Instant Mode (via ChangeNOW) for cross-chain swaps with 900+ tokens in 1-5 minutes, DEX Mode (via OKX DEX) for on-chain swaps aggregated from 400+ decentralized exchanges, and Cross-Chain Bridge (via Li.Fi) for bridging assets across 20+ networks.",
+    answer: "xlama is a multi-chain cryptocurrency exchange aggregator that supports 25+ blockchain networks. We offer four core features: Instant Mode (via ChangeNOW) for cross-chain swaps with 900+ tokens in 1-5 minutes, DEX Mode (via OKX DEX) for on-chain swaps aggregated from 400+ decentralized exchanges, Cross-Chain Bridge (via Li.Fi) for bridging assets across 20+ networks, and Perpetuals Trading (via Hyperliquid) for leveraged futures with up to 50x leverage.",
   },
   {
     question: "Which wallet should I use?",
@@ -22,11 +22,31 @@ const faqs = [
   },
   {
     question: "Do I need to create an account?",
-    answer: "No registration required. For DEX Mode and Bridge, simply connect your wallet - we support 526+ wallets via WalletConnect plus native integrations for Solana, Sui, TON, and Tron wallets. For Instant Mode, no wallet connection is needed.",
+    answer: "No registration required. For DEX Mode, Bridge, and Perpetuals, simply connect your wallet - we support 526+ wallets via WalletConnect plus native integrations for Solana, Sui, TON, and Tron wallets. For Instant Mode, no wallet connection is needed.",
   },
   {
-    question: "What's the difference between Instant, DEX, and Bridge modes?",
-    answer: "Instant Mode (ChangeNOW) is ideal for cross-chain swaps - send crypto and receive different crypto on another blockchain. DEX Mode (OKX DEX) is for same-chain swaps directly on the blockchain, aggregating rates from 400+ DEXs. Bridge Mode (Li.Fi) is for moving the same token or stablecoins between different blockchains with optimized routes.",
+    question: "What's the difference between Instant, DEX, Bridge, and Perpetuals modes?",
+    answer: "Instant Mode (ChangeNOW) is ideal for cross-chain swaps - send crypto and receive different crypto on another blockchain. DEX Mode (OKX DEX) is for same-chain swaps directly on the blockchain, aggregating rates from 400+ DEXs. Bridge Mode (Li.Fi) is for moving the same token or stablecoins between different blockchains with optimized routes. Perpetuals Mode (Hyperliquid) is for leveraged trading with up to 50x leverage.",
+  },
+  {
+    question: "What is Perpetual Trading on xLama?",
+    answer: "Perpetual trading lets you speculate on crypto prices with leverage (up to 50x) without owning the underlying asset. Go long if you expect prices to rise, or short if you expect them to fall. We integrate with Hyperliquid for fast, low-fee perpetual futures trading on EVM chains.",
+  },
+  {
+    question: "What leverage is available for perpetuals?",
+    answer: "We support leverage from 1x up to 50x on Hyperliquid perpetuals. Higher leverage amplifies both gains and losses. The PnL Calculator tool helps you understand potential outcomes before trading. We recommend starting with lower leverage (2-5x) until you're comfortable with the mechanics.",
+  },
+  {
+    question: "How do funding rates work?",
+    answer: "Funding rates are periodic payments between long and short traders to keep perpetual prices aligned with spot prices. Positive funding means longs pay shorts; negative means shorts pay longs. Rates are typically charged every 8 hours. View current rates on the Perpetuals page.",
+  },
+  {
+    question: "What are the risks of leveraged trading?",
+    answer: "Leveraged trading carries significant risk: you can lose more than your initial margin. Liquidation occurs if your margin drops below maintenance requirements. Always use stop-losses, start with low leverage, and never trade more than you can afford to lose. The PnL Calculator shows your liquidation price before you trade.",
+  },
+  {
+    question: "Which wallets support perpetuals?",
+    answer: "Perpetual trading on Hyperliquid requires an EVM-compatible wallet. We recommend OKX Wallet or MetaMask. Connect via WalletConnect to access 526+ supported wallets. Solana, Sui, TON, and Tron wallets do not support perpetuals - use our DEX or Instant modes for those chains.",
   },
   {
     question: "What is the Cross-Chain Bridge?",
@@ -39,6 +59,10 @@ const faqs = [
   {
     question: "What bridges does Li.Fi use?",
     answer: "Li.Fi aggregates 20+ bridge protocols including Stargate, Hop Protocol, Across, Connext, Celer, Multichain, Synapse, and many more. The system automatically selects the best bridge based on your transfer size, destination, and preferences for speed vs. cost.",
+  },
+  {
+    question: "What is Jupiter and how does it improve Solana swaps?",
+    answer: "Jupiter is Solana's leading DEX aggregator. We use the Jupiter Ultra API to find the best swap routes across all Solana liquidity sources. This means better rates, lower slippage, and faster execution for all SPL token swaps.",
   },
   {
     question: "What are Limit Orders?",
@@ -62,11 +86,11 @@ const faqs = [
   },
   {
     question: "What tools are available?",
-    answer: "Visit /tools for our full suite: Token Watchlist (price monitoring), Gas Estimator (multi-chain gas prices), Price Prediction (AI technical analysis), Portfolio Rebalancer (target allocations), and Price Alerts (notifications). Visit /orders to manage Limit and DCA orders.",
+    answer: "Visit /tools for our full suite: Token Watchlist (price monitoring), Gas Estimator (multi-chain gas prices), Price Prediction (AI technical analysis), Portfolio Rebalancer (target allocations), and Price Alerts (notifications). Visit /orders to manage Limit and DCA orders. Visit /perpetuals for leveraged trading.",
   },
   {
     question: "How do Solana swaps work?",
-    answer: "Connect Phantom or Solflare wallet, select Solana network, and swap any SPL token. We aggregate rates from Jupiter, Raydium, Orca, and other Solana DEXs. Transactions confirm in ~400ms with minimal gas fees (usually under $0.01).",
+    answer: "Connect Phantom or Solflare wallet, select Solana network, and swap any SPL token. We use Jupiter Ultra API for best rates, aggregating from Raydium, Orca, and other Solana DEXs. Transactions confirm in ~400ms with minimal gas fees (usually under $0.01).",
   },
   {
     question: "Why do I need to approve tokens before swapping?",
@@ -78,7 +102,7 @@ const faqs = [
   },
   {
     question: "What fees do you charge?",
-    answer: "For DEX swaps (OKX DEX), we include a 1.5% commission in the quote. For Bridge transactions (Li.Fi), we include a 1.5% platform fee. For Instant swaps (ChangeNOW), fees are included in the exchange rate. Instant swaps typically complete in 1-5 minutes. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
+    answer: "For DEX swaps (OKX DEX), we include a 1.5% commission in the quote. For Solana swaps (Jupiter), we include a 0.8% commission. For Bridge transactions (Li.Fi), we include a 1.5% platform fee. For Instant swaps (ChangeNOW), fees are included in the exchange rate. Instant swaps typically complete in 1-5 minutes. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
   },
   {
     question: "How can I track my transaction?",
@@ -86,7 +110,7 @@ const faqs = [
   },
   {
     question: "Is xlama safe to use?",
-    answer: "Yes! xlama is completely non-custodial - we never hold your funds or access your private keys. DEX swaps interact directly with audited smart contracts. Bridge transactions use audited protocols via Li.Fi. Instant swaps are processed by ChangeNOW, a trusted exchange partner since 2017.",
+    answer: "Yes! xlama is completely non-custodial - we never hold your funds or access your private keys. DEX swaps interact directly with audited smart contracts. Bridge transactions use audited protocols via Li.Fi. Instant swaps are processed by ChangeNOW, a trusted exchange partner since 2017. Perpetuals are executed via Hyperliquid's audited infrastructure.",
   },
   {
     question: "What is DCA (Dollar Cost Averaging)?",
@@ -101,7 +125,7 @@ const FAQ = () => {
         <title>FAQ - xlama | Frequently Asked Questions</title>
         <meta
           name="description"
-          content="Find answers to common questions about xlama cryptocurrency exchange. Learn about Instant Mode, DEX Mode, limit orders, cross-chain swaps, portfolio tracking, and more."
+          content="Find answers to common questions about xlama cryptocurrency exchange. Learn about Instant Mode, DEX Mode, Perpetuals, limit orders, cross-chain swaps, portfolio tracking, and more."
         />
       </Helmet>
 

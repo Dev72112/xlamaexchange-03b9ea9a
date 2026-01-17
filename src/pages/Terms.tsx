@@ -18,7 +18,7 @@ const Terms = () => {
           
           <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
             <p className="text-muted-foreground">
-              Last updated: January 4, 2026
+              Last updated: January 17, 2026
             </p>
 
             <section className="space-y-4">
@@ -32,11 +32,13 @@ const Terms = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">2. Description of Service</h2>
               <p className="text-muted-foreground">
-                xlama is a hybrid cryptocurrency exchange platform offering two modes:
+                xlama is a hybrid cryptocurrency exchange platform offering multiple modes:
               </p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li><strong>Instant Mode:</strong> Non-custodial exchange service powered by ChangeNow API that allows users to exchange cryptocurrencies without registration.</li>
                 <li><strong>DEX Mode:</strong> Decentralized exchange aggregator powered by OKX DEX that enables on-chain token swaps directly from your wallet across multiple blockchains including Ethereum, Solana, Sui, TON, Tron, and more.</li>
+                <li><strong>Bridge Mode:</strong> Cross-chain bridging powered by Li.Fi, enabling asset transfers across 20+ blockchain networks.</li>
+                <li><strong>Perpetuals Mode:</strong> Leveraged perpetual futures trading via Hyperliquid, supporting up to 50x leverage on major crypto assets. Available for EVM wallets only.</li>
               </ul>
             </section>
 
@@ -66,7 +68,7 @@ const Terms = () => {
                 We support various wallets across multiple blockchains:
               </p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                <li><strong>EVM Chains:</strong> MetaMask, OKX Wallet</li>
+                <li><strong>EVM Chains:</strong> MetaMask, OKX Wallet, and 526+ wallets via WalletConnect</li>
                 <li><strong>Solana:</strong> Phantom, Solflare</li>
                 <li><strong>Sui:</strong> Sui Wallet</li>
                 <li><strong>TON:</strong> Tonkeeper</li>
@@ -98,7 +100,38 @@ const Terms = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">8. Prohibited Activities</h2>
+              <h2 className="text-2xl font-semibold">8. Perpetuals Mode Specific Terms</h2>
+              <p className="text-muted-foreground">When using Perpetuals Mode, you acknowledge and agree that:</p>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                <li>Leveraged trading carries substantial risk of loss, potentially exceeding your initial margin</li>
+                <li>Liquidation occurs when margin falls below maintenance requirements</li>
+                <li>Funding rates are charged periodically and may impact position profitability</li>
+                <li>Market volatility can cause rapid price movements and unexpected losses</li>
+                <li>Stop-loss orders may not execute at exact specified prices during high volatility</li>
+                <li>You are solely responsible for managing risk and position sizing</li>
+                <li>Past performance does not guarantee future results</li>
+                <li>Perpetuals trading is only available with EVM-compatible wallets</li>
+              </ul>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold">9. Leveraged Trading Risk Disclosure</h2>
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+                <p className="text-muted-foreground font-medium mb-2">
+                  WARNING: Leveraged trading is highly speculative and carries significant risk.
+                </p>
+                <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                  <li>You can lose your entire investment</li>
+                  <li>Losses can exceed your initial deposit</li>
+                  <li>Leveraged products are not suitable for all investors</li>
+                  <li>You should not trade with money you cannot afford to lose</li>
+                  <li>Seek independent financial advice if you do not fully understand the risks</li>
+                </ul>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold">10. Prohibited Activities</h2>
               <p className="text-muted-foreground">You agree not to:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li>Use the service for money laundering or terrorist financing</li>
@@ -111,25 +144,25 @@ const Terms = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">9. Limitation of Liability</h2>
+              <h2 className="text-2xl font-semibold">11. Limitation of Liability</h2>
               <p className="text-muted-foreground">
                 xlama is provided "as is" without warranties of any kind. We are not liable for any 
                 losses resulting from market volatility, blockchain delays, smart contract failures, 
-                user errors, wallet compromises, bridge failures, or circumstances beyond our control.
+                user errors, wallet compromises, bridge failures, liquidations, or circumstances beyond our control.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">10. Third-Party Services</h2>
+              <h2 className="text-2xl font-semibold">12. Third-Party Services</h2>
               <p className="text-muted-foreground">
-                Our service integrates with ChangeNow, OKX DEX, and various wallet providers. These 
+                Our service integrates with ChangeNow, OKX DEX, Li.Fi, Jupiter, Hyperliquid, and various wallet providers. These 
                 third-party services have their own terms and conditions. We are not responsible for 
                 any issues arising from their services.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">11. Changes to Terms</h2>
+              <h2 className="text-2xl font-semibold">13. Changes to Terms</h2>
               <p className="text-muted-foreground">
                 We reserve the right to modify these Terms at any time. Continued use of the service after 
                 changes constitutes acceptance of the new Terms.
@@ -137,7 +170,7 @@ const Terms = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">12. Contact</h2>
+              <h2 className="text-2xl font-semibold">14. Contact</h2>
               <p className="text-muted-foreground">
                 For questions about these Terms, please contact us at{" "}
                 <a href="mailto:support.xlama@defixlama.com" className="text-primary hover:underline">
