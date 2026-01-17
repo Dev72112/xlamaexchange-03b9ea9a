@@ -4,7 +4,7 @@ import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle } from "lucide-react";
+import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -285,6 +285,33 @@ const Orders = memo(function Orders() {
                   ? ' Including Jupiter on-chain orders' 
                   : ' ETH, BSC, Polygon, Arbitrum, Base & more'}
               </p>
+
+              {/* Perpetuals CTA for EVM */}
+              {chainFilter === 'evm' && (
+                <Card className="glass border-primary/20 glow-sm sweep-effect">
+                  <CardContent className="py-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Activity className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Trade Perpetuals on Hyperliquid</p>
+                        <p className="text-xs text-muted-foreground">
+                          Long or short with up to 50x leverage on BTC, ETH, SOL and more
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => window.location.href = '/perpetuals'}
+                      className="shrink-0"
+                      size="sm"
+                    >
+                      <Activity className="w-4 h-4 mr-2" />
+                      Open Perpetuals
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Order Stats */}
               <div className="grid grid-cols-3 gap-4">
