@@ -4,7 +4,7 @@
  * Hyperliquid perpetual trading interface.
  */
 
-import { memo, Suspense, lazy, useState } from "react";
+import { memo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,35 +18,44 @@ import {
   BarChart3,
   Wallet,
   History,
-  Settings,
   Zap,
   ArrowUpRight,
   ArrowDownRight,
+  RefreshCw,
 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
-import { useHyperliquidMarkets } from "@/hooks/useHyperliquidMarkets";
+import { useHyperliquidMarkets, useHyperliquidOrderbook } from "@/hooks/useHyperliquidMarkets";
 import { useHyperliquidAccount } from "@/hooks/useHyperliquidAccount";
+import { HyperliquidTradeForm } from "@/components/perpetuals/HyperliquidTradeForm";
+import { HyperliquidOrderbook } from "@/components/perpetuals/HyperliquidOrderbook";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 // Popular perpetual pairs
 const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK'];
 
 const Perpetuals = memo(function Perpetuals() {
-  const { isConnected, activeChainType, activeAddress } = useMultiWallet();
-  const { assets, markets, isLoading: marketsLoading, getPrice } = useHyperliquidMarkets();
+  const { isConnected, activeChainType } = useMultiWallet();
+  const { getPrice, refetch: refetchMarkets } = useHyperliquidMarkets();
   const { 
     positions, 
     totalEquity, 
     unrealizedPnl, 
     availableMargin,
-    isLoading: accountLoading,
+    openOrders,
+    refetch: refetchAccount,
   } = useHyperliquidAccount();
+  const { toast } = useToast();
   
   const [selectedPair, setSelectedPair] = useState('BTC');
   const [activeTab, setActiveTab] = useState('trade');
 
+  // Fetch orderbook for selected pair
+  const { orderbook, isLoading: orderbookLoading } = useHyperliquidOrderbook(selectedPair);
+
   const isEVM = activeChainType === 'evm';
+  const currentPrice = getPrice(selectedPair);
 
   const formatUsd = (value: number) => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
@@ -57,6 +66,21 @@ const Perpetuals = memo(function Perpetuals() {
   const formatPercent = (value: number) => {
     const sign = value >= 0 ? '+' : '';
     return `${sign}${value.toFixed(2)}%`;
+  };
+
+  const handleTrade = async (params: any) => {
+    // Placeholder - will implement actual trading via Hyperliquid API
+    console.log('[Perpetuals] Trade submitted:', params);
+    toast({
+      title: 'Trading Coming Soon',
+      description: 'Hyperliquid order execution is being integrated. Check back soon!',
+    });
+  };
+
+  const handleRefresh = () => {
+    refetchMarkets();
+    refetchAccount();
+    toast({ title: 'Refreshed', description: 'Market data updated' });
   };
 
   return (
@@ -139,6 +163,13 @@ const Perpetuals = memo(function Perpetuals() {
           /* Main Trading Interface */
           <div className="max-w-6xl mx-auto space-y-6">
             {/* Account Overview */}
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-medium">Account Overview</h2>
+              <Button variant="ghost" size="sm" onClick={handleRefresh} className="gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </Button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="glass border-border/50 hover-lift">
                 <CardContent className="pt-4 pb-4">
@@ -243,7 +274,7 @@ const Perpetuals = memo(function Perpetuals() {
                         {selectedPair}-PERP
                       </span>
                       <Badge variant="outline" className="font-mono">
-                        ${getPrice(selectedPair).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        ${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </Badge>
                     </CardTitle>
                   </CardHeader>
@@ -251,19 +282,21 @@ const Perpetuals = memo(function Perpetuals() {
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                       <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="trade">Trade</TabsTrigger>
-                        <TabsTrigger value="positions">Positions</TabsTrigger>
-                        <TabsTrigger value="orders">Orders</TabsTrigger>
+                        <TabsTrigger value="positions">
+                          Positions {positions.length > 0 && `(${positions.length})`}
+                        </TabsTrigger>
+                        <TabsTrigger value="orders">
+                          Orders {openOrders.length > 0 && `(${openOrders.length})`}
+                        </TabsTrigger>
                       </TabsList>
                       
-                      <TabsContent value="trade" className="mt-4 space-y-4">
-                        {/* Trade Form Placeholder */}
-                        <div className="text-center py-12 text-muted-foreground">
-                          <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p className="text-sm mb-2">Trading interface coming soon</p>
-                          <p className="text-xs">
-                            Long/Short with limit orders, SL/TP, and leverage up to 50x
-                          </p>
-                        </div>
+                      <TabsContent value="trade" className="mt-4">
+                        <HyperliquidTradeForm
+                          coin={selectedPair}
+                          currentPrice={currentPrice}
+                          availableMargin={availableMargin}
+                          onTrade={handleTrade}
+                        />
                       </TabsContent>
                       
                       <TabsContent value="positions" className="mt-4">
@@ -271,6 +304,7 @@ const Perpetuals = memo(function Perpetuals() {
                           <div className="text-center py-8 text-muted-foreground">
                             <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-50" />
                             <p className="text-sm">No open positions</p>
+                            <p className="text-xs mt-1">Your positions will appear here</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -312,10 +346,33 @@ const Perpetuals = memo(function Perpetuals() {
                       </TabsContent>
                       
                       <TabsContent value="orders" className="mt-4">
-                        <div className="text-center py-8 text-muted-foreground">
-                          <History className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                          <p className="text-sm">No open orders</p>
-                        </div>
+                        {openOrders.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <History className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                            <p className="text-sm">No open orders</p>
+                            <p className="text-xs mt-1">Your limit orders will appear here</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {openOrders.map((order: any, i: number) => (
+                              <div 
+                                key={i}
+                                className="p-3 rounded-lg border bg-secondary/30 flex items-center justify-between text-sm"
+                              >
+                                <div>
+                                  <span className="font-medium">{order.coin}-PERP</span>
+                                  <Badge variant="outline" className="ml-2 text-xs">
+                                    {order.side}
+                                  </Badge>
+                                </div>
+                                <div className="text-right font-mono">
+                                  <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
+                                  <p className="text-xs text-muted-foreground">{order.sz}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </TabsContent>
                     </Tabs>
                   </CardContent>
@@ -326,13 +383,19 @@ const Perpetuals = memo(function Perpetuals() {
               <div className="space-y-6">
                 <Card className="glass border-border/50">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Orderbook</CardTitle>
+                    <CardTitle className="text-sm flex items-center justify-between">
+                      Orderbook
+                      <Badge variant="outline" className="text-xs font-mono">
+                        {selectedPair}
+                      </Badge>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center py-8 text-muted-foreground">
-                      <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-xs">Orderbook visualization coming soon</p>
-                    </div>
+                    <HyperliquidOrderbook
+                      orderbook={orderbook}
+                      isLoading={orderbookLoading}
+                      currentPrice={currentPrice}
+                    />
                   </CardContent>
                 </Card>
 
@@ -350,12 +413,14 @@ const Perpetuals = memo(function Perpetuals() {
                       <span className="text-success">+0.0012%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">24h Volume</span>
-                      <span>$2.4B</span>
+                      <span className="text-muted-foreground">Mark Price</span>
+                      <span className="font-mono">
+                        ${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Open Interest</span>
-                      <span>$890M</span>
+                      <span className="text-muted-foreground">Fees</span>
+                      <span>0.035% / 0.1%</span>
                     </div>
                   </CardContent>
                 </Card>

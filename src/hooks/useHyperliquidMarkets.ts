@@ -10,6 +10,7 @@ import {
   hyperliquidService, 
   HyperliquidAsset, 
   HyperliquidMarketData,
+  HyperliquidOrderbook,
 } from '@/services/hyperliquid';
 
 export interface UseHyperliquidMarketsResult {
@@ -18,15 +19,12 @@ export interface UseHyperliquidMarketsResult {
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
-  
-  // Helper functions
   getAsset: (coin: string) => HyperliquidAsset | undefined;
   getMarket: (coin: string) => HyperliquidMarketData | undefined;
   getPrice: (coin: string) => number;
 }
 
 export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
-  // Fetch assets
   const {
     data: assets = [],
     isLoading: assetsLoading,
@@ -35,11 +33,10 @@ export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
   } = useQuery({
     queryKey: ['hyperliquid', 'assets'],
     queryFn: () => hyperliquidService.getAssets(),
-    staleTime: 60000, // 1 minute
-    refetchInterval: 120000, // 2 minutes
+    staleTime: 60000,
+    refetchInterval: 120000,
   });
 
-  // Fetch market data
   const {
     data: markets = [],
     isLoading: marketsLoading,
@@ -47,11 +44,10 @@ export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
   } = useQuery({
     queryKey: ['hyperliquid', 'markets'],
     queryFn: () => hyperliquidService.getAllMarkets(),
-    staleTime: 5000, // 5 seconds
-    refetchInterval: 10000, // 10 seconds
+    staleTime: 5000,
+    refetchInterval: 10000,
   });
 
-  // Create lookup maps
   const assetMap = useMemo(() => {
     const map = new Map<string, HyperliquidAsset>();
     assets.forEach(asset => map.set(asset.coin, asset));
@@ -64,10 +60,8 @@ export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
     return map;
   }, [markets]);
 
-  // Helper functions
   const getAsset = (coin: string) => assetMap.get(coin);
   const getMarket = (coin: string) => marketMap.get(coin);
-  
   const getPrice = (coin: string): number => {
     const market = marketMap.get(coin);
     return market ? parseFloat(market.midPx) : 0;
@@ -90,4 +84,22 @@ export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
   };
 }
 
-// Orderbook hook will be added when service supports it
+export function useHyperliquidOrderbook(coin: string): {
+  orderbook: HyperliquidOrderbook | null;
+  isLoading: boolean;
+  error: Error | null;
+} {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['hyperliquid', 'orderbook', coin],
+    queryFn: () => hyperliquidService.getOrderbook(coin, 10),
+    enabled: !!coin,
+    staleTime: 1000,
+    refetchInterval: 2000,
+  });
+
+  return {
+    orderbook: data || null,
+    isLoading,
+    error: error as Error | null,
+  };
+}

@@ -1,0 +1,300 @@
+/**
+ * Hyperliquid Trade Form Component
+ * 
+ * Trading form with long/short buttons, leverage slider, and order types.
+ */
+
+import { memo, useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Loader2,
+  AlertTriangle,
+  Zap,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface HyperliquidTradeFormProps {
+  coin: string;
+  currentPrice: number;
+  availableMargin: number;
+  onTrade?: (params: TradeParams) => Promise<void>;
+}
+
+interface TradeParams {
+  coin: string;
+  side: 'long' | 'short';
+  orderType: 'market' | 'limit';
+  size: string;
+  leverage: number;
+  limitPrice?: string;
+  stopLoss?: string;
+  takeProfit?: string;
+}
+
+const LEVERAGE_PRESETS = [1, 2, 5, 10, 20, 50];
+
+export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
+  coin,
+  currentPrice,
+  availableMargin,
+  onTrade,
+}: HyperliquidTradeFormProps) {
+  const [side, setSide] = useState<'long' | 'short'>('long');
+  const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
+  const [size, setSize] = useState('');
+  const [leverage, setLeverage] = useState(5);
+  const [limitPrice, setLimitPrice] = useState('');
+  const [stopLoss, setStopLoss] = useState('');
+  const [takeProfit, setTakeProfit] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Calculate position value and margin required
+  const sizeNum = parseFloat(size) || 0;
+  const positionValue = sizeNum * currentPrice;
+  const marginRequired = positionValue / leverage;
+  const hasInsufficientMargin = marginRequired > availableMargin && sizeNum > 0;
+
+  const handleSubmit = useCallback(async () => {
+    if (!size || isSubmitting || hasInsufficientMargin) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onTrade?.({
+        coin,
+        side,
+        orderType,
+        size,
+        leverage,
+        limitPrice: orderType === 'limit' ? limitPrice : undefined,
+        stopLoss: stopLoss || undefined,
+        takeProfit: takeProfit || undefined,
+      });
+      
+      // Reset form on success
+      setSize('');
+      setLimitPrice('');
+      setStopLoss('');
+      setTakeProfit('');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [coin, side, orderType, size, leverage, limitPrice, stopLoss, takeProfit, onTrade, isSubmitting, hasInsufficientMargin]);
+
+  const setMaxSize = useCallback(() => {
+    if (currentPrice > 0 && availableMargin > 0) {
+      const maxPositionValue = availableMargin * leverage * 0.95; // 95% to leave buffer
+      const maxSize = maxPositionValue / currentPrice;
+      setSize(maxSize.toFixed(4));
+    }
+  }, [currentPrice, availableMargin, leverage]);
+
+  return (
+    <div className="space-y-4">
+      {/* Long/Short Toggle */}
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant={side === 'long' ? 'default' : 'outline'}
+          className={cn(
+            "h-12 gap-2",
+            side === 'long' && "bg-success hover:bg-success/90 text-success-foreground"
+          )}
+          onClick={() => setSide('long')}
+        >
+          <TrendingUp className="w-4 h-4" />
+          Long
+        </Button>
+        <Button
+          variant={side === 'short' ? 'default' : 'outline'}
+          className={cn(
+            "h-12 gap-2",
+            side === 'short' && "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+          )}
+          onClick={() => setSide('short')}
+        >
+          <TrendingDown className="w-4 h-4" />
+          Short
+        </Button>
+      </div>
+
+      {/* Order Type Tabs */}
+      <Tabs value={orderType} onValueChange={(v) => setOrderType(v as 'market' | 'limit')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="market">Market</TabsTrigger>
+          <TabsTrigger value="limit">Limit</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Limit Price (for limit orders) */}
+      {orderType === 'limit' && (
+        <div className="space-y-2">
+          <Label>Limit Price (USD)</Label>
+          <Input
+            type="number"
+            placeholder={currentPrice.toString()}
+            value={limitPrice}
+            onChange={(e) => setLimitPrice(e.target.value)}
+            className="font-mono"
+          />
+        </div>
+      )}
+
+      {/* Size Input */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Size ({coin})</Label>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 text-xs"
+            onClick={setMaxSize}
+          >
+            Max
+          </Button>
+        </div>
+        <Input
+          type="number"
+          placeholder="0.00"
+          value={size}
+          onChange={(e) => setSize(e.target.value)}
+          className="font-mono"
+        />
+        {sizeNum > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Value: ${positionValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </p>
+        )}
+      </div>
+
+      {/* Leverage Slider */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label>Leverage</Label>
+          <Badge variant="outline" className="font-mono">
+            {leverage}x
+          </Badge>
+        </div>
+        <Slider
+          value={[leverage]}
+          onValueChange={([v]) => setLeverage(v)}
+          min={1}
+          max={50}
+          step={1}
+          className="w-full"
+        />
+        <div className="flex justify-between gap-1">
+          {LEVERAGE_PRESETS.map((preset) => (
+            <Button
+              key={preset}
+              variant={leverage === preset ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 flex-1 text-xs"
+              onClick={() => setLeverage(preset)}
+            >
+              {preset}x
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Margin Required */}
+      {sizeNum > 0 && (
+        <div className="p-3 rounded-lg bg-secondary/50 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Margin Required</span>
+            <span className="font-mono">
+              ${marginRequired.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Available</span>
+            <span className="font-mono">
+              ${availableMargin.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Insufficient Margin Warning */}
+      {hasInsufficientMargin && (
+        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex gap-2 text-sm">
+          <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+          <p className="text-destructive">
+            Insufficient margin. Reduce size or increase deposit.
+          </p>
+        </div>
+      )}
+
+      {/* SL/TP (Collapsible) */}
+      <details className="group">
+        <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5" />
+          Stop Loss / Take Profit (Optional)
+        </summary>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Stop Loss (USD)</Label>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={stopLoss}
+              onChange={(e) => setStopLoss(e.target.value)}
+              className="font-mono text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Take Profit (USD)</Label>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={takeProfit}
+              onChange={(e) => setTakeProfit(e.target.value)}
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+      </details>
+
+      {/* Submit Button */}
+      <Button
+        className={cn(
+          "w-full h-12",
+          side === 'long' 
+            ? "bg-success hover:bg-success/90 text-success-foreground" 
+            : "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+        )}
+        onClick={handleSubmit}
+        disabled={!size || isSubmitting || hasInsufficientMargin}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Submitting...
+          </>
+        ) : (
+          <>
+            {side === 'long' ? <TrendingUp className="w-4 h-4 mr-2" /> : <TrendingDown className="w-4 h-4 mr-2" />}
+            {orderType === 'market' ? 'Market' : 'Limit'} {side === 'long' ? 'Long' : 'Short'}
+          </>
+        )}
+      </Button>
+
+      <p className="text-xs text-center text-muted-foreground">
+        Trading on Hyperliquid • Fees: 0.035% maker / 0.1% taker
+      </p>
+    </div>
+  );
+});

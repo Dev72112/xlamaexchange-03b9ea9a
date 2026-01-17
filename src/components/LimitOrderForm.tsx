@@ -116,27 +116,10 @@ export function LimitOrderForm({
           setTargetPrice('');
         }
       } else {
-        // For EVM chains, use database monitoring
-        const expiresAt = expirationHours 
-          ? new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString()
-          : null;
-        
-        await createOrder({
-          chain_index: chain.chainIndex,
-          from_token_address: fromToken.tokenContractAddress,
-          to_token_address: toToken.tokenContractAddress,
-          from_token_symbol: fromToken.tokenSymbol,
-          to_token_symbol: toToken.tokenSymbol,
-          amount,
-          target_price: parseFloat(targetPrice),
-          condition,
-          slippage: '0.5',
-          expires_at: expiresAt,
-        });
-        
+        // EVM chains - Hyperliquid integration coming soon
+        // Show message and close dialog
         setOpen(false);
-        setAmount('');
-        setTargetPrice('');
+        return;
       }
     } finally {
       setIsSubmitting(false);
@@ -170,6 +153,31 @@ export function LimitOrderForm({
         </TooltipTrigger>
         <TooltipContent>
           <p>Connect a Solana wallet for Jupiter limit orders</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  // For EVM chains, show Hyperliquid coming soon
+  if (!isSolana) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={cn("gap-1.5", className)}
+            onClick={() => window.open('/perpetuals', '_self')}
+          >
+            <Target className="w-3.5 h-3.5" />
+            Limit Order
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+              Hyperliquid
+            </Badge>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>EVM limit orders via Hyperliquid Perpetuals</p>
         </TooltipContent>
       </Tooltip>
     );

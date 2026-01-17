@@ -115,25 +115,10 @@ export const DCAOrderForm = memo(function DCAOrderForm({
       return;
     }
     
-    // For EVM chains, use database monitoring
-    const order = await createOrder({
-      chain_index: chainIndex,
-      from_token_address: fromToken.address,
-      to_token_address: toToken.address,
-      from_token_symbol: fromToken.symbol,
-      to_token_symbol: toToken.symbol,
-      amount_per_interval: amount,
-      frequency,
-      total_intervals: totalIntervals ? parseInt(totalIntervals) : null,
-      slippage,
-      execution_hour: parseInt(executionHour),
-    });
-    
-    if (order) {
-      setIsOpen(false);
-      setAmount('');
-      setTotalIntervals('10');
-    }
+    // EVM chains - Hyperliquid integration coming soon
+    // Show message and close dialog
+    setIsOpen(false);
+    return;
   }, [fromToken, toToken, chainIndex, amount, frequency, totalIntervals, slippage, executionHour, createOrder, createJupiterDCA, isSolana]);
 
   const getFrequencyLabel = (freq: string) => {
@@ -170,6 +155,31 @@ export const DCAOrderForm = memo(function DCAOrderForm({
         </TooltipTrigger>
         <TooltipContent>
           <p>Connect a Solana wallet for Jupiter DCA</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  // For EVM chains, show Hyperliquid coming soon
+  if (!isSolana) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2"
+            onClick={() => window.open('/perpetuals', '_self')}
+          >
+            <CalendarClock className="w-4 h-4" />
+            <span className="hidden sm:inline">DCA</span>
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+              Hyperliquid
+            </Badge>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>EVM DCA via Hyperliquid Perpetuals</p>
         </TooltipContent>
       </Tooltip>
     );
