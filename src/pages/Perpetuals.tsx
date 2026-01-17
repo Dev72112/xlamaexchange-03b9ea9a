@@ -4,7 +4,7 @@
  * Hyperliquid perpetual trading interface.
  */
 
-import { memo, useState } from "react";
+import { memo, useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
+  Calculator,
 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -34,6 +35,8 @@ import {
   HyperliquidPriceChart,
   FundingRateChart,
   MobileTradePanel,
+  PositionManager,
+  PnLCalculator,
 } from "@/components/perpetuals";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -56,12 +59,24 @@ const Perpetuals = memo(function Perpetuals() {
   
   const [selectedPair, setSelectedPair] = useState('BTC');
   const [activeTab, setActiveTab] = useState('trade');
+  const [showCalculator, setShowCalculator] = useState(false);
 
   // WebSocket for real-time prices
   const { getPrice: getWsPrice, isConnected: wsConnected } = useHyperliquidWebSocket(POPULAR_PAIRS);
 
   // Fetch orderbook for selected pair
   const { orderbook, isLoading: orderbookLoading } = useHyperliquidOrderbook(selectedPair);
+
+  // Build current prices map for position manager
+  const currentPrices = useMemo(() => {
+    const prices: Record<string, number> = {};
+    POPULAR_PAIRS.forEach(pair => {
+      const wsPrice = getWsPrice(pair);
+      const restPrice = getPrice(pair);
+      prices[pair] = wsPrice > 0 ? wsPrice : restPrice;
+    });
+    return prices;
+  }, [getWsPrice, getPrice]);
 
   const isEVM = activeChainType === 'evm';
   // Use WebSocket price if available, fallback to REST API
@@ -86,6 +101,31 @@ const Perpetuals = memo(function Perpetuals() {
     toast({
       title: 'Trading Coming Soon',
       description: 'Hyperliquid order execution is being integrated. Check back soon!',
+    });
+  };
+
+  // Position management handlers (placeholders for Hyperliquid API integration)
+  const handleClosePosition = async (coin: string, size: string) => {
+    console.log('[Perpetuals] Close position:', { coin, size });
+    toast({
+      title: 'Position Management Coming Soon',
+      description: `Close ${size} ${coin} position - Hyperliquid API integration pending`,
+    });
+  };
+
+  const handleModifySLTP = async (coin: string, stopLoss?: string, takeProfit?: string) => {
+    console.log('[Perpetuals] Modify SL/TP:', { coin, stopLoss, takeProfit });
+    toast({
+      title: 'SL/TP Coming Soon',
+      description: 'Stop-loss and take-profit modification coming soon',
+    });
+  };
+
+  const handleAddMargin = async (coin: string, amount: string) => {
+    console.log('[Perpetuals] Add margin:', { coin, amount });
+    toast({
+      title: 'Margin Management Coming Soon',
+      description: `Add $${amount} margin to ${coin} - API integration pending`,
     });
   };
 
@@ -317,49 +357,13 @@ const Perpetuals = memo(function Perpetuals() {
                       </TabsContent>
                       
                       <TabsContent value="positions" className="mt-4">
-                        {positions.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                            <p className="text-sm">No open positions</p>
-                            <p className="text-xs mt-1">Your positions will appear here</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {positions.map((pos, i) => (
-                              <div 
-                                key={i}
-                                className="p-3 rounded-lg border bg-secondary/30 flex items-center justify-between"
-                              >
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">{pos.coin}-PERP</span>
-                                    <Badge variant={parseFloat(pos.szi) > 0 ? "default" : "destructive"}>
-                                      {parseFloat(pos.szi) > 0 ? 'LONG' : 'SHORT'}
-                                    </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                      {pos.leverage}x
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    Entry: ${parseFloat(pos.entryPx).toLocaleString()}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className={cn(
-                                    "font-mono font-medium",
-                                    parseFloat(pos.unrealizedPnl) >= 0 ? "text-success" : "text-destructive"
-                                  )}>
-                                    {parseFloat(pos.unrealizedPnl) >= 0 ? '+' : ''}
-                                    ${parseFloat(pos.unrealizedPnl).toFixed(2)}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {formatPercent(parseFloat(pos.returnOnEquity) * 100)}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <PositionManager
+                          positions={positions}
+                          currentPrices={currentPrices}
+                          onClosePosition={handleClosePosition}
+                          onModifySLTP={handleModifySLTP}
+                          onAddMargin={handleAddMargin}
+                        />
                       </TabsContent>
                       
                       <TabsContent value="orders" className="mt-4">
@@ -396,28 +400,59 @@ const Perpetuals = memo(function Perpetuals() {
                 </Card>
               </div>
 
-              {/* Orderbook & Info */}
+              {/* Orderbook & Tools */}
               <div className="space-y-6">
-                <Card className="glass border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center justify-between">
-                      Orderbook
-                      <Badge variant="outline" className="text-xs font-mono">
-                        {selectedPair}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <HyperliquidOrderbook
-                      orderbook={orderbook}
-                      isLoading={orderbookLoading}
-                      currentPrice={currentPrice}
-                    />
-                  </CardContent>
-                </Card>
+                {/* Calculator Toggle */}
+                <div className="flex gap-2">
+                  <Button
+                    variant={!showCalculator ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1 gap-2"
+                    onClick={() => setShowCalculator(false)}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Orderbook
+                  </Button>
+                  <Button
+                    variant={showCalculator ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1 gap-2"
+                    onClick={() => setShowCalculator(true)}
+                  >
+                    <Calculator className="w-4 h-4" />
+                    Calculator
+                  </Button>
+                </div>
 
-                {/* Funding Rate Chart - replaces static market info */}
-                <FundingRateChart coin={selectedPair} />
+                {showCalculator ? (
+                  <PnLCalculator 
+                    coin={selectedPair} 
+                    currentPrice={currentPrice} 
+                  />
+                ) : (
+                  <>
+                    <Card className="glass border-border/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center justify-between">
+                          Orderbook
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {selectedPair}
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <HyperliquidOrderbook
+                          orderbook={orderbook}
+                          isLoading={orderbookLoading}
+                          currentPrice={currentPrice}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    {/* Funding Rate Chart */}
+                    <FundingRateChart coin={selectedPair} />
+                  </>
+                )}
               </div>
             </div>
 
