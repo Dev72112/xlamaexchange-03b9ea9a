@@ -43,6 +43,19 @@ export interface HyperliquidMarketData {
   markPx: string;
 }
 
+export interface HyperliquidOrderbookLevel {
+  price: string;
+  size: string;
+  numOrders: number;
+}
+
+export interface HyperliquidOrderbook {
+  coin: string;
+  bids: HyperliquidOrderbookLevel[];
+  asks: HyperliquidOrderbookLevel[];
+  timestamp: number;
+}
+
 // ============ SERVICE CLASS ============
 
 class HyperliquidService {
@@ -131,6 +144,52 @@ class HyperliquidService {
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch trades:', error);
       return [];
+    }
+  }
+
+  async getOrderbook(coin: string, nLevels: number = 10): Promise<HyperliquidOrderbook | null> {
+    try {
+      const data = await this.post('l2Book', { coin, nSigFigs: 5 });
+      if (!data?.levels) return null;
+      
+      const [bids, asks] = data.levels;
+      return {
+        coin,
+        bids: (bids || []).slice(0, nLevels).map((level: any) => ({
+          price: level.px,
+          size: level.sz,
+          numOrders: level.n || 1,
+        })),
+        asks: (asks || []).slice(0, nLevels).map((level: any) => ({
+          price: level.px,
+          size: level.sz,
+          numOrders: level.n || 1,
+        })),
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error('[Hyperliquid] Failed to fetch orderbook:', error);
+      return null;
+    }
+  }
+
+  async getFundingRates(): Promise<Record<string, { fundingRate: string; nextFunding: number }>> {
+    try {
+      const data = await this.post('meta', {});
+      const rates: Record<string, { fundingRate: string; nextFunding: number }> = {};
+      
+      if (data?.universe) {
+        data.universe.forEach((asset: any) => {
+          rates[asset.name] = {
+            fundingRate: asset.funding || '0',
+            nextFunding: Date.now() + 3600000, // Approx next hour
+          };
+        });
+      }
+      return rates;
+    } catch (error) {
+      console.error('[Hyperliquid] Failed to fetch funding rates:', error);
+      return {};
     }
   }
 }
