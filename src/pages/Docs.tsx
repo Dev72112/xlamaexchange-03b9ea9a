@@ -154,7 +154,7 @@ const Docs = () => {
         </div>
 
         {/* Quick Navigation */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           <QuickNavCard
             icon={Wallet}
             title="Getting Started"
@@ -170,11 +170,17 @@ const Docs = () => {
           <QuickNavCard
             icon={ArrowLeftRight}
             title="Exchange Modes"
-            description="Instant, DEX, and Bridge explained"
+            description="Instant, DEX, Bridge & Perpetuals"
             section="exchange-modes"
           />
           <QuickNavCard
             icon={TrendingUp}
+            title="Perpetual Trading"
+            description="Leverage, funding rates, positions"
+            section="perpetuals"
+          />
+          <QuickNavCard
+            icon={BarChart3}
             title="Trading Features"
             description="Limit orders, DCA, alerts, and more"
             section="trading-features"

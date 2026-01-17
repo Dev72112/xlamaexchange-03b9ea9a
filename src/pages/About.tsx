@@ -1,6 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
-import { Users, Zap, Heart, Code, Target, Rocket, ArrowRightLeft, Link2, Shield, ExternalLink } from "lucide-react";
+import { Users, Zap, Heart, Code, Target, Rocket, ArrowRightLeft, Link2, Shield, ExternalLink, Activity } from "lucide-react";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "@/components/SocialIcons";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -63,6 +63,20 @@ const About = () => {
       logo: "https://changenow.io/images/changenow-logo.svg",
       url: "https://changenow.io",
       icon: Zap,
+    },
+    {
+      name: "Jupiter",
+      description: "Best Solana swap rates via Ultra API",
+      logo: "https://jup.ag/favicon.ico",
+      url: "https://jup.ag",
+      icon: Zap,
+    },
+    {
+      name: "Hyperliquid",
+      description: "Perpetual futures with up to 50x leverage",
+      logo: "https://hyperliquid.xyz/favicon.ico",
+      url: "https://hyperliquid.xyz",
+      icon: Activity,
     },
   ];
 
@@ -171,7 +185,7 @@ const About = () => {
           <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
             We integrate with industry-leading protocols to provide the best trading experience across 25+ chains.
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {techPartners.map((partner) => (
               <a
                 key={partner.name}
