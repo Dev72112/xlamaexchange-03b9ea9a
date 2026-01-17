@@ -5,19 +5,24 @@ import {
   Compass, 
   ClipboardList, 
   PieChart, 
-  BarChart3,
-  History
+  Activity,
+  MoreHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { path: "/", icon: ArrowLeftRight, label: "Exchange" },
   { path: "/bridge", icon: Compass, label: "Bridge" },
+  { path: "/perpetuals", icon: Activity, label: "Perps" },
   { path: "/orders", icon: ClipboardList, label: "Orders" },
   { path: "/portfolio", icon: PieChart, label: "Portfolio" },
-  { path: "/analytics", icon: BarChart3, label: "Analytics" },
-  { path: "/history", icon: History, label: "History" },
 ];
 
 export const MobileBottomNav = memo(function MobileBottomNav() {
@@ -73,6 +78,40 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
             </NavLink>
           );
         })}
+        
+        {/* More menu for additional items */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              onClick={handleNavClick}
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200",
+                "touch-target min-h-[56px]",
+                "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              <MoreHorizontal className="w-5 h-5 mb-1" />
+              <span className="text-[10px] font-medium leading-tight">More</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40 mb-2">
+            <DropdownMenuItem asChild>
+              <NavLink to="/analytics" className="flex items-center gap-2 cursor-pointer">
+                Analytics
+              </NavLink>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <NavLink to="/history" className="flex items-center gap-2 cursor-pointer">
+                History
+              </NavLink>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <NavLink to="/tools" className="flex items-center gap-2 cursor-pointer">
+                Tools
+              </NavLink>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </nav>
   );
