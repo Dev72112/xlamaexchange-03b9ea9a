@@ -31,6 +31,7 @@ const Docs = lazy(() => import('@/pages/Docs'));
 const Changelog = lazy(() => import('@/pages/Changelog'));
 const Feedback = lazy(() => import('@/pages/Feedback'));
 const Debug = lazy(() => import('@/pages/Debug'));
+const Perpetuals = lazy(() => import('@/pages/Perpetuals'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
 /**
@@ -39,6 +40,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'));
 export const primaryRoutes: RouteConfig[] = [
   { path: '/', element: Index, preload: true, label: 'Swap', showInNav: true },
   { path: '/bridge', element: Bridge, preload: true, label: 'Bridge', showInNav: true },
+  { path: '/perpetuals', element: Perpetuals, label: 'Perpetuals', showInNav: true },
   { path: '/orders', element: Orders, label: 'Orders', showInNav: true },
   { path: '/portfolio', element: Portfolio, label: 'Portfolio', showInNav: true },
   { path: '/analytics', element: Analytics, label: 'Analytics', showInNav: true },
