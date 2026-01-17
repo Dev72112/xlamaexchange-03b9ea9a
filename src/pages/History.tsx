@@ -8,7 +8,7 @@ import { useBridgeStatusPolling } from "@/features/bridge";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";
-import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList, Search, Filter, X, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList, Search, Filter, X, Calendar, ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -359,6 +359,33 @@ const History = () => {
               <p className="text-muted-foreground relative">
                 Your cryptocurrency exchanges and on-chain transactions.
               </p>
+            </div>
+            
+            {/* Chain Toggle */}
+            <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+              <Button
+                variant={globalChainFilter === 'all' || globalChainFilter === 'all-evm' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => setGlobalChainFilter('all-evm')}
+              >
+                EVM
+                {(globalChainFilter === 'all' || globalChainFilter === 'all-evm') && (
+                  <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
+                )}
+              </Button>
+              <Button
+                variant={globalChainFilter === '501' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-8 px-3 text-xs gap-1"
+                onClick={() => setGlobalChainFilter('501')}
+              >
+                <Zap className="w-3 h-3" />
+                Solana
+                {globalChainFilter === '501' && (
+                  <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
+                )}
+              </Button>
             </div>
           </div>
 
