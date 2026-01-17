@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
 import { HeaderThemeCustomizer } from "./HeaderThemeCustomizer";
 import { NotificationCenter } from "./NotificationCenter";
-import { Menu, X, Search, Clock, ArrowRightLeft, BarChart3, LineChart, Link2, Wrench, ListOrdered } from "lucide-react";
+import { Menu, X, Search, Clock, ArrowRightLeft, BarChart3, LineChart, Link2, Wrench, ListOrdered, Activity } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ export function Header() {
   const navLinks = [
     { path: "/", label: "Exchange", icon: ArrowRightLeft },
     { path: "/bridge", label: "Bridge", icon: Link2 },
+    { path: "/perpetuals", label: "Perpetuals", icon: Activity },
     { path: "/orders", label: "Orders", icon: ListOrdered },
     { path: "/tools", label: "Tools", icon: Wrench },
     { path: "/portfolio", label: "Portfolio", icon: BarChart3 },

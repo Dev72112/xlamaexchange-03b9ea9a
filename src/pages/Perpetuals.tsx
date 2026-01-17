@@ -27,7 +27,14 @@ import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { useHyperliquidMarkets, useHyperliquidOrderbook } from "@/hooks/useHyperliquidMarkets";
 import { useHyperliquidAccount } from "@/hooks/useHyperliquidAccount";
-import { HyperliquidTradeForm, HyperliquidOrderbook, HyperliquidPriceChart } from "@/components/perpetuals";
+import { useHyperliquidWebSocket } from "@/hooks/useHyperliquidWebSocket";
+import { 
+  HyperliquidTradeForm, 
+  HyperliquidOrderbook, 
+  HyperliquidPriceChart,
+  FundingRateChart,
+  MobileTradePanel,
+} from "@/components/perpetuals";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -50,11 +57,17 @@ const Perpetuals = memo(function Perpetuals() {
   const [selectedPair, setSelectedPair] = useState('BTC');
   const [activeTab, setActiveTab] = useState('trade');
 
+  // WebSocket for real-time prices
+  const { getPrice: getWsPrice, isConnected: wsConnected } = useHyperliquidWebSocket(POPULAR_PAIRS);
+
   // Fetch orderbook for selected pair
   const { orderbook, isLoading: orderbookLoading } = useHyperliquidOrderbook(selectedPair);
 
   const isEVM = activeChainType === 'evm';
-  const currentPrice = getPrice(selectedPair);
+  // Use WebSocket price if available, fallback to REST API
+  const wsPrice = getWsPrice(selectedPair);
+  const restPrice = getPrice(selectedPair);
+  const currentPrice = wsPrice > 0 ? wsPrice : restPrice;
 
   const formatUsd = (value: number) => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
@@ -403,33 +416,18 @@ const Perpetuals = memo(function Perpetuals() {
                   </CardContent>
                 </Card>
 
-                <Card className="glass border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Market Info</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Max Leverage</span>
-                      <span>50x</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Funding Rate</span>
-                      <span className="text-success">+0.0012%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Mark Price</span>
-                      <span className="font-mono">
-                        ${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Fees</span>
-                      <span>0.035% / 0.1%</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* Funding Rate Chart - replaces static market info */}
+                <FundingRateChart coin={selectedPair} />
               </div>
             </div>
+
+            {/* Mobile Trade Panel with swipe gestures */}
+            <MobileTradePanel
+              coin={selectedPair}
+              currentPrice={currentPrice}
+              availableMargin={availableMargin}
+              onTrade={handleTrade}
+            />
           </div>
         )}
       </main>

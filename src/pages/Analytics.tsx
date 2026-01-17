@@ -32,7 +32,8 @@ import {
   Frown,
   Layers,
   ArrowRightLeft,
-  Fuel
+  Fuel,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTradeAnalytics, useTradeVsHodl, useGasAnalytics, type TimePeriod } from '@/features/analytics';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
@@ -230,26 +231,83 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+type ChainFilter = 'evm' | 'solana';
+
+const chainFilterOptions: { value: ChainFilter; label: string; description: string; icon?: React.ReactNode }[] = [
+  { value: 'evm', label: 'EVM', description: 'ETH, BSC, Polygon, etc.' },
+  { value: 'solana', label: 'Solana', description: 'SOL & SPL tokens', icon: <Zap className="w-3 h-3" /> },
+];
+
 const Analytics = () => {
   const { 
     isConnected,
     isOkxConnected,
     evmAddress,
     solanaAddress,
-    tronAddress 
+    tronAddress,
+    activeChainType,
+    setActiveChain,
+    switchChainByIndex,
   } = useMultiWallet();
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
   
-  // Use global chain filter for analytics
-  const chainFilter = globalChainFilter === 'all-evm' ? 'all' : globalChainFilter;
+  // Chain filter state - sync with wallet
+  const [chainFilter, setChainFilter] = useState<ChainFilter>(
+    activeChainType === 'solana' ? 'solana' : 'evm'
+  );
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  // Sync chain filter with wallet connection changes
+  useEffect(() => {
+    if (activeChainType === 'solana') {
+      setChainFilter('solana');
+    } else if (activeChainType === 'evm') {
+      setChainFilter('evm');
+    }
+  }, [activeChainType]);
+
+  // Handle chain filter change
+  const handleChainFilterChange = useCallback(async (newFilter: ChainFilter) => {
+    setChainFilter(newFilter);
+    
+    if (newFilter === 'solana') {
+      setGlobalChainFilter('501');
+    } else {
+      setGlobalChainFilter('all-evm');
+    }
+    
+    const targetChain = newFilter === 'solana'
+      ? SUPPORTED_CHAINS.find(c => c.chainIndex === '501')
+      : SUPPORTED_CHAINS.find(c => c.chainIndex === '1');
+    
+    if (!targetChain) return;
+    setActiveChain(targetChain);
+    
+    if (isOkxConnected) {
+      try {
+        setIsSwitching(true);
+        await switchChainByIndex(targetChain.chainIndex);
+      } catch (err) {
+        console.warn('[Analytics] Chain switch failed:', err);
+      } finally {
+        setIsSwitching(false);
+      }
+    }
+  }, [setActiveChain, switchChainByIndex, isOkxConnected, setGlobalChainFilter]);
+
+  const isWalletSynced = activeChainType === chainFilter || 
+    (chainFilter === 'evm' && activeChainType !== 'solana' && activeChainType !== 'tron' && activeChainType !== 'sui' && activeChainType !== 'ton');
+  
+  // Use chain filter for analytics
+  const analyticsChainFilter = chainFilter === 'solana' ? '501' : 'all';
   
   // Pass timePeriod to analytics hook - all filtering happens inside the hook
-  const analytics = useTradeAnalytics(chainFilter, timePeriod);
+  const analytics = useTradeAnalytics(analyticsChainFilter, timePeriod);
   const tradeVsHodl = useTradeVsHodl();
-  const gasAnalytics = useGasAnalytics(chainFilter);
+  const gasAnalytics = useGasAnalytics(analyticsChainFilter);
 
   // Get all supported chains for the filter, grouped by EVM/Non-EVM
   const evmChains = useMemo(() => getEvmChains(), []);
@@ -281,7 +339,7 @@ const Analytics = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `trading-analytics-${chainFilter === 'all' ? 'all-chains' : chainFilter}-${timePeriod}.csv`;
+    a.download = `trading-analytics-${analyticsChainFilter === 'all' ? 'all-chains' : analyticsChainFilter}-${timePeriod}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -356,16 +414,41 @@ const Analytics = () => {
           </div>
         ) : (
           <>
+            {/* Chain Toggle - matching Orders page */}
+            <div className="flex flex-col items-center gap-3 mb-6">
+              <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+                <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+                {chainFilterOptions.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={chainFilter === option.value ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => handleChainFilterChange(option.value)}
+                    disabled={isSwitching}
+                    className={cn(
+                      "h-8 px-3 text-xs gap-1.5",
+                      chainFilter === option.value && "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    {option.icon}
+                    {option.label}
+                    {chainFilter === option.value && (
+                      <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary-foreground/20">
+                        Active
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className={cn("w-2 h-2 rounded-full", isWalletSynced ? 'bg-success animate-pulse' : 'bg-warning')} />
+                <span>Viewing <span className="font-medium text-foreground">{chainFilter === 'solana' ? 'Solana' : 'EVM'}</span> analytics</span>
+              </div>
+            </div>
+
             {/* Filters Row - Only show when connected */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                {/* Chain Filter - Unified Selector */}
-                <UnifiedChainSelector
-                  value={globalChainFilter}
-                  onChange={(value) => setGlobalChainFilter(value)}
-                  showAllOption={true}
-                  showEvmOnlyOption={true}
-                />
 
                 {/* Time Period */}
                 <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
