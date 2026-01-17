@@ -69,11 +69,23 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   // Check if this is a Solana order
   const isSolana = chainIndex === SOLANA_CHAIN_INDEX || activeChainType === 'solana';
 
-  // Get token balance for validation
-  const { formatted: fromTokenBalance } = useTokenBalance(
-    fromToken ? { tokenContractAddress: fromToken.address, tokenSymbol: fromToken.symbol, decimals: fromToken.decimals } as any : null,
+  // Get token balance for validation - add debug logging
+  const { formatted: fromTokenBalance, loading: balanceLoading } = useTokenBalance(
+    fromToken ? { tokenContractAddress: fromToken.address, tokenSymbol: fromToken.symbol, decimals: fromToken.decimals || 9 } as any : null,
     chainIndex || ''
   );
+
+  // Debug: Log balance state for Solana DCA
+  console.log('[DCAOrderForm] Balance state:', {
+    fromToken: fromToken?.symbol,
+    fromTokenAddress: fromToken?.address?.slice(0, 12),
+    fromTokenDecimals: fromToken?.decimals,
+    chainIndex,
+    isSolana,
+    fromTokenBalance,
+    balanceLoading,
+    activeChainType,
+  });
 
   // Calculate total investment
   const totalInvestment = useMemo(() => {

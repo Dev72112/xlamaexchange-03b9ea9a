@@ -1,9 +1,12 @@
-import { memo, Suspense, lazy, useCallback } from "react";
+import { memo, Suspense, lazy, useCallback, useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
-import { Wallet, TrendingUp, PieChart, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Wallet, TrendingUp, PieChart, BarChart3, Layers, Zap, AlertTriangle } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
+import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { PortfolioOverview, PortfolioRebalancer } from "@/features/portfolio";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
@@ -11,6 +14,8 @@ import { PortfolioSkeleton } from "@/components/skeletons";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
+import { SUPPORTED_CHAINS } from "@/data/chains";
+import { cn } from "@/lib/utils";
 
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
@@ -38,9 +43,74 @@ const portfolioFeatures = [
   },
 ];
 
+type ChainFilter = 'evm' | 'solana';
+
+const chainFilterOptions: { value: ChainFilter; label: string; description: string; icon?: React.ReactNode }[] = [
+  { value: 'evm', label: 'EVM', description: 'ETH, BSC, Polygon, etc.' },
+  { value: 'solana', label: 'Solana', description: 'SOL & SPL tokens', icon: <Zap className="w-3 h-3" /> },
+];
+
 const Portfolio = memo(function Portfolio() {
-  const { isConnected } = useMultiWallet();
+  const { 
+    isConnected, 
+    activeChainType, 
+    setActiveChain, 
+    switchChainByIndex,
+    isOkxConnected,
+  } = useMultiWallet();
+  const { setGlobalChainFilter } = useExchangeMode();
   const queryClient = useQueryClient();
+
+  // Chain filter state - sync with wallet
+  const [chainFilter, setChainFilter] = useState<ChainFilter>(
+    activeChainType === 'solana' ? 'solana' : 'evm'
+  );
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  // Sync chain filter with wallet connection changes
+  useEffect(() => {
+    if (activeChainType === 'solana') {
+      setChainFilter('solana');
+    } else if (activeChainType === 'evm') {
+      setChainFilter('evm');
+    }
+  }, [activeChainType]);
+
+  // Handle chain filter change
+  const handleChainFilterChange = useCallback(async (newFilter: ChainFilter) => {
+    setChainFilter(newFilter);
+    
+    // Update global chain filter
+    if (newFilter === 'solana') {
+      setGlobalChainFilter('501');
+    } else {
+      setGlobalChainFilter('all-evm');
+    }
+    
+    // Find target chain
+    const targetChain = newFilter === 'solana'
+      ? SUPPORTED_CHAINS.find(c => c.chainIndex === '501')
+      : SUPPORTED_CHAINS.find(c => c.chainIndex === '1');
+    
+    if (!targetChain) return;
+    
+    setActiveChain(targetChain);
+    
+    if (isOkxConnected) {
+      try {
+        setIsSwitching(true);
+        await switchChainByIndex(targetChain.chainIndex);
+      } catch (err) {
+        console.warn('[Portfolio] Chain switch failed:', err);
+      } finally {
+        setIsSwitching(false);
+      }
+    }
+  }, [setActiveChain, switchChainByIndex, isOkxConnected, setGlobalChainFilter]);
+
+  // Check if wallet is synced
+  const isWalletSynced = activeChainType === chainFilter || 
+    (chainFilter === 'evm' && activeChainType !== 'solana' && activeChainType !== 'tron' && activeChainType !== 'sui' && activeChainType !== 'ton');
 
   // Scroll reveal hooks
   const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>();
@@ -133,6 +203,53 @@ const Portfolio = memo(function Portfolio() {
           <PullToRefresh onRefresh={handleRefresh} showSkeleton={false}>
             <Suspense fallback={<PortfolioSkeleton />}>
               <div className="space-y-8 max-w-4xl mx-auto">
+                {/* Chain Filter Toggle */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+                    <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+                    {chainFilterOptions.map((option) => (
+                      <Button
+                        key={option.value}
+                        variant={chainFilter === option.value ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => handleChainFilterChange(option.value)}
+                        disabled={isSwitching}
+                        className={cn(
+                          "h-8 px-3 text-xs gap-1.5",
+                          chainFilter === option.value && "bg-primary text-primary-foreground"
+                        )}
+                      >
+                        {option.icon}
+                        {option.label}
+                        {chainFilter === option.value && (
+                          <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary-foreground/20">
+                            Active
+                          </Badge>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {/* Connection Indicator */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      isWalletSynced ? 'bg-success animate-pulse' : 'bg-warning'
+                    )} />
+                    <span>
+                      Viewing <span className="font-medium text-foreground">
+                        {chainFilter === 'solana' ? 'Solana' : 'EVM'} Portfolio
+                      </span>
+                    </span>
+                  </div>
+                  
+                  {!isWalletSynced && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-xs text-warning">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>Wallet is on a different network</span>
+                    </div>
+                  )}
+                </div>
               {/* Portfolio Overview with P&L Chart */}
               <section id="overview" className="scroll-mt-20">
                 <PortfolioOverview />

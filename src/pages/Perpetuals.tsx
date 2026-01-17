@@ -27,8 +27,7 @@ import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { useHyperliquidMarkets, useHyperliquidOrderbook } from "@/hooks/useHyperliquidMarkets";
 import { useHyperliquidAccount } from "@/hooks/useHyperliquidAccount";
-import { HyperliquidTradeForm } from "@/components/perpetuals/HyperliquidTradeForm";
-import { HyperliquidOrderbook } from "@/components/perpetuals/HyperliquidOrderbook";
+import { HyperliquidTradeForm, HyperliquidOrderbook, HyperliquidPriceChart } from "@/components/perpetuals";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -262,7 +261,12 @@ const Perpetuals = memo(function Perpetuals() {
               </CardContent>
             </Card>
 
-            {/* Main Trading Area */}
+            {/* Live Price Chart */}
+            <HyperliquidPriceChart
+              coin={selectedPair}
+              currentPrice={currentPrice}
+              className="glow-sm"
+            />
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Trading Form */}
               <div className="lg:col-span-2">
