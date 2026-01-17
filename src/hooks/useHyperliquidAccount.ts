@@ -11,15 +11,13 @@ import {
   hyperliquidService, 
   HyperliquidAccountState, 
   HyperliquidPosition,
-  HyperliquidOrder,
-  HyperliquidTrade,
 } from '@/services/hyperliquid';
 
 export interface UseHyperliquidAccountResult {
   accountState: HyperliquidAccountState | null;
   positions: HyperliquidPosition[];
-  openOrders: HyperliquidOrder[];
-  recentTrades: HyperliquidTrade[];
+  openOrders: any[];
+  recentTrades: any[];
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;

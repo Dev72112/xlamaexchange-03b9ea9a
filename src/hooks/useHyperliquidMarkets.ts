@@ -10,7 +10,6 @@ import {
   hyperliquidService, 
   HyperliquidAsset, 
   HyperliquidMarketData,
-  HyperliquidOrderbook,
 } from '@/services/hyperliquid';
 
 export interface UseHyperliquidMarketsResult {
@@ -91,31 +90,4 @@ export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
   };
 }
 
-/**
- * useHyperliquidOrderbook Hook
- * 
- * Provides real-time orderbook for a specific asset.
- */
-export function useHyperliquidOrderbook(coin: string): {
-  orderbook: HyperliquidOrderbook | null;
-  isLoading: boolean;
-  error: Error | null;
-} {
-  const {
-    data: orderbook,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['hyperliquid', 'orderbook', coin],
-    queryFn: () => hyperliquidService.getOrderbook(coin),
-    enabled: !!coin,
-    staleTime: 1000, // 1 second
-    refetchInterval: 2000, // 2 seconds
-  });
-
-  return {
-    orderbook: orderbook || null,
-    isLoading,
-    error: error as Error | null,
-  };
-}
+// Orderbook hook will be added when service supports it
