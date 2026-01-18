@@ -20,6 +20,12 @@ export function Header() {
   const location = useLocation();
   const { isRouteLoading, progress } = useRouteLoading();
 
+  // Hide header on mobile - use MobileBottomNav instead for true app feel
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  if (isMobile) {
+    return null;
+  }
+
   const isActive = (path: string) => location.pathname === path;
 
   const navLinks = [

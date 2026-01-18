@@ -18,7 +18,7 @@ const Privacy = () => {
           
           <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
             <p className="text-muted-foreground">
-              Last updated: January 4, 2026
+              Last updated: January 18, 2026
             </p>
 
             <section className="space-y-4">
@@ -48,6 +48,14 @@ const Privacy = () => {
                 <li><strong>Wallet Address:</strong> Your connected wallet's public address</li>
                 <li><strong>Transaction Data:</strong> On-chain swap transactions (publicly visible on blockchain)</li>
                 <li><strong>No Private Keys:</strong> We never have access to your wallet's private keys</li>
+              </ul>
+
+              <h3 className="text-lg font-medium mt-4">Perpetuals Trading</h3>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                <li><strong>Position Data:</strong> Open positions, entry prices, leverage levels, and margin amounts</li>
+                <li><strong>Order History:</strong> Market and limit orders, including stop-loss and take-profit configurations</li>
+                <li><strong>PnL Information:</strong> Realized and unrealized profit/loss, liquidation events</li>
+                <li><strong>Account State:</strong> Equity, available margin, and margin usage from Hyperliquid</li>
               </ul>
             </section>
 
@@ -129,10 +137,18 @@ const Privacy = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">10. Third-Party Services</h2>
               <p className="text-muted-foreground">
-                Our service integrates with ChangeNow for instant exchanges, OKX DEX for on-chain 
-                swaps, and various wallet providers including Phantom, Solflare, MetaMask, Sui Wallet, 
-                Tonkeeper, and TokenPocket. Their privacy practices are governed by their own privacy 
-                policies. We encourage you to review their terms.
+                Our service integrates with the following third-party data processors:
+              </p>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                <li><strong>Hyperliquid:</strong> Processes perpetuals trading data including positions, orders, margin, and account state for leveraged trading functionality.</li>
+                <li><strong>Jupiter:</strong> Processes Solana swap requests and routing data for optimal trade execution.</li>
+                <li><strong>OKX DEX:</strong> Processes DEX swap requests across EVM chains for quote generation and execution.</li>
+                <li><strong>Li.Fi:</strong> Processes cross-chain bridge requests for route discovery.</li>
+                <li><strong>ChangeNow:</strong> Processes instant exchange requests for custodial swaps.</li>
+                <li><strong>Alchemy:</strong> Provides RPC infrastructure for blockchain data queries.</li>
+              </ul>
+              <p className="text-muted-foreground mt-4">
+                These services have their own privacy practices. We encourage you to review their terms.
               </p>
             </section>
 
