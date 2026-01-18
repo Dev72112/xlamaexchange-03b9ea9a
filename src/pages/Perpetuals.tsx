@@ -4,7 +4,7 @@
  * Hyperliquid perpetual trading interface with live trading.
  */
 
-import { memo, useState, useMemo, useCallback } from "react";
+import { memo, useState, useMemo, useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK'];
+const PLATFORM_FEE_PERCENT = '0.01%';
 
 const Perpetuals = memo(function Perpetuals() {
   const { isConnected, activeChainType, activeAddress } = useMultiWallet();
@@ -71,6 +72,7 @@ const Perpetuals = memo(function Perpetuals() {
     isTestnet,
     setIsTestnet,
     isBuilderApproved,
+    builderApprovalLoading,
     approveBuilder,
     placeMarketOrder,
     placeLimitOrder,
@@ -89,9 +91,11 @@ const Perpetuals = memo(function Perpetuals() {
   const [showTradeConfirm, setShowTradeConfirm] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<any>(null);
 
+  // Real-time price updates via WebSocket
   const { getPrice: getWsPrice } = useHyperliquidWebSocket(POPULAR_PAIRS);
   const { orderbook, isLoading: orderbookLoading } = useHyperliquidOrderbook(selectedPair);
 
+  // Build current prices map with real-time WebSocket data
   const currentPrices = useMemo(() => {
     const prices: Record<string, number> = {};
     POPULAR_PAIRS.forEach(pair => {
@@ -108,6 +112,28 @@ const Perpetuals = memo(function Perpetuals() {
   const currentPrice = wsPrice > 0 ? wsPrice : restPrice;
   const hasDeposit = totalEquity > 0;
 
+  // Real-time P&L calculation
+  const [realtimePnl, setRealtimePnl] = useState(unrealizedPnl);
+  
+  useEffect(() => {
+    if (positions.length === 0) {
+      setRealtimePnl(0);
+      return;
+    }
+    
+    // Recalculate P&L based on current prices
+    let totalPnl = 0;
+    positions.forEach(pos => {
+      const coin = pos.coin;
+      const price = currentPrices[coin] || parseFloat(pos.entryPx);
+      const size = parseFloat(pos.szi);
+      const entry = parseFloat(pos.entryPx);
+      const pnl = (price - entry) * size;
+      totalPnl += pnl;
+    });
+    setRealtimePnl(totalPnl);
+  }, [positions, currentPrices]);
+
   const formatUsd = (value: number) => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(2)}K`;
@@ -119,9 +145,12 @@ const Perpetuals = memo(function Perpetuals() {
       setShowBuilderApproval(true);
       return;
     }
-    setPendingOrder(params);
+    setPendingOrder({
+      ...params,
+      price: currentPrice,
+    });
     setShowTradeConfirm(true);
-  }, [isBuilderApproved]);
+  }, [isBuilderApproved, currentPrice]);
 
   const executeOrder = useCallback(async () => {
     if (!pendingOrder) return;
@@ -188,7 +217,7 @@ const Perpetuals = memo(function Perpetuals() {
 
   const handleAddMargin = useCallback(async (coin: string, amount: string) => {
     const result = await addMargin(coin, parseFloat(amount));
-    if (result.success) {
+    if (result) {
       toast({ title: 'Margin Added', description: `Added $${amount} to ${coin}` });
       refetchAccount();
     }
@@ -199,6 +228,31 @@ const Perpetuals = memo(function Perpetuals() {
     refetchAccount();
     toast({ title: 'Refreshed' });
   };
+
+  // Build order details for confirmation modal
+  const orderDetails = useMemo(() => {
+    if (!pendingOrder) {
+      return {
+        coin: selectedPair,
+        side: 'long' as const,
+        orderType: 'market' as const,
+        size: '0',
+        leverage: 1,
+        price: currentPrice,
+      };
+    }
+    return {
+      coin: pendingOrder.coin,
+      side: pendingOrder.side as 'long' | 'short',
+      orderType: pendingOrder.orderType as 'market' | 'limit',
+      size: pendingOrder.size,
+      leverage: pendingOrder.leverage,
+      price: currentPrice,
+      limitPrice: pendingOrder.limitPrice,
+      stopLoss: pendingOrder.stopLoss,
+      takeProfit: pendingOrder.takeProfit,
+    };
+  }, [pendingOrder, selectedPair, currentPrice]);
 
   return (
     <Layout>
@@ -248,7 +302,7 @@ const Perpetuals = memo(function Perpetuals() {
           </div>
         ) : (
           <div className="max-w-6xl mx-auto space-y-6">
-            {/* Network Toggle & Onboarding */}
+            {/* Network Toggle & Refresh */}
             <div className="flex items-center justify-between">
               <NetworkToggle isTestnet={isTestnet} onToggle={setIsTestnet} />
               <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
@@ -257,18 +311,19 @@ const Perpetuals = memo(function Perpetuals() {
               </Button>
             </div>
 
+            {/* Onboarding Checklist */}
             {(!hasDeposit || !isBuilderApproved) && (
               <PerpetualsOnboarding
-                isConnected={isConnected}
+                isWalletConnected={isConnected}
                 hasDeposit={hasDeposit}
                 isBuilderApproved={isBuilderApproved}
                 isTestnet={isTestnet}
-                onDeposit={() => setShowDepositModal(true)}
                 onApproveBuilder={() => setShowBuilderApproval(true)}
+                builderApprovalLoading={builderApprovalLoading}
               />
             )}
 
-            {/* Account Overview */}
+            {/* Account Overview with Real-time P&L */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="glass border-border/50 hover-lift">
                 <CardContent className="pt-4 pb-4">
@@ -302,14 +357,15 @@ const Perpetuals = memo(function Perpetuals() {
                   <p className="text-lg font-bold">{positions.length}</p>
                 </CardContent>
               </Card>
-              <Card className={cn("glass border-border/50 hover-lift", unrealizedPnl >= 0 ? "border-success/20" : "border-destructive/20")}>
+              <Card className={cn("glass border-border/50 hover-lift", realtimePnl >= 0 ? "border-success/20" : "border-destructive/20")}>
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-2 mb-1">
-                    {unrealizedPnl >= 0 ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-destructive" />}
+                    {realtimePnl >= 0 ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-destructive" />}
                     <span className="text-xs text-muted-foreground">Unrealized PnL</span>
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">LIVE</Badge>
                   </div>
-                  <p className={cn("text-lg font-bold", unrealizedPnl >= 0 ? "text-success" : "text-destructive")}>
-                    {unrealizedPnl >= 0 ? '+' : ''}{formatUsd(unrealizedPnl)}
+                  <p className={cn("text-lg font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
+                    {realtimePnl >= 0 ? '+' : ''}{formatUsd(realtimePnl)}
                   </p>
                 </CardContent>
               </Card>
@@ -445,8 +501,8 @@ const Perpetuals = memo(function Perpetuals() {
         isOpen={showBuilderApproval}
         onClose={() => setShowBuilderApproval(false)}
         onApprove={approveBuilder}
-        isLoading={isSubmitting}
-        feePercent={0.01}
+        isLoading={isSubmitting || builderApprovalLoading}
+        feePercent={PLATFORM_FEE_PERCENT}
         builderAddress={import.meta.env.VITE_HYPERLIQUID_BUILDER_ADDRESS || ''}
       />
 
@@ -454,8 +510,8 @@ const Perpetuals = memo(function Perpetuals() {
         isOpen={showTradeConfirm}
         onClose={() => { setShowTradeConfirm(false); setPendingOrder(null); }}
         onConfirm={executeOrder}
-        orderDetails={pendingOrder}
-        estimatedFee={pendingOrder ? parseFloat(pendingOrder.size) * currentPrice * 0.0001 : 0}
+        orderDetails={orderDetails}
+        feePercent={PLATFORM_FEE_PERCENT}
         isSubmitting={isSubmitting}
         isTestnet={isTestnet}
       />

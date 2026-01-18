@@ -38,10 +38,9 @@ export interface LimitOrderParams {
 
 export interface TriggerOrderParams {
   coin: string;
-  isBuy: boolean;
   size: string;
   triggerPrice: string;
-  type: 'sl' | 'tp';
+  isLong: boolean; // Position direction - determines isBuy for closing
   reduceOnly?: boolean;
 }
 
@@ -345,11 +344,13 @@ export function useHyperliquidTrading(): UseHyperliquidTradingResult {
     setIsSubmitting(true);
     try {
       const assetIndex = await getAssetIndex(params.coin);
+      // For SL: if long position, we sell (isBuy=false); if short, we buy (isBuy=true)
+      const isBuy = !params.isLong;
 
       const result = await exchangeClient.order({
         orders: [{
           a: assetIndex,
-          b: params.isBuy,
+          b: isBuy,
           p: params.triggerPrice,
           s: params.size,
           r: true, // Always reduce-only for SL
@@ -395,11 +396,13 @@ export function useHyperliquidTrading(): UseHyperliquidTradingResult {
     setIsSubmitting(true);
     try {
       const assetIndex = await getAssetIndex(params.coin);
+      // For TP: if long position, we sell (isBuy=false); if short, we buy (isBuy=true)
+      const isBuy = !params.isLong;
 
       const result = await exchangeClient.order({
         orders: [{
           a: assetIndex,
-          b: params.isBuy,
+          b: isBuy,
           p: params.triggerPrice,
           s: params.size,
           r: true, // Always reduce-only for TP

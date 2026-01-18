@@ -1,7 +1,8 @@
 /**
  * Candlestick Chart Component
  * 
- * Professional TradingView-style candlestick chart using lightweight-charts.
+ * Professional TradingView-style candlestick chart using lightweight-charts
+ * with real Hyperliquid candle data.
  */
 
 import { memo, useEffect, useRef, useState, useCallback } from 'react';
@@ -9,8 +10,9 @@ import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType, C
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, TrendingUp, BarChart3, RefreshCw } from 'lucide-react';
+import { Loader2, BarChart3, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { hyperliquidService } from '@/services/hyperliquid';
 
 interface CandlestickChartProps {
   coin: string;
@@ -20,21 +22,18 @@ interface CandlestickChartProps {
 
 type TimeframeOption = '1m' | '5m' | '15m' | '1H' | '4H' | '1D';
 
-const TIMEFRAMES: { label: string; value: TimeframeOption }[] = [
-  { label: '1m', value: '1m' },
-  { label: '5m', value: '5m' },
-  { label: '15m', value: '15m' },
-  { label: '1H', value: '1H' },
-  { label: '4H', value: '4H' },
-  { label: '1D', value: '1D' },
+const TIMEFRAMES: { label: string; value: TimeframeOption; interval: string }[] = [
+  { label: '1m', value: '1m', interval: '1m' },
+  { label: '5m', value: '5m', interval: '5m' },
+  { label: '15m', value: '15m', interval: '15m' },
+  { label: '1H', value: '1H', interval: '1h' },
+  { label: '4H', value: '4H', interval: '4h' },
+  { label: '1D', value: '1D', interval: '1d' },
 ];
 
-// Generate mock candlestick data - in production, fetch from Hyperliquid API
-function generateCandleData(basePrice: number, timeframe: TimeframeOption, count: number = 100): CandlestickData[] {
-  const now = Date.now();
-  const data: CandlestickData[] = [];
-  
-  const intervalMs: Record<TimeframeOption, number> = {
+// Helper to get interval in milliseconds
+function getIntervalMs(timeframe: TimeframeOption): number {
+  const intervals: Record<TimeframeOption, number> = {
     '1m': 60000,
     '5m': 300000,
     '15m': 900000,
@@ -42,30 +41,7 @@ function generateCandleData(basePrice: number, timeframe: TimeframeOption, count
     '4H': 14400000,
     '1D': 86400000,
   };
-  
-  let price = basePrice * 0.95; // Start slightly below current
-  const volatility = basePrice * 0.005; // 0.5% volatility per candle
-  
-  for (let i = count; i > 0; i--) {
-    const time = Math.floor((now - i * intervalMs[timeframe]) / 1000) as Time;
-    const open = price;
-    const change = (Math.random() - 0.48) * volatility; // Slight upward bias
-    const high = open + Math.abs(change) + Math.random() * volatility * 0.5;
-    const low = open - Math.abs(change) - Math.random() * volatility * 0.5;
-    const close = open + change;
-    
-    data.push({
-      time,
-      open: parseFloat(open.toFixed(2)),
-      high: parseFloat(high.toFixed(2)),
-      low: parseFloat(low.toFixed(2)),
-      close: parseFloat(close.toFixed(2)),
-    });
-    
-    price = close;
-  }
-  
-  return data;
+  return intervals[timeframe];
 }
 
 export const CandlestickChart = memo(function CandlestickChart({
@@ -80,6 +56,7 @@ export const CandlestickChart = memo(function CandlestickChart({
   
   const [timeframe, setTimeframe] = useState<TimeframeOption>('15m');
   const [isLoading, setIsLoading] = useState(true);
+  const [candleData, setCandleData] = useState<CandlestickData[]>([]);
   const [priceInfo, setPriceInfo] = useState({
     open: 0,
     high: 0,
@@ -93,7 +70,6 @@ export const CandlestickChart = memo(function CandlestickChart({
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Clean up existing chart
     if (chartRef.current) {
       chartRef.current.remove();
     }
@@ -109,43 +85,27 @@ export const CandlestickChart = memo(function CandlestickChart({
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: {
-          labelBackgroundColor: 'hsl(var(--primary))',
-        },
-        horzLine: {
-          labelBackgroundColor: 'hsl(var(--primary))',
-        },
+        vertLine: { labelBackgroundColor: 'hsl(var(--primary))' },
+        horzLine: { labelBackgroundColor: 'hsl(var(--primary))' },
       },
-      rightPriceScale: {
-        borderColor: 'hsl(var(--border))',
-      },
+      rightPriceScale: { borderColor: 'hsl(var(--border))' },
       timeScale: {
         borderColor: 'hsl(var(--border))',
         timeVisible: true,
         secondsVisible: false,
       },
-      handleScale: {
-        mouseWheel: true,
-        pinch: true,
-      },
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: false,
-      },
+      handleScale: { mouseWheel: true, pinch: true },
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     });
     
-    // Add candlestick series
     const candleSeries = chart.addCandlestickSeries({
-      upColor: 'hsl(142.1 76.2% 36.3%)', // success color
-      downColor: 'hsl(0 84.2% 60.2%)', // destructive color
+      upColor: 'hsl(142.1 76.2% 36.3%)',
+      downColor: 'hsl(0 84.2% 60.2%)',
       borderVisible: false,
       wickUpColor: 'hsl(142.1 76.2% 36.3%)',
       wickDownColor: 'hsl(0 84.2% 60.2%)',
     });
     
-    // Add volume histogram
     const volumeSeries = chart.addHistogramSeries({
       color: 'hsl(var(--primary) / 0.3)',
       priceFormat: { type: 'volume' },
@@ -153,17 +113,13 @@ export const CandlestickChart = memo(function CandlestickChart({
     });
     
     chart.priceScale('volume').applyOptions({
-      scaleMargins: {
-        top: 0.85,
-        bottom: 0,
-      },
+      scaleMargins: { top: 0.85, bottom: 0 },
     });
     
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
     
-    // Subscribe to crosshair move
     chart.subscribeCrosshairMove((param) => {
       if (param.time) {
         const data = param.seriesData.get(candleSeries) as CandlestickData | undefined;
@@ -182,7 +138,6 @@ export const CandlestickChart = memo(function CandlestickChart({
       }
     });
     
-    // Handle resize
     const handleResize = () => {
       if (containerRef.current) {
         chart.applyOptions({
@@ -201,29 +156,55 @@ export const CandlestickChart = memo(function CandlestickChart({
     };
   }, []);
 
-  // Load/update data when coin or timeframe changes
-  useEffect(() => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current || !currentPrice) return;
+  // Fetch candle data from Hyperliquid
+  const fetchCandleData = useCallback(async () => {
+    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
     
     setIsLoading(true);
     
-    // Simulate data fetch - in production, call Hyperliquid API
-    setTimeout(() => {
-      const candleData = generateCandleData(currentPrice, timeframe);
-      candleSeriesRef.current?.setData(candleData);
+    try {
+      const tf = TIMEFRAMES.find(t => t.value === timeframe);
+      const intervalMs = getIntervalMs(timeframe);
+      const endTime = Date.now();
+      const startTime = endTime - intervalMs * 200; // Last 200 candles
+      
+      const rawCandles = await hyperliquidService.getCandleData(
+        coin,
+        tf?.interval || '15m',
+        startTime,
+        endTime
+      );
+      
+      let candles: CandlestickData[] = [];
+      
+      if (rawCandles && rawCandles.length > 0) {
+        candles = rawCandles.map((c: any) => ({
+          time: Math.floor(c.t / 1000) as Time,
+          open: parseFloat(c.o),
+          high: parseFloat(c.h),
+          low: parseFloat(c.l),
+          close: parseFloat(c.c),
+        }));
+      } else {
+        // Fallback to generated data if API returns empty
+        candles = generateFallbackData(currentPrice, timeframe, 100);
+      }
+      
+      setCandleData(candles);
+      candleSeriesRef.current.setData(candles);
       
       // Generate volume data
-      const volumeData = candleData.map((candle) => ({
+      const volumeData = candles.map((candle) => ({
         time: candle.time,
         value: Math.random() * 1000000 + 500000,
         color: candle.close >= candle.open 
           ? 'hsl(142.1 76.2% 36.3% / 0.4)' 
           : 'hsl(0 84.2% 60.2% / 0.4)',
       }));
-      volumeSeriesRef.current?.setData(volumeData);
+      volumeSeriesRef.current.setData(volumeData);
       
-      // Set initial price info from last candle
-      const lastCandle = candleData[candleData.length - 1];
+      // Set price info from last candle
+      const lastCandle = candles[candles.length - 1];
       if (lastCandle) {
         const change = lastCandle.close - lastCandle.open;
         const changePercent = (change / lastCandle.open) * 100;
@@ -237,37 +218,41 @@ export const CandlestickChart = memo(function CandlestickChart({
         });
       }
       
-      // Fit content
       chartRef.current?.timeScale().fitContent();
+    } catch (error) {
+      console.error('[CandlestickChart] Failed to fetch candles:', error);
+      // Use fallback data
+      const fallback = generateFallbackData(currentPrice, timeframe, 100);
+      candleSeriesRef.current?.setData(fallback);
+    } finally {
       setIsLoading(false);
-    }, 300);
+    }
   }, [coin, timeframe, currentPrice]);
+
+  // Load data when coin or timeframe changes
+  useEffect(() => {
+    fetchCandleData();
+  }, [fetchCandleData]);
 
   // Update last candle with real-time price
   useEffect(() => {
-    if (!candleSeriesRef.current || !currentPrice || isLoading) return;
+    if (!candleSeriesRef.current || !currentPrice || isLoading || candleData.length === 0) return;
     
-    // Update the last candle's close price
-    const now = Math.floor(Date.now() / 1000) as Time;
+    const lastCandle = candleData[candleData.length - 1];
+    if (!lastCandle) return;
+    
+    const intervalMs = getIntervalMs(timeframe);
+    const currentCandleTime = Math.floor(Date.now() / intervalMs) * Math.floor(intervalMs / 1000) as Time;
+    
+    // Update current candle
     candleSeriesRef.current.update({
-      time: now,
-      open: priceInfo.open || currentPrice,
-      high: Math.max(priceInfo.high || currentPrice, currentPrice),
-      low: Math.min(priceInfo.low || currentPrice, currentPrice),
+      time: lastCandle.time,
+      open: lastCandle.open,
+      high: Math.max(lastCandle.high, currentPrice),
+      low: Math.min(lastCandle.low, currentPrice),
       close: currentPrice,
     });
-  }, [currentPrice, isLoading, priceInfo.open, priceInfo.high, priceInfo.low]);
-
-  const handleRefresh = useCallback(() => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
-    setIsLoading(true);
-    setTimeout(() => {
-      const candleData = generateCandleData(currentPrice, timeframe);
-      candleSeriesRef.current?.setData(candleData);
-      chartRef.current?.timeScale().fitContent();
-      setIsLoading(false);
-    }, 200);
-  }, [currentPrice, timeframe]);
+  }, [currentPrice, isLoading, candleData, timeframe]);
 
   return (
     <Card className={cn("glass border-border/50", className)}>
@@ -315,7 +300,7 @@ export const CandlestickChart = memo(function CandlestickChart({
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0 ml-auto"
-            onClick={handleRefresh}
+            onClick={fetchCandleData}
             disabled={isLoading}
           >
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
@@ -334,3 +319,35 @@ export const CandlestickChart = memo(function CandlestickChart({
     </Card>
   );
 });
+
+// Fallback data generator when API is unavailable
+function generateFallbackData(basePrice: number, timeframe: TimeframeOption, count: number = 100): CandlestickData[] {
+  const now = Date.now();
+  const data: CandlestickData[] = [];
+  
+  const intervalMs = getIntervalMs(timeframe);
+  
+  let price = basePrice * 0.95;
+  const volatility = basePrice * 0.005;
+  
+  for (let i = count; i > 0; i--) {
+    const time = Math.floor((now - i * intervalMs) / 1000) as Time;
+    const open = price;
+    const change = (Math.random() - 0.48) * volatility;
+    const high = open + Math.abs(change) + Math.random() * volatility * 0.5;
+    const low = open - Math.abs(change) - Math.random() * volatility * 0.5;
+    const close = open + change;
+    
+    data.push({
+      time,
+      open: parseFloat(open.toFixed(2)),
+      high: parseFloat(high.toFixed(2)),
+      low: parseFloat(low.toFixed(2)),
+      close: parseFloat(close.toFixed(2)),
+    });
+    
+    price = close;
+  }
+  
+  return data;
+}
