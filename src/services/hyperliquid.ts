@@ -2,10 +2,11 @@
  * Hyperliquid Service
  * 
  * Handles perpetual trading via Hyperliquid DEX using direct API calls.
- * Supports EVM (Arbitrum) wallets.
+ * Supports EVM (Arbitrum) wallets with testnet toggle.
  */
 
-const HYPERLIQUID_API = 'https://api.hyperliquid.xyz';
+const MAINNET_API = 'https://api.hyperliquid.xyz';
+const TESTNET_API = 'https://api.hyperliquid-testnet.xyz';
 
 // ============ TYPE DEFINITIONS ============
 
@@ -60,10 +61,19 @@ export interface HyperliquidOrderbook {
 
 class HyperliquidService {
   private baseUrl: string;
+  private isTestnet: boolean;
+  private assetIndexCache: Map<string, number> = new Map();
 
-  constructor() {
-    this.baseUrl = HYPERLIQUID_API;
-    console.log('[Hyperliquid] Service initialized');
+  constructor(isTestnet: boolean = false) {
+    this.isTestnet = isTestnet;
+    this.baseUrl = isTestnet ? TESTNET_API : MAINNET_API;
+    console.log('[Hyperliquid] Service initialized', { isTestnet });
+  }
+
+  setTestnet(isTestnet: boolean) {
+    this.isTestnet = isTestnet;
+    this.baseUrl = isTestnet ? TESTNET_API : MAINNET_API;
+    this.assetIndexCache.clear(); // Clear cache when switching networks
   }
 
   private async post(type: string, payload: any) {
@@ -97,6 +107,54 @@ class HyperliquidService {
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch markets:', error);
       return [];
+    }
+  }
+
+  async getPrice(coin: string): Promise<number> {
+    try {
+      const data = await this.post('allMids', {});
+      const midPx = data?.[coin];
+      return midPx ? parseFloat(midPx) : 0;
+    } catch (error) {
+      console.error('[Hyperliquid] Failed to fetch price:', error);
+      return 0;
+    }
+  }
+
+  async getAssetIndex(coin: string): Promise<number> {
+    // Check cache first
+    if (this.assetIndexCache.has(coin)) {
+      return this.assetIndexCache.get(coin)!;
+    }
+
+    try {
+      const assets = await this.getAssets();
+      // Build cache for all assets
+      assets.forEach((asset, index) => {
+        this.assetIndexCache.set(asset.coin, index);
+      });
+
+      const index = this.assetIndexCache.get(coin);
+      if (index === undefined) {
+        throw new Error(`Asset ${coin} not found`);
+      }
+      return index;
+    } catch (error) {
+      console.error('[Hyperliquid] Failed to get asset index:', error);
+      throw error;
+    }
+  }
+
+  async checkMaxBuilderFee(userAddress: string, builderAddress: string): Promise<string | null> {
+    try {
+      const data = await this.post('maxBuilderFee', { 
+        user: userAddress, 
+        builder: builderAddress 
+      });
+      return data?.maxFeeRate ?? null;
+    } catch (error) {
+      console.error('[Hyperliquid] Failed to check builder fee:', error);
+      return null;
     }
   }
 

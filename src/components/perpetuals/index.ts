@@ -5,3 +5,7 @@ export { FundingRateChart } from './FundingRateChart';
 export { MobileTradePanel } from './MobileTradePanel';
 export { PositionManager } from './PositionManager';
 export { PnLCalculator } from './PnLCalculator';
+export { BuilderFeeApproval } from './BuilderFeeApproval';
+export { TradeConfirmModal } from './TradeConfirmModal';
+export { NetworkToggle } from './NetworkToggle';
+export { PerpetualsOnboarding } from './PerpetualsOnboarding';
