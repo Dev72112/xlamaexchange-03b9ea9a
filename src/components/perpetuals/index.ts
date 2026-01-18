@@ -9,3 +9,6 @@ export { BuilderFeeApproval } from './BuilderFeeApproval';
 export { TradeConfirmModal } from './TradeConfirmModal';
 export { NetworkToggle } from './NetworkToggle';
 export { PerpetualsOnboarding } from './PerpetualsOnboarding';
+export { CandlestickChart } from './CandlestickChart';
+export { TradeHistory } from './TradeHistory';
+export { HyperliquidDepositWithdraw } from './HyperliquidDepositWithdraw';
