@@ -78,6 +78,13 @@ const About = () => {
       url: "https://hyperliquid.xyz",
       icon: Activity,
     },
+    {
+      name: "Alchemy",
+      description: "Enterprise-grade RPC for EVM & Solana",
+      logo: "https://www.alchemy.com/favicon.ico",
+      url: "https://www.alchemy.com",
+      icon: Zap,
+    },
   ];
 
   return (

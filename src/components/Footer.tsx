@@ -131,7 +131,7 @@ export const Footer = memo(function Footer() {
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <FeedbackSettings />
-            <span className="glass px-3 py-1 rounded-full">v2.3 • Powered by ChangeNow, OKX DEX, Li.Fi, Jupiter & Hyperliquid</span>
+            <span className="glass px-3 py-1 rounded-full">v2.3 • Powered by ChangeNow, OKX DEX, Li.Fi, Jupiter, Hyperliquid & Alchemy</span>
           </div>
         </div>
       </div>

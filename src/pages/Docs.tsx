@@ -335,6 +335,279 @@ const Docs = () => {
             </AccordionContent>
           </AccordionItem>
 
+          {/* Perpetual Trading - Full Documentation */}
+          <AccordionItem value="perpetuals" id="perpetuals" className="border rounded-lg px-4 sweep-effect performance-critical">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <span className="text-lg font-semibold">Perpetual Trading</span>
+                <Badge variant="glow" className="ml-2">New</Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-6 pb-6">
+              <p className="text-muted-foreground">
+                Trade perpetual futures with up to 50x leverage via our Hyperliquid integration. 
+                Perpetuals let you go long or short on crypto without expiration dates.
+              </p>
+
+              {/* Getting Started */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  Getting Started
+                </h4>
+                <ol className="space-y-3 ml-4">
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm flex-shrink-0">1</span>
+                    <p className="text-muted-foreground">Connect an EVM wallet (MetaMask, OKX Wallet recommended)</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm flex-shrink-0">2</span>
+                    <p className="text-muted-foreground">Navigate to the Perpetuals page (/perpetuals)</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm flex-shrink-0">3</span>
+                    <p className="text-muted-foreground">Select a trading pair (BTC, ETH, SOL, and 100+ more)</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm flex-shrink-0">4</span>
+                    <p className="text-muted-foreground">Choose Long (expect price to rise) or Short (expect price to fall)</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm flex-shrink-0">5</span>
+                    <p className="text-muted-foreground">Set your leverage (1x - 50x) and position size</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm flex-shrink-0">6</span>
+                    <p className="text-muted-foreground">Set optional Stop-Loss and Take-Profit levels</p>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm flex-shrink-0">7</span>
+                    <p className="text-muted-foreground">Review and confirm your trade</p>
+                  </li>
+                </ol>
+              </div>
+
+              {/* Leverage Mechanics */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Understanding Leverage
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                    <h5 className="font-medium mb-2">What is Leverage?</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Leverage allows you to control a larger position than your deposited margin. 
+                      10x leverage means $100 controls a $1,000 position.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                    <h5 className="font-medium mb-2">How it Affects P&L</h5>
+                    <p className="text-sm text-muted-foreground">
+                      With 10x leverage, a 1% price move = 10% P&L on your margin. 
+                      This amplifies both gains AND losses.
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-secondary/30">
+                  <h5 className="font-medium mb-2">Leverage Examples</h5>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>2x Leverage:</span>
+                      <span>50% price drop = liquidation</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>10x Leverage:</span>
+                      <span>10% price drop = liquidation</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>50x Leverage:</span>
+                      <span>2% price drop = liquidation</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Funding Rates */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Funding Rates Explained
+                </h4>
+                <p className="text-muted-foreground">
+                  Funding rates are periodic payments between long and short traders to keep perpetual prices 
+                  aligned with spot prices. They're charged every 8 hours.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg border border-green-500/30 bg-green-500/5">
+                    <h5 className="font-medium text-green-600 dark:text-green-400 mb-2">Positive Funding</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Longs pay Shorts. Market is bullish - more traders are long than short.
+                      If you're short, you receive funding.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+                    <h5 className="font-medium text-red-600 dark:text-red-400 mb-2">Negative Funding</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Shorts pay Longs. Market is bearish - more traders are short than long.
+                      If you're long, you receive funding.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground italic">
+                  View current funding rates on the Perpetuals page. Rates are annualized for easy comparison.
+                </p>
+              </div>
+
+              {/* Position Management */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Position Management
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h5 className="font-medium">Close Position</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Close 25%, 50%, 75%, or 100% of your position at any time. 
+                      Partial closes let you lock in profits while keeping exposure.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="font-medium">Modify SL/TP</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Update your Stop-Loss and Take-Profit levels after opening a position. 
+                      Adjust as the market moves.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="font-medium">Add Margin</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Add collateral to your position to lower your liquidation price 
+                      and reduce liquidation risk.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="font-medium">PnL Calculator</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Calculate potential profit, loss, ROE, and liquidation price 
+                      before entering a trade.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Liquidation Avoidance */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Avoiding Liquidation
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h5 className="font-medium">Use Lower Leverage</h5>
+                      <p className="text-sm text-muted-foreground">Start with 2-5x until you're comfortable. Lower leverage = more room for price movement.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h5 className="font-medium">Always Set Stop-Losses</h5>
+                      <p className="text-sm text-muted-foreground">Define your max loss before entering. SL orders close your position automatically.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h5 className="font-medium">Monitor Your Positions</h5>
+                      <p className="text-sm text-muted-foreground">Keep an eye on unrealized P&L and margin ratio. Add margin if needed.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h5 className="font-medium">Size Positions Appropriately</h5>
+                      <p className="text-sm text-muted-foreground">Never risk more than 1-2% of your portfolio on a single trade.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Trading */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" />
+                  Mobile Trading Features
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                    <h5 className="font-medium mb-2">Swipe Gestures</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Swipe right for Long, swipe left for Short. Quick trade execution 
+                      without navigating menus.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                    <h5 className="font-medium mb-2">Haptic Feedback</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Feel tactile confirmation on button presses and trade submissions 
+                      for responsive interaction.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                    <h5 className="font-medium mb-2">Optimized Orderbook</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Compact orderbook view with depth visualization designed for 
+                      smaller screens.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                    <h5 className="font-medium mb-2">Quick Actions</h5>
+                    <p className="text-sm text-muted-foreground">
+                      Access close, modify SL/TP, and add margin directly from 
+                      the position card.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Features */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg">Platform Features</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">Real-time WebSocket Charts</Badge>
+                  <Badge variant="outline">Live Orderbook</Badge>
+                  <Badge variant="outline">Funding Rate History</Badge>
+                  <Badge variant="outline">24h Volume & OI</Badge>
+                  <Badge variant="outline">PnL Calculator</Badge>
+                  <Badge variant="outline">Position Manager</Badge>
+                  <Badge variant="outline">100+ Trading Pairs</Badge>
+                  <Badge variant="outline">Up to 50x Leverage</Badge>
+                </div>
+              </div>
+
+              {/* Risk Warning */}
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-destructive mb-2">Risk Warning</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Leveraged trading carries significant risk of loss</li>
+                      <li>• You can lose more than your initial margin</li>
+                      <li>• Liquidation occurs if margin falls below maintenance requirements</li>
+                      <li>• Past performance does not guarantee future results</li>
+                      <li>• Only trade with money you can afford to lose</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
           {/* Trading Features */}
           <AccordionItem value="trading-features" id="trading-features" className="border rounded-lg px-4 sweep-effect performance-critical">
             <AccordionTrigger className="hover:no-underline">

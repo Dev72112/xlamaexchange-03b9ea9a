@@ -38,7 +38,7 @@ export const Partners = memo(function Partners() {
         </div>
 
         {/* Main Partners */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 mb-12 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-12 max-w-6xl mx-auto">
           {/* ChangeNow Partner */}
           <a
             href="https://changenow.io"
@@ -186,6 +186,36 @@ export const Partners = memo(function Partners() {
             </div>
             <p className="text-xs text-muted-foreground text-center max-w-[200px]">
               50x leverage perpetual futures trading
+            </p>
+          </a>
+
+          {/* Alchemy Partner */}
+          <a
+            href="https://www.alchemy.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover performance-critical overflow-hidden"
+          >
+            <div className="flex items-center gap-3">
+              <img
+                src="https://www.alchemy.com/favicon.ico"
+                alt="Alchemy RPC infrastructure logo"
+                loading="lazy"
+                decoding="async"
+                width="48"
+                height="48"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0"
+              />
+              <div className="text-left min-w-0">
+                <span className="font-bold text-lg sm:text-xl">Alchemy</span>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  RPC Infrastructure
+                  <ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center max-w-[200px]">
+              Enterprise-grade RPC for EVM & Solana
             </p>
           </a>
         </div>
