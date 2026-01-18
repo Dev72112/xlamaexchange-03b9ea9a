@@ -1,10 +1,10 @@
 /**
  * Perpetuals Page
  * 
- * Hyperliquid perpetual trading interface.
+ * Hyperliquid perpetual trading interface with live trading.
  */
 
-import { memo, useState, useMemo } from "react";
+import { memo, useState, useMemo, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,29 +23,37 @@ import {
   ArrowDownRight,
   RefreshCw,
   Calculator,
+  ArrowDownToLine,
 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { useHyperliquidMarkets, useHyperliquidOrderbook } from "@/hooks/useHyperliquidMarkets";
 import { useHyperliquidAccount } from "@/hooks/useHyperliquidAccount";
 import { useHyperliquidWebSocket } from "@/hooks/useHyperliquidWebSocket";
+import { useHyperliquidTrading } from "@/hooks/useHyperliquidTrading";
+import { useHyperliquidFills } from "@/hooks/useHyperliquidFills";
 import { 
   HyperliquidTradeForm, 
   HyperliquidOrderbook, 
-  HyperliquidPriceChart,
   FundingRateChart,
   MobileTradePanel,
   PositionManager,
   PnLCalculator,
+  BuilderFeeApproval,
+  TradeConfirmModal,
+  NetworkToggle,
+  PerpetualsOnboarding,
+  CandlestickChart,
+  TradeHistory,
+  HyperliquidDepositWithdraw,
 } from "@/components/perpetuals";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-// Popular perpetual pairs
 const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK'];
 
 const Perpetuals = memo(function Perpetuals() {
-  const { isConnected, activeChainType } = useMultiWallet();
+  const { isConnected, activeChainType, activeAddress } = useMultiWallet();
   const { getPrice, refetch: refetchMarkets } = useHyperliquidMarkets();
   const { 
     positions, 
@@ -55,19 +63,35 @@ const Perpetuals = memo(function Perpetuals() {
     openOrders,
     refetch: refetchAccount,
   } = useHyperliquidAccount();
+  const { fills, isLoading: fillsLoading } = useHyperliquidFills();
   const { toast } = useToast();
+  
+  // Trading hook
+  const {
+    isTestnet,
+    setIsTestnet,
+    isBuilderApproved,
+    approveBuilder,
+    placeMarketOrder,
+    placeLimitOrder,
+    closePosition,
+    placeStopLoss,
+    placeTakeProfit,
+    addMargin,
+    isSubmitting,
+  } = useHyperliquidTrading();
   
   const [selectedPair, setSelectedPair] = useState('BTC');
   const [activeTab, setActiveTab] = useState('trade');
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showBuilderApproval, setShowBuilderApproval] = useState(false);
+  const [showTradeConfirm, setShowTradeConfirm] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState<any>(null);
 
-  // WebSocket for real-time prices
-  const { getPrice: getWsPrice, isConnected: wsConnected } = useHyperliquidWebSocket(POPULAR_PAIRS);
-
-  // Fetch orderbook for selected pair
+  const { getPrice: getWsPrice } = useHyperliquidWebSocket(POPULAR_PAIRS);
   const { orderbook, isLoading: orderbookLoading } = useHyperliquidOrderbook(selectedPair);
 
-  // Build current prices map for position manager
   const currentPrices = useMemo(() => {
     const prices: Record<string, number> = {};
     POPULAR_PAIRS.forEach(pair => {
@@ -79,10 +103,10 @@ const Perpetuals = memo(function Perpetuals() {
   }, [getWsPrice, getPrice]);
 
   const isEVM = activeChainType === 'evm';
-  // Use WebSocket price if available, fallback to REST API
   const wsPrice = getWsPrice(selectedPair);
   const restPrice = getPrice(selectedPair);
   const currentPrice = wsPrice > 0 ? wsPrice : restPrice;
+  const hasDeposit = totalEquity > 0;
 
   const formatUsd = (value: number) => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
@@ -90,138 +114,161 @@ const Perpetuals = memo(function Perpetuals() {
     return `$${value.toFixed(2)}`;
   };
 
-  const formatPercent = (value: number) => {
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(2)}%`;
-  };
+  const handleTrade = useCallback(async (params: any) => {
+    if (!isBuilderApproved) {
+      setShowBuilderApproval(true);
+      return;
+    }
+    setPendingOrder(params);
+    setShowTradeConfirm(true);
+  }, [isBuilderApproved]);
 
-  const handleTrade = async (params: any) => {
-    // Placeholder - will implement actual trading via Hyperliquid API
-    console.log('[Perpetuals] Trade submitted:', params);
-    toast({
-      title: 'Trading Coming Soon',
-      description: 'Hyperliquid order execution is being integrated. Check back soon!',
-    });
-  };
+  const executeOrder = useCallback(async () => {
+    if (!pendingOrder) return;
+    
+    try {
+      const result = pendingOrder.orderType === 'market'
+        ? await placeMarketOrder({
+            coin: pendingOrder.coin,
+            isBuy: pendingOrder.side === 'long',
+            size: pendingOrder.size,
+            leverage: pendingOrder.leverage,
+            slippage: 0.5,
+          })
+        : await placeLimitOrder({
+            coin: pendingOrder.coin,
+            isBuy: pendingOrder.side === 'long',
+            size: pendingOrder.size,
+            price: pendingOrder.limitPrice,
+            leverage: pendingOrder.leverage,
+          });
+      
+      if (result.success) {
+        toast({ title: 'Order Placed', description: `${pendingOrder.side} ${pendingOrder.coin} order submitted` });
+        refetchAccount();
+      } else {
+        toast({ title: 'Order Failed', description: result.error, variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Order Failed', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
+    } finally {
+      setShowTradeConfirm(false);
+      setPendingOrder(null);
+    }
+  }, [pendingOrder, placeMarketOrder, placeLimitOrder, toast, refetchAccount]);
 
-  // Position management handlers (placeholders for Hyperliquid API integration)
-  const handleClosePosition = async (coin: string, size: string) => {
-    console.log('[Perpetuals] Close position:', { coin, size });
-    toast({
-      title: 'Position Management Coming Soon',
-      description: `Close ${size} ${coin} position - Hyperliquid API integration pending`,
-    });
-  };
+  const handleClosePosition = useCallback(async (coin: string, size: string) => {
+    const pos = positions.find(p => p.coin === coin);
+    if (!pos) return;
+    
+    const result = await closePosition(coin, size, parseFloat(pos.szi) > 0);
+    if (result.success) {
+      toast({ title: 'Position Closed', description: `Closed ${size} ${coin}` });
+      refetchAccount();
+    } else {
+      toast({ title: 'Failed', description: result.error, variant: 'destructive' });
+    }
+  }, [positions, closePosition, toast, refetchAccount]);
 
-  const handleModifySLTP = async (coin: string, stopLoss?: string, takeProfit?: string) => {
-    console.log('[Perpetuals] Modify SL/TP:', { coin, stopLoss, takeProfit });
-    toast({
-      title: 'SL/TP Coming Soon',
-      description: 'Stop-loss and take-profit modification coming soon',
-    });
-  };
+  const handleModifySLTP = useCallback(async (coin: string, stopLoss?: string, takeProfit?: string) => {
+    const pos = positions.find(p => p.coin === coin);
+    if (!pos) return;
+    
+    const isLong = parseFloat(pos.szi) > 0;
+    const size = Math.abs(parseFloat(pos.szi)).toString();
+    
+    if (stopLoss) {
+      await placeStopLoss({ coin, triggerPrice: stopLoss, size, isLong });
+    }
+    if (takeProfit) {
+      await placeTakeProfit({ coin, triggerPrice: takeProfit, size, isLong });
+    }
+    toast({ title: 'SL/TP Updated' });
+  }, [positions, placeStopLoss, placeTakeProfit, toast]);
 
-  const handleAddMargin = async (coin: string, amount: string) => {
-    console.log('[Perpetuals] Add margin:', { coin, amount });
-    toast({
-      title: 'Margin Management Coming Soon',
-      description: `Add $${amount} margin to ${coin} - API integration pending`,
-    });
-  };
+  const handleAddMargin = useCallback(async (coin: string, amount: string) => {
+    const result = await addMargin(coin, parseFloat(amount));
+    if (result.success) {
+      toast({ title: 'Margin Added', description: `Added $${amount} to ${coin}` });
+      refetchAccount();
+    }
+  }, [addMargin, toast, refetchAccount]);
 
   const handleRefresh = () => {
     refetchMarkets();
     refetchAccount();
-    toast({ title: 'Refreshed', description: 'Market data updated' });
+    toast({ title: 'Refreshed' });
   };
 
   return (
     <Layout>
       <Helmet>
         <title>Perpetuals | xlama - Trade Perpetual Futures</title>
-        <meta
-          name="description"
-          content="Trade perpetual futures with up to 50x leverage on Hyperliquid. Long or short BTC, ETH, SOL and more with advanced order types."
-        />
-        <meta property="og:title" content="Perpetuals | xlama" />
-        <meta property="og:description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
-        <link rel="canonical" href="https://xlama.exchange/perpetuals" />
+        <meta name="description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
       </Helmet>
 
       <main className="container px-4 sm:px-6 py-8 sm:py-12">
-        {/* Animated background */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-destructive/5 rounded-full blur-3xl" />
         </div>
 
-        {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
             <Activity className="w-4 h-4" />
             <span>Perpetual Trading</span>
-            <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
-              Beta
-            </Badge>
+            {isTestnet && <Badge variant="secondary" className="text-xs">Testnet</Badge>}
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
-            Trade Perpetuals
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Long or short with up to 50x leverage on Hyperliquid. 
-            Advanced order types including limit, stop-loss, and take-profit.
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">Trade Perpetuals</h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
+            Long or short with up to 50x leverage on Hyperliquid.
           </p>
         </div>
 
-        {/* Not Connected State */}
         {!isConnected ? (
           <div className="max-w-xl mx-auto">
-            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
+            <Card className="glass glow-sm border-primary/10 sweep-effect">
               <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
-                  <Activity className="w-8 h-8 text-primary" />
-                </div>
+                <Activity className="w-12 h-12 text-primary mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Connect an <strong className="text-primary">EVM wallet</strong> (Ethereum, Arbitrum) 
-                  to start trading perpetuals on Hyperliquid.
-                </p>
+                <p className="text-sm text-muted-foreground mb-6">Connect an EVM wallet to start trading.</p>
                 <MultiWalletButton />
               </CardContent>
             </Card>
           </div>
         ) : !isEVM ? (
-          /* Wrong Network */
           <div className="max-w-xl mx-auto">
             <Card className="glass glow-sm border-warning/20">
               <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
-                  <Wallet className="w-8 h-8 text-warning" />
-                </div>
+                <Wallet className="w-12 h-12 text-warning mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Switch to EVM Network</h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Hyperliquid trading requires an EVM-compatible wallet.
-                </p>
-                <p className="text-xs text-muted-foreground mb-6">
-                  Please switch to Ethereum or Arbitrum to continue.
-                </p>
-                <Badge variant="outline" className="text-warning border-warning">
-                  Currently on: {activeChainType}
-                </Badge>
+                <p className="text-sm text-muted-foreground">Hyperliquid requires an EVM wallet.</p>
               </CardContent>
             </Card>
           </div>
         ) : (
-          /* Main Trading Interface */
           <div className="max-w-6xl mx-auto space-y-6">
-            {/* Account Overview */}
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-medium">Account Overview</h2>
-              <Button variant="ghost" size="sm" onClick={handleRefresh} className="gap-2">
+            {/* Network Toggle & Onboarding */}
+            <div className="flex items-center justify-between">
+              <NetworkToggle isTestnet={isTestnet} onToggle={setIsTestnet} />
+              <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </Button>
             </div>
+
+            {(!hasDeposit || !isBuilderApproved) && (
+              <PerpetualsOnboarding
+                isConnected={isConnected}
+                hasDeposit={hasDeposit}
+                isBuilderApproved={isBuilderApproved}
+                isTestnet={isTestnet}
+                onDeposit={() => setShowDepositModal(true)}
+                onApproveBuilder={() => setShowBuilderApproval(true)}
+              />
+            )}
+
+            {/* Account Overview */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="glass border-border/50 hover-lift">
                 <CardContent className="pt-4 pb-4">
@@ -232,17 +279,20 @@ const Perpetuals = memo(function Perpetuals() {
                   <p className="text-lg font-bold">{formatUsd(totalEquity)}</p>
                 </CardContent>
               </Card>
-              
               <Card className="glass border-border/50 hover-lift">
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-2 mb-1">
                     <TrendingUp className="w-4 h-4 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Available</span>
                   </div>
-                  <p className="text-lg font-bold">{formatUsd(availableMargin)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold">{formatUsd(availableMargin)}</p>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowDepositModal(true)}>
+                      <ArrowDownToLine className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
-              
               <Card className="glass border-border/50 hover-lift">
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-2 mb-1">
@@ -252,24 +302,13 @@ const Perpetuals = memo(function Perpetuals() {
                   <p className="text-lg font-bold">{positions.length}</p>
                 </CardContent>
               </Card>
-              
-              <Card className={cn(
-                "glass border-border/50 hover-lift",
-                unrealizedPnl >= 0 ? "border-success/20" : "border-destructive/20"
-              )}>
+              <Card className={cn("glass border-border/50 hover-lift", unrealizedPnl >= 0 ? "border-success/20" : "border-destructive/20")}>
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-2 mb-1">
-                    {unrealizedPnl >= 0 ? (
-                      <ArrowUpRight className="w-4 h-4 text-success" />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4 text-destructive" />
-                    )}
+                    {unrealizedPnl >= 0 ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-destructive" />}
                     <span className="text-xs text-muted-foreground">Unrealized PnL</span>
                   </div>
-                  <p className={cn(
-                    "text-lg font-bold",
-                    unrealizedPnl >= 0 ? "text-success" : "text-destructive"
-                  )}>
+                  <p className={cn("text-lg font-bold", unrealizedPnl >= 0 ? "text-success" : "text-destructive")}>
                     {unrealizedPnl >= 0 ? '+' : ''}{formatUsd(unrealizedPnl)}
                   </p>
                 </CardContent>
@@ -286,42 +325,28 @@ const Perpetuals = memo(function Perpetuals() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {POPULAR_PAIRS.map(pair => {
-                    const price = getPrice(pair);
-                    const isSelected = selectedPair === pair;
-                    
-                    return (
-                      <Button
-                        key={pair}
-                        variant={isSelected ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedPair(pair)}
-                        className={cn(
-                          "gap-2",
-                          isSelected && "bg-primary text-primary-foreground"
-                        )}
-                      >
-                        {pair}-PERP
-                        {price > 0 && (
-                          <span className="text-xs opacity-70">
-                            ${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </span>
-                        )}
-                      </Button>
-                    );
-                  })}
+                  {POPULAR_PAIRS.map(pair => (
+                    <Button
+                      key={pair}
+                      variant={selectedPair === pair ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedPair(pair)}
+                      className={cn("gap-2", selectedPair === pair && "bg-primary text-primary-foreground")}
+                    >
+                      {pair}-PERP
+                      {currentPrices[pair] > 0 && (
+                        <span className="text-xs opacity-70">${currentPrices[pair].toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      )}
+                    </Button>
+                  ))}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Live Price Chart */}
-            <HyperliquidPriceChart
-              coin={selectedPair}
-              currentPrice={currentPrice}
-              className="glow-sm"
-            />
+            {/* Candlestick Chart */}
+            <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
+
             <div className="grid lg:grid-cols-3 gap-6">
-              {/* Trading Form */}
               <div className="lg:col-span-2">
                 <Card className="glass border-border/50 h-full">
                   <CardHeader>
@@ -330,61 +355,37 @@ const Perpetuals = memo(function Perpetuals() {
                         <Activity className="w-5 h-5" />
                         {selectedPair}-PERP
                       </span>
-                      <Badge variant="outline" className="font-mono">
-                        ${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </Badge>
+                      <Badge variant="outline" className="font-mono">${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
-                      <TabsList className="grid w-full grid-cols-3">
+                      <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="trade">Trade</TabsTrigger>
-                        <TabsTrigger value="positions">
-                          Positions {positions.length > 0 && `(${positions.length})`}
-                        </TabsTrigger>
-                        <TabsTrigger value="orders">
-                          Orders {openOrders.length > 0 && `(${openOrders.length})`}
-                        </TabsTrigger>
+                        <TabsTrigger value="positions">Positions {positions.length > 0 && `(${positions.length})`}</TabsTrigger>
+                        <TabsTrigger value="orders">Orders {openOrders.length > 0 && `(${openOrders.length})`}</TabsTrigger>
+                        <TabsTrigger value="history">History</TabsTrigger>
                       </TabsList>
                       
                       <TabsContent value="trade" className="mt-4">
-                        <HyperliquidTradeForm
-                          coin={selectedPair}
-                          currentPrice={currentPrice}
-                          availableMargin={availableMargin}
-                          onTrade={handleTrade}
-                        />
+                        <HyperliquidTradeForm coin={selectedPair} currentPrice={currentPrice} availableMargin={availableMargin} onTrade={handleTrade} />
                       </TabsContent>
-                      
                       <TabsContent value="positions" className="mt-4">
-                        <PositionManager
-                          positions={positions}
-                          currentPrices={currentPrices}
-                          onClosePosition={handleClosePosition}
-                          onModifySLTP={handleModifySLTP}
-                          onAddMargin={handleAddMargin}
-                        />
+                        <PositionManager positions={positions} currentPrices={currentPrices} onClosePosition={handleClosePosition} onModifySLTP={handleModifySLTP} onAddMargin={handleAddMargin} />
                       </TabsContent>
-                      
                       <TabsContent value="orders" className="mt-4">
                         {openOrders.length === 0 ? (
                           <div className="text-center py-8 text-muted-foreground">
                             <History className="w-10 h-10 mx-auto mb-3 opacity-50" />
                             <p className="text-sm">No open orders</p>
-                            <p className="text-xs mt-1">Your limit orders will appear here</p>
                           </div>
                         ) : (
                           <div className="space-y-2">
                             {openOrders.map((order: any, i: number) => (
-                              <div 
-                                key={i}
-                                className="p-3 rounded-lg border bg-secondary/30 flex items-center justify-between text-sm"
-                              >
+                              <div key={i} className="p-3 rounded-lg border bg-secondary/30 flex items-center justify-between text-sm">
                                 <div>
                                   <span className="font-medium">{order.coin}-PERP</span>
-                                  <Badge variant="outline" className="ml-2 text-xs">
-                                    {order.side}
-                                  </Badge>
+                                  <Badge variant="outline" className="ml-2 text-xs">{order.side}</Badge>
                                 </div>
                                 <div className="text-right font-mono">
                                   <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
@@ -395,77 +396,76 @@ const Perpetuals = memo(function Perpetuals() {
                           </div>
                         )}
                       </TabsContent>
+                      <TabsContent value="history" className="mt-4">
+                        <TradeHistory trades={fills} isLoading={fillsLoading} />
+                      </TabsContent>
                     </Tabs>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Orderbook & Tools */}
               <div className="space-y-6">
-                {/* Calculator Toggle */}
                 <div className="flex gap-2">
-                  <Button
-                    variant={!showCalculator ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1 gap-2"
-                    onClick={() => setShowCalculator(false)}
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    Orderbook
+                  <Button variant={!showCalculator ? "default" : "outline"} size="sm" className="flex-1 gap-2" onClick={() => setShowCalculator(false)}>
+                    <BarChart3 className="w-4 h-4" />Orderbook
                   </Button>
-                  <Button
-                    variant={showCalculator ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1 gap-2"
-                    onClick={() => setShowCalculator(true)}
-                  >
-                    <Calculator className="w-4 h-4" />
-                    Calculator
+                  <Button variant={showCalculator ? "default" : "outline"} size="sm" className="flex-1 gap-2" onClick={() => setShowCalculator(true)}>
+                    <Calculator className="w-4 h-4" />Calculator
                   </Button>
                 </div>
 
                 {showCalculator ? (
-                  <PnLCalculator 
-                    coin={selectedPair} 
-                    currentPrice={currentPrice} 
-                  />
+                  <PnLCalculator coin={selectedPair} currentPrice={currentPrice} />
                 ) : (
                   <>
                     <Card className="glass border-border/50">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center justify-between">
                           Orderbook
-                          <Badge variant="outline" className="text-xs font-mono">
-                            {selectedPair}
-                          </Badge>
+                          <Badge variant="outline" className="text-xs font-mono">{selectedPair}</Badge>
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <HyperliquidOrderbook
-                          orderbook={orderbook}
-                          isLoading={orderbookLoading}
-                          currentPrice={currentPrice}
-                        />
+                        <HyperliquidOrderbook orderbook={orderbook} isLoading={orderbookLoading} currentPrice={currentPrice} />
                       </CardContent>
                     </Card>
-
-                    {/* Funding Rate Chart */}
                     <FundingRateChart coin={selectedPair} />
                   </>
                 )}
               </div>
             </div>
 
-            {/* Mobile Trade Panel with swipe gestures */}
-            <MobileTradePanel
-              coin={selectedPair}
-              currentPrice={currentPrice}
-              availableMargin={availableMargin}
-              onTrade={handleTrade}
-            />
+            <MobileTradePanel coin={selectedPair} currentPrice={currentPrice} availableMargin={availableMargin} onTrade={handleTrade} />
           </div>
         )}
       </main>
+
+      {/* Modals */}
+      <BuilderFeeApproval
+        isOpen={showBuilderApproval}
+        onClose={() => setShowBuilderApproval(false)}
+        onApprove={approveBuilder}
+        isLoading={isSubmitting}
+        feePercent={0.01}
+        builderAddress={import.meta.env.VITE_HYPERLIQUID_BUILDER_ADDRESS || ''}
+      />
+
+      <TradeConfirmModal
+        isOpen={showTradeConfirm}
+        onClose={() => { setShowTradeConfirm(false); setPendingOrder(null); }}
+        onConfirm={executeOrder}
+        orderDetails={pendingOrder}
+        estimatedFee={pendingOrder ? parseFloat(pendingOrder.size) * currentPrice * 0.0001 : 0}
+        isSubmitting={isSubmitting}
+        isTestnet={isTestnet}
+      />
+
+      <HyperliquidDepositWithdraw
+        isOpen={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+        availableMargin={availableMargin}
+        isTestnet={isTestnet}
+      />
     </Layout>
   );
 });

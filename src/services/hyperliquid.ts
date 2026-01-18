@@ -57,6 +57,28 @@ export interface HyperliquidOrderbook {
   timestamp: number;
 }
 
+export interface HyperliquidSpotBalance {
+  coin: string;
+  hold: string;
+  total: string;
+}
+
+export interface HyperliquidFill {
+  time: number;
+  coin: string;
+  side: 'B' | 'S';
+  px: string;
+  sz: string;
+  startPosition: string;
+  closedPnl: string;
+  hash: string;
+  fee: string;
+  feeToken: string;
+  oid: number;
+  crossed: boolean;
+  dir: string;
+}
+
 // ============ SERVICE CLASS ============
 
 class HyperliquidService {
@@ -73,7 +95,11 @@ class HyperliquidService {
   setTestnet(isTestnet: boolean) {
     this.isTestnet = isTestnet;
     this.baseUrl = isTestnet ? TESTNET_API : MAINNET_API;
-    this.assetIndexCache.clear(); // Clear cache when switching networks
+    this.assetIndexCache.clear();
+  }
+
+  getIsTestnet(): boolean {
+    return this.isTestnet;
   }
 
   private async post(type: string, payload: any) {
@@ -122,14 +148,12 @@ class HyperliquidService {
   }
 
   async getAssetIndex(coin: string): Promise<number> {
-    // Check cache first
     if (this.assetIndexCache.has(coin)) {
       return this.assetIndexCache.get(coin)!;
     }
 
     try {
       const assets = await this.getAssets();
-      // Build cache for all assets
       assets.forEach((asset, index) => {
         this.assetIndexCache.set(asset.coin, index);
       });
@@ -196,11 +220,42 @@ class HyperliquidService {
     }
   }
 
-  async getTradeHistory(address: string): Promise<any[]> {
+  async getTradeHistory(address: string, limit: number = 100): Promise<HyperliquidFill[]> {
     try {
-      return await this.post('userFills', { user: address }) || [];
+      const data = await this.post('userFills', { user: address });
+      if (!Array.isArray(data)) return [];
+      
+      return data.slice(0, limit).map((fill: any) => ({
+        time: fill.time || Date.now(),
+        coin: fill.coin || '',
+        side: fill.side || 'B',
+        px: fill.px || '0',
+        sz: fill.sz || '0',
+        startPosition: fill.startPosition || '0',
+        closedPnl: fill.closedPnl || '0',
+        hash: fill.hash || fill.tid || '',
+        fee: fill.fee || '0',
+        feeToken: fill.feeToken || 'USDC',
+        oid: fill.oid || 0,
+        crossed: fill.crossed || false,
+        dir: fill.dir || '',
+      }));
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch trades:', error);
+      return [];
+    }
+  }
+
+  async getSpotBalances(address: string): Promise<HyperliquidSpotBalance[]> {
+    try {
+      const data = await this.post('spotClearinghouseState', { user: address });
+      return (data?.balances || []).map((bal: any) => ({
+        coin: bal.coin || '',
+        hold: bal.hold || '0',
+        total: bal.total || '0',
+      }));
+    } catch (error) {
+      console.error('[Hyperliquid] Failed to fetch spot balances:', error);
       return [];
     }
   }
@@ -240,7 +295,7 @@ class HyperliquidService {
         data.universe.forEach((asset: any) => {
           rates[asset.name] = {
             fundingRate: asset.funding || '0',
-            nextFunding: Date.now() + 3600000, // Approx next hour
+            nextFunding: Date.now() + 3600000,
           };
         });
       }
@@ -248,6 +303,21 @@ class HyperliquidService {
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch funding rates:', error);
       return {};
+    }
+  }
+
+  async getCandleData(coin: string, interval: string, startTime: number, endTime: number): Promise<any[]> {
+    try {
+      const data = await this.post('candleSnapshot', {
+        coin,
+        interval,
+        startTime,
+        endTime,
+      });
+      return data || [];
+    } catch (error) {
+      console.error('[Hyperliquid] Failed to fetch candle data:', error);
+      return [];
     }
   }
 }
