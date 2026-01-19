@@ -2,14 +2,16 @@
  * Position Manager Component
  * 
  * Manage open positions with close, modify SL/TP, and add margin actions.
+ * Now includes funding rate display and liquidation proximity warnings.
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +21,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   TrendingUp,
   TrendingDown,
@@ -30,14 +38,19 @@ import {
   DollarSign,
   Target,
   Shield,
+  Clock,
+  Flame,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { HyperliquidPosition } from '@/services/hyperliquid';
+import { HyperliquidPosition, hyperliquidService } from '@/services/hyperliquid';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 
 interface PositionManagerProps {
   positions: HyperliquidPosition[];
   currentPrices: Record<string, number>;
+  fundingRates?: Record<string, { fundingRate: string; nextFunding: number }>;
   onClosePosition?: (coin: string, size: string) => Promise<void>;
   onModifySLTP?: (coin: string, stopLoss?: string, takeProfit?: string) => Promise<void>;
   onAddMargin?: (coin: string, amount: string) => Promise<void>;
@@ -45,9 +58,54 @@ interface PositionManagerProps {
 
 type ModalType = 'close' | 'modify' | 'margin' | null;
 
+// Helper to calculate liquidation proximity (0-100, 100 = very close to liquidation)
+const calculateLiquidationProximity = (
+  currentPrice: number,
+  liquidationPrice: number | null,
+  isLong: boolean
+): number => {
+  if (!liquidationPrice || liquidationPrice <= 0) return 0;
+  
+  const priceDiff = isLong
+    ? currentPrice - liquidationPrice
+    : liquidationPrice - currentPrice;
+  
+  const totalRange = isLong
+    ? currentPrice - liquidationPrice
+    : liquidationPrice - currentPrice;
+    
+  if (totalRange <= 0) return 100; // Already liquidated
+  
+  // Calculate how close we are - smaller diff = closer to liquidation
+  const distancePercent = (priceDiff / currentPrice) * 100;
+  
+  // Map to 0-100 where 100 = very close (< 2% away)
+  if (distancePercent < 2) return 100;
+  if (distancePercent < 5) return 75;
+  if (distancePercent < 10) return 50;
+  if (distancePercent < 20) return 25;
+  return 0;
+};
+
+// Color coding for liquidation proximity
+const getLiquidationColor = (proximity: number): string => {
+  if (proximity >= 75) return 'text-red-500 bg-red-500';
+  if (proximity >= 50) return 'text-orange-500 bg-orange-500';
+  if (proximity >= 25) return 'text-yellow-500 bg-yellow-500';
+  return 'text-green-500 bg-green-500';
+};
+
+// Format funding rate for display
+const formatFundingRate = (rate: string | undefined): string => {
+  if (!rate) return '0.00%';
+  const parsed = parseFloat(rate) * 100;
+  return `${parsed >= 0 ? '+' : ''}${parsed.toFixed(4)}%`;
+};
+
 export const PositionManager = memo(function PositionManager({
   positions,
   currentPrices,
+  fundingRates: propFundingRates,
   onClosePosition,
   onModifySLTP,
   onAddMargin,
@@ -66,6 +124,17 @@ export const PositionManager = memo(function PositionManager({
   
   // Add margin state
   const [marginAmount, setMarginAmount] = useState('');
+
+  // Fetch funding rates if not provided
+  const { data: fetchedFundingRates } = useQuery({
+    queryKey: ['hyperliquid', 'fundingRates'],
+    queryFn: () => hyperliquidService.getFundingRates(),
+    staleTime: 60000, // 1 minute
+    refetchInterval: 60000,
+    enabled: !propFundingRates && positions.length > 0,
+  });
+
+  const fundingRates = propFundingRates || fetchedFundingRates || {};
 
   const openModal = useCallback((position: HyperliquidPosition, type: ModalType) => {
     setSelectedPosition(position);
@@ -163,7 +232,7 @@ export const PositionManager = memo(function PositionManager({
   }
 
   return (
-    <>
+    <TooltipProvider>
       <div className="space-y-3">
         {positions.map((pos, i) => {
           const isLong = parseFloat(pos.szi) > 0;
@@ -174,13 +243,37 @@ export const PositionManager = memo(function PositionManager({
           const roe = parseFloat(pos.returnOnEquity) * 100;
           const liquidationPx = pos.liquidationPx ? parseFloat(pos.liquidationPx) : null;
           
+          // Funding rate for this position
+          const funding = fundingRates[pos.coin];
+          const fundingRate = funding?.fundingRate;
+          const fundingRateParsed = fundingRate ? parseFloat(fundingRate) : 0;
+          const isFundingPositive = fundingRateParsed >= 0;
+          
+          // Liquidation proximity calculation
+          const liqProximity = calculateLiquidationProximity(currentPrice, liquidationPx, isLong);
+          const liqColor = getLiquidationColor(liqProximity);
+          const isLiquidationDanger = liqProximity >= 50;
+          
           return (
-            <Card key={i} className="glass border-border/50 overflow-hidden">
+            <Card key={i} className={cn(
+              "glass border-border/50 overflow-hidden transition-all",
+              isLiquidationDanger && "border-red-500/50 animate-pulse"
+            )}>
               <div className={cn(
                 "h-1 w-full",
                 isLong ? "bg-success" : "bg-destructive"
               )} />
               <CardContent className="pt-4 pb-4">
+                {/* Liquidation Warning Banner */}
+                {isLiquidationDanger && (
+                  <div className="flex items-center gap-2 p-2 mb-3 rounded-md bg-red-500/10 border border-red-500/30">
+                    <AlertCircle className="w-4 h-4 text-red-500 animate-pulse" />
+                    <span className="text-xs text-red-500 font-medium">
+                      Liquidation risk: {liqProximity >= 75 ? 'CRITICAL' : 'HIGH'} - Consider adding margin
+                    </span>
+                  </div>
+                )}
+                
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-lg">{pos.coin}</span>
@@ -201,7 +294,34 @@ export const PositionManager = memo(function PositionManager({
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                {/* Funding Rate Row */}
+                <div className="flex items-center justify-between p-2 mb-3 rounded-md bg-secondary/30">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Funding Rate</span>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className={cn(
+                        "flex items-center gap-1 font-mono text-xs font-medium cursor-help",
+                        isFundingPositive ? (isLong ? "text-red-400" : "text-green-400") : (isLong ? "text-green-400" : "text-red-400")
+                      )}>
+                        <Flame className="w-3 h-3" />
+                        {formatFundingRate(fundingRate)}
+                        {isFundingPositive ? (isLong ? ' (pay)' : ' (receive)') : (isLong ? ' (receive)' : ' (pay)')}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">
+                        {isFundingPositive 
+                          ? 'Longs pay shorts every 8 hours' 
+                          : 'Shorts pay longs every 8 hours'}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                   <div>
                     <p className="text-xs text-muted-foreground">Size</p>
                     <p className="font-mono">{size.toFixed(4)} {pos.coin}</p>
@@ -215,14 +335,37 @@ export const PositionManager = memo(function PositionManager({
                     <p className="font-mono">${currentPrice.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Liq. Price</p>
-                    <p className={cn(
-                      "font-mono",
-                      liquidationPx ? "text-warning" : "text-muted-foreground"
-                    )}>
-                      {liquidationPx ? `$${liquidationPx.toLocaleString()}` : 'N/A'}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Margin Used</p>
+                    <p className="font-mono">${parseFloat(pos.marginUsed).toFixed(2)}</p>
                   </div>
+                </div>
+                
+                {/* Liquidation Price with Progress Bar */}
+                <div className="mb-4 p-2 rounded-md bg-secondary/30">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className={cn("w-3.5 h-3.5", liqColor.split(' ')[0])} />
+                      <span className="text-xs text-muted-foreground">Liquidation Price</span>
+                    </div>
+                    <span className={cn("font-mono text-xs font-medium", liqColor.split(' ')[0])}>
+                      {liquidationPx ? `$${liquidationPx.toLocaleString()}` : 'N/A'}
+                    </span>
+                  </div>
+                  {liquidationPx && (
+                    <>
+                      <Progress 
+                        value={liqProximity} 
+                        className={cn("h-1.5", liqColor.split(' ')[1].replace('text-', 'bg-').replace('bg-', '[&>div]:bg-'))}
+                      />
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[10px] text-muted-foreground">Safe</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {((Math.abs(currentPrice - liquidationPx) / currentPrice) * 100).toFixed(1)}% away
+                        </span>
+                        <span className="text-[10px] text-red-400">Liquidation</span>
+                      </div>
+                    </>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-3 gap-2">
@@ -247,7 +390,10 @@ export const PositionManager = memo(function PositionManager({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5"
+                    className={cn(
+                      "gap-1.5",
+                      isLiquidationDanger && "border-green-500/50 text-green-500 hover:bg-green-500/10"
+                    )}
                     onClick={() => openModal(pos, 'margin')}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -449,6 +595,6 @@ export const PositionManager = memo(function PositionManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   );
 });
