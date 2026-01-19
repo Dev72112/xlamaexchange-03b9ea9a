@@ -10,3 +10,8 @@ export { useRebalanceSchedule } from '@/hooks/useRebalanceSchedule';
 // Token tracking
 export { useTokenWatchlist } from '@/hooks/useTokenWatchlist';
 export { useTokenPnL } from '@/hooks/useTokenPnL';
+
+// Zerion integration
+export { useZerionPortfolio } from '@/hooks/useZerionPortfolio';
+export { useZerionNFTs } from '@/hooks/useZerionNFTs';
+export { useZerionTransactions } from '@/hooks/useZerionTransactions';
