@@ -63,6 +63,8 @@ export function useHyperliquidFills(coin?: string): UseHyperliquidFillsResult {
     enabled,
     staleTime: 30000, // 30s
     refetchInterval: 60000, // 1 min auto-refresh
+    retry: 1,
+    retryDelay: 2000,
   });
 
   // Normalize fills data

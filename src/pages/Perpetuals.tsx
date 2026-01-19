@@ -55,17 +55,24 @@ const PLATFORM_FEE_PERCENT = '0.01%';
 
 const Perpetuals = memo(function Perpetuals() {
   const { isConnected, activeChainType, activeAddress } = useMultiWallet();
-  const { getPrice, refetch: refetchMarkets } = useHyperliquidMarkets();
-  const { 
-    positions, 
-    totalEquity, 
-    unrealizedPnl, 
-    availableMargin,
-    openOrders,
-    refetch: refetchAccount,
-  } = useHyperliquidAccount();
-  const { fills, isLoading: fillsLoading } = useHyperliquidFills();
   const { toast } = useToast();
+  
+  // Use try-catch safe hook calls with fallback defaults
+  const marketsResult = useHyperliquidMarkets();
+  const getPrice = marketsResult?.getPrice ?? (() => 0);
+  const refetchMarkets = marketsResult?.refetch ?? (() => {});
+  
+  const accountResult = useHyperliquidAccount();
+  const positions = accountResult?.positions ?? [];
+  const totalEquity = accountResult?.totalEquity ?? 0;
+  const unrealizedPnl = accountResult?.unrealizedPnl ?? 0;
+  const availableMargin = accountResult?.availableMargin ?? 0;
+  const openOrders = accountResult?.openOrders ?? [];
+  const refetchAccount = accountResult?.refetch ?? (() => {});
+  
+  const fillsResult = useHyperliquidFills();
+  const fills = fillsResult?.fills ?? [];
+  const fillsLoading = fillsResult?.isLoading ?? false;
   
   // Trading hook
   const {
@@ -91,9 +98,12 @@ const Perpetuals = memo(function Perpetuals() {
   const [showTradeConfirm, setShowTradeConfirm] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<any>(null);
 
-  // Real-time price updates via WebSocket
-  const { getPrice: getWsPrice } = useHyperliquidWebSocket(POPULAR_PAIRS);
-  const { orderbook, isLoading: orderbookLoading } = useHyperliquidOrderbook(selectedPair);
+  // Real-time price updates via WebSocket - safe fallbacks
+  const wsResult = useHyperliquidWebSocket(POPULAR_PAIRS);
+  const getWsPrice = wsResult?.getPrice ?? (() => 0);
+  const orderbookResult = useHyperliquidOrderbook(selectedPair);
+  const orderbook = orderbookResult?.orderbook ?? null;
+  const orderbookLoading = orderbookResult?.isLoading ?? false;
 
   // Build current prices map with real-time WebSocket data
   const currentPrices = useMemo(() => {

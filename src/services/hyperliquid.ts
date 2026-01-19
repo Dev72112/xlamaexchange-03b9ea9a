@@ -103,13 +103,21 @@ class HyperliquidService {
   }
 
   private async post(type: string, payload: any) {
-    const response = await fetch(`${this.baseUrl}/info`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, ...payload }),
-    });
-    if (!response.ok) throw new Error(`Hyperliquid API error: ${response.status}`);
-    return response.json();
+    try {
+      const response = await fetch(`${this.baseUrl}/info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, ...payload }),
+      });
+      if (!response.ok) {
+        console.warn(`[Hyperliquid] API error: ${response.status}`);
+        return null;
+      }
+      return response.json();
+    } catch (error) {
+      console.warn('[Hyperliquid] Network error:', error);
+      return null;
+    }
   }
 
   async getAssets(): Promise<HyperliquidAsset[]> {

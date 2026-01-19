@@ -38,10 +38,14 @@ export function useHyperliquidWebSocket(coins: string[]) {
         setIsConnected(true);
         
         // Subscribe to allMids for real-time price updates
-        ws.send(JSON.stringify({
-          method: 'subscribe',
-          subscription: { type: 'allMids' }
-        }));
+        try {
+          ws.send(JSON.stringify({
+            method: 'subscribe',
+            subscription: { type: 'allMids' }
+          }));
+        } catch (sendErr) {
+          console.warn('[Hyperliquid WS] Send error:', sendErr);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -65,26 +69,26 @@ export function useHyperliquidWebSocket(coins: string[]) {
             setPrices(newPrices);
           }
         } catch (err) {
-          console.warn('[Hyperliquid WS] Parse error:', err);
+          // Silently ignore parse errors
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('[Hyperliquid WS] Error:', error);
+      ws.onerror = () => {
+        // Silently handle errors - will reconnect automatically
+        setIsConnected(false);
       };
 
       ws.onclose = () => {
-        console.log('[Hyperliquid WS] Disconnected');
         setIsConnected(false);
         
         // Reconnect after 5 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('[Hyperliquid WS] Reconnecting...');
           connect();
         }, 5000);
       };
     } catch (err) {
-      console.error('[Hyperliquid WS] Connection failed:', err);
+      // Silently fail - WebSocket not critical
+      console.warn('[Hyperliquid WS] Connection failed:', err);
     }
   }, [coins, prices]);
 

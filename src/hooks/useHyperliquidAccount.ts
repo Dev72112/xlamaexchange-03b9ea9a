@@ -49,6 +49,8 @@ export function useHyperliquidAccount(): UseHyperliquidAccountResult {
     enabled,
     staleTime: 10000, // 10s
     refetchInterval: 15000, // 15s auto-refresh
+    retry: 1, // Only retry once
+    retryDelay: 2000,
   });
 
   // Fetch open orders
@@ -62,6 +64,7 @@ export function useHyperliquidAccount(): UseHyperliquidAccountResult {
     enabled,
     staleTime: 5000,
     refetchInterval: 10000,
+    retry: 1,
   });
 
   // Fetch recent trades

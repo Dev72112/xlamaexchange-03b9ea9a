@@ -35,6 +35,8 @@ export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
     queryFn: () => hyperliquidService.getAssets(),
     staleTime: 60000,
     refetchInterval: 120000,
+    retry: 1,
+    retryDelay: 2000,
   });
 
   const {
@@ -46,6 +48,7 @@ export function useHyperliquidMarkets(): UseHyperliquidMarketsResult {
     queryFn: () => hyperliquidService.getAllMarkets(),
     staleTime: 5000,
     refetchInterval: 10000,
+    retry: 1,
   });
 
   const assetMap = useMemo(() => {
@@ -95,6 +98,8 @@ export function useHyperliquidOrderbook(coin: string): {
     enabled: !!coin,
     staleTime: 1000,
     refetchInterval: 2000,
+    retry: 1,
+    retryDelay: 1000,
   });
 
   return {
