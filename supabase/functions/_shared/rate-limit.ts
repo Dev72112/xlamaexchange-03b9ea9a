@@ -6,6 +6,7 @@ export const RATE_LIMITS: Record<string, { maxRequests: number; windowSeconds: n
   'okx-dex': { maxRequests: 100, windowSeconds: 60 },
   'price-history': { maxRequests: 60, windowSeconds: 60 },
   'crypto-news': { maxRequests: 30, windowSeconds: 60 },
+  'zerion': { maxRequests: 60, windowSeconds: 60 },
   
   // Medium-frequency endpoints (transaction operations)
   'changenow': { maxRequests: 60, windowSeconds: 60 },

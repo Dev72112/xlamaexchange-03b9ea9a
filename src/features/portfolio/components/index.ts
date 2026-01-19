@@ -14,6 +14,9 @@ export { PortfolioRebalancer } from '@/components/PortfolioRebalancer';
 export { PortfolioAllocationChart } from '@/components/portfolio/PortfolioAllocationChart';
 export { PortfolioHoldingsTable } from '@/components/portfolio/PortfolioHoldingsTable';
 export { PortfolioSummaryCard } from '@/components/portfolio/PortfolioSummaryCard';
+export { DeFiPositions } from '@/components/portfolio/DeFiPositions';
+export { NFTGallery } from '@/components/portfolio/NFTGallery';
+export { PnLBreakdown } from '@/components/portfolio/PnLBreakdown';
 
 // Watchlist
 export { TokenWatchlist } from '@/components/TokenWatchlist';
