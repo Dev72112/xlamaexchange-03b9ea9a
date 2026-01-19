@@ -2,10 +2,10 @@
  * Position Manager Component
  * 
  * Manage open positions with close, modify SL/TP, and add margin actions.
- * Now includes funding rate display and liquidation proximity warnings.
+ * Includes funding rate display, liquidation proximity warnings, and funding countdown.
  */
 
-import { memo, useState, useCallback, useMemo } from 'react';
+import { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,11 +41,13 @@ import {
   Clock,
   Flame,
   AlertCircle,
+  Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HyperliquidPosition, hyperliquidService } from '@/services/hyperliquid';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
+import { FundingRateRow } from './FundingRateRow';
 
 interface PositionManagerProps {
   positions: HyperliquidPosition[];
@@ -294,32 +296,13 @@ export const PositionManager = memo(function PositionManager({
                   </div>
                 </div>
                 
-                {/* Funding Rate Row */}
-                <div className="flex items-center justify-between p-2 mb-3 rounded-md bg-secondary/30">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Funding Rate</span>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className={cn(
-                        "flex items-center gap-1 font-mono text-xs font-medium cursor-help",
-                        isFundingPositive ? (isLong ? "text-red-400" : "text-green-400") : (isLong ? "text-green-400" : "text-red-400")
-                      )}>
-                        <Flame className="w-3 h-3" />
-                        {formatFundingRate(fundingRate)}
-                        {isFundingPositive ? (isLong ? ' (pay)' : ' (receive)') : (isLong ? ' (receive)' : ' (pay)')}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">
-                        {isFundingPositive 
-                          ? 'Longs pay shorts every 8 hours' 
-                          : 'Shorts pay longs every 8 hours'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
+                {/* Funding Rate Row with Countdown */}
+                <FundingRateRow 
+                  fundingRate={fundingRate}
+                  nextFundingTime={funding?.nextFunding}
+                  isLong={isLong}
+                  isFundingPositive={isFundingPositive}
+                />
                 
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                   <div>
