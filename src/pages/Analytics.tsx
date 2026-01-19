@@ -60,9 +60,11 @@ import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 import { useScrollReveal, getScrollRevealClass } from '@/hooks/useScrollReveal';
 
 // Import analytics components from feature module
-import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings } from '@/features/analytics';
+import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings, ProtocolBreakdown, FeeAnalysis } from '@/features/analytics';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useQueryClient } from '@tanstack/react-query';
+import { useZerionPortfolio } from '@/hooks/useZerionPortfolio';
+import { useZerionTransactions } from '@/hooks/useZerionTransactions';
 
 // Analytics features for the connect prompt
 const analyticsFeatures = [
@@ -308,6 +310,10 @@ const Analytics = () => {
   const analytics = useTradeAnalytics(analyticsChainFilter, timePeriod);
   const tradeVsHodl = useTradeVsHodl();
   const gasAnalytics = useGasAnalytics(analyticsChainFilter);
+  
+  // Zerion data for protocol/fee breakdown (EVM only)
+  const { defiPositions, isLoading: zerionLoading } = useZerionPortfolio();
+  const { transactions: zerionTxs } = useZerionTransactions();
 
   // Get all supported chains for the filter, grouped by EVM/Non-EVM
   const evmChains = useMemo(() => getEvmChains(), []);
@@ -317,6 +323,7 @@ const Analytics = () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ['trade-analytics'] });
     await queryClient.invalidateQueries({ queryKey: ['gas-analytics'] });
+    await queryClient.invalidateQueries({ queryKey: ['zerion'] });
     await new Promise(resolve => setTimeout(resolve, 500));
     setIsRefreshing(false);
   }, [queryClient]);
@@ -833,6 +840,20 @@ const Analytics = () => {
           <TokenPnLChart chainFilter={chainFilter} />
           <GasBreakdown chainFilter={chainFilter} />
         </div>
+
+        {/* Protocol Breakdown & Fee Analysis (EVM only via Zerion) */}
+        {chainFilter === 'evm' && (
+          <div className="grid lg:grid-cols-2 gap-6 mb-8">
+            <ProtocolBreakdown 
+              positions={defiPositions} 
+              isLoading={zerionLoading} 
+            />
+            <FeeAnalysis 
+              transactions={zerionTxs} 
+              isLoading={false} 
+            />
+          </div>
+        )}
 
         {/* Top Pairs & Top Tokens */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8">

@@ -10,6 +10,8 @@ export { GasBreakdown } from '@/components/analytics/GasBreakdown';
 export { LivePriceWidget } from '@/components/analytics/LivePriceWidget';
 export { TokenPnLChart } from '@/components/analytics/TokenPnLChart';
 export { WalletHoldings } from '@/components/analytics/WalletHoldings';
+export { ProtocolBreakdown } from '@/components/analytics/ProtocolBreakdown';
+export { FeeAnalysis } from '@/components/analytics/FeeAnalysis';
 
 // Related analytics components
 export { GasEstimator } from '@/components/GasEstimator';
