@@ -1,10 +1,11 @@
 /**
- * Data-related providers: Price Oracle, Transactions
+ * Data-related providers: Price Oracle, Transactions, Data Source
  */
 import React, { ReactNode } from 'react';
 import { PriceOracleProvider } from '@/contexts/PriceOracleContext';
 import { DexTransactionProvider } from '@/contexts/DexTransactionContext';
 import { BridgeTransactionProvider } from '@/contexts/BridgeTransactionContext';
+import { DataSourceProvider } from '@/contexts/DataSourceContext';
 
 interface DataProvidersProps {
   children: ReactNode;
@@ -12,12 +13,14 @@ interface DataProvidersProps {
 
 export function DataProviders({ children }: DataProvidersProps) {
   return (
-    <PriceOracleProvider>
-      <DexTransactionProvider>
-        <BridgeTransactionProvider>
-          {children}
-        </BridgeTransactionProvider>
-      </DexTransactionProvider>
-    </PriceOracleProvider>
+    <DataSourceProvider>
+      <PriceOracleProvider>
+        <DexTransactionProvider>
+          <BridgeTransactionProvider>
+            {children}
+          </BridgeTransactionProvider>
+        </DexTransactionProvider>
+      </PriceOracleProvider>
+    </DataSourceProvider>
   );
 }

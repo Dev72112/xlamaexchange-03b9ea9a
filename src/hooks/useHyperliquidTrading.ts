@@ -104,8 +104,24 @@ function parseOrderStatus(status: any): { filled?: boolean; resting?: { oid: num
 
 export function useHyperliquidTrading(): UseHyperliquidTradingResult {
   const { toast } = useToast();
-  const { address } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  
+  // Safe extraction of wallet data - wrap in try-catch for resilience
+  let address: `0x${string}` | undefined;
+  let walletClient: any = null;
+  
+  try {
+    const accountResult = useAccount();
+    address = accountResult?.address;
+  } catch (err) {
+    console.warn('[Hyperliquid] useAccount error:', err);
+  }
+  
+  try {
+    const walletClientResult = useWalletClient();
+    walletClient = walletClientResult?.data ?? null;
+  } catch (err) {
+    console.warn('[Hyperliquid] useWalletClient error:', err);
+  }
   
   // State
   const [isTestnet, setIsTestnetState] = useState(false);
@@ -120,17 +136,37 @@ export function useHyperliquidTrading(): UseHyperliquidTradingResult {
     hyperliquidService.setTestnet(testnet);
   }, []);
 
-  // Create transport and clients
-  const transport = useMemo(() => new HttpTransport({ isTestnet }), [isTestnet]);
-  const infoClient = useMemo(() => new InfoClient({ transport }), [transport]);
+  // Create transport and clients - wrapped for safety
+  const transport = useMemo(() => {
+    try {
+      return new HttpTransport({ isTestnet });
+    } catch (err) {
+      console.warn('[Hyperliquid] Failed to create transport:', err);
+      return new HttpTransport({ isTestnet: false });
+    }
+  }, [isTestnet]);
   
-  // Exchange client requires wallet
+  const infoClient = useMemo(() => {
+    try {
+      return new InfoClient({ transport });
+    } catch (err) {
+      console.warn('[Hyperliquid] Failed to create InfoClient:', err);
+      return null;
+    }
+  }, [transport]);
+  
+  // Exchange client requires wallet - guarded creation
   const exchangeClient = useMemo(() => {
     if (!walletClient) return null;
-    return new ExchangeClient({ 
-      transport, 
-      wallet: walletClient as any, // viem wallet client is compatible
-    });
+    try {
+      return new ExchangeClient({ 
+        transport, 
+        wallet: walletClient as any,
+      });
+    } catch (err) {
+      console.warn('[Hyperliquid] Failed to create ExchangeClient:', err);
+      return null;
+    }
   }, [transport, walletClient]);
 
   // Get asset index from coin symbol
@@ -156,11 +192,18 @@ export function useHyperliquidTrading(): UseHyperliquidTradingResult {
     }
   }, [address]);
 
-  // Check approval on mount and address change
+  // Check approval on mount and address change - with safety delay
   useEffect(() => {
-    if (address && BUILDER_ADDRESS) {
-      checkBuilderApproval();
-    }
+    if (!address || !BUILDER_ADDRESS) return;
+    
+    // Delay check to allow wallet to stabilize after connection
+    const timer = setTimeout(() => {
+      checkBuilderApproval().catch(err => {
+        console.warn('[Hyperliquid] Builder approval check failed:', err);
+      });
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, [address, checkBuilderApproval]);
 
   // Approve builder fee

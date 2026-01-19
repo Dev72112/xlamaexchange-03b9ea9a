@@ -22,6 +22,7 @@ import { useZerionNFTs } from "@/hooks/useZerionNFTs";
 import { DeFiPositions } from "@/components/portfolio/DeFiPositions";
 import { NFTGallery } from "@/components/portfolio/NFTGallery";
 import { PnLBreakdown } from "@/components/portfolio/PnLBreakdown";
+import { DataSourceToggle } from "@/components/ui/DataSourceToggle";
 
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
@@ -233,10 +234,11 @@ const Portfolio = memo(function Portfolio() {
           <PullToRefresh onRefresh={handleRefresh} showSkeleton={false}>
             <Suspense fallback={<PortfolioSkeleton />}>
               <div className="space-y-8 max-w-4xl mx-auto">
-                {/* Chain Filter Toggle */}
+                {/* Chain Filter Toggle with Data Source */}
                 <div className="flex flex-col items-center gap-3">
-                  <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-                    <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+                  <div className="flex items-center gap-3">
+                    <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+                      <Layers className="w-4 h-4 text-muted-foreground ml-2" />
                     {chainFilterOptions.map((option) => (
                       <Button
                         key={option.value}
@@ -257,7 +259,11 @@ const Portfolio = memo(function Portfolio() {
                           </Badge>
                         )}
                       </Button>
-                    ))}
+                      ))}
+                    </div>
+                    
+                    {/* Data Source Toggle */}
+                    <DataSourceToggle compact />
                   </div>
 
                   {/* Connection Indicator */}

@@ -65,6 +65,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { useQueryClient } from '@tanstack/react-query';
 import { useZerionPortfolio } from '@/hooks/useZerionPortfolio';
 import { useZerionTransactions } from '@/hooks/useZerionTransactions';
+import { DataSourceToggle } from '@/components/ui/DataSourceToggle';
 
 // Analytics features for the connect prompt
 const analyticsFeatures = [
@@ -421,10 +422,11 @@ const Analytics = () => {
           </div>
         ) : (
           <>
-            {/* Chain Toggle - matching Orders page */}
+            {/* Chain Toggle with Data Source - matching Orders page */}
             <div className="flex flex-col items-center gap-3 mb-6">
-              <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-                <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+              <div className="flex items-center gap-3">
+                <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+                  <Layers className="w-4 h-4 text-muted-foreground ml-2" />
                 {chainFilterOptions.map((option) => (
                   <Button
                     key={option.value}
@@ -445,7 +447,11 @@ const Analytics = () => {
                       </Badge>
                     )}
                   </Button>
-                ))}
+                  ))}
+                </div>
+                
+                {/* Data Source Toggle */}
+                <DataSourceToggle compact />
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <div className={cn("w-2 h-2 rounded-full", isWalletSynced ? 'bg-success animate-pulse' : 'bg-warning')} />
