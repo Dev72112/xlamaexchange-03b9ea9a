@@ -138,13 +138,14 @@ const Perpetuals = memo(function Perpetuals() {
   const [pendingOrder, setPendingOrder] = useState<any>(null);
   const [retryKey, setRetryKey] = useState(0);
 
-  // Real-time price updates via WebSocket - conditionally disabled in safe mode
-  const wsResult = safeMode ? null : useHyperliquidWebSocket(POPULAR_PAIRS);
-  const getWsPrice = wsResult?.getPrice ?? (() => 0);
+  // Real-time price updates via WebSocket - disabled in safe mode (no conditional hook calls)
+  const wsResult = useHyperliquidWebSocket(safeMode ? [] : POPULAR_PAIRS);
+  const getWsPrice = wsResult.getPrice;
   
-  const orderbookResult = safeMode ? null : useHyperliquidOrderbook(selectedPair);
-  const orderbook = orderbookResult?.orderbook ?? null;
-  const orderbookLoading = orderbookResult?.isLoading ?? false;
+  // Orderbook polling - disabled in safe mode by passing an empty coin (useQuery enabled: !!coin)
+  const orderbookResult = useHyperliquidOrderbook(safeMode ? '' : selectedPair);
+  const orderbook = orderbookResult.orderbook ?? null;
+  const orderbookLoading = orderbookResult.isLoading ?? false;
 
   // Build current prices map with real-time WebSocket data
   const currentPrices = useMemo(() => {
