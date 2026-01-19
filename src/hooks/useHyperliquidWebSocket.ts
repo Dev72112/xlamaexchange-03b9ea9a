@@ -28,6 +28,9 @@ export function useHyperliquidWebSocket(coins: string[]) {
   }, [coins]);
 
   const connect = useCallback(() => {
+    // If disabled (no coins), do nothing
+    if (coinsRef.current.length === 0) return;
+
     // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
@@ -98,12 +101,14 @@ export function useHyperliquidWebSocket(coins: string[]) {
         setIsConnected(false);
         wsRef.current = null;
         
-        // Reconnect after 5 seconds
+        // Reconnect after 5 seconds (only if still enabled)
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          if (coinsRef.current.length > 0) {
+            connect();
+          }
         }, 5000);
       };
     } catch (err) {
@@ -124,11 +129,17 @@ export function useHyperliquidWebSocket(coins: string[]) {
     setIsConnected(false);
   }, []);
 
-  // Connect on mount, disconnect on unmount
+  // Connect only when we have coins to watch; disconnect/clear when disabled
   useEffect(() => {
+    if (coins.length === 0) {
+      disconnect();
+      setPrices(new Map());
+      return;
+    }
+
     connect();
     return () => disconnect();
-  }, [connect, disconnect]);
+  }, [coins.length, connect, disconnect]);
 
   // Get price for a specific coin
   const getPrice = useCallback((coin: string): number => {
