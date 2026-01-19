@@ -2,9 +2,10 @@
  * Funding Rate Chart & 24h Volume Display
  * 
  * Shows funding rate history and volume for perpetual pairs
+ * Hardened with abort controller and fixed dependencies
  */
 
-import { memo, useState, useEffect, useMemo } from 'react';
+import { memo, useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,8 +16,6 @@ import {
   YAxis, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from 'recharts';
 import { 
   TrendingUp, 
@@ -49,8 +48,16 @@ export const FundingRateChart = memo(function FundingRateChart({
   const [volume24h, setVolume24h] = useState<number>(0);
   const [openInterest, setOpenInterest] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    // Cancel previous fetch on coin change or unmount
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     const fetchData = async () => {
       setIsLoading(true);
       try {
@@ -59,14 +66,22 @@ export const FundingRateChart = memo(function FundingRateChart({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'meta' }),
+          signal,
         });
+        
+        if (!metaResponse.ok) {
+          throw new Error(`Meta fetch failed: ${metaResponse.status}`);
+        }
+        
         const metaData = await metaResponse.json();
         
+        let fetchedRate = 0;
         // Find current coin's funding rate
         if (metaData?.universe) {
           const asset = metaData.universe.find((a: any) => a.name === coin);
           if (asset) {
-            setCurrentRate(parseFloat(asset.funding || '0') * 100);
+            fetchedRate = parseFloat(asset.funding || '0') * 100;
+            setCurrentRate(fetchedRate);
           }
         }
 
@@ -75,7 +90,13 @@ export const FundingRateChart = memo(function FundingRateChart({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'metaAndAssetCtxs' }),
+          signal,
         });
+        
+        if (!statsResponse.ok) {
+          throw new Error(`Stats fetch failed: ${statsResponse.status}`);
+        }
+        
         const statsData = await statsResponse.json();
         
         if (statsData?.[1]) {
@@ -87,25 +108,37 @@ export const FundingRateChart = memo(function FundingRateChart({
           }
         }
 
-        // Generate mock funding history (real API would need historical endpoint)
-        const mockHistory = generateMockFundingHistory(currentRate);
+        // Generate mock funding history based on fetched rate
+        const mockHistory = generateMockFundingHistory(fetchedRate || 0.01);
         setFundingHistory(mockHistory);
 
       } catch (err) {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
         console.error('[FundingRate] Fetch error:', err);
-        // Use mock data
+        // Use mock data on error
         setFundingHistory(generateMockFundingHistory(0.01));
         setVolume24h(Math.random() * 100000000);
         setOpenInterest(Math.random() * 50000000);
       } finally {
-        setIsLoading(false);
+        if (!signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
     const interval = setInterval(fetchData, 60000); // Refresh every minute
-    return () => clearInterval(interval);
-  }, [coin, currentRate]);
+    
+    return () => {
+      clearInterval(interval);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [coin]); // Only depend on coin, not currentRate
 
   const formatVolume = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
