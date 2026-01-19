@@ -2,16 +2,12 @@
  * Hyperliquid WebSocket Hook
  * 
  * Real-time price updates via WebSocket connection
+ * Hardened against stale closures and reconnect loops
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const WS_URL = 'wss://api.hyperliquid.xyz/ws';
-
-interface WebSocketMessage {
-  channel: string;
-  data: any;
-}
 
 interface PriceTick {
   coin: string;
@@ -24,10 +20,19 @@ export function useHyperliquidWebSocket(coins: string[]) {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const subscribedCoinsRef = useRef<Set<string>>(new Set());
+  const coinsRef = useRef<string[]>(coins);
+  
+  // Keep coins ref updated to avoid stale closure
+  useEffect(() => {
+    coinsRef.current = coins;
+  }, [coins]);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    // Prevent multiple connections
+    if (wsRef.current?.readyState === WebSocket.OPEN || 
+        wsRef.current?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
 
     try {
       const ws = new WebSocket(WS_URL);
@@ -53,20 +58,31 @@ export function useHyperliquidWebSocket(coins: string[]) {
           const message = JSON.parse(event.data);
           
           if (message.channel === 'allMids' && message.data?.mids) {
-            const newPrices = new Map(prices);
             const mids = message.data.mids;
+            const currentCoins = coinsRef.current;
             
-            Object.entries(mids).forEach(([coin, midPrice]) => {
-              if (coins.includes(coin)) {
-                newPrices.set(coin, {
-                  coin,
-                  price: parseFloat(midPrice as string),
-                  timestamp: Date.now(),
-                });
-              }
+            // Use functional update to avoid stale closure
+            setPrices(prevPrices => {
+              const newPrices = new Map(prevPrices);
+              let hasChanges = false;
+              
+              Object.entries(mids).forEach(([coin, midPrice]) => {
+                if (currentCoins.includes(coin)) {
+                  const newPrice = parseFloat(midPrice as string);
+                  const existing = newPrices.get(coin);
+                  if (!existing || existing.price !== newPrice) {
+                    newPrices.set(coin, {
+                      coin,
+                      price: newPrice,
+                      timestamp: Date.now(),
+                    });
+                    hasChanges = true;
+                  }
+                }
+              });
+              
+              return hasChanges ? newPrices : prevPrices;
             });
-            
-            setPrices(newPrices);
           }
         } catch (err) {
           // Silently ignore parse errors
@@ -80,8 +96,12 @@ export function useHyperliquidWebSocket(coins: string[]) {
 
       ws.onclose = () => {
         setIsConnected(false);
+        wsRef.current = null;
         
         // Reconnect after 5 seconds
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, 5000);
@@ -90,11 +110,12 @@ export function useHyperliquidWebSocket(coins: string[]) {
       // Silently fail - WebSocket not critical
       console.warn('[Hyperliquid WS] Connection failed:', err);
     }
-  }, [coins, prices]);
+  }, []); // No dependencies - uses refs internally
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close();
@@ -103,11 +124,11 @@ export function useHyperliquidWebSocket(coins: string[]) {
     setIsConnected(false);
   }, []);
 
-  // Connect on mount
+  // Connect on mount, disconnect on unmount
   useEffect(() => {
     connect();
     return () => disconnect();
-  }, []);
+  }, [connect, disconnect]);
 
   // Get price for a specific coin
   const getPrice = useCallback((coin: string): number => {
@@ -140,17 +161,28 @@ export function useHyperliquidPrice(coin: string) {
   const [lastUpdate, setLastUpdate] = useState<number>(0);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const coinRef = useRef(coin);
+  
+  // Keep coin ref updated
+  useEffect(() => {
+    coinRef.current = coin;
+  }, [coin]);
 
   useEffect(() => {
     if (!coin) return;
 
     const connect = () => {
+      if (wsRef.current?.readyState === WebSocket.OPEN ||
+          wsRef.current?.readyState === WebSocket.CONNECTING) {
+        return;
+      }
+      
       try {
         const ws = new WebSocket(WS_URL);
         wsRef.current = ws;
 
         ws.onopen = () => {
-          console.log(`[Hyperliquid WS] Subscribed to ${coin}`);
+          console.log(`[Hyperliquid WS] Subscribed to ${coinRef.current}`);
           ws.send(JSON.stringify({
             method: 'subscribe',
             subscription: { type: 'allMids' }
@@ -162,7 +194,7 @@ export function useHyperliquidPrice(coin: string) {
             const message = JSON.parse(event.data);
             
             if (message.channel === 'allMids' && message.data?.mids) {
-              const midPrice = message.data.mids[coin];
+              const midPrice = message.data.mids[coinRef.current];
               if (midPrice !== undefined) {
                 setPrice(parseFloat(midPrice));
                 setLastUpdate(Date.now());
@@ -174,6 +206,10 @@ export function useHyperliquidPrice(coin: string) {
         };
 
         ws.onclose = () => {
+          wsRef.current = null;
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
           reconnectTimeoutRef.current = setTimeout(connect, 5000);
         };
       } catch (err) {
@@ -186,6 +222,7 @@ export function useHyperliquidPrice(coin: string) {
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       if (wsRef.current) {
         wsRef.current.close();
