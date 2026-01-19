@@ -52,6 +52,19 @@ export const mode: AppKitNetwork = {
   },
 };
 
+// Define HyperEVM chain (Hyperliquid L1) - Required for Perpetuals trading
+export const hyperEVM: AppKitNetwork = {
+  id: 999,
+  name: 'HyperEVM',
+  nativeCurrency: { name: 'HYPE', symbol: 'HYPE', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.hyperliquid.xyz/evm'] },
+  },
+  blockExplorers: {
+    default: { name: 'HyperEVMScan', url: 'https://hyperevmscan.io' },
+  },
+};
+
 // All supported EVM networks
 export const evmNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   xlayer, // Primary chain first
@@ -75,6 +88,7 @@ export const evmNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   mode,
   aurora,
   klaytn,
+  hyperEVM, // HyperEVM for Perpetuals
 ];
 
 // All networks including Solana
