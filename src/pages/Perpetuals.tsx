@@ -92,7 +92,7 @@ const Perpetuals = memo(function Perpetuals() {
   const [searchParams, setSearchParams] = useSearchParams();
   const safeMode = searchParams.get('safe') === '1';
   
-  const { isConnected, activeChainType, activeAddress, disconnect } = useMultiWallet();
+  const { isConnected, activeChainType, activeAddress, disconnect, switchEvmChain } = useMultiWallet();
   const { toast } = useToast();
   
   // Use try-catch safe hook calls with fallback defaults
@@ -590,7 +590,15 @@ const Perpetuals = memo(function Perpetuals() {
               <CardContent className="pt-8 pb-8 text-center">
                 <Wallet className="w-12 h-12 text-warning mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Switch to EVM Network</h3>
-                <p className="text-sm text-muted-foreground">Hyperliquid requires an EVM wallet.</p>
+                <p className="text-sm text-muted-foreground mb-4">Hyperliquid requires an EVM wallet (Arbitrum or HyperEVM).</p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button onClick={() => switchEvmChain(42161)} className="gap-2">
+                    Switch to Arbitrum
+                  </Button>
+                  <Button variant="outline" onClick={() => switchEvmChain(999)} className="gap-2">
+                    Switch to HyperEVM
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

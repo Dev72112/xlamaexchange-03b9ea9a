@@ -46,6 +46,7 @@ const CHAIN_ICONS: Record<string, string> = {
   unichain: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/unichain/info/logo.png',
   monad: 'https://assets.coingecko.com/coins/images/39498/small/monad.png',
   plasma: 'https://ui-avatars.com/api/?name=PL&background=7c3aed&color=fff&size=128',
+  hyperliquid: 'https://assets.coingecko.com/coins/images/40452/small/hyperliquid.png',
 };
 
 // OKX DEX Supported Chains - Based on official docs
@@ -327,6 +328,18 @@ export const SUPPORTED_CHAINS: Chain[] = [
     rpcUrl: 'https://rpc.plasma.io',
     nativeCurrency: { name: 'Plasma', symbol: 'PLASMA', decimals: 18 },
     blockExplorer: 'https://explorer.plasma.io',
+    isEvm: true,
+  },
+  // HyperEVM (Hyperliquid L1) - Required for Perpetuals trading
+  {
+    chainIndex: '999',
+    chainId: 999,
+    name: 'HyperEVM',
+    shortName: 'HYPE',
+    icon: CHAIN_ICONS.hyperliquid,
+    rpcUrl: 'https://rpc.hyperliquid.xyz/evm',
+    nativeCurrency: { name: 'HYPE', symbol: 'HYPE', decimals: 18 },
+    blockExplorer: 'https://hyperevmscan.io',
     isEvm: true,
   },
   // Non-EVM chains from OKX docs
