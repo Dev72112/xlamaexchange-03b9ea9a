@@ -341,23 +341,29 @@ export const CandlestickChart = memo(function CandlestickChart({
   );
 });
 
-// Fallback data generator when API is unavailable
+// Fallback data generator when API is unavailable - NEUTRAL random walk (no uptrend bias)
 function generateFallbackData(basePrice: number, timeframe: TimeframeOption, count: number = 100): CandlestickData[] {
   const now = Date.now();
   const data: CandlestickData[] = [];
   
   const intervalMs = getIntervalMs(timeframe);
   
-  let price = basePrice * 0.95;
-  const volatility = basePrice * 0.005;
+  // Start at the base price (current price)
+  let price = basePrice;
+  const volatility = basePrice * 0.003; // Reduced volatility for more realistic look
   
   for (let i = count; i > 0; i--) {
     const time = Math.floor((now - i * intervalMs) / 1000) as Time;
     const open = price;
-    const change = (Math.random() - 0.48) * volatility;
-    const high = open + Math.abs(change) + Math.random() * volatility * 0.5;
-    const low = open - Math.abs(change) - Math.random() * volatility * 0.5;
+    
+    // TRUE random walk: 50% up, 50% down - no bias
+    const change = (Math.random() - 0.5) * volatility * 2;
+    const wickUp = Math.random() * volatility * 0.3;
+    const wickDown = Math.random() * volatility * 0.3;
+    
     const close = open + change;
+    const high = Math.max(open, close) + wickUp;
+    const low = Math.min(open, close) - wickDown;
     
     data.push({
       time,

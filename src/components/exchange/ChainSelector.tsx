@@ -42,42 +42,47 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
   const isOnCorrectChain = chainId === selectedChain.chainId;
 
   const handleChainSelect = async (chain: Chain) => {
-    // Always update the chain selection first
-    onChainSelect(chain);
+    // Close popover FIRST to prevent stuck state
     setOpen(false);
     
-    // Priority 1: OKX Universal Provider - seamless multi-chain switching
-    if (isOkxConnected) {
-      try {
-        await switchChainByIndex(chain.chainIndex);
-        console.log(`[ChainSelector] OKX seamless switch to ${chain.name}`);
-        return;
-      } catch (error) {
-        console.warn('[ChainSelector] OKX switch failed:', error);
-        // Fall through to other methods
-      }
-    }
+    // Always update the chain selection
+    onChainSelect(chain);
     
-    // Priority 2: EVM chains via Reown/wagmi
-    if (chain.isEvm && chain.chainId) {
-      if (isConnected && chainId !== chain.chainId) {
+    // Process network switching after a frame to prevent UI conflicts
+    requestAnimationFrame(async () => {
+      // Priority 1: OKX Universal Provider - seamless multi-chain switching
+      if (isOkxConnected) {
         try {
-          await switchChain(chain.chainId);
-        } catch (error: any) {
-          if (error?.code === 4001) {
-            return; // User rejected
-          }
-          console.warn('Network switch:', error?.message || error);
-          toast({
-            title: "Network Switch",
-            description: `Please switch to ${chain.name} in your wallet.`,
-          });
+          await switchChainByIndex(chain.chainIndex);
+          console.log(`[ChainSelector] OKX seamless switch to ${chain.name}`);
+          return;
+        } catch (error) {
+          console.warn('[ChainSelector] OKX switch failed:', error);
+          // Fall through to other methods
         }
       }
-    }
-    
-    // Non-EVM without OKX: just UI update (existing behavior)
-    console.log(`[ChainSelector] Selected ${chain.isEvm ? 'EVM' : 'non-EVM'} chain: ${chain.name}`);
+      
+      // Priority 2: EVM chains via Reown/wagmi
+      if (chain.isEvm && chain.chainId) {
+        if (isConnected && chainId !== chain.chainId) {
+          try {
+            await switchChain(chain.chainId);
+          } catch (error: any) {
+            if (error?.code === 4001) {
+              return; // User rejected
+            }
+            console.warn('Network switch:', error?.message || error);
+            toast({
+              title: "Network Switch",
+              description: `Please switch to ${chain.name} in your wallet.`,
+            });
+          }
+        }
+      }
+      
+      // Non-EVM without OKX: just UI update (existing behavior)
+      console.log(`[ChainSelector] Selected ${chain.isEvm ? 'EVM' : 'non-EVM'} chain: ${chain.name}`);
+    });
   };
 
   // Fallback icon handler

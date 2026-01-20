@@ -236,20 +236,25 @@ export function DexTokenSelector({
   }, [recentTokens, excludeAddress]);
 
   const handleSelect = useCallback((token: OkxToken, isCustom = false) => {
-    if (isCustom) {
-      // For custom tokens, show confirmation dialog first
-      setPendingCustomToken(token);
-      setShowConfirmDialog(true);
-      return;
-    }
-    
-    // Add to recent tokens
-    addRecentToken(token);
-    
-    onChange(token);
+    // Close popover FIRST to prevent stuck state
     setOpen(false);
-    setSearchQuery("");
-    setCustomToken(null);
+    
+    // Process selection after closing to prevent re-render conflicts
+    requestAnimationFrame(() => {
+      if (isCustom) {
+        // For custom tokens, show confirmation dialog first
+        setPendingCustomToken(token);
+        setShowConfirmDialog(true);
+        return;
+      }
+      
+      // Add to recent tokens
+      addRecentToken(token);
+      
+      onChange(token);
+      setSearchQuery("");
+      setCustomToken(null);
+    });
   }, [onChange, addRecentToken]);
 
   const handleConfirmCustomToken = useCallback(() => {
