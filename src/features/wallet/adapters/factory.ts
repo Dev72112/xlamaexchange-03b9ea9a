@@ -7,6 +7,9 @@ import { WalletAdapter, Ecosystem } from '../core/types';
 import { EvmReownAdapter } from './EvmReownAdapter';
 import { OkxUniversalAdapter } from './OkxUniversalAdapter';
 import { SolanaAdapter } from './SolanaAdapter';
+import { SuiAdapter } from './SuiAdapter';
+import { TronAdapter } from './TronAdapter';
+import { TonAdapter } from './TonAdapter';
 
 export interface AdapterConfig {
   type: 'okx' | 'reown' | 'solana' | 'sui' | 'tron' | 'ton';
@@ -30,16 +33,13 @@ export function createAdapter(config: AdapterConfig): WalletAdapter {
       return new SolanaAdapter(config.walletName, config.walletIcon);
     
     case 'sui':
-      // Sui adapter - simplified for now
-      return new OkxUniversalAdapter('sui');
+      return new SuiAdapter(config.walletName, config.walletIcon);
     
     case 'tron':
-      // Tron adapter - use OKX universal for now
-      return new OkxUniversalAdapter('tron');
+      return new TronAdapter(config.walletName, config.walletIcon);
     
     case 'ton':
-      // TON adapter - use OKX universal for now
-      return new OkxUniversalAdapter('ton');
+      return new TonAdapter(config.walletName, config.walletIcon);
     
     default:
       throw new Error(`Unknown adapter type: ${config.type}`);
