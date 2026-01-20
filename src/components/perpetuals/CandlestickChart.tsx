@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, BarChart3, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, resolveColor } from '@/lib/utils';
 import { hyperliquidService } from '@/services/hyperliquid';
 
 interface CandlestickChartProps {
@@ -30,6 +30,20 @@ const TIMEFRAMES: { label: string; value: TimeframeOption; interval: string }[] 
   { label: '4H', value: '4H', interval: '4h' },
   { label: '1D', value: '1D', interval: '1d' },
 ];
+
+// Chart colors - resolved at module level with fallbacks
+// lightweight-charts cannot parse CSS variables, so we use hex values
+const CHART_COLORS = {
+  text: '#888888',
+  border: '#333333',
+  borderLight: '#33333380',
+  primary: '#3b82f6',
+  success: '#22c55e',
+  destructive: '#ef4444',
+  successLight: '#22c55e66',
+  destructiveLight: '#ef444466',
+  primaryLight: '#3b82f64D',
+};
 
 // Helper to get interval in milliseconds
 function getIntervalMs(timeframe: TimeframeOption): number {
@@ -66,31 +80,38 @@ export const CandlestickChart = memo(function CandlestickChart({
     changePercent: 0,
   });
 
-  // Initialize chart
+  // Initialize chart with resolved colors (not CSS variables)
   useEffect(() => {
     if (!containerRef.current) return;
     
     if (chartRef.current) {
       chartRef.current.remove();
     }
+
+    // Resolve CSS variables to hex colors at runtime
+    const colors = {
+      text: resolveColor('hsl(var(--muted-foreground))', CHART_COLORS.text),
+      border: resolveColor('hsl(var(--border))', CHART_COLORS.border),
+      primary: resolveColor('hsl(var(--primary))', CHART_COLORS.primary),
+    };
     
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'hsl(var(--muted-foreground))',
+        textColor: colors.text,
       },
       grid: {
-        vertLines: { color: 'hsl(var(--border) / 0.5)' },
-        horzLines: { color: 'hsl(var(--border) / 0.5)' },
+        vertLines: { color: colors.border + '80' },
+        horzLines: { color: colors.border + '80' },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { labelBackgroundColor: 'hsl(var(--primary))' },
-        horzLine: { labelBackgroundColor: 'hsl(var(--primary))' },
+        vertLine: { labelBackgroundColor: colors.primary },
+        horzLine: { labelBackgroundColor: colors.primary },
       },
-      rightPriceScale: { borderColor: 'hsl(var(--border))' },
+      rightPriceScale: { borderColor: colors.border },
       timeScale: {
-        borderColor: 'hsl(var(--border))',
+        borderColor: colors.border,
         timeVisible: true,
         secondsVisible: false,
       },
@@ -99,15 +120,15 @@ export const CandlestickChart = memo(function CandlestickChart({
     });
     
     const candleSeries = chart.addCandlestickSeries({
-      upColor: 'hsl(142.1 76.2% 36.3%)',
-      downColor: 'hsl(0 84.2% 60.2%)',
+      upColor: CHART_COLORS.success,
+      downColor: CHART_COLORS.destructive,
       borderVisible: false,
-      wickUpColor: 'hsl(142.1 76.2% 36.3%)',
-      wickDownColor: 'hsl(0 84.2% 60.2%)',
+      wickUpColor: CHART_COLORS.success,
+      wickDownColor: CHART_COLORS.destructive,
     });
     
     const volumeSeries = chart.addHistogramSeries({
-      color: 'hsl(var(--primary) / 0.3)',
+      color: colors.primary + '4D',
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
     });
@@ -193,13 +214,13 @@ export const CandlestickChart = memo(function CandlestickChart({
       setCandleData(candles);
       candleSeriesRef.current.setData(candles);
       
-      // Generate volume data
+      // Generate volume data with resolved hex colors
       const volumeData = candles.map((candle) => ({
         time: candle.time,
         value: Math.random() * 1000000 + 500000,
         color: candle.close >= candle.open 
-          ? 'hsl(142.1 76.2% 36.3% / 0.4)' 
-          : 'hsl(0 84.2% 60.2% / 0.4)',
+          ? CHART_COLORS.successLight
+          : CHART_COLORS.destructiveLight,
       }));
       volumeSeriesRef.current.setData(volumeData);
       
