@@ -313,44 +313,49 @@ const Orders = memo(function Orders() {
                 </Card>
               )}
 
-              {/* Order Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
-                  <CardContent className="pt-4 pb-4 text-center">
-                    <TrendingUp className="w-5 h-5 text-primary mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">Limit Orders</p>
-                    <p className="text-lg font-bold">Active</p>
-                  </CardContent>
-                </Card>
-                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
-                  <CardContent className="pt-4 pb-4 text-center">
-                    <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">DCA Orders</p>
-                    <p className="text-lg font-bold">Scheduled</p>
-                  </CardContent>
-                </Card>
-                <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
-                  <CardContent className="pt-4 pb-4 text-center">
-                    <ArrowRightLeft className="w-5 h-5 text-primary mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">History</p>
-                    <p className="text-lg font-bold">View All</p>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Solana-only Orders UI */}
+              {chainFilter === 'solana' && (
+                <>
+                  {/* Order Stats */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <TrendingUp className="w-5 h-5 text-primary mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">Limit Orders</p>
+                        <p className="text-lg font-bold">Active</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">DCA Orders</p>
+                        <p className="text-lg font-bold">Scheduled</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <ArrowRightLeft className="w-5 h-5 text-primary mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">History</p>
+                        <p className="text-lg font-bold">View All</p>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-              {/* Active Limit Orders */}
-              <section id="limit-orders" className="scroll-mt-20">
-                <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
-                  <ActiveLimitOrders />
-                </Suspense>
-              </section>
+                  {/* Active Limit Orders */}
+                  <section id="limit-orders" className="scroll-mt-20">
+                    <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
+                      <ActiveLimitOrders />
+                    </Suspense>
+                  </section>
 
-              {/* Active DCA Orders */}
-              <section id="dca-orders" className="scroll-mt-20">
-                <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
-                  <ActiveDCAOrders />
-                </Suspense>
-              </section>
+                  {/* Active DCA Orders */}
+                  <section id="dca-orders" className="scroll-mt-20">
+                    <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
+                      <ActiveDCAOrders />
+                    </Suspense>
+                  </section>
+                </>
+              )}
 
               {/* Transaction History */}
               <section id="history" className="scroll-mt-20">

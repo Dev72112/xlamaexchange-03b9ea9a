@@ -447,13 +447,13 @@ export function DexTokenSelector({
           variant="ghost"
           role="combobox"
           aria-expanded={open}
-          className="h-auto py-2.5 px-3 justify-between gap-2 bg-secondary/50 hover:bg-secondary border border-border rounded-xl min-w-[130px] shrink-0"
+          className="h-auto py-2.5 px-3 justify-between gap-2 bg-secondary/50 hover:bg-secondary border border-border rounded-xl min-w-[130px] w-[150px] sm:w-[170px] max-w-full shrink-0 overflow-hidden"
           disabled={isLoading || !chain}
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : value ? (
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
               <img
                 src={value.tokenLogoUrl || `https://ui-avatars.com/api/?name=${value.tokenSymbol}&background=random`}
                 alt={value.tokenName}
@@ -462,8 +462,8 @@ export function DexTokenSelector({
                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${value.tokenSymbol}&background=random`;
                 }}
               />
-              <div className="text-left min-w-0">
-                <div className="font-semibold uppercase text-sm">{value.tokenSymbol}</div>
+              <div className="text-left min-w-0 overflow-hidden">
+                <div className="font-semibold uppercase text-sm truncate">{value.tokenSymbol}</div>
               </div>
             </div>
           ) : (

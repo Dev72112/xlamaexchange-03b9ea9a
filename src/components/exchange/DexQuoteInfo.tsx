@@ -154,20 +154,21 @@ export function DexQuoteInfo({
       {quote.quoteCompareList && quote.quoteCompareList.length > 0 && (
         <div className="pt-2 border-t border-border">
           <div className="text-xs text-muted-foreground mb-1.5">Aggregating from:</div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 min-w-0 max-w-full">
             {quote.quoteCompareList.slice(0, 5).map((dex, i) => (
-              <span 
+              <span
                 key={i}
-                className="px-1.5 py-0.5 bg-secondary text-[10px] rounded flex items-center gap-1"
+                className="px-1.5 py-0.5 bg-secondary text-[10px] rounded flex items-center gap-1 min-w-0 max-w-full"
+                title={dex.dexName}
               >
                 {dex.dexLogo && (
-                  <img src={dex.dexLogo} alt={dex.dexName} className="w-3 h-3 rounded-full" />
+                  <img src={dex.dexLogo} alt={dex.dexName} className="w-3 h-3 rounded-full shrink-0" />
                 )}
-                {dex.dexName}
+                <span className="truncate min-w-0">{dex.dexName}</span>
               </span>
             ))}
             {quote.quoteCompareList.length > 5 && (
-              <span className="px-1.5 py-0.5 bg-secondary text-[10px] rounded text-muted-foreground">
+              <span className="px-1.5 py-0.5 bg-secondary text-[10px] rounded text-muted-foreground shrink-0">
                 +{quote.quoteCompareList.length - 5} more
               </span>
             )}
