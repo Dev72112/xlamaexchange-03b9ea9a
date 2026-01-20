@@ -3,14 +3,26 @@
  * Manages wallet connections, session auth, and chain management
  */
 
+// Core infrastructure (new modular architecture)
+export * from './core';
+export * from './adapters';
+
+// Hooks
+export {
+  useSession,
+  useSessionSelector,
+  useSessionAddress,
+  useIsConnected,
+  useSessionEcosystem,
+  useOkxWallet,
+  useTonProof,
+} from './hooks';
+
 // Components
 export * from './components';
 
-// Hooks
-export { useOkxWallet, useTonProof } from './hooks';
-
 // Types (explicit exports to avoid conflicts)
-export type { ChainType, ConnectionStatus, WalletInfo, ChainInfo, ConnectedWallet } from './types';
+export type { ChainType, ConnectionStatus, WalletInfo, ConnectedWallet } from './types';
 export type { WalletSession } from './lib/walletSession';
 export type { SessionAuth, SigningProviders } from './lib/sessionAuth';
 
@@ -35,4 +47,4 @@ export {
 export * from './lib/deeplinks';
 
 // Feature version for cache busting
-export const WALLET_FEATURE_VERSION = '1.0.0';
+export const WALLET_FEATURE_VERSION = '2.0.0';

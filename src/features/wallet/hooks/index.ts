@@ -2,8 +2,15 @@
  * Wallet Feature Hooks - Barrel Export
  */
 
-// OKX wallet hook
-export { useOkxWallet } from '@/hooks/useOkxWallet';
+// New modular session hook
+export {
+  useSession,
+  useSessionSelector,
+  useSessionAddress,
+  useIsConnected,
+  useSessionEcosystem,
+} from './useSession';
 
-// TON proof hook
+// Legacy hooks (will be deprecated)
+export { useOkxWallet } from '@/hooks/useOkxWallet';
 export { useTonProof } from '@/hooks/useTonProof';
