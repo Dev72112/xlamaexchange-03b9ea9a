@@ -50,6 +50,10 @@ const CHAIN_ICONS: Record<string, string> = {
 };
 
 // OKX DEX Supported Chains - Based on official docs
+// NOTE: HyperEVM (999) is in this list for wallet support but excluded from DEX selector
+// Use isChainExcludedFromDex() from @/features/wallet/core to filter DEX options
+export const DEX_EXCLUDED_CHAIN_IDS = [999]; // HyperEVM not supported by OKX DEX
+
 export const SUPPORTED_CHAINS: Chain[] = [
   // Primary: X Layer
   {
