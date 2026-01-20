@@ -1,10 +1,12 @@
 /**
  * Hook for fetching Zerion portfolio data including positions and PnL
+ * Respects DataSource context for enabling/disabling
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { zerionService, ZerionPortfolio, ZerionPosition, ZerionPnL, ZerionChartPoint } from '@/services/zerion';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useDataSource } from '@/contexts/DataSourceContext';
 import { queryKeys } from '@/lib/queryClient';
 
 export interface UseZerionPortfolioResult {
@@ -21,7 +23,12 @@ export interface UseZerionPortfolioResult {
 }
 
 export function useZerionPortfolio(): UseZerionPortfolioResult {
-  const { isConnected, activeAddress } = useMultiWallet();
+  const { isConnected, activeAddress, activeChainType } = useMultiWallet();
+  const { isZerionEnabled } = useDataSource();
+  
+  // Only enable for EVM chains when Zerion is enabled in DataSource
+  const isEvm = activeChainType === 'evm';
+  const shouldFetch = isConnected && !!activeAddress && isZerionEnabled && isEvm;
   
   const address = activeAddress || '';
 
@@ -29,7 +36,7 @@ export function useZerionPortfolio(): UseZerionPortfolioResult {
   const portfolioQuery = useQuery({
     queryKey: ['zerion', 'portfolio', address],
     queryFn: () => zerionService.getPortfolio(address),
-    enabled: isConnected && !!address,
+    enabled: shouldFetch,
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -38,7 +45,7 @@ export function useZerionPortfolio(): UseZerionPortfolioResult {
   const positionsQuery = useQuery({
     queryKey: ['zerion', 'positions', address],
     queryFn: () => zerionService.getPositions(address),
-    enabled: isConnected && !!address,
+    enabled: shouldFetch,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
@@ -47,7 +54,7 @@ export function useZerionPortfolio(): UseZerionPortfolioResult {
   const pnlQuery = useQuery({
     queryKey: ['zerion', 'pnl', address],
     queryFn: () => zerionService.getPnL(address),
-    enabled: isConnected && !!address,
+    enabled: shouldFetch,
     staleTime: 60 * 1000, // 1 minute
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -56,7 +63,7 @@ export function useZerionPortfolio(): UseZerionPortfolioResult {
   const chartQuery = useQuery({
     queryKey: ['zerion', 'chart', address, 'month'],
     queryFn: () => zerionService.getPortfolioChart(address, 'month'),
-    enabled: isConnected && !!address,
+    enabled: shouldFetch,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
   });

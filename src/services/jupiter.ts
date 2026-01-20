@@ -290,9 +290,16 @@ class JupiterService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const errorData = await response.json().catch(() => ({}));
       console.error('[Jupiter] Limit order creation failed:', errorData);
-      throw new Error(errorData.error || `Failed to create limit order: ${response.status}`);
+      // Extract error message from various possible formats (Zod validation errors, etc.)
+      const errorMessage = 
+        errorData.error || 
+        errorData.message || 
+        (errorData.issues && JSON.stringify(errorData.issues)) ||
+        (errorData.errors && JSON.stringify(errorData.errors)) ||
+        `Failed to create limit order: HTTP ${response.status}`;
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -418,9 +425,16 @@ class JupiterService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const errorData = await response.json().catch(() => ({}));
       console.error('[Jupiter] DCA order creation failed:', errorData);
-      throw new Error(errorData.error || `Failed to create DCA order: ${response.status}`);
+      // Extract error message from various possible formats
+      const errorMessage = 
+        errorData.error || 
+        errorData.message || 
+        (errorData.issues && JSON.stringify(errorData.issues)) ||
+        (errorData.errors && JSON.stringify(errorData.errors)) ||
+        `Failed to create DCA order: HTTP ${response.status}`;
+      throw new Error(errorMessage);
     }
 
     return response.json();

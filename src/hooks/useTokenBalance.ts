@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { OkxToken } from '@/services/okxdex';
 import { NATIVE_TOKEN_ADDRESS, Chain } from '@/data/chains';
@@ -86,6 +86,13 @@ export function useTokenBalance(token: OkxToken | null, chainOrIndex?: Chain | s
     loading: false,
   });
 
+  // Track previous address/chain to detect real changes
+  const prevDepsRef = useRef<{ address: string | null; token: string | null; chainType: string | null }>({
+    address: null,
+    token: null,
+    chainType: null,
+  });
+
   const fetchBalance = useCallback(async () => {
     if (!isConnected || !address || !token) {
       setBalance({ balance: '0', formatted: '0', loading: false });
@@ -136,6 +143,30 @@ export function useTokenBalance(token: OkxToken | null, chainOrIndex?: Chain | s
   // Real-time Solana balance subscription (WebSocket)
   const subscriptionRef = useRef<number | null>(null);
   
+  // Detect when we need to refetch due to address/chain/token changes
+  useEffect(() => {
+    const tokenAddress = token?.tokenContractAddress || null;
+    const currentDeps = { address, token: tokenAddress, chainType: activeChainType };
+    const prev = prevDepsRef.current;
+    
+    // Check if any critical dependency changed
+    const hasChanged = 
+      prev.address !== currentDeps.address ||
+      prev.token !== currentDeps.token ||
+      prev.chainType !== currentDeps.chainType;
+    
+    if (hasChanged) {
+      console.log('[useTokenBalance] Dependencies changed, refetching:', {
+        address: address?.slice(0, 8),
+        token: token?.tokenSymbol,
+        chainType: activeChainType,
+        prevAddress: prev.address?.slice(0, 8),
+      });
+      prevDepsRef.current = currentDeps;
+      fetchBalance();
+    }
+  }, [address, token, activeChainType, fetchBalance]);
+
   // Fetch on mount and when dependencies change
   useEffect(() => {
     fetchBalance();
