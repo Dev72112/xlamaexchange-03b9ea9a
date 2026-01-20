@@ -12,6 +12,7 @@ import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { prefetchChain } from '@/lib/tokenPrefetch';
+import { isChainExcludedFromDex } from '@/features/wallet/core/types';
 
 interface ChainSelectorProps {
   selectedChain: Chain;
@@ -31,7 +32,10 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   
-  const evmChains = getEvmChains().filter(c => c.chainIndex !== excludeChainIndex);
+  // Filter out DEX-excluded chains (e.g., HyperEVM 999) from DEX mode
+  const evmChains = getEvmChains()
+    .filter(c => c.chainIndex !== excludeChainIndex)
+    .filter(c => !isChainExcludedFromDex(c.chainId));
   const nonEvmChains = getNonEvmChains().filter(c => c.chainIndex !== excludeChainIndex);
   
   // Check if wallet is on the selected chain

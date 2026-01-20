@@ -58,8 +58,33 @@ import { useToast } from "@/hooks/use-toast";
 const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK'];
 const PLATFORM_FEE_PERCENT = '0.01%';
 
-// Perpetuals-specific error fallback
-function PerpetualsFallback({ onRetry, onSafeMode }: { onRetry: () => void; onSafeMode: () => void }) {
+// Perpetuals-specific error fallback with detailed error display
+function PerpetualsFallback({ 
+  onRetry, 
+  onSafeMode, 
+  error 
+}: { 
+  onRetry: () => void; 
+  onSafeMode: () => void;
+  error?: Error | null;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const copyError = () => {
+    const details = {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString(),
+    };
+    navigator.clipboard.writeText(JSON.stringify(details, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <Card className="glass border-destructive/20 max-w-xl mx-auto">
       <CardContent className="pt-8 pb-8 text-center">
@@ -83,6 +108,45 @@ function PerpetualsFallback({ onRetry, onSafeMode }: { onRetry: () => void; onSa
             Refresh Page
           </Button>
         </div>
+
+        {/* Error Details Section */}
+        {error && (
+          <div className="mt-6 text-left">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetails(!showDetails)}
+              className="gap-2 text-xs text-muted-foreground hover:text-foreground mb-2"
+            >
+              <AlertTriangle className="w-3 h-3" />
+              {showDetails ? 'Hide' : 'Show'} error details
+            </Button>
+
+            {showDetails && (
+              <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-destructive">{error.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={copyError}
+                    className="h-6 text-xs gap-1"
+                  >
+                    {copied ? 'Copied!' : 'Copy Error'}
+                  </Button>
+                </div>
+                <p className="text-xs font-mono text-muted-foreground break-all mb-2">
+                  {error.message}
+                </p>
+                {error.stack && (
+                  <pre className="text-[10px] font-mono text-muted-foreground/70 whitespace-pre-wrap max-h-32 overflow-auto">
+                    {error.stack.split('\n').slice(0, 8).join('\n')}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -605,7 +669,13 @@ const Perpetuals = memo(function Perpetuals() {
         ) : (
           <ErrorBoundary
             key={retryKey}
-            fallback={<PerpetualsFallback onRetry={handleRetry} onSafeMode={handleEnterSafeMode} />}
+            renderFallback={(error) => (
+              <PerpetualsFallback 
+                onRetry={handleRetry} 
+                onSafeMode={handleEnterSafeMode}
+                error={error}
+              />
+            )}
             onRetry={handleRetry}
           >
             {ConnectedTradingUI}

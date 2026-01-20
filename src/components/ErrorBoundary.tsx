@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  /** Render prop that receives the error for custom fallback rendering */
+  renderFallback?: (error: Error | null, errorInfo: React.ErrorInfo | null) => ReactNode;
   onRetry?: () => void;
 }
 
@@ -44,10 +46,15 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // Priority 1: renderFallback prop (passes error to custom component)
+      if (this.props.renderFallback) {
+        return this.props.renderFallback(this.state.error, this.state.errorInfo);
+      }
+      // Priority 2: static fallback prop
       if (this.props.fallback) {
         return this.props.fallback;
       }
-
+      // Default: built-in error UI
       return (
         <ErrorFallbackUI
           error={this.state.error}
