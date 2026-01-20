@@ -316,12 +316,22 @@ class HyperliquidService {
 
   async getCandleData(coin: string, interval: string, startTime: number, endTime: number): Promise<any[]> {
     try {
-      const data = await this.post('candleSnapshot', {
-        coin,
-        interval,
-        startTime,
-        endTime,
+      // Hyperliquid candleSnapshot expects params wrapped in 'req' object
+      const response = await fetch(`${this.baseUrl}/info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'candleSnapshot',
+          req: { coin, interval, startTime, endTime }
+        }),
       });
+      
+      if (!response.ok) {
+        console.warn('[Hyperliquid] Candle API error:', response.status);
+        return [];
+      }
+      
+      const data = await response.json();
       return data || [];
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch candle data:', error);

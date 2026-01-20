@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, useDeferredValue } from "react";
 import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign, BarChart3, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +104,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [fromCurrency, setFromCurrency] = useState<Currency>(popularCurrencies[0]);
   const [toCurrency, setToCurrency] = useState<Currency>(popularCurrencies[1]);
   const [fromAmount, setFromAmount] = useState<string>("1");
+  // Defer the fromAmount to reduce re-renders during typing
+  const deferredFromAmount = useDeferredValue(fromAmount);
   const [toAmount, setToAmount] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
@@ -139,6 +141,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { addTransaction, updateTransaction } = useDexTransactions();
   
   // Enable quotes without wallet connection
+  // Use deferred amount to prevent excessive quote fetching while typing
   const { 
     quote: dexQuote, 
     formattedOutputAmount: dexOutputAmount,
@@ -151,7 +154,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     chain: selectedChain,
     fromToken: fromDexToken,
     toToken: toDexToken,
-    amount: fromAmount,
+    amount: deferredFromAmount, // Use deferred value to reduce re-renders
     slippage,
     enabled: exchangeMode === 'dex' && !!fromDexToken && !!toDexToken,
   });
