@@ -17,6 +17,9 @@ import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } fr
 // OKX Universal Provider
 import { useOkxWallet } from '@/hooks/useOkxWallet';
 
+// Session Manager integration (new modular architecture)
+import { sessionManager, type SessionState } from '@/features/wallet/core';
+
 // Utilities
 import { 
   isMobileBrowser, 

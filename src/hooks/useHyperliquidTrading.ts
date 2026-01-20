@@ -12,8 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { hyperliquidService } from '@/services/hyperliquid';
 
 // Builder fee configuration from environment
-const BUILDER_ADDRESS = import.meta.env.VITE_HYPERLIQUID_BUILDER_ADDRESS || '';
-const BUILDER_FEE = parseInt(import.meta.env.VITE_HYPERLIQUID_BUILDER_FEE || '10', 10); // 10 = 0.01%
+// TESTING MODE: Builder fees disabled for commission testing
+const BUILDER_FEES_ENABLED = false; // Set to true to enable builder fees
+const BUILDER_ADDRESS = BUILDER_FEES_ENABLED ? (import.meta.env.VITE_HYPERLIQUID_BUILDER_ADDRESS || '') : '';
+const BUILDER_FEE = BUILDER_FEES_ENABLED ? parseInt(import.meta.env.VITE_HYPERLIQUID_BUILDER_FEE || '10', 10) : 0; // 10 = 0.01%
 
 // ============ TYPE DEFINITIONS ============
 
@@ -176,6 +178,12 @@ export function useHyperliquidTrading(): UseHyperliquidTradingResult {
 
   // Check builder approval status
   const checkBuilderApproval = useCallback(async (): Promise<boolean> => {
+    // If builder fees are disabled, always return approved
+    if (!BUILDER_FEES_ENABLED) {
+      setIsBuilderApproved(true);
+      return true;
+    }
+    
     if (!address || !BUILDER_ADDRESS) return false;
     
     setBuilderApprovalLoading(true);
@@ -194,6 +202,12 @@ export function useHyperliquidTrading(): UseHyperliquidTradingResult {
 
   // Check approval on mount and address change - with safety delay
   useEffect(() => {
+    // Auto-approve if builder fees are disabled
+    if (!BUILDER_FEES_ENABLED) {
+      setIsBuilderApproved(true);
+      return;
+    }
+    
     if (!address || !BUILDER_ADDRESS) return;
     
     // Delay check to allow wallet to stabilize after connection
