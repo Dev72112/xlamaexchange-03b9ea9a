@@ -1,10 +1,12 @@
 /**
  * Hook for fetching Zerion NFT portfolio data
+ * Respects DataSource context for enabling/disabling
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { zerionService, ZerionNFT } from '@/services/zerion';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useDataSource } from '@/contexts/DataSourceContext';
 import { useMemo } from 'react';
 
 export interface NFTCollection {
@@ -27,14 +29,19 @@ export interface UseZerionNFTsResult {
 }
 
 export function useZerionNFTs(): UseZerionNFTsResult {
-  const { isConnected, activeAddress } = useMultiWallet();
+  const { isConnected, activeAddress, activeChainType } = useMultiWallet();
+  const { isZerionEnabled } = useDataSource();
+  
+  // Only enable for EVM chains when Zerion is enabled in DataSource
+  const isEvm = activeChainType === 'evm';
+  const shouldFetch = isConnected && !!activeAddress && isZerionEnabled && isEvm;
   
   const address = activeAddress || '';
 
   const nftsQuery = useQuery({
     queryKey: ['zerion', 'nfts', address],
     queryFn: () => zerionService.getNFTPortfolio(address, { pageSize: 100 }),
-    enabled: isConnected && !!address,
+    enabled: shouldFetch,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
   });

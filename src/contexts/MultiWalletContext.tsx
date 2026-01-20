@@ -563,37 +563,61 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   // Connect OKX wallet
   const connectOkx = useCallback(async () => okxWallet.connect(), [okxWallet]);
   
-  // Switch chain by index
-  const switchChainByIndex = useCallback(async (idx: string) => {
+  // Switch chain by index - with proper EVM chain switching
+  const switchChainByIndex = useCallback(async (idx: string): Promise<boolean> => {
     const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === idx); 
     if (!chain) return false;
     
-    // Try OKX first
-    if (okxWallet.isConnected && okxWallet.provider) {
-      return okxWallet.switchChain(idx);
-    }
+    console.log('[MultiWallet] switchChainByIndex called:', { idx, chainName: chain.name, isEvm: chain.isEvm });
     
-    // Try SessionManager for EVM
-    if (chain.isEvm && chain.chainId && sessionState.ecosystem === 'evm') {
-      try {
-        await sessionManager.switchChain(chain.chainId);
-        return true;
-      } catch {
-        // Fall through to wagmi
+    // For EVM chains, we need to actually switch the wallet network
+    if (chain.isEvm && chain.chainId) {
+      // Try injected OKX provider first (for in-app browser or extension)
+      const okxInjected = (window as any).okxwallet;
+      if (okxInjected && evmAddress) {
+        try {
+          const chainIdHex = `0x${chain.chainId.toString(16)}`;
+          await okxInjected.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: chainIdHex }],
+          });
+          console.log('[MultiWallet] Switched via OKX injected provider');
+          return true;
+        } catch (err: any) {
+          if (err?.code === 4902) {
+            console.log('[MultiWallet] Chain not added to wallet');
+          }
+          console.warn('[MultiWallet] OKX injected switch failed:', err);
+          // Fall through to other methods
+        }
       }
-    }
-    
-    // Fallback to wagmi
-    if (chain.isEvm && chain.chainId) { 
+      
+      // Try SessionManager
+      if (sessionState.ecosystem === 'evm' && sessionState.isConnected) {
+        try {
+          await sessionManager.switchChain(chain.chainId);
+          console.log('[MultiWallet] Switched via SessionManager');
+          return true;
+        } catch (err) {
+          console.warn('[MultiWallet] SessionManager switch failed:', err);
+        }
+      }
+      
+      // Try wagmi
       try { 
         await switchEvmChain(chain.chainId); 
+        console.log('[MultiWallet] Switched via wagmi');
         return true; 
-      } catch { 
+      } catch (err) { 
+        console.warn('[MultiWallet] Wagmi switch failed:', err);
         return false; 
       } 
     }
+    
+    // For non-EVM chains, update active chain state (UI-only switch)
+    setActiveChain(chain);
     return true;
-  }, [okxWallet, switchEvmChain, sessionState.ecosystem]);
+  }, [evmAddress, sessionState.ecosystem, sessionState.isConnected, switchEvmChain, setActiveChain]);
 
   // Build context value
   const value: MultiWalletContextType = useMemo(() => ({ 

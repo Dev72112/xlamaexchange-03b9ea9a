@@ -149,21 +149,51 @@ export class OkxUniversalAdapter extends BaseAdapter {
     if (this.ecosystem !== 'evm') {
       // For non-EVM, chain switching is just updating internal state
       this.chainIndex = String(chainId);
+      this.chainId = chainId;
       this.emitChainChange(chainId);
       return;
     }
 
-    const provider = this.injectedProvider;
-    if (!provider) {
-      throw new Error('No provider connected');
+    // For EVM chains, we need to actually switch the wallet's network
+    const numericChainId = Number(chainId);
+    const chainIdHex = `0x${numericChainId.toString(16)}`;
+
+    // Try injected provider first (OKX extension or in-app browser)
+    if (this.injectedProvider) {
+      try {
+        await this.injectedProvider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: chainIdHex }],
+        });
+        this.chainId = numericChainId;
+        this.emitChainChange(numericChainId);
+        console.log('[OkxUniversalAdapter] Switched chain via injected provider to:', numericChainId);
+        return;
+      } catch (switchError: any) {
+        // Chain not added to wallet, try adding it
+        if (switchError?.code === 4902) {
+          console.log('[OkxUniversalAdapter] Chain not found, user needs to add it manually');
+        }
+        throw switchError;
+      }
     }
 
-    const chainIdHex = `0x${Number(chainId).toString(16)}`;
-    await provider.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: chainIdHex }],
-    });
-    this.chainId = Number(chainId);
+    // Fallback: Universal provider (setDefaultChain only changes internal state, not wallet network)
+    if (this.universalProvider) {
+      try {
+        // For Universal Provider, we can only set the default chain for requests
+        // The actual wallet network won't change, but we can track which chain we're on
+        this.universalProvider.setDefaultChain?.(`eip155:${numericChainId}`, 'eip155');
+        this.chainId = numericChainId;
+        this.emitChainChange(numericChainId);
+        console.log('[OkxUniversalAdapter] Set default chain on Universal Provider to:', numericChainId);
+        return;
+      } catch (err) {
+        console.warn('[OkxUniversalAdapter] Failed to set default chain:', err);
+      }
+    }
+
+    throw new Error('No provider available for chain switching');
   }
 
   getCapabilities(): WalletCapabilities {

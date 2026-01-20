@@ -1,10 +1,12 @@
 /**
  * Hook for fetching Zerion transaction history
+ * Respects DataSource context for enabling/disabling
  */
 
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { zerionService, ZerionTransaction } from '@/services/zerion';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useDataSource } from '@/contexts/DataSourceContext';
 
 export interface UseZerionTransactionsResult {
   transactions: ZerionTransaction[];
@@ -22,7 +24,12 @@ export function useZerionTransactions(options?: {
   chainIds?: string[];
   pageSize?: number;
 }): UseZerionTransactionsResult {
-  const { isConnected, activeAddress } = useMultiWallet();
+  const { isConnected, activeAddress, activeChainType } = useMultiWallet();
+  const { isZerionEnabled } = useDataSource();
+  
+  // Only enable for EVM chains when Zerion is enabled in DataSource
+  const isEvm = activeChainType === 'evm';
+  const shouldFetch = isConnected && !!activeAddress && isZerionEnabled && isEvm;
   
   const address = activeAddress || '';
   const pageSize = options?.pageSize || 20;
@@ -38,7 +45,7 @@ export function useZerionTransactions(options?: {
       }),
     getNextPageParam: (lastPage) => lastPage.nextPageCursor,
     initialPageParam: undefined as string | undefined,
-    enabled: isConnected && !!address,
+    enabled: shouldFetch,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
