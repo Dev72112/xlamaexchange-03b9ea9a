@@ -267,8 +267,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       setToDexToken(null);
       setFromAmount('');
       setToAmount('');
-      setDexExchangeRate(null);
-      setLastUpdated(null);
       
       setLastChainIndex(selectedChain.chainIndex);
     }
