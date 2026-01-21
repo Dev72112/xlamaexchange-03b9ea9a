@@ -283,10 +283,22 @@ class JupiterService {
       takingAmount: params.takingAmount,
     });
 
+    // CRITICAL: Ensure all amounts are strings for Jupiter API (Zod validation requires string)
+    const payload = {
+      inputMint: String(params.inputMint),
+      outputMint: String(params.outputMint),
+      maker: String(params.maker),
+      makingAmount: String(params.makingAmount),
+      takingAmount: String(params.takingAmount),
+      expiredAt: params.expiredAt ? Number(params.expiredAt) : undefined,
+      feeAccount: params.feeAccount ? String(params.feeAccount) : undefined,
+      computeUnitPrice: params.computeUnitPrice,
+    };
+
     const response = await fetch(`${this.edgeFunctionUrl}?action=limit-create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -418,10 +430,23 @@ class JupiterService {
       interval: params.interval,
     });
 
+    // CRITICAL: Ensure all amounts are strings for Jupiter API (Zod validation requires string)
+    const payload = {
+      user: String(params.user),
+      inputMint: String(params.inputMint),
+      outputMint: String(params.outputMint),
+      inAmount: String(params.inAmount),
+      numberOfOrders: Number(params.numberOfOrders),
+      interval: Number(params.interval),
+      minPrice: params.minPrice,
+      maxPrice: params.maxPrice,
+      startAt: params.startAt,
+    };
+
     const response = await fetch(`${this.edgeFunctionUrl}?action=dca-create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

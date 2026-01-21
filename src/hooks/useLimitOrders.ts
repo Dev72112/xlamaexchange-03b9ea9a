@@ -194,7 +194,15 @@ export function useLimitOrders() {
       });
 
       // Get the order transaction from Jupiter Trigger API
-      // IMPORTANT: Ensure all parameters are explicitly strings (Jupiter API requirement)
+      // IMPORTANT: Ensure all parameters are explicitly strings (Jupiter API Zod validation requirement)
+      console.log('[LimitOrders] Calling Jupiter with:', {
+        inputMint: String(params.inputMint),
+        outputMint: String(params.outputMint),
+        maker: String(activeAddress),
+        makingAmount: String(params.makingAmount),
+        takingAmount: String(params.takingAmount),
+      });
+      
       const orderResponse = await jupiterService.createLimitOrder({
         inputMint: String(params.inputMint),
         outputMint: String(params.outputMint),

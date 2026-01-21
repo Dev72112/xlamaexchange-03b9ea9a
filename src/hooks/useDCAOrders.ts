@@ -476,15 +476,22 @@ export function useDCAOrders() {
         description: 'Please approve the transaction in your wallet',
       });
 
-      // Convert amount to smallest units
-      const inAmount = jupiterService.toSmallestUnit(params.totalAmount, params.inputDecimals);
+      // Convert amount to smallest units using BigInt for precision
+      // CRITICAL: Must be a string for Jupiter API
+      const totalAmountFloat = parseFloat(params.totalAmount);
+      const multiplier = BigInt(10 ** params.inputDecimals);
+      const inAmountBigInt = BigInt(Math.floor(totalAmountFloat * (10 ** Math.min(params.inputDecimals, 9)))) * 
+                             (params.inputDecimals > 9 ? BigInt(10 ** (params.inputDecimals - 9)) : BigInt(1));
+      const inAmount = String(inAmountBigInt);
       const interval = frequencyToSeconds(params.frequency);
+
+      console.log('[DCA] Creating order with:', { inAmount, numberOfOrders: params.numberOfOrders, interval });
 
       // Create DCA order via Jupiter
       const response = await jupiterService.createDCAOrder({
-        user: activeAddress,
-        inputMint: params.inputMint,
-        outputMint: params.outputMint,
+        user: String(activeAddress),
+        inputMint: String(params.inputMint),
+        outputMint: String(params.outputMint),
         inAmount,
         numberOfOrders: params.numberOfOrders,
         interval,

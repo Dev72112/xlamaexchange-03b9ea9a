@@ -303,12 +303,13 @@ async function handleLimitCreate(req: Request): Promise<Response> {
   const jupiterUrl = `${JUPITER_TRIGGER_BASE}/createOrder`;
   console.log(`[Jupiter] Creating limit order for maker: ${body.maker.slice(0, 8)}...`);
 
+  // CRITICAL: All amounts MUST be strings for Jupiter API (Zod validation)
   const requestBody: any = {
-    inputMint: body.inputMint,
-    outputMint: body.outputMint,
-    maker: body.maker,
-    makingAmount: body.makingAmount,
-    takingAmount: body.takingAmount,
+    inputMint: String(body.inputMint),
+    outputMint: String(body.outputMint),
+    maker: String(body.maker),
+    makingAmount: String(body.makingAmount),
+    takingAmount: String(body.takingAmount),
     computeUnitPrice: body.computeUnitPrice || 'auto',
   };
 
@@ -518,13 +519,17 @@ async function handleDCACreate(req: Request): Promise<Response> {
   const jupiterUrl = `${JUPITER_RECURRING_BASE}/createDCA`;
   console.log(`[Jupiter] Creating DCA order for user: ${body.user.slice(0, 8)}...`);
 
+  // Use BigInt for precision with large token amounts (avoids parseInt overflow)
+  const inAmountBigInt = BigInt(String(body.inAmount));
+  const inAmountPerCycle = String(inAmountBigInt / BigInt(body.numberOfOrders));
+
   const requestBody: any = {
-    user: body.user,
-    inputMint: body.inputMint,
-    outputMint: body.outputMint,
-    inAmount: body.inAmount,
-    inAmountPerCycle: Math.floor(parseInt(body.inAmount) / body.numberOfOrders).toString(),
-    cycleSecondsApart: body.interval,
+    user: String(body.user),
+    inputMint: String(body.inputMint),
+    outputMint: String(body.outputMint),
+    inAmount: String(body.inAmount),
+    inAmountPerCycle,
+    cycleSecondsApart: Number(body.interval),
     computeUnitPrice: 'auto',
   };
 
