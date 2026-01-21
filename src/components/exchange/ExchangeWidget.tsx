@@ -1216,12 +1216,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           )}
 
           {/* Convert Button */}
-          <div className="p-4 sm:p-5 pt-0 space-y-3">
-            <div className="flex gap-1.5 sm:gap-2">
+          <div className="p-4 sm:p-5 pt-0 space-y-3 overflow-hidden max-w-full">
+            <div className="flex gap-1.5 sm:gap-2 min-w-0 max-w-full overflow-hidden">
               <Button
                 size="lg"
                 className={cn(
-                  "flex-1 h-11 sm:h-12 font-medium rounded-xl text-sm sm:text-base min-w-0",
+                  "flex-1 h-11 sm:h-12 font-medium rounded-xl text-sm sm:text-base min-w-0 max-w-full truncate overflow-hidden",
                   hasInsufficientBalance && exchangeMode === 'dex'
                     ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     : "bg-foreground text-background hover:bg-foreground/90"
@@ -1229,11 +1229,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 onClick={handleExchange}
                 disabled={isSwapButtonDisabled}
               >
-                {getSwapButtonContent()}
+                <span className="truncate">{getSwapButtonContent()}</span>
               </Button>
               
-              {/* Limit Order Button - DEX mode only */}
-              {exchangeMode === 'dex' && (
+              {/* Limit Order Button - DEX mode + Solana only */}
+              {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && (
                 <Suspense fallback={<Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg shrink-0" />}>
                   <LimitOrderForm
                     fromToken={fromDexToken}
@@ -1244,20 +1244,20 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 </Suspense>
               )}
               
-              {/* DCA Order Button - DEX mode only */}
-              {exchangeMode === 'dex' && (
+              {/* DCA Order Button - DEX mode + Solana only */}
+              {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && (
                 <Suspense fallback={<Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg shrink-0" />}>
                   <DCAOrderForm
-                    fromToken={fromDexToken ? { address: fromDexToken.tokenContractAddress, symbol: fromDexToken.tokenSymbol } : undefined}
-                    toToken={toDexToken ? { address: toDexToken.tokenContractAddress, symbol: toDexToken.tokenSymbol } : undefined}
+                    fromToken={fromDexToken ? { address: fromDexToken.tokenContractAddress, symbol: fromDexToken.tokenSymbol, decimals: parseInt(fromDexToken.decimals) || 9 } : undefined}
+                    toToken={toDexToken ? { address: toDexToken.tokenContractAddress, symbol: toDexToken.tokenSymbol, decimals: parseInt(toDexToken.decimals) || 6 } : undefined}
                     chainIndex={selectedChain.chainIndex}
                   />
                 </Suspense>
               )}
             </div>
             
-            {/* Active Limit Orders - DEX mode only */}
-            {exchangeMode === 'dex' && (
+            {/* Active Limit Orders - DEX mode + Solana only */}
+            {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && (
               <Suspense fallback={<Skeleton className="h-20 w-full rounded-lg" />}>
                 <ActiveLimitOrders 
                   onExecuteOrder={(order) => {

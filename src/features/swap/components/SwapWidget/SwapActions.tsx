@@ -100,10 +100,10 @@ export const SwapActions = memo(function SwapActions({
         size="lg"
         disabled
         variant="destructive"
-        className={cn("w-full opacity-70", className)}
+        className={cn("w-full opacity-70 min-w-0 max-w-full overflow-hidden", className)}
       >
-        <Wallet className="w-4 h-4 mr-2" />
-        Insufficient Balance
+        <Wallet className="w-4 h-4 mr-2 shrink-0" />
+        <span className="truncate">Insufficient Balance</span>
       </Button>
     );
   }
@@ -117,19 +117,19 @@ export const SwapActions = memo(function SwapActions({
       className={cn(
         "w-full gradient-primary text-primary-foreground disabled:opacity-50",
         "sweep-effect sweep-effect-fast shadow-premium-hover",
-        "transition-all duration-200",
+        "transition-all duration-200 min-w-0 max-w-full overflow-hidden",
         className
       )}
     >
       {isLoading ? (
         <>
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" style={{ willChange: 'transform' }} />
-          Swapping...
+          <Loader2 className="w-4 h-4 mr-2 shrink-0 animate-spin" style={{ willChange: 'transform' }} />
+          <span className="truncate">Swapping...</span>
         </>
       ) : (
         <>
-          <ArrowRightLeft className="w-4 h-4 mr-2" />
-          {buttonText || 'Swap'}
+          <ArrowRightLeft className="w-4 h-4 mr-2 shrink-0" />
+          <span className="truncate">{buttonText || 'Swap'}</span>
         </>
       )}
     </Button>

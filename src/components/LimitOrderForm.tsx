@@ -413,19 +413,27 @@ export function LimitOrderForm({
   );
 }
 
-// Helper: Convert human amount to smallest units
+// Helper: Convert human amount to smallest units (returns string for API)
 function convertToSmallestUnits(amount: string, decimals: number): string {
   if (!amount || isNaN(parseFloat(amount))) return '0';
   const [whole, fraction = ''] = amount.split('.');
   const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
   const combined = whole + paddedFraction;
-  return combined.replace(/^0+/, '') || '0';
+  // Ensure we return a clean string without leading zeros (except for '0')
+  const cleaned = combined.replace(/^0+/, '') || '0';
+  return String(cleaned); // Explicit string conversion
 }
 
-// Helper: Calculate taking amount based on target price
+// Helper: Calculate taking amount based on target price (returns string for API)
 function calculateTakingAmount(amount: number, targetPrice: number, outputDecimals: number): string {
   // amount * targetPrice = expected output
-  const expectedOutput = amount * targetPrice;
-  const scaledOutput = Math.floor(expectedOutput * Math.pow(10, outputDecimals));
-  return scaledOutput.toString();
+  // Use BigInt to avoid floating point precision issues
+  const amountBig = BigInt(Math.floor(amount * 1e12)); // Scale up for precision
+  const priceBig = BigInt(Math.floor(targetPrice * 1e12)); // Scale up for precision
+  const scaleFactor = BigInt(1e12);
+  const outputScale = BigInt(10 ** outputDecimals);
+  
+  // (amount * price * outputScale) / (scaleFactor * scaleFactor)
+  const result = (amountBig * priceBig * outputScale) / (scaleFactor * scaleFactor);
+  return String(result); // Explicit string conversion
 }
