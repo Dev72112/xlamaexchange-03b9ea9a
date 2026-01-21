@@ -209,7 +209,7 @@ export function AdvancedPriceChart({ chain, token, className }: AdvancedPriceCha
 
   return (
     <Card className={cn(
-      "bg-card/50 backdrop-blur-sm border-border",
+      "bg-card/50 backdrop-blur-sm border-border w-full max-w-full overflow-hidden min-w-0",
       isFullscreen && "fixed inset-4 z-50",
       className
     )}>
@@ -254,7 +254,7 @@ export function AdvancedPriceChart({ chain, token, className }: AdvancedPriceCha
             {/* Indicator Settings */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Chart indicator settings">
                   <Settings2 className="w-4 h-4" />
                 </Button>
               </PopoverTrigger>
@@ -328,6 +328,7 @@ export function AdvancedPriceChart({ chain, token, className }: AdvancedPriceCha
               size="icon"
               className="h-8 w-8"
               onClick={() => setIsFullscreen(!isFullscreen)}
+              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
             >
               <Maximize2 className="w-4 h-4" />
             </Button>

@@ -820,13 +820,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   return (
     <>
       <Card className="exchange-widget-container w-full max-w-full glass border border-border/50 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-        <CardContent className="p-0 overflow-hidden max-w-full">
+        <CardContent className="p-0 overflow-hidden max-w-full min-w-0">
           {/* Mode Toggle and Wallet Button Header */}
-          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3 overflow-hidden max-w-full">
-            <div className="shrink-0">
+          <div className="px-4 sm:px-5 pt-4 sm:pt-5 flex flex-wrap items-center justify-between gap-2 sm:gap-3 overflow-hidden max-w-full min-w-0">
+            <div className="shrink-0 min-w-0">
               <ModeToggle mode={exchangeMode} onModeChange={(mode) => { setExchangeMode(mode); onModeChange?.(mode); }} />
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap min-w-0 max-w-full overflow-hidden">
               {exchangeMode === 'dex' && (
                 <>
                   <SlippageSettings slippage={slippage} onSlippageChange={setSlippage} />
@@ -899,6 +899,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 onClick={handleToggleFavorite}
                 className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
                 title={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
+                aria-label={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <Star 
                   className={cn(
