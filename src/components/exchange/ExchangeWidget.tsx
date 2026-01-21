@@ -873,6 +873,29 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           )}
 
+          {/* DEX Mode: Solana chain selected but wallet on different chain type */}
+          {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && hasAnyConnection && activeChainType !== 'solana' && (
+            <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="w-4 h-4 text-warning" />
+                  <span className="text-warning">Switch wallet to Solana</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveChain(SUPPORTED_CHAINS.find(c => c.chainIndex === '501') || null)}
+                  className="h-7 text-xs"
+                >
+                  Switch to Solana
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Your wallet is connected to a different network. Switch to Solana to trade.
+              </p>
+            </div>
+          )}
+
           {/* DEX Mode: Non-EVM info - only show if NOT connected via OKX */}
           {exchangeMode === 'dex' && selectedChain && !selectedChain.isEvm && !isOkxConnected && (
             <div className="mx-4 sm:mx-5 mt-3 p-3 bg-secondary/50 border border-border rounded-lg">
