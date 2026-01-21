@@ -81,6 +81,14 @@ export function LimitOrderForm({
   const handleSubmit = async () => {
     if (!fromToken || !toToken || !chain || !amount || !targetPrice) return;
     
+    // Validate inputs before submitting
+    const amountNum = parseFloat(amount);
+    const priceNum = parseFloat(targetPrice);
+    if (isNaN(amountNum) || amountNum <= 0 || isNaN(priceNum) || priceNum <= 0) {
+      console.error('[LimitOrderForm] Invalid amount or price:', { amount, targetPrice });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -91,22 +99,43 @@ export function LimitOrderForm({
         // takingAmount = expected output based on target price
         const decimals = typeof fromToken.decimals === 'number' ? fromToken.decimals : 9;
         const outputDecimals = typeof toToken.decimals === 'number' ? toToken.decimals : 6;
-        const amountInSmallest = convertToSmallestUnits(amount, decimals);
-        const takingAmount = calculateTakingAmount(
-          parseFloat(amount),
-          parseFloat(targetPrice),
-          outputDecimals
-        );
+        
+        // CRITICAL: Ensure we have valid token addresses
+        const inputMint = fromToken.tokenContractAddress;
+        const outputMint = toToken.tokenContractAddress;
+        if (!inputMint || !outputMint) {
+          console.error('[LimitOrderForm] Missing token addresses:', { inputMint, outputMint });
+          return;
+        }
+        
+        const makingAmount = convertToSmallestUnits(amount, decimals);
+        const takingAmount = calculateTakingAmount(amountNum, priceNum, outputDecimals);
+        
+        // Debug log the calculated amounts
+        console.log('[LimitOrderForm] Jupiter order params:', {
+          inputMint,
+          outputMint,
+          makingAmount,
+          takingAmount,
+          decimals,
+          outputDecimals,
+        });
+        
+        // Validate calculated amounts
+        if (!makingAmount || makingAmount === '0' || !takingAmount || takingAmount === '0') {
+          console.error('[LimitOrderForm] Invalid calculated amounts:', { makingAmount, takingAmount });
+          return;
+        }
 
         const expiresAt = expirationHours 
           ? Math.floor(Date.now() / 1000) + (expirationHours * 60 * 60)
           : undefined;
 
         const result = await createJupiterOrder({
-          inputMint: fromToken.tokenContractAddress,
-          outputMint: toToken.tokenContractAddress,
-          makingAmount: amountInSmallest,
-          takingAmount,
+          inputMint: String(inputMint),
+          outputMint: String(outputMint),
+          makingAmount: String(makingAmount),
+          takingAmount: String(takingAmount),
           expiredAt: expiresAt,
         });
 
@@ -415,25 +444,58 @@ export function LimitOrderForm({
 
 // Helper: Convert human amount to smallest units (returns string for API)
 function convertToSmallestUnits(amount: string, decimals: number): string {
-  if (!amount || isNaN(parseFloat(amount))) return '0';
-  const [whole, fraction = ''] = amount.split('.');
-  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
-  const combined = whole + paddedFraction;
-  // Ensure we return a clean string without leading zeros (except for '0')
-  const cleaned = combined.replace(/^0+/, '') || '0';
-  return String(cleaned); // Explicit string conversion
+  if (!amount) return '0';
+  const parsed = parseFloat(amount);
+  if (isNaN(parsed) || parsed <= 0) return '0';
+  
+  // Use BigInt arithmetic for precision
+  try {
+    const [whole = '0', fraction = ''] = amount.split('.');
+    const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals);
+    const combined = whole + paddedFraction;
+    // Remove leading zeros but keep at least one character
+    const cleaned = combined.replace(/^0+/, '') || '0';
+    // Ensure it's a valid integer string
+    if (!/^\d+$/.test(cleaned)) return '0';
+    return String(cleaned);
+  } catch (e) {
+    console.error('[convertToSmallestUnits] Error:', e);
+    return '0';
+  }
 }
 
 // Helper: Calculate taking amount based on target price (returns string for API)
+// For limit orders: takingAmount = amount * targetPrice (in output token's smallest units)
 function calculateTakingAmount(amount: number, targetPrice: number, outputDecimals: number): string {
-  // amount * targetPrice = expected output
-  // Use BigInt to avoid floating point precision issues
-  const amountBig = BigInt(Math.floor(amount * 1e12)); // Scale up for precision
-  const priceBig = BigInt(Math.floor(targetPrice * 1e12)); // Scale up for precision
-  const scaleFactor = BigInt(1e12);
-  const outputScale = BigInt(10 ** outputDecimals);
+  // Validate inputs
+  if (isNaN(amount) || amount <= 0 || isNaN(targetPrice) || targetPrice <= 0) {
+    console.error('[calculateTakingAmount] Invalid inputs:', { amount, targetPrice });
+    return '0';
+  }
   
-  // (amount * price * outputScale) / (scaleFactor * scaleFactor)
-  const result = (amountBig * priceBig * outputScale) / (scaleFactor * scaleFactor);
-  return String(result); // Explicit string conversion
+  try {
+    // amount * targetPrice = expected output in USD value
+    // For a limit order: if selling 1 SOL at $200, takingAmount should be 200 USDC (in smallest units)
+    const expectedOutput = amount * targetPrice;
+    
+    // Convert to smallest units using BigInt for precision
+    // Scale up to avoid floating point issues
+    const scaleFactor = 1e12;
+    const expectedBig = BigInt(Math.floor(expectedOutput * scaleFactor));
+    const outputScale = BigInt(10 ** outputDecimals);
+    
+    // Calculate: (expectedOutput * outputScale) / scaleFactor
+    const result = (expectedBig * outputScale) / BigInt(scaleFactor);
+    
+    // Ensure result is at least 1 (can't have 0 taking amount)
+    if (result <= BigInt(0)) {
+      console.warn('[calculateTakingAmount] Result is 0 or negative, using minimum:', result.toString());
+      return '1';
+    }
+    
+    return String(result);
+  } catch (e) {
+    console.error('[calculateTakingAmount] Error:', e);
+    return '0';
+  }
 }
