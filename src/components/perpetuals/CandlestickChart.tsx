@@ -68,6 +68,11 @@ export const CandlestickChart = memo(function CandlestickChart({
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   
+  // Track user's visible range to prevent reset on updates
+  const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const isInitialLoadRef = useRef(true);
+  const lastPriceUpdateRef = useRef<number>(0);
+  
   const [timeframe, setTimeframe] = useState<TimeframeOption>('15m');
   const [isLoading, setIsLoading] = useState(true);
   const [candleData, setCandleData] = useState<CandlestickData[]>([]);
@@ -178,8 +183,16 @@ export const CandlestickChart = memo(function CandlestickChart({
   }, []);
 
   // Fetch candle data from Hyperliquid
-  const fetchCandleData = useCallback(async () => {
+  const fetchCandleData = useCallback(async (preserveRange = false) => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+    
+    // Store current visible range before fetching
+    if (preserveRange && chartRef.current) {
+      const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
+      if (logicalRange) {
+        visibleRangeRef.current = { from: logicalRange.from, to: logicalRange.to };
+      }
+    }
     
     setIsLoading(true);
     
@@ -187,7 +200,8 @@ export const CandlestickChart = memo(function CandlestickChart({
       const tf = TIMEFRAMES.find(t => t.value === timeframe);
       const intervalMs = getIntervalMs(timeframe);
       const endTime = Date.now();
-      const startTime = endTime - intervalMs * 200; // Last 200 candles
+      // Extended history: 500 candles for more historical data (30+ days on daily)
+      const startTime = endTime - intervalMs * 500;
       
       const rawCandles = await hyperliquidService.getCandleData(
         coin,
@@ -208,7 +222,7 @@ export const CandlestickChart = memo(function CandlestickChart({
         }));
       } else {
         // Fallback to generated data if API returns empty
-        candles = generateFallbackData(currentPrice, timeframe, 100);
+        candles = generateFallbackData(currentPrice, timeframe, 200);
       }
       
       setCandleData(candles);
@@ -239,11 +253,17 @@ export const CandlestickChart = memo(function CandlestickChart({
         });
       }
       
-      chartRef.current?.timeScale().fitContent();
+      // Restore visible range or fit content on initial load
+      if (preserveRange && visibleRangeRef.current && chartRef.current) {
+        chartRef.current.timeScale().setVisibleLogicalRange(visibleRangeRef.current);
+      } else if (isInitialLoadRef.current) {
+        chartRef.current?.timeScale().fitContent();
+        isInitialLoadRef.current = false;
+      }
     } catch (error) {
       console.error('[CandlestickChart] Failed to fetch candles:', error);
       // Use fallback data
-      const fallback = generateFallbackData(currentPrice, timeframe, 100);
+      const fallback = generateFallbackData(currentPrice, timeframe, 200);
       candleSeriesRef.current?.setData(fallback);
     } finally {
       setIsLoading(false);
@@ -252,20 +272,23 @@ export const CandlestickChart = memo(function CandlestickChart({
 
   // Load data when coin or timeframe changes
   useEffect(() => {
-    fetchCandleData();
-  }, [fetchCandleData]);
+    isInitialLoadRef.current = true;
+    fetchCandleData(false);
+  }, [coin, timeframe]);
 
-  // Update last candle with real-time price
+  // Update last candle with real-time price (debounced to prevent chart jumps)
   useEffect(() => {
     if (!candleSeriesRef.current || !currentPrice || isLoading || candleData.length === 0) return;
+    
+    // Debounce price updates to prevent excessive re-renders
+    const now = Date.now();
+    if (now - lastPriceUpdateRef.current < 500) return;
+    lastPriceUpdateRef.current = now;
     
     const lastCandle = candleData[candleData.length - 1];
     if (!lastCandle) return;
     
-    const intervalMs = getIntervalMs(timeframe);
-    const currentCandleTime = Math.floor(Date.now() / intervalMs) * Math.floor(intervalMs / 1000) as Time;
-    
-    // Update current candle
+    // Update current candle without affecting visible range
     candleSeriesRef.current.update({
       time: lastCandle.time,
       open: lastCandle.open,
@@ -273,7 +296,19 @@ export const CandlestickChart = memo(function CandlestickChart({
       low: Math.min(lastCandle.low, currentPrice),
       close: currentPrice,
     });
-  }, [currentPrice, isLoading, candleData, timeframe]);
+    
+    // Update price info display
+    const change = currentPrice - lastCandle.open;
+    const changePercent = (change / lastCandle.open) * 100;
+    setPriceInfo(prev => ({
+      ...prev,
+      close: currentPrice,
+      high: Math.max(prev.high, currentPrice),
+      low: Math.min(prev.low, currentPrice),
+      change,
+      changePercent,
+    }));
+  }, [currentPrice, isLoading, candleData]);
 
   return (
     <Card className={cn("glass border-border/50", className)}>
@@ -321,8 +356,9 @@ export const CandlestickChart = memo(function CandlestickChart({
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0 ml-auto"
-            onClick={fetchCandleData}
+            onClick={() => fetchCandleData(true)}
             disabled={isLoading}
+            title="Refresh chart data"
           >
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
           </Button>

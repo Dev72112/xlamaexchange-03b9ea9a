@@ -6,6 +6,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { tradeDebugger } from '@/lib/tradeDebug';
 
 // Response types from Jupiter Ultra API
 export interface JupiterOrderResponse {
@@ -146,43 +147,60 @@ class JupiterService {
     takerAddress: string;
     slippageBps?: number;
   }): Promise<JupiterOrderResponse> {
-    console.log('[Jupiter] Getting swap order:', {
+    const logData = {
       inputMint: params.inputMint.slice(0, 8) + '...',
       outputMint: params.outputMint.slice(0, 8) + '...',
       amount: params.amount,
       taker: params.takerAddress.slice(0, 8) + '...',
-    });
-
-    const response = await fetch(`${this.edgeFunctionUrl}?action=order`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inputMint: params.inputMint,
-        outputMint: params.outputMint,
-        amount: params.amount,
-        taker: params.takerAddress,
-        slippageBps: params.slippageBps || 50, // Default 0.5%
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('[Jupiter] Order failed:', errorData);
-      throw new Error(errorData.error || `Jupiter order failed: ${response.status}`);
-    }
-
-    const data = await response.json();
+    };
     
-    console.log('[Jupiter] Order received:', {
-      requestId: data.requestId?.slice(0, 12) + '...',
-      inAmount: data.inAmount,
-      outAmount: data.outAmount,
-      hasTransaction: !!data.transaction,
-    });
+    tradeDebugger.logJupiter('order-request', logData);
+    console.log('[Jupiter] Getting swap order:', logData);
 
-    return data;
+    try {
+      const response = await fetch(`${this.edgeFunctionUrl}?action=order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputMint: params.inputMint,
+          outputMint: params.outputMint,
+          amount: params.amount,
+          taker: params.takerAddress,
+          slippageBps: params.slippageBps || 50, // Default 0.5%
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        tradeDebugger.logJupiter('order-failed', { ...logData, error: errorData.error, status: response.status });
+        console.error('[Jupiter] Order failed:', errorData);
+        throw new Error(errorData.error || `Jupiter order failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      tradeDebugger.logJupiter('order-success', {
+        requestId: data.requestId?.slice(0, 12) + '...',
+        inAmount: data.inAmount,
+        outAmount: data.outAmount,
+        hasTransaction: !!data.transaction,
+      });
+      
+      console.log('[Jupiter] Order received:', {
+        requestId: data.requestId?.slice(0, 12) + '...',
+        inAmount: data.inAmount,
+        outAmount: data.outAmount,
+        hasTransaction: !!data.transaction,
+      });
+
+      return data;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      tradeDebugger.logJupiter('order-error', { ...logData, error: errorMessage });
+      throw error;
+    }
   }
 
   /**
@@ -276,12 +294,17 @@ class JupiterService {
    * Returns transaction to sign and order public key
    */
   async createLimitOrder(params: JupiterLimitOrderParams): Promise<JupiterLimitOrderResponse> {
-    console.log('[Jupiter] Creating limit order:', {
+    const logData = {
       inputMint: params.inputMint.slice(0, 8) + '...',
       outputMint: params.outputMint.slice(0, 8) + '...',
       makingAmount: params.makingAmount,
       takingAmount: params.takingAmount,
-    });
+      makingAmountType: typeof params.makingAmount,
+      takingAmountType: typeof params.takingAmount,
+    };
+    
+    tradeDebugger.logJupiter('limit-create-request', logData);
+    console.log('[Jupiter] Creating limit order:', logData);
 
     // CRITICAL: Ensure all amounts are strings for Jupiter API (Zod validation requires string)
     const payload = {
@@ -294,27 +317,38 @@ class JupiterService {
       feeAccount: params.feeAccount ? String(params.feeAccount) : undefined,
       computeUnitPrice: params.computeUnitPrice,
     };
+    
+    tradeDebugger.logJupiter('limit-create-payload', payload);
 
-    const response = await fetch(`${this.edgeFunctionUrl}?action=limit-create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch(`${this.edgeFunctionUrl}?action=limit-create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[Jupiter] Limit order creation failed:', errorData);
-      // Extract error message from various possible formats (Zod validation errors, etc.)
-      const errorMessage = 
-        errorData.error || 
-        errorData.message || 
-        (errorData.issues && JSON.stringify(errorData.issues)) ||
-        (errorData.errors && JSON.stringify(errorData.errors)) ||
-        `Failed to create limit order: HTTP ${response.status}`;
-      throw new Error(errorMessage);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        tradeDebugger.logJupiter('limit-create-failed', { ...logData, error: errorData, status: response.status });
+        console.error('[Jupiter] Limit order creation failed:', errorData);
+        // Extract error message from various possible formats (Zod validation errors, etc.)
+        const errorMessage = 
+          errorData.error || 
+          errorData.message || 
+          (errorData.issues && JSON.stringify(errorData.issues)) ||
+          (errorData.errors && JSON.stringify(errorData.errors)) ||
+          `Failed to create limit order: HTTP ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      tradeDebugger.logJupiter('limit-create-success', { order: result.order });
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      tradeDebugger.logJupiter('limit-create-error', { ...logData, error: errorMessage });
+      throw error;
     }
-
-    return response.json();
   }
 
   /**
@@ -421,14 +455,18 @@ class JupiterService {
    * Returns transaction to sign and order public key
    */
   async createDCAOrder(params: JupiterDCAParams): Promise<JupiterDCAResponse> {
-    console.log('[Jupiter] Creating DCA order:', {
+    const logData = {
       user: params.user.slice(0, 8) + '...',
       inputMint: params.inputMint.slice(0, 8) + '...',
       outputMint: params.outputMint.slice(0, 8) + '...',
       inAmount: params.inAmount,
+      inAmountType: typeof params.inAmount,
       numberOfOrders: params.numberOfOrders,
       interval: params.interval,
-    });
+    };
+    
+    tradeDebugger.logJupiter('dca-create-request', logData);
+    console.log('[Jupiter] Creating DCA order:', logData);
 
     // CRITICAL: Ensure all amounts are strings for Jupiter API (Zod validation requires string)
     const payload = {
@@ -442,27 +480,38 @@ class JupiterService {
       maxPrice: params.maxPrice,
       startAt: params.startAt,
     };
+    
+    tradeDebugger.logJupiter('dca-create-payload', payload);
 
-    const response = await fetch(`${this.edgeFunctionUrl}?action=dca-create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch(`${this.edgeFunctionUrl}?action=dca-create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[Jupiter] DCA order creation failed:', errorData);
-      // Extract error message from various possible formats
-      const errorMessage = 
-        errorData.error || 
-        errorData.message || 
-        (errorData.issues && JSON.stringify(errorData.issues)) ||
-        (errorData.errors && JSON.stringify(errorData.errors)) ||
-        `Failed to create DCA order: HTTP ${response.status}`;
-      throw new Error(errorMessage);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        tradeDebugger.logJupiter('dca-create-failed', { ...logData, error: errorData, status: response.status });
+        console.error('[Jupiter] DCA order creation failed:', errorData);
+        // Extract error message from various possible formats
+        const errorMessage = 
+          errorData.error || 
+          errorData.message || 
+          (errorData.issues && JSON.stringify(errorData.issues)) ||
+          (errorData.errors && JSON.stringify(errorData.errors)) ||
+          `Failed to create DCA order: HTTP ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      tradeDebugger.logJupiter('dca-create-success', { order: result.order });
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      tradeDebugger.logJupiter('dca-create-error', { ...logData, error: errorMessage });
+      throw error;
     }
-
-    return response.json();
   }
 
   /**
