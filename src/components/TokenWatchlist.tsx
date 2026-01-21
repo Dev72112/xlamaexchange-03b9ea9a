@@ -80,7 +80,7 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
   }
 
   return (
-    <Card className={cn("bg-card/50 backdrop-blur-sm border-border overflow-hidden sweep-effect", className)}>
+    <Card className={cn("bg-card/50 backdrop-blur-sm border-border overflow-hidden sweep-effect w-full max-w-full min-w-0", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2 min-w-0">
@@ -102,6 +102,7 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
             onClick={handleRefresh}
             disabled={isRefreshing || isLoadingPrices}
             className="h-8 w-8"
+            aria-label="Refresh watchlist prices"
           >
             <RefreshCw className={cn("h-4 w-4", (isRefreshing || isLoadingPrices) && "animate-spin")} />
           </Button>
@@ -173,6 +174,7 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
                           className="h-8 w-8"
                           onClick={() => setAlertModalToken(token)}
                           title="Set price alert"
+                          aria-label={`Set price alert for ${token.tokenSymbol}`}
                         >
                           <Bell className={cn(
                             "h-4 w-4",
@@ -185,6 +187,7 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
                           className="h-8 w-8"
                           onClick={() => handleQuickSwap(token)}
                           title="Quick swap"
+                          aria-label={`Quick swap ${token.tokenSymbol}`}
                         >
                           <ArrowRightLeft className="h-4 w-4" />
                         </Button>
@@ -194,6 +197,7 @@ export function TokenWatchlist({ className, compact = false }: TokenWatchlistPro
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => removeToken(token.chainIndex, token.tokenContractAddress)}
                           title="Remove from watchlist"
+                          aria-label={`Remove ${token.tokenSymbol} from watchlist`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

@@ -12,8 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { hyperliquidService } from '@/services/hyperliquid';
 
 // Builder fee configuration from environment
-// TESTING MODE: Builder fees disabled for commission testing
-const BUILDER_FEES_ENABLED = false; // Set to true to enable builder fees
+// Re-enabled for production - 0.01% platform fee on Hyperliquid trades
+const BUILDER_FEES_ENABLED = true;
 const BUILDER_ADDRESS = BUILDER_FEES_ENABLED ? (import.meta.env.VITE_HYPERLIQUID_BUILDER_ADDRESS || '') : '';
 const BUILDER_FEE = BUILDER_FEES_ENABLED ? parseInt(import.meta.env.VITE_HYPERLIQUID_BUILDER_FEE || '10', 10) : 0; // 10 = 0.01%
 

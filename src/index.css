@@ -454,12 +454,15 @@ body {
 .exchange-widget-container {
   max-width: 100% !important;
   overflow-x: hidden !important;
+  overflow-y: visible;
   box-sizing: border-box;
+  contain: inline-size;
 }
 
 .exchange-widget-container * {
   max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 .exchange-widget-container input[type="text"],
@@ -480,6 +483,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Prevent any child from causing horizontal overflow */
+.exchange-widget-container > div,
+.exchange-widget-container > div > div {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Safe truncation for token amounts */
