@@ -392,23 +392,27 @@ async function handleLimitCreate(req: Request): Promise<Response> {
   console.log(`[Jupiter] Payload: inputMint=${body.inputMint.slice(0,8)}..., makingAmount=${body.makingAmount}, takingAmount=${body.takingAmount}`);
 
   // CRITICAL: All amounts MUST be strings for Jupiter API (Zod validation)
+  // CRITICAL: Jupiter Trigger API requires payer + nested params object (Zod validation)
   const requestBody: any = {
-    inputMint: String(body.inputMint),
-    outputMint: String(body.outputMint),
-    maker: String(body.maker),
-    makingAmount: String(body.makingAmount),
-    takingAmount: String(body.takingAmount),
-    computeUnitPrice: body.computeUnitPrice || 'auto',
+    payer: String(body.maker),  // Required by Jupiter Trigger API
+    params: {
+      inputMint: String(body.inputMint),
+      outputMint: String(body.outputMint),
+      maker: String(body.maker),
+      makingAmount: String(body.makingAmount),
+      takingAmount: String(body.takingAmount),
+      computeUnitPrice: body.computeUnitPrice || 'auto',
+    },
   };
 
   // Add optional params
   if (body.expiredAt) {
-    requestBody.expiredAt = body.expiredAt;
+    requestBody.params.expiredAt = body.expiredAt;
   }
 
   // Add referral if configured
   if (JUPITER_REFERRAL_ACCOUNT) {
-    requestBody.referral = JUPITER_REFERRAL_ACCOUNT;
+    requestBody.params.referral = JUPITER_REFERRAL_ACCOUNT;
     console.log(`[Jupiter] Adding limit order referral: ${JUPITER_REFERRAL_ACCOUNT.slice(0, 8)}...`);
   }
 
@@ -649,8 +653,9 @@ async function handleDCACreate(req: Request): Promise<Response> {
     );
   }
 
-  const jupiterUrl = `${JUPITER_RECURRING_BASE}/createDCA`;
+  const jupiterUrl = `${JUPITER_RECURRING_BASE}/createOrder`;
   console.log(`[Jupiter] Creating DCA order for user: ${body.user.slice(0, 8)}...`);
+  console.log(`[Jupiter] DCA URL: ${jupiterUrl}`);
   console.log(`[Jupiter] Payload: inputMint=${body.inputMint.slice(0,8)}..., inAmount=${body.inAmount}, orders=${body.numberOfOrders}`);
 
   // Use BigInt for precision with large token amounts (avoids parseInt overflow)
@@ -689,6 +694,22 @@ async function handleDCACreate(req: Request): Promise<Response> {
     },
     body: JSON.stringify(requestBody),
   });
+
+  // Better 404 handling with diagnostic info
+  if (response.status === 404) {
+    console.error(`[Jupiter] DCA Endpoint 404: ${jupiterUrl}`);
+    console.error(`[Jupiter] JUPITER_RECURRING_BASE env: ${JUPITER_RECURRING_BASE}`);
+    console.error('[Jupiter] Possible endpoints to check:');
+    console.error(`  - ${JUPITER_RECURRING_BASE}/orders`);
+    console.error(`  - ${JUPITER_RECURRING_BASE}/createOrder`);
+    console.error(`  - ${JUPITER_RECURRING_BASE}/create`);
+    
+    return secureErrorResponse(
+      `Jupiter DCA endpoint not found. Endpoint: ${jupiterUrl}. Check JUPITER_RECURRING_BASE configuration.`,
+      404,
+      'ENDPOINT_NOT_FOUND'
+    );
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

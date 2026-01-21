@@ -257,11 +257,19 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     setActiveChain(selectedChain);
   }, [selectedChain, setActiveChain]);
 
-  // Reset DEX tokens when chain changes - must run first
+  // Reset DEX tokens AND form when chain changes - must run first
   useEffect(() => {
     if (selectedChain.chainIndex !== lastChainIndex) {
+      console.log(`[ExchangeWidget] Chain changed from ${lastChainIndex} to ${selectedChain.chainIndex}`);
+      
+      // Reset ALL form state when chain changes (prevents stale token selection)
       setFromDexToken(null);
       setToDexToken(null);
+      setFromAmount('');
+      setToAmount('');
+      setDexExchangeRate(null);
+      setLastUpdated(null);
+      
       setLastChainIndex(selectedChain.chainIndex);
     }
   }, [selectedChain.chainIndex, lastChainIndex]);
