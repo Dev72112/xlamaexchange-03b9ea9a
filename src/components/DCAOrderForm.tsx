@@ -105,15 +105,49 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   const handleSubmit = useCallback(async () => {
     if (!fromToken || !toToken || !chainIndex || !amount) return;
     
+    // Validate inputs before submitting
+    const amountNum = parseFloat(amount);
+    const intervals = parseInt(totalIntervals) || 10;
+    
+    if (isNaN(amountNum) || amountNum <= 0) {
+      console.error('[DCAOrderForm] Invalid amount:', { amount });
+      return;
+    }
+    
+    if (intervals <= 0) {
+      console.error('[DCAOrderForm] Invalid intervals:', { totalIntervals });
+      return;
+    }
+    
+    // CRITICAL: Validate token addresses
+    const inputMint = fromToken.address;
+    const outputMint = toToken.address;
+    if (!inputMint || !outputMint) {
+      console.error('[DCAOrderForm] Missing token addresses:', { inputMint, outputMint });
+      return;
+    }
+    
     // For Solana, use Jupiter on-chain DCA
     if (isSolana) {
-      const intervals = parseInt(totalIntervals) || 10;
-      const result = await createJupiterDCA({
-        inputMint: fromToken.address,
-        outputMint: toToken.address,
-        totalAmount: (parseFloat(amount) * intervals).toString(),
+      const totalAmount = (amountNum * intervals).toString();
+      const inputDecimals = fromToken.decimals || 9;
+      
+      // Debug log the parameters
+      console.log('[DCAOrderForm] Jupiter DCA params:', {
+        inputMint,
+        outputMint,
+        totalAmount,
         numberOfOrders: intervals,
-        inputDecimals: fromToken.decimals || 9,
+        inputDecimals,
+        frequency,
+      });
+      
+      const result = await createJupiterDCA({
+        inputMint: String(inputMint),
+        outputMint: String(outputMint),
+        totalAmount,
+        numberOfOrders: intervals,
+        inputDecimals,
         frequency,
         fromSymbol: fromToken.symbol,
         toSymbol: toToken.symbol,

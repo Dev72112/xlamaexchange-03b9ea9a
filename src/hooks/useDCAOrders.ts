@@ -476,16 +476,47 @@ export function useDCAOrders() {
         description: 'Please approve the transaction in your wallet',
       });
 
-      // Convert amount to smallest units using BigInt for precision
-      // CRITICAL: Must be a string for Jupiter API
+      // Validate inputs
       const totalAmountFloat = parseFloat(params.totalAmount);
-      const multiplier = BigInt(10 ** params.inputDecimals);
-      const inAmountBigInt = BigInt(Math.floor(totalAmountFloat * (10 ** Math.min(params.inputDecimals, 9)))) * 
-                             (params.inputDecimals > 9 ? BigInt(10 ** (params.inputDecimals - 9)) : BigInt(1));
+      if (isNaN(totalAmountFloat) || totalAmountFloat <= 0) {
+        throw new Error('Invalid total amount');
+      }
+      if (!params.inputMint || !params.outputMint) {
+        throw new Error('Missing token mints');
+      }
+      if (params.numberOfOrders <= 0) {
+        throw new Error('Invalid number of orders');
+      }
+
+      // Convert amount to smallest units using BigInt for precision
+      // CRITICAL: Must be a string for Jupiter API (Zod validation)
+      const decimals = Math.min(params.inputDecimals, 18); // Cap decimals to prevent overflow
+      
+      // Simple and reliable conversion: multiply by 10^decimals using BigInt
+      // First convert to a fixed-point representation to avoid floating point issues
+      const scaleFactor = 1e12; // Use 12 decimal places for intermediate precision
+      const scaledAmount = BigInt(Math.floor(totalAmountFloat * scaleFactor));
+      const decimalScale = BigInt(10 ** decimals);
+      const scaleFactorBig = BigInt(scaleFactor);
+      
+      // inAmount = (scaledAmount * 10^decimals) / scaleFactor
+      const inAmountBigInt = (scaledAmount * decimalScale) / scaleFactorBig;
       const inAmount = String(inAmountBigInt);
+      
+      // Validate result
+      if (inAmountBigInt <= BigInt(0)) {
+        throw new Error('Calculated amount is zero or negative');
+      }
+      
       const interval = frequencyToSeconds(params.frequency);
 
-      console.log('[DCA] Creating order with:', { inAmount, numberOfOrders: params.numberOfOrders, interval });
+      console.log('[DCA] Creating order with:', { 
+        inAmount, 
+        numberOfOrders: params.numberOfOrders, 
+        interval,
+        inputMint: params.inputMint.slice(0, 12),
+        outputMint: params.outputMint.slice(0, 12),
+      });
 
       // Create DCA order via Jupiter
       const response = await jupiterService.createDCAOrder({
