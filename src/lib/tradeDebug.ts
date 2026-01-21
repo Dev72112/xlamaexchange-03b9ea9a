@@ -3,6 +3,7 @@
  * 
  * Centralized logging for swap/quote operations across all chains.
  * Enable with: localStorage.setItem('xlama.tradeDebug', 'true')
+ * Or via URL param: ?debug=1
  */
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -19,8 +20,45 @@ export interface TradeLogEntry {
   data?: Record<string, unknown>;
 }
 
-const MAX_LOGS = 100;
+const MAX_LOGS = 200;
 const STORAGE_KEY = 'xlama.tradeDebugLogs';
+
+/**
+ * Safe JSON serialization that handles circular refs, BigInt, Errors, etc.
+ */
+function safeSerialize(obj: unknown): Record<string, unknown> | string {
+  if (obj === null || obj === undefined) return String(obj);
+  if (typeof obj === 'string') return obj;
+  if (typeof obj === 'number' || typeof obj === 'boolean') return obj as any;
+  if (typeof obj === 'bigint') return obj.toString();
+  
+  if (obj instanceof Error) {
+    return {
+      _type: 'Error',
+      name: obj.name,
+      message: obj.message,
+      stack: obj.stack?.split('\n').slice(0, 5).join('\n'),
+    };
+  }
+  
+  try {
+    const seen = new WeakSet();
+    const serialized = JSON.parse(JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'bigint') return value.toString();
+      if (value instanceof Error) {
+        return { name: value.name, message: value.message };
+      }
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) return '[Circular]';
+        seen.add(value);
+      }
+      return value;
+    }));
+    return serialized;
+  } catch {
+    return { _raw: String(obj) };
+  }
+}
 
 class TradeDebugger {
   private logs: TradeLogEntry[] = [];
@@ -32,7 +70,10 @@ class TradeDebugger {
 
   private get isEnabled(): boolean {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem('xlama.tradeDebug') === 'true';
+    // Check localStorage or URL param
+    const urlEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
+    const storageEnabled = localStorage.getItem('xlama.tradeDebug') === 'true';
+    return urlEnabled || storageEnabled;
   }
 
   private loadFromStorage(): void {
@@ -51,7 +92,7 @@ class TradeDebugger {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.logs.slice(-MAX_LOGS)));
     } catch {
       // Storage full, clear old logs
-      this.logs = this.logs.slice(-50);
+      this.logs = this.logs.slice(-100);
     }
   }
 
@@ -68,10 +109,13 @@ class TradeDebugger {
     chainType: ChainType,
     action: string,
     message: string,
-    data?: Record<string, unknown>,
+    data?: unknown,
     chainIndex?: string
   ): void {
     if (!this.isEnabled) return;
+
+    // Always serialize data safely
+    const serializedData = data ? safeSerialize(data) as Record<string, unknown> : undefined;
 
     const entry: TradeLogEntry = {
       id: this.generateId(),
@@ -81,7 +125,7 @@ class TradeDebugger {
       chainIndex,
       action,
       message,
-      data,
+      data: serializedData,
     };
 
     this.logs.push(entry);
@@ -95,18 +139,18 @@ class TradeDebugger {
     // Also log to console with styling
     const prefix = `[Trade:${chainType.toUpperCase()}]`;
     const style = level === 'error' ? 'color: #ef4444' : level === 'warn' ? 'color: #f59e0b' : 'color: #3b82f6';
-    console.log(`%c${prefix} ${action}: ${message}`, style, data || '');
+    console.log(`%c${prefix} ${action}: ${message}`, style, serializedData || '');
   }
 
-  info(chainType: ChainType, action: string, message: string, data?: Record<string, unknown>, chainIndex?: string): void {
+  info(chainType: ChainType, action: string, message: string, data?: unknown, chainIndex?: string): void {
     this.log('info', chainType, action, message, data, chainIndex);
   }
 
-  warn(chainType: ChainType, action: string, message: string, data?: Record<string, unknown>, chainIndex?: string): void {
+  warn(chainType: ChainType, action: string, message: string, data?: unknown, chainIndex?: string): void {
     this.log('warn', chainType, action, message, data, chainIndex);
   }
 
-  error(chainType: ChainType, action: string, message: string, data?: Record<string, unknown>, chainIndex?: string): void {
+  error(chainType: ChainType, action: string, message: string, data?: unknown, chainIndex?: string): void {
     this.log('error', chainType, action, message, data, chainIndex);
   }
 
@@ -135,12 +179,19 @@ class TradeDebugger {
     }
   }
 
-  logJupiter(action: string, data: Record<string, unknown>): void {
-    const hasError = data.error || data.status === 'Failed';
+  logJupiter(action: string, data: unknown): void {
+    const serialized = safeSerialize(data) as Record<string, unknown>;
+    const hasError = serialized?.error || serialized?.status === 'Failed';
+    const errorMsg = typeof serialized?.error === 'string' 
+      ? serialized.error 
+      : typeof serialized?.error === 'object' 
+        ? JSON.stringify(serialized.error) 
+        : 'Failed';
+    
     if (hasError) {
-      this.error('solana', `jupiter-${action}`, String(data.error || 'Failed'), data, '501');
+      this.error('solana', `jupiter-${action}`, errorMsg, serialized, '501');
     } else {
-      this.info('solana', `jupiter-${action}`, `Jupiter ${action}`, data, '501');
+      this.info('solana', `jupiter-${action}`, `Jupiter ${action}`, serialized, '501');
     }
   }
 
@@ -172,6 +223,8 @@ class TradeDebugger {
       timestamp: new Date().toISOString(),
       logsCount: this.logs.length,
       errorCount: this.logs.filter(l => l.level === 'error').length,
+      warnCount: this.logs.filter(l => l.level === 'warn').length,
+      chains: [...new Set(this.logs.map(l => l.chainType))],
       logs: this.logs,
     };
     return JSON.stringify(report, null, 2);
@@ -179,10 +232,16 @@ class TradeDebugger {
 
   enable(): void {
     localStorage.setItem('xlama.tradeDebug', 'true');
+    this.notifyListeners();
   }
 
   disable(): void {
     localStorage.removeItem('xlama.tradeDebug');
+    this.notifyListeners();
+  }
+  
+  isCurrentlyEnabled(): boolean {
+    return this.isEnabled;
   }
 }
 
@@ -192,5 +251,7 @@ export const tradeDebugger = new TradeDebugger();
 // Helper to check debug status
 export const isTradeDebugEnabled = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return localStorage.getItem('xlama.tradeDebug') === 'true';
+  const urlEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
+  const storageEnabled = localStorage.getItem('xlama.tradeDebug') === 'true';
+  return urlEnabled || storageEnabled;
 };

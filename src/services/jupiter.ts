@@ -129,11 +129,68 @@ export interface JupiterDCAOrder {
 
 class JupiterService {
   private edgeFunctionUrl: string;
+  private healthStatus: 'healthy' | 'degraded' | 'down' | 'unknown' = 'unknown';
+  private lastHealthCheck = 0;
+  private readonly HEALTH_CHECK_INTERVAL = 60000; // 1 minute
 
   constructor() {
     // Using Supabase edge function to proxy Jupiter API calls
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     this.edgeFunctionUrl = `${supabaseUrl}/functions/v1/jupiter`;
+  }
+
+  /**
+   * Check Jupiter API health status
+   * Caches result for 1 minute
+   */
+  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'down'; latencyMs: number; message: string }> {
+    const now = Date.now();
+    
+    // Use cached status if recent
+    if (now - this.lastHealthCheck < this.HEALTH_CHECK_INTERVAL && this.healthStatus !== 'unknown') {
+      return { status: this.healthStatus, latencyMs: 0, message: 'Cached status' };
+    }
+    
+    try {
+      const response = await fetch(`${this.edgeFunctionUrl}?action=health`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      
+      if (!response.ok) {
+        this.healthStatus = 'down';
+        this.lastHealthCheck = now;
+        return { status: 'down', latencyMs: 0, message: 'Health check failed' };
+      }
+      
+      const data = await response.json();
+      this.healthStatus = data.status || 'unknown';
+      this.lastHealthCheck = now;
+      
+      return {
+        status: data.status,
+        latencyMs: data.latencyMs || 0,
+        message: data.message || '',
+      };
+    } catch (error) {
+      this.healthStatus = 'down';
+      this.lastHealthCheck = now;
+      return { status: 'down', latencyMs: 0, message: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
+   * Check if Jupiter is healthy enough for order creation
+   */
+  isHealthy(): boolean {
+    return this.healthStatus === 'healthy' || this.healthStatus === 'unknown';
+  }
+
+  /**
+   * Get cached health status without making a request
+   */
+  getCachedHealthStatus(): 'healthy' | 'degraded' | 'down' | 'unknown' {
+    return this.healthStatus;
   }
 
   /**
@@ -294,25 +351,43 @@ class JupiterService {
    * Returns transaction to sign and order public key
    */
   async createLimitOrder(params: JupiterLimitOrderParams): Promise<JupiterLimitOrderResponse> {
+    // Pre-validate all required fields before making API call
+    const inputMint = String(params.inputMint || '');
+    const outputMint = String(params.outputMint || '');
+    const maker = String(params.maker || '');
+    const makingAmount = String(params.makingAmount || '');
+    const takingAmount = String(params.takingAmount || '');
+    
+    // Validate required fields
+    const errors: string[] = [];
+    if (!inputMint || inputMint.length < 32) errors.push('inputMint invalid or missing');
+    if (!outputMint || outputMint.length < 32) errors.push('outputMint invalid or missing');
+    if (!maker || maker.length < 32) errors.push('maker invalid or missing');
+    if (!makingAmount || !/^\d+$/.test(makingAmount) || makingAmount === '0') errors.push('makingAmount must be positive numeric string');
+    if (!takingAmount || !/^\d+$/.test(takingAmount) || takingAmount === '0') errors.push('takingAmount must be positive numeric string');
+    
+    if (errors.length > 0) {
+      const errorMessage = `Invalid limit order params: ${errors.join('; ')}`;
+      tradeDebugger.logJupiter('limit-create-validation-error', { errors, params: { inputMint, outputMint, makingAmount, takingAmount } });
+      throw new Error(errorMessage);
+    }
+    
     const logData = {
-      inputMint: params.inputMint.slice(0, 8) + '...',
-      outputMint: params.outputMint.slice(0, 8) + '...',
-      makingAmount: params.makingAmount,
-      takingAmount: params.takingAmount,
-      makingAmountType: typeof params.makingAmount,
-      takingAmountType: typeof params.takingAmount,
+      inputMint: inputMint.slice(0, 8) + '...',
+      outputMint: outputMint.slice(0, 8) + '...',
+      makingAmount,
+      takingAmount,
     };
     
     tradeDebugger.logJupiter('limit-create-request', logData);
     console.log('[Jupiter] Creating limit order:', logData);
 
-    // CRITICAL: Ensure all amounts are strings for Jupiter API (Zod validation requires string)
     const payload = {
-      inputMint: String(params.inputMint),
-      outputMint: String(params.outputMint),
-      maker: String(params.maker),
-      makingAmount: String(params.makingAmount),
-      takingAmount: String(params.takingAmount),
+      inputMint,
+      outputMint,
+      maker,
+      makingAmount,
+      takingAmount,
       expiredAt: params.expiredAt ? Number(params.expiredAt) : undefined,
       feeAccount: params.feeAccount ? String(params.feeAccount) : undefined,
       computeUnitPrice: params.computeUnitPrice,
@@ -331,12 +406,12 @@ class JupiterService {
         const errorData = await response.json().catch(() => ({}));
         tradeDebugger.logJupiter('limit-create-failed', { ...logData, error: errorData, status: response.status });
         console.error('[Jupiter] Limit order creation failed:', errorData);
-        // Extract error message from various possible formats (Zod validation errors, etc.)
+        
+        // Extract error message from various possible formats
         const errorMessage = 
           errorData.error || 
           errorData.message || 
           (errorData.issues && JSON.stringify(errorData.issues)) ||
-          (errorData.errors && JSON.stringify(errorData.errors)) ||
           `Failed to create limit order: HTTP ${response.status}`;
         throw new Error(errorMessage);
       }
@@ -455,27 +530,48 @@ class JupiterService {
    * Returns transaction to sign and order public key
    */
   async createDCAOrder(params: JupiterDCAParams): Promise<JupiterDCAResponse> {
+    // Pre-validate all required fields before making API call
+    const user = String(params.user || '');
+    const inputMint = String(params.inputMint || '');
+    const outputMint = String(params.outputMint || '');
+    const inAmount = String(params.inAmount || '');
+    const numberOfOrders = Number(params.numberOfOrders || 0);
+    const interval = Number(params.interval || 0);
+    
+    // Validate required fields
+    const errors: string[] = [];
+    if (!user || user.length < 32) errors.push('user invalid or missing');
+    if (!inputMint || inputMint.length < 32) errors.push('inputMint invalid or missing');
+    if (!outputMint || outputMint.length < 32) errors.push('outputMint invalid or missing');
+    if (!inAmount || !/^\d+$/.test(inAmount) || inAmount === '0') errors.push('inAmount must be positive numeric string');
+    if (!numberOfOrders || numberOfOrders < 2) errors.push('numberOfOrders must be >= 2');
+    if (!interval || interval < 60) errors.push('interval must be >= 60 seconds');
+    
+    if (errors.length > 0) {
+      const errorMessage = `Invalid DCA order params: ${errors.join('; ')}`;
+      tradeDebugger.logJupiter('dca-create-validation-error', { errors, params: { inputMint, outputMint, inAmount, numberOfOrders } });
+      throw new Error(errorMessage);
+    }
+    
     const logData = {
-      user: params.user.slice(0, 8) + '...',
-      inputMint: params.inputMint.slice(0, 8) + '...',
-      outputMint: params.outputMint.slice(0, 8) + '...',
-      inAmount: params.inAmount,
-      inAmountType: typeof params.inAmount,
-      numberOfOrders: params.numberOfOrders,
-      interval: params.interval,
+      user: user.slice(0, 8) + '...',
+      inputMint: inputMint.slice(0, 8) + '...',
+      outputMint: outputMint.slice(0, 8) + '...',
+      inAmount,
+      numberOfOrders,
+      interval,
     };
     
     tradeDebugger.logJupiter('dca-create-request', logData);
     console.log('[Jupiter] Creating DCA order:', logData);
 
-    // CRITICAL: Ensure all amounts are strings for Jupiter API (Zod validation requires string)
     const payload = {
-      user: String(params.user),
-      inputMint: String(params.inputMint),
-      outputMint: String(params.outputMint),
-      inAmount: String(params.inAmount),
-      numberOfOrders: Number(params.numberOfOrders),
-      interval: Number(params.interval),
+      user,
+      inputMint,
+      outputMint,
+      inAmount,
+      numberOfOrders,
+      interval,
       minPrice: params.minPrice,
       maxPrice: params.maxPrice,
       startAt: params.startAt,
@@ -494,12 +590,12 @@ class JupiterService {
         const errorData = await response.json().catch(() => ({}));
         tradeDebugger.logJupiter('dca-create-failed', { ...logData, error: errorData, status: response.status });
         console.error('[Jupiter] DCA order creation failed:', errorData);
+        
         // Extract error message from various possible formats
         const errorMessage = 
           errorData.error || 
           errorData.message || 
           (errorData.issues && JSON.stringify(errorData.issues)) ||
-          (errorData.errors && JSON.stringify(errorData.errors)) ||
           `Failed to create DCA order: HTTP ${response.status}`;
         throw new Error(errorMessage);
       }
