@@ -58,6 +58,19 @@ function getIntervalMs(timeframe: TimeframeOption): number {
   return intervals[timeframe];
 }
 
+// Helper to get optimal candle count per timeframe for extended history
+function getCandleCount(timeframe: TimeframeOption): number {
+  const counts: Record<TimeframeOption, number> = {
+    '1m': 720,    // 12 hours of 1-minute candles
+    '5m': 576,    // 48 hours of 5-minute candles (2 days)
+    '15m': 672,   // 7 days of 15-minute candles
+    '1H': 720,    // 30 days of hourly candles
+    '4H': 540,    // 90 days of 4-hour candles (3 months)
+    '1D': 365,    // 1 year of daily candles
+  };
+  return counts[timeframe];
+}
+
 export const CandlestickChart = memo(function CandlestickChart({
   coin,
   currentPrice,
@@ -199,9 +212,10 @@ export const CandlestickChart = memo(function CandlestickChart({
     try {
       const tf = TIMEFRAMES.find(t => t.value === timeframe);
       const intervalMs = getIntervalMs(timeframe);
+      const candleCount = getCandleCount(timeframe);
       const endTime = Date.now();
-      // Extended history: 500 candles for more historical data (30+ days on daily)
-      const startTime = endTime - intervalMs * 500;
+      // Extended history: variable candle count per timeframe for optimal historical view
+      const startTime = endTime - intervalMs * candleCount;
       
       const rawCandles = await hyperliquidService.getCandleData(
         coin,

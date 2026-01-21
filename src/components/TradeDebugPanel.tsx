@@ -32,6 +32,14 @@ export function TradeDebugPanel() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Check if enabled via localStorage OR URL param ?debug=1
+    const urlParams = new URLSearchParams(window.location.search);
+    const debugFromUrl = urlParams.get('debug') === '1';
+    
+    if (debugFromUrl && !isTradeDebugEnabled()) {
+      tradeDebugger.enable();
+    }
+    
     setIsEnabled(isTradeDebugEnabled());
     
     const unsubscribe = tradeDebugger.subscribe((newLogs) => {
@@ -41,7 +49,17 @@ export function TradeDebugPanel() {
     return unsubscribe;
   }, []);
 
-  if (!isEnabled) return null;
+  const handleToggleDebug = () => {
+    if (isEnabled) {
+      tradeDebugger.disable();
+      setIsEnabled(false);
+      toast({ title: 'Debug mode disabled' });
+    } else {
+      tradeDebugger.enable();
+      setIsEnabled(true);
+      toast({ title: 'Debug mode enabled', description: 'Swap logs will be captured' });
+    }
+  };
 
   const filteredLogs = filter === 'all' ? logs : logs.filter(l => l.chainType === filter);
   const errorCount = logs.filter(l => l.level === 'error').length;
@@ -72,6 +90,24 @@ export function TradeDebugPanel() {
     return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  // When disabled, show a small enable button
+  if (!isEnabled) {
+    return (
+      <div className="fixed bottom-20 right-4 z-50 md:bottom-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggleDebug}
+          className="gap-2 bg-background/80 backdrop-blur border border-border/50 shadow-lg hover:bg-muted text-xs opacity-60 hover:opacity-100 transition-opacity"
+          title="Enable trade debugging"
+        >
+          <Bug className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Debug</span>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed bottom-20 right-4 z-50 md:bottom-4">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -101,13 +137,13 @@ export function TradeDebugPanel() {
             <div className="flex items-center justify-between p-3 border-b border-border/50">
               <span className="text-sm font-medium">Trade Debug Logs</span>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyReport}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyReport} title="Copy report">
                   <Copy className="w-3.5 h-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownloadReport}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownloadReport} title="Download report">
                   <Download className="w-3.5 h-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={handleClearLogs}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={handleClearLogs} title="Clear logs">
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsOpen(false)}>
@@ -146,9 +182,19 @@ export function TradeDebugPanel() {
               )}
             </ScrollArea>
 
-            {/* Footer */}
-            <div className="p-2 border-t border-border/50 text-xs text-muted-foreground text-center">
-              {logs.length} logs • Disable: localStorage.removeItem('xlama.tradeDebug')
+            {/* Footer with toggle button */}
+            <div className="p-2 border-t border-border/50 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                {logs.length} logs
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleDebug}
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+              >
+                Disable Debug
+              </Button>
             </div>
           </div>
         </CollapsibleContent>
