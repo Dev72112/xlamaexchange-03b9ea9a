@@ -1,22 +1,23 @@
 /**
  * Trade Debug Panel
  * 
- * Visual UI for viewing trade debug logs.
- * Only visible when debug mode is enabled via localStorage.
+ * Mobile-accessible UI for viewing trade debug logs.
+ * Enable via URL param ?debug=1 or in-app toggle.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { tradeDebugger, TradeLogEntry, ChainType, isTradeDebugEnabled } from '@/lib/tradeDebug';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Bug, ChevronDown, ChevronUp, Trash2, Copy, X, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Bug, Copy, Download, Trash2, X, PowerOff, ChevronDown, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const CHAIN_LABELS: Record<ChainType, string> = {
-  all: 'All',
+  all: 'All Chains',
   evm: 'EVM',
   solana: 'Solana',
   tron: 'Tron',
@@ -25,117 +26,136 @@ const CHAIN_LABELS: Record<ChainType, string> = {
 };
 
 export function TradeDebugPanel() {
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [logs, setLogs] = useState<TradeLogEntry[]>([]);
   const [filter, setFilter] = useState<ChainType>('all');
-  const [isEnabled, setIsEnabled] = useState(false);
-  const { toast } = useToast();
+  const [isEnabled, setIsEnabled] = useState(isTradeDebugEnabled());
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
 
+  // Subscribe to log updates
   useEffect(() => {
-    // Check if enabled via localStorage OR URL param ?debug=1
-    const urlParams = new URLSearchParams(window.location.search);
-    const debugFromUrl = urlParams.get('debug') === '1';
-    
-    if (debugFromUrl && !isTradeDebugEnabled()) {
+    // Auto-enable if URL has ?debug=1
+    const urlDebug = new URLSearchParams(window.location.search).get('debug') === '1';
+    if (urlDebug && !isEnabled) {
       tradeDebugger.enable();
+      setIsEnabled(true);
     }
-    
-    setIsEnabled(isTradeDebugEnabled());
-    
+
     const unsubscribe = tradeDebugger.subscribe((newLogs) => {
       setLogs(newLogs);
     });
-    
+
     return unsubscribe;
   }, []);
 
-  const handleToggleDebug = () => {
+  // Re-check enabled state periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsEnabled(isTradeDebugEnabled());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleToggleDebug = useCallback(() => {
     if (isEnabled) {
       tradeDebugger.disable();
       setIsEnabled(false);
-      toast({ title: 'Debug mode disabled' });
+      toast({ title: 'Debug Mode Disabled', description: 'Trade logging stopped' });
     } else {
       tradeDebugger.enable();
       setIsEnabled(true);
-      toast({ title: 'Debug mode enabled', description: 'Swap logs will be captured' });
+      setIsOpen(true);
+      toast({ title: 'Debug Mode Enabled', description: 'Trade operations will be logged' });
     }
-  };
+  }, [isEnabled, toast]);
 
-  const filteredLogs = filter === 'all' ? logs : logs.filter(l => l.chainType === filter);
-  const errorCount = logs.filter(l => l.level === 'error').length;
+  const handleCopyReport = useCallback(() => {
+    const report = tradeDebugger.exportReport();
+    navigator.clipboard.writeText(report);
+    toast({ title: 'Copied', description: 'Debug report copied to clipboard' });
+  }, [toast]);
 
-  const handleCopyReport = () => {
-    navigator.clipboard.writeText(tradeDebugger.exportReport());
-    toast({ title: 'Debug report copied', description: 'Paste it to share with support' });
-  };
-
-  const handleDownloadReport = () => {
+  const handleDownloadReport = useCallback(() => {
     const report = tradeDebugger.exportReport();
     const blob = new Blob([report], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `xlama-debug-${Date.now()}.json`;
+    a.download = `trade-debug-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
+    toast({ title: 'Downloaded', description: 'Debug report saved' });
+  }, [toast]);
 
-  const handleClearLogs = () => {
+  const handleClearLogs = useCallback(() => {
     tradeDebugger.clearLogs();
-    toast({ title: 'Logs cleared' });
-  };
+    toast({ title: 'Cleared', description: 'All debug logs cleared' });
+  }, [toast]);
 
-  const formatTime = (ts: number) => {
-    const date = new Date(ts);
-    return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
+  const toggleLogExpanded = useCallback((id: string) => {
+    setExpandedLogs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
-  // When disabled, show a small enable button
-  if (!isEnabled) {
-    return (
-      <div className="fixed bottom-20 right-4 z-50 md:bottom-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleToggleDebug}
-          className="gap-2 bg-background/80 backdrop-blur border border-border/50 shadow-lg hover:bg-muted text-xs opacity-60 hover:opacity-100 transition-opacity"
-          title="Enable trade debugging"
-        >
-          <Bug className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Debug</span>
-        </Button>
-      </div>
-    );
-  }
+  const filteredLogs = filter === 'all' 
+    ? logs 
+    : logs.filter(l => l.chainType === filter);
 
+  const errorCount = logs.filter(l => l.level === 'error').length;
+
+  // Floating debug button (always visible, bottom right corner above nav)
   return (
-    <div className="fixed bottom-20 right-4 z-50 md:bottom-4">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(
-              "gap-2 bg-background/95 backdrop-blur border-border shadow-lg",
-              errorCount > 0 && "border-destructive/50"
-            )}
-          >
-            <Bug className="w-4 h-4" />
-            <span className="hidden sm:inline">Debug</span>
+    <>
+      {/* Floating toggle button */}
+      <Button
+        onClick={() => isEnabled ? setIsOpen(!isOpen) : handleToggleDebug()}
+        size="sm"
+        variant={isEnabled ? (errorCount > 0 ? 'destructive' : 'default') : 'outline'}
+        className={cn(
+          "fixed z-50 shadow-lg",
+          "bottom-20 right-4 md:bottom-4", // Above mobile nav on mobile
+          !isEnabled && "opacity-70 hover:opacity-100"
+        )}
+      >
+        <Bug className="w-4 h-4 mr-1" />
+        {isEnabled ? (
+          <>
+            Debug
             {errorCount > 0 && (
-              <Badge variant="destructive" className="h-5 px-1.5 text-xs">
+              <Badge variant="secondary" className="ml-1 bg-white/20 text-xs">
                 {errorCount}
               </Badge>
             )}
-            {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-          </Button>
-        </CollapsibleTrigger>
+          </>
+        ) : (
+          'Enable Debug'
+        )}
+      </Button>
 
-        <CollapsibleContent className="mt-2">
-          <div className="w-[340px] sm:w-[420px] bg-background/95 backdrop-blur border border-border rounded-lg shadow-xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-border/50">
-              <span className="text-sm font-medium">Trade Debug Logs</span>
+      {/* Debug panel (slide up from bottom on mobile, side panel on desktop) */}
+      {isEnabled && isOpen && (
+        <Card className={cn(
+          "fixed z-50 shadow-2xl border-border/50 glass",
+          "bottom-32 right-4 left-4 md:left-auto md:w-[500px] max-h-[60vh]",
+          "flex flex-col"
+        )}>
+          <CardHeader className="py-3 px-4 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Bug className="w-4 h-4 text-primary" />
+                Trade Debug
+                <Badge variant="outline" className="text-xs font-mono">
+                  {filteredLogs.length} logs
+                </Badge>
+              </CardTitle>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyReport} title="Copy report">
                   <Copy className="w-3.5 h-3.5" />
@@ -143,69 +163,77 @@ export function TradeDebugPanel() {
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownloadReport} title="Download report">
                   <Download className="w-3.5 h-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={handleClearLogs} title="Clear logs">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleClearLogs} title="Clear logs">
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsOpen(false)}>
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex gap-1 p-2 border-b border-border/50 overflow-x-auto">
-              {(Object.keys(CHAIN_LABELS) as ChainType[]).map((chain) => (
-                <Button
-                  key={chain}
-                  variant={filter === chain ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-6 px-2 text-xs whitespace-nowrap"
-                  onClick={() => setFilter(chain)}
-                >
-                  {CHAIN_LABELS[chain]}
-                </Button>
-              ))}
-            </div>
-
-            {/* Logs */}
-            <ScrollArea className="h-[280px]">
-              {filteredLogs.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No logs yet. Perform a swap to see debug info.
-                </div>
-              ) : (
-                <div className="divide-y divide-border/30">
-                  {filteredLogs.map((log) => (
-                    <LogEntry key={log.id} log={log} />
+            {/* Chain filter */}
+            <div className="flex items-center gap-2 mt-2">
+              <Select value={filter} onValueChange={(v) => setFilter(v as ChainType)}>
+                <SelectTrigger className="h-8 text-xs w-[140px]">
+                  <SelectValue placeholder="Filter by chain" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CHAIN_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value} className="text-xs">
+                      {label}
+                    </SelectItem>
                   ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Footer with toggle button */}
-            <div className="p-2 border-t border-border/50 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {logs.length} logs
-              </span>
+                </SelectContent>
+              </Select>
+              
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
+                className="h-8 text-xs ml-auto"
                 onClick={handleToggleDebug}
-                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
               >
+                <PowerOff className="w-3 h-3 mr-1" />
                 Disable Debug
               </Button>
             </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
+          </CardHeader>
+
+          <CardContent className="p-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-[40vh]">
+              <div className="space-y-1 p-2">
+                {filteredLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No logs yet. Perform a trade to see debug info.
+                  </div>
+                ) : (
+                  filteredLogs.map((log) => (
+                    <LogEntry 
+                      key={log.id} 
+                      log={log} 
+                      isExpanded={expandedLogs.has(log.id)}
+                      onToggle={() => toggleLogExpanded(log.id)}
+                    />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }
 
-function LogEntry({ log }: { log: TradeLogEntry }) {
-  const [expanded, setExpanded] = useState(false);
-
+function LogEntry({ 
+  log, 
+  isExpanded, 
+  onToggle,
+}: { 
+  log: TradeLogEntry;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const levelColors = {
     info: 'text-blue-500',
     warn: 'text-yellow-500',
@@ -217,15 +245,28 @@ function LogEntry({ log }: { log: TradeLogEntry }) {
     return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  const hasData = log.data && Object.keys(log.data).length > 0;
+
   return (
     <div 
       className={cn(
-        "px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors",
-        log.level === 'error' && "bg-destructive/5"
+        "px-3 py-2 rounded-md transition-colors",
+        log.level === 'error' && "bg-destructive/10",
+        log.level === 'warn' && "bg-yellow-500/10",
+        hasData && "cursor-pointer hover:bg-muted/50"
       )}
-      onClick={() => setExpanded(!expanded)}
+      onClick={hasData ? onToggle : undefined}
     >
       <div className="flex items-start gap-2">
+        {hasData && (
+          <span className="mt-0.5">
+            {isExpanded ? (
+              <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            )}
+          </span>
+        )}
         <span className="text-xs text-muted-foreground font-mono shrink-0">
           {formatTime(log.timestamp)}
         </span>
@@ -240,8 +281,8 @@ function LogEntry({ log }: { log: TradeLogEntry }) {
         </span>
       </div>
       
-      {expanded && log.data && (
-        <pre className="mt-2 p-2 bg-muted/50 rounded text-[10px] overflow-x-auto text-muted-foreground">
+      {isExpanded && hasData && (
+        <pre className="mt-2 p-2 bg-muted/50 rounded text-[10px] overflow-x-auto text-muted-foreground max-h-[200px]">
           {JSON.stringify(log.data, null, 2)}
         </pre>
       )}

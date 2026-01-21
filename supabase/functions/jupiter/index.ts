@@ -98,6 +98,10 @@ serve(async (req) => {
     console.log(`[Jupiter] Request: action=${action}, ip=${clientIp.slice(0, 10)}...`);
 
     switch (action) {
+      // ============ HEALTH CHECK ============
+      case 'health':
+        return await handleHealthCheck();
+      
       // ============ ULTRA API (SWAPS) ============
       case 'order':
         return await handleOrder(req);
@@ -132,7 +136,7 @@ serve(async (req) => {
       
       default:
         return secureErrorResponse(
-          'Invalid action. Use: order, execute, quote, limit-create, limit-orders, limit-cancel, dca-create, dca-orders, dca-cancel', 
+          'Invalid action. Use: health, order, execute, quote, limit-create, limit-orders, limit-cancel, dca-create, dca-orders, dca-cancel', 
           400, 
           'INVALID_ACTION'
         );
@@ -146,6 +150,64 @@ serve(async (req) => {
     );
   }
 });
+
+// ============ HEALTH CHECK ============
+
+async function handleHealthCheck(): Promise<Response> {
+  const startTime = Date.now();
+  
+  try {
+    // Quick quote for a known liquid pair (SOL → USDC) to check Jupiter health
+    const testParams = new URLSearchParams({
+      inputMint: 'So11111111111111111111111111111111111111112', // wSOL
+      outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+      amount: '1000000', // 0.001 SOL
+      slippageBps: '50',
+    });
+    
+    const response = await fetch(`${JUPITER_ULTRA_BASE}/ultra/v1/quote?${testParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': JUPITER_API_KEY,
+        'Accept': 'application/json',
+      },
+    });
+    
+    const latencyMs = Date.now() - startTime;
+    
+    if (!response.ok) {
+      console.warn(`[Jupiter Health] Degraded - status ${response.status}, latency ${latencyMs}ms`);
+      return secureJsonResponse({
+        status: 'degraded',
+        latencyMs,
+        message: `Jupiter API returned ${response.status}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    
+    const data = await response.json();
+    const hasQuote = data.outAmount && BigInt(data.outAmount) > 0n;
+    
+    console.log(`[Jupiter Health] OK - latency ${latencyMs}ms, hasQuote=${hasQuote}`);
+    
+    return secureJsonResponse({
+      status: hasQuote ? 'healthy' : 'degraded',
+      latencyMs,
+      message: hasQuote ? 'Jupiter API is healthy' : 'Quote returned but no output',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    const latencyMs = Date.now() - startTime;
+    console.error(`[Jupiter Health] Down - ${error.message}, latency ${latencyMs}ms`);
+    
+    return secureJsonResponse({
+      status: 'down',
+      latencyMs,
+      message: error.message || 'Jupiter API unreachable',
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
 
 // ============ ULTRA API HANDLERS (SWAPS) ============
 
@@ -292,16 +354,42 @@ async function handleQuote(req: Request): Promise<Response> {
 async function handleLimitCreate(req: Request): Promise<Response> {
   const body = await req.json() as JupiterLimitOrderParams;
   
-  if (!body.inputMint || !body.outputMint || !body.maker || !body.makingAmount || !body.takingAmount) {
-    return secureErrorResponse('Missing required parameters: inputMint, outputMint, maker, makingAmount, takingAmount', 400);
-  }
-
-  if (!isValidSolanaAddress(body.maker)) {
-    return secureErrorResponse('Invalid maker address', 400);
+  // Detailed validation with specific error messages
+  const validationErrors: string[] = [];
+  
+  if (!body.inputMint) validationErrors.push('inputMint is required');
+  else if (typeof body.inputMint !== 'string') validationErrors.push(`inputMint must be string, got ${typeof body.inputMint}`);
+  else if (!isValidSolanaAddress(body.inputMint)) validationErrors.push('inputMint is not a valid Solana address');
+  
+  if (!body.outputMint) validationErrors.push('outputMint is required');
+  else if (typeof body.outputMint !== 'string') validationErrors.push(`outputMint must be string, got ${typeof body.outputMint}`);
+  else if (!isValidSolanaAddress(body.outputMint)) validationErrors.push('outputMint is not a valid Solana address');
+  
+  if (!body.maker) validationErrors.push('maker is required');
+  else if (!isValidSolanaAddress(body.maker)) validationErrors.push('maker is not a valid Solana address');
+  
+  if (!body.makingAmount) validationErrors.push('makingAmount is required');
+  else if (typeof body.makingAmount !== 'string') validationErrors.push(`makingAmount must be string, got ${typeof body.makingAmount}`);
+  else if (!/^\d+$/.test(body.makingAmount)) validationErrors.push('makingAmount must be a numeric string');
+  else if (BigInt(body.makingAmount) <= 0n) validationErrors.push('makingAmount must be greater than 0');
+  
+  if (!body.takingAmount) validationErrors.push('takingAmount is required');
+  else if (typeof body.takingAmount !== 'string') validationErrors.push(`takingAmount must be string, got ${typeof body.takingAmount}`);
+  else if (!/^\d+$/.test(body.takingAmount)) validationErrors.push('takingAmount must be a numeric string');
+  else if (BigInt(body.takingAmount) <= 0n) validationErrors.push('takingAmount must be greater than 0');
+  
+  if (validationErrors.length > 0) {
+    console.error('[Jupiter] Limit order validation failed:', validationErrors);
+    return secureErrorResponse(
+      `Validation failed: ${validationErrors.join('; ')}`,
+      400,
+      'VALIDATION_ERROR'
+    );
   }
 
   const jupiterUrl = `${JUPITER_TRIGGER_BASE}/createOrder`;
   console.log(`[Jupiter] Creating limit order for maker: ${body.maker.slice(0, 8)}...`);
+  console.log(`[Jupiter] Payload: inputMint=${body.inputMint.slice(0,8)}..., makingAmount=${body.makingAmount}, takingAmount=${body.takingAmount}`);
 
   // CRITICAL: All amounts MUST be strings for Jupiter API (Zod validation)
   const requestBody: any = {
@@ -335,12 +423,27 @@ async function handleLimitCreate(req: Request): Promise<Response> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`[Jupiter] Limit create error: ${response.status} - ${errorText.slice(0, 200)}`);
-    return secureErrorResponse(
-      `Jupiter limit order error: ${errorText.slice(0, 100)}`,
-      response.status,
-      'JUPITER_LIMIT_ERROR'
-    );
+    console.error(`[Jupiter] Limit create error: ${response.status} - ${errorText}`);
+    
+    // Try to parse and extract specific error
+    let errorMessage = `Jupiter limit order error: ${response.status}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.error) {
+        errorMessage = typeof errorJson.error === 'string' 
+          ? errorJson.error 
+          : JSON.stringify(errorJson.error);
+      } else if (errorJson.issues) {
+        // Zod validation errors
+        errorMessage = errorJson.issues.map((i: any) => `${i.path?.join('.')}: ${i.message}`).join('; ');
+      } else if (errorJson.message) {
+        errorMessage = errorJson.message;
+      }
+    } catch {
+      errorMessage = errorText.slice(0, 200);
+    }
+    
+    return secureErrorResponse(errorMessage, response.status, 'JUPITER_LIMIT_ERROR');
   }
 
   const data = await response.json();
@@ -508,20 +611,60 @@ async function handleLimitHistory(req: Request): Promise<Response> {
 async function handleDCACreate(req: Request): Promise<Response> {
   const body = await req.json() as JupiterDCAParams;
   
-  if (!body.user || !body.inputMint || !body.outputMint || !body.inAmount || !body.numberOfOrders || !body.interval) {
-    return secureErrorResponse('Missing required parameters: user, inputMint, outputMint, inAmount, numberOfOrders, interval', 400);
+  // Detailed validation with specific error messages
+  const validationErrors: string[] = [];
+  
+  if (!body.user) validationErrors.push('user is required');
+  else if (!isValidSolanaAddress(body.user)) validationErrors.push('user is not a valid Solana address');
+  
+  if (!body.inputMint) validationErrors.push('inputMint is required');
+  else if (typeof body.inputMint !== 'string') validationErrors.push(`inputMint must be string, got ${typeof body.inputMint}`);
+  else if (!isValidSolanaAddress(body.inputMint)) validationErrors.push('inputMint is not a valid Solana address');
+  
+  if (!body.outputMint) validationErrors.push('outputMint is required');
+  else if (typeof body.outputMint !== 'string') validationErrors.push(`outputMint must be string, got ${typeof body.outputMint}`);
+  else if (!isValidSolanaAddress(body.outputMint)) validationErrors.push('outputMint is not a valid Solana address');
+  
+  if (!body.inAmount) validationErrors.push('inAmount is required');
+  else if (typeof body.inAmount !== 'string') validationErrors.push(`inAmount must be string, got ${typeof body.inAmount}`);
+  else if (!/^\d+$/.test(String(body.inAmount))) validationErrors.push('inAmount must be a numeric string');
+  else if (BigInt(body.inAmount) <= 0n) validationErrors.push('inAmount must be greater than 0');
+  
+  if (!body.numberOfOrders) validationErrors.push('numberOfOrders is required');
+  else if (typeof body.numberOfOrders !== 'number' || body.numberOfOrders < 2) {
+    validationErrors.push('numberOfOrders must be a number >= 2');
   }
-
-  if (!isValidSolanaAddress(body.user)) {
-    return secureErrorResponse('Invalid user address', 400);
+  
+  if (!body.interval) validationErrors.push('interval is required');
+  else if (typeof body.interval !== 'number' || body.interval < 60) {
+    validationErrors.push('interval must be a number >= 60 seconds');
+  }
+  
+  if (validationErrors.length > 0) {
+    console.error('[Jupiter] DCA order validation failed:', validationErrors);
+    return secureErrorResponse(
+      `Validation failed: ${validationErrors.join('; ')}`,
+      400,
+      'VALIDATION_ERROR'
+    );
   }
 
   const jupiterUrl = `${JUPITER_RECURRING_BASE}/createDCA`;
   console.log(`[Jupiter] Creating DCA order for user: ${body.user.slice(0, 8)}...`);
+  console.log(`[Jupiter] Payload: inputMint=${body.inputMint.slice(0,8)}..., inAmount=${body.inAmount}, orders=${body.numberOfOrders}`);
 
   // Use BigInt for precision with large token amounts (avoids parseInt overflow)
   const inAmountBigInt = BigInt(String(body.inAmount));
   const inAmountPerCycle = String(inAmountBigInt / BigInt(body.numberOfOrders));
+  
+  // Validate inAmountPerCycle is not zero
+  if (BigInt(inAmountPerCycle) <= 0n) {
+    return secureErrorResponse(
+      'inAmountPerCycle would be 0 - increase total amount or reduce number of orders',
+      400,
+      'VALIDATION_ERROR'
+    );
+  }
 
   const requestBody: any = {
     user: String(body.user),
@@ -549,12 +692,26 @@ async function handleDCACreate(req: Request): Promise<Response> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`[Jupiter] DCA create error: ${response.status} - ${errorText.slice(0, 200)}`);
-    return secureErrorResponse(
-      `Jupiter DCA order error: ${errorText.slice(0, 100)}`,
-      response.status,
-      'JUPITER_DCA_ERROR'
-    );
+    console.error(`[Jupiter] DCA create error: ${response.status} - ${errorText}`);
+    
+    // Try to parse and extract specific error
+    let errorMessage = `Jupiter DCA order error: ${response.status}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.error) {
+        errorMessage = typeof errorJson.error === 'string' 
+          ? errorJson.error 
+          : JSON.stringify(errorJson.error);
+      } else if (errorJson.issues) {
+        errorMessage = errorJson.issues.map((i: any) => `${i.path?.join('.')}: ${i.message}`).join('; ');
+      } else if (errorJson.message) {
+        errorMessage = errorJson.message;
+      }
+    } catch {
+      errorMessage = errorText.slice(0, 200);
+    }
+    
+    return secureErrorResponse(errorMessage, response.status, 'JUPITER_DCA_ERROR');
   }
 
   const data = await response.json();

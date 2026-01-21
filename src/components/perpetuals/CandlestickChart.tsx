@@ -61,14 +61,27 @@ function getIntervalMs(timeframe: TimeframeOption): number {
 // Helper to get optimal candle count per timeframe for extended history
 function getCandleCount(timeframe: TimeframeOption): number {
   const counts: Record<TimeframeOption, number> = {
-    '1m': 720,    // 12 hours of 1-minute candles
-    '5m': 576,    // 48 hours of 5-minute candles (2 days)
-    '15m': 672,   // 7 days of 15-minute candles
-    '1H': 720,    // 30 days of hourly candles
-    '4H': 540,    // 90 days of 4-hour candles (3 months)
-    '1D': 365,    // 1 year of daily candles
+    '1m': 1440,   // 24 hours of 1-minute candles (was 720)
+    '5m': 864,    // 3 days of 5-minute candles (was 576)
+    '15m': 960,   // 10 days of 15-minute candles (was 672)
+    '1H': 1080,   // 45 days of hourly candles (was 720)
+    '4H': 720,    // 120 days of 4-hour candles (was 540)
+    '1D': 730,    // 2 years of daily candles (was 365)
   };
   return counts[timeframe];
+}
+
+// Get human-readable history duration label
+function getHistoryLabel(timeframe: TimeframeOption): string {
+  const labels: Record<TimeframeOption, string> = {
+    '1m': '24h',
+    '5m': '3 days',
+    '15m': '10 days',
+    '1H': '45 days',
+    '4H': '4 months',
+    '1D': '2 years',
+  };
+  return labels[timeframe];
 }
 
 export const CandlestickChart = memo(function CandlestickChart({
@@ -366,6 +379,12 @@ export const CandlestickChart = memo(function CandlestickChart({
               </Button>
             ))}
           </div>
+          
+          {/* History duration label */}
+          <Badge variant="secondary" className="text-[10px] font-normal">
+            {getHistoryLabel(timeframe)}
+          </Badge>
+          
           <Button
             variant="ghost"
             size="sm"
