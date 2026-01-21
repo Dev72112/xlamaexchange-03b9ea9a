@@ -65,6 +65,58 @@ export const hyperEVM: AppKitNetwork = {
   },
 };
 
+// Define Sonic chain (new)
+export const sonic: AppKitNetwork = {
+  id: 146,
+  name: 'Sonic',
+  nativeCurrency: { name: 'Sonic', symbol: 'S', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.soniclabs.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'SonicScan', url: 'https://sonicscan.org' },
+  },
+};
+
+// Define Unichain (new)
+export const unichain: AppKitNetwork = {
+  id: 130,
+  name: 'Unichain',
+  nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://mainnet.unichain.org'] },
+  },
+  blockExplorers: {
+    default: { name: 'UniScan', url: 'https://uniscan.xyz' },
+  },
+};
+
+// Define Monad (new)
+export const monad: AppKitNetwork = {
+  id: 143,
+  name: 'Monad',
+  nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.monad.xyz'] },
+  },
+  blockExplorers: {
+    default: { name: 'Monad Explorer', url: 'https://explorer.monad.xyz' },
+  },
+};
+
+// Define Plasma (new)
+export const plasma: AppKitNetwork = {
+  id: 9745,
+  name: 'Plasma',
+  nativeCurrency: { name: 'Plasma', symbol: 'PLASMA', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.plasma.io'] },
+  },
+  blockExplorers: {
+    default: { name: 'Plasma Explorer', url: 'https://explorer.plasma.io' },
+  },
+};
+
 // All supported EVM networks
 export const evmNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   xlayer, // Primary chain first
@@ -89,6 +141,10 @@ export const evmNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   aurora,
   klaytn,
   hyperEVM, // HyperEVM for Perpetuals
+  sonic,    // Sonic (new)
+  unichain, // Unichain (new)
+  monad,    // Monad (new)
+  plasma,   // Plasma (new)
 ];
 
 // All networks including Solana

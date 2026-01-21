@@ -49,6 +49,7 @@ const HighPriceImpactModal = lazy(() => import("./HighPriceImpactModal").then(m 
 const LimitOrderForm = lazy(() => import("@/components/LimitOrderForm").then(m => ({ default: m.LimitOrderForm })));
 const DCAOrderForm = lazy(() => import("@/components/DCAOrderForm").then(m => ({ default: m.DCAOrderForm })));
 const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
+const TradeDebugPanel = lazy(() => import("@/components/TradeDebugPanel").then(m => ({ default: m.TradeDebugPanel })));
 
 // Detect network from ticker and name
 function detectNetwork(ticker: string, name: string): string | undefined {
@@ -1443,6 +1444,11 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
           </Suspense>
         </DialogContent>
       </Dialog>
+
+      {/* Trade Debug Panel (only visible when debug mode enabled) */}
+      <Suspense fallback={null}>
+        <TradeDebugPanel />
+      </Suspense>
     </>
   );
 }

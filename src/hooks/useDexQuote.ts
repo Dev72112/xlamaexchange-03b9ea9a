@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { okxDexService, OkxQuote, OkxToken } from '@/services/okxdex';
 import { Chain } from '@/data/chains';
 import { apiCoordinator, CACHE_TTL } from '@/lib/apiCoordinator';
+import { tradeDebugger } from '@/lib/tradeDebug';
 
 interface UseDexQuoteOptions {
   chain: Chain | null;
@@ -124,6 +125,19 @@ export function useDexQuote({
     lastRequestKeyRef.current = cacheKey;
     setIsLoading(true);
     setError(null);
+    
+    // Determine chain type for logging
+    const chainType = chainIndex === '501' ? 'solana' : 
+                      chainIndex === '195' ? 'tron' : 
+                      chainIndex === '784' ? 'sui' : 
+                      chainIndex === '607' ? 'ton' : 'evm';
+    
+    tradeDebugger.logQuote(chainType as any, {
+      from: fromAddress.slice(0, 8) + '...',
+      to: toAddress.slice(0, 8) + '...',
+      amount: amt,
+      chainIndex,
+    });
 
     try {
       // Use apiCoordinator for request deduplication
@@ -145,11 +159,23 @@ export function useDexQuote({
         setLastUpdated(new Date());
         setError(null);
         retryCountRef.current = 0;
+        
+        tradeDebugger.logQuoteResult(chainType as any, {
+          inAmount: amt,
+          outAmount: data.toTokenAmount || '',
+          provider: 'OKX',
+        }, chainIndex);
       }
     } catch (err) {
       // Only update error if this is still the current request
       if (cacheKey === lastRequestKeyRef.current) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to get quote';
+        
+        tradeDebugger.logQuoteResult(chainType as any, {
+          inAmount: amt,
+          outAmount: '',
+          error: errorMessage,
+        }, chainIndex);
         
         // Handle rate limit errors gracefully
         if (errorMessage.includes('rate') || errorMessage.includes('50011')) {
