@@ -179,16 +179,41 @@ export function useDexQuote({
     return () => clearTimeout(timer);
   }, [fetchQuote, amount]);
 
-  // Format output amount from wei to human readable
+  // Format output amount from wei to human readable using safe BigInt arithmetic
   const formattedOutputAmount = useMemo(() => {
-    if (!quote || !toToken) return '';
-    return (parseFloat(quote.toTokenAmount) / Math.pow(10, parseInt(toToken.decimals))).toString();
+    if (!quote || !toToken || !quote.toTokenAmount) return '';
+    try {
+      const decimals = parseInt(toToken.decimals) || 18;
+      const amountBig = BigInt(quote.toTokenAmount);
+      const divisor = BigInt(10 ** decimals);
+      const whole = amountBig / divisor;
+      const remainder = amountBig % divisor;
+      
+      if (remainder === 0n) {
+        return whole.toString();
+      }
+      
+      // Format with proper decimal places
+      const remainderStr = remainder.toString().padStart(decimals, '0');
+      // Trim trailing zeros but keep reasonable precision
+      const trimmed = remainderStr.replace(/0+$/, '') || '0';
+      const result = `${whole}.${trimmed}`;
+      
+      // Avoid floating point display issues by limiting to 12 significant decimals
+      return result.length > 15 ? result.slice(0, 15) : result;
+    } catch {
+      // Fallback for invalid amounts
+      return '';
+    }
   }, [quote, toToken]);
 
-  // Calculate exchange rate
+  // Calculate exchange rate using string-safe arithmetic
   const exchangeRate = useMemo(() => {
-    if (!quote || !fromToken || !toToken || !amount || parseFloat(amount) <= 0) return null;
-    return parseFloat(formattedOutputAmount) / parseFloat(amount);
+    if (!quote || !fromToken || !toToken || !amount || !formattedOutputAmount) return null;
+    const inputAmount = parseFloat(amount);
+    const outputAmount = parseFloat(formattedOutputAmount);
+    if (isNaN(inputAmount) || isNaN(outputAmount) || inputAmount <= 0) return null;
+    return outputAmount / inputAmount;
   }, [quote, fromToken, toToken, amount, formattedOutputAmount]);
 
   // Force refresh function that bypasses cache

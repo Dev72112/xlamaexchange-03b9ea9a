@@ -194,13 +194,14 @@ export function useLimitOrders() {
       });
 
       // Get the order transaction from Jupiter Trigger API
+      // IMPORTANT: Ensure all parameters are explicitly strings (Jupiter API requirement)
       const orderResponse = await jupiterService.createLimitOrder({
-        inputMint: params.inputMint,
-        outputMint: params.outputMint,
-        maker: activeAddress,
-        makingAmount: params.makingAmount,
-        takingAmount: params.takingAmount,
-        expiredAt: params.expiredAt,
+        inputMint: String(params.inputMint),
+        outputMint: String(params.outputMint),
+        maker: String(activeAddress),
+        makingAmount: String(params.makingAmount),
+        takingAmount: String(params.takingAmount),
+        expiredAt: params.expiredAt ? Number(params.expiredAt) : undefined,
       });
 
       // Check for transaction - Jupiter returns 'tx' field (base64 encoded)
