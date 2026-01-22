@@ -105,22 +105,43 @@ const Index = () => {
         {/* Section 1: Exchange Widget - Hero */}
         <section 
           id="exchange"
-          className="section-container" 
+          className="section-container relative" 
           aria-labelledby="exchange-heading"
         >
+          {/* Background gradient accents */}
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
+            <div className="absolute top-0 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-[100px] animate-float" />
+            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-[80px] animate-float" style={{ animationDelay: '2s' }} />
+          </div>
+
           <div className="max-w-6xl mx-auto">
-            {/* Minimal Title */}
-            <div className="text-center mb-8">
-              <h1 id="exchange-heading" className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-2 tracking-tight">
-                Multi-Chain DEX Swap
+            {/* Premium Title Section */}
+            <div className="text-center mb-10 sm:mb-12">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/30 text-sm text-primary mb-6 animate-fade-in">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-full w-full bg-green-500"></span>
+                </span>
+                <span className="font-medium">Live Trading</span>
+              </div>
+              
+              <h1 id="exchange-heading" className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 tracking-tight animate-fade-in-up">
+                <span className="bg-gradient-to-r from-foreground via-foreground/90 to-muted-foreground bg-clip-text text-transparent">
+                  Multi-Chain
+                </span>
+                <br className="sm:hidden" />
+                <span className="bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent"> DEX Swap</span>
               </h1>
-              <p className="text-muted-foreground text-sm sm:text-base">
-                Best rates from 400+ DEXs across 25+ blockchains
+              <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                Best rates from 400+ DEXs across 25+ blockchains. <span className="text-foreground font-medium">Zero registration.</span>
               </p>
             </div>
 
-            {/* Exchange Widget - Main Focus */}
-            <div id="exchange-widget" ref={widgetRef} className="max-w-2xl mx-auto mb-12">
+            {/* Exchange Widget - Main Focus with glow */}
+            <div id="exchange-widget" ref={widgetRef} className="max-w-2xl mx-auto mb-12 relative">
+              {/* Subtle glow behind widget */}
+              <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-transparent to-transparent rounded-3xl blur-2xl" />
               <ExchangeWidget />
             </div>
 
