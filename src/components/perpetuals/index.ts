@@ -5,6 +5,8 @@ export { ChartDrawingTools, useChartDrawings } from './ChartDrawingTools';
 export type { DrawingTool, Drawing } from './ChartDrawingTools';
 export { ChartOscillators } from './ChartOscillators';
 export { ChartDrawingCanvas } from './ChartDrawingCanvas';
+export { IndicatorPresets } from './IndicatorPresets';
+export type { PresetType } from './IndicatorPresets';
 export { HyperliquidOrderbook } from './HyperliquidOrderbook';
 export { HyperliquidPriceChart } from './HyperliquidPriceChart';
 export { FundingRateChart } from './FundingRateChart';
