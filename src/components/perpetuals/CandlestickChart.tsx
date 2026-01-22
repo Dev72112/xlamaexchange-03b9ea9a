@@ -15,6 +15,7 @@ import { cn, resolveColor } from '@/lib/utils';
 import { hyperliquidService } from '@/services/hyperliquid';
 import { ChartIndicators, IndicatorSettings, DEFAULT_INDICATOR_SETTINGS } from './ChartIndicators';
 import { ChartDrawingTools, DrawingTool, useChartDrawings } from './ChartDrawingTools';
+import { ChartDrawingCanvas } from './ChartDrawingCanvas';
 import { ChartOscillators } from './ChartOscillators';
 import { 
   calculateSMA, 
@@ -182,12 +183,23 @@ export const CandlestickChart = memo(function CandlestickChart({
   
   // Drawing tools
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
-  const { drawings, clearDrawings } = useChartDrawings(coin);
+  const { drawings, addDrawing, clearDrawings } = useChartDrawings(coin);
+  
+  // Chart dimensions for drawing canvas
+  const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 400 });
+  
+  // Crosshair sync state
+  const [syncedCrosshairTime, setSyncedCrosshairTime] = useState<Time | null>(null);
   
   // Save indicator settings
   const handleIndicatorChange = useCallback((settings: IndicatorSettings) => {
     setIndicatorSettings(settings);
     localStorage.setItem('xlama-chart-indicators', JSON.stringify(settings));
+  }, []);
+  
+  // Handle crosshair move from oscillator panes
+  const handleOscillatorCrosshairMove = useCallback((time: Time | null) => {
+    setSyncedCrosshairTime(time);
   }, []);
 
   // Initialize chart
@@ -308,15 +320,21 @@ export const CandlestickChart = memo(function CandlestickChart({
             changePercent,
           });
         }
+        // Sync crosshair time to oscillators
+        setSyncedCrosshairTime(param.time);
+      } else {
+        setSyncedCrosshairTime(null);
       }
     });
     
     const handleResize = () => {
       if (containerRef.current) {
+        const width = containerRef.current.clientWidth;
         chart.applyOptions({
-          width: containerRef.current.clientWidth,
+          width,
           height: 400,
         });
+        setChartDimensions({ width, height: 400 });
       }
     };
     
@@ -517,10 +535,50 @@ export const CandlestickChart = memo(function CandlestickChart({
     if (indicatorSettings.sma.enabled) active.push(`SMA(${indicatorSettings.sma.period})`);
     if (indicatorSettings.ema.enabled) active.push(`EMA(${indicatorSettings.ema.period})`);
     if (indicatorSettings.rsi.enabled) active.push('RSI');
+    if (indicatorSettings.stochRSI.enabled) active.push('Stoch RSI');
     if (indicatorSettings.macd.enabled) active.push('MACD');
+    if (indicatorSettings.atr.enabled) active.push('ATR');
     if (indicatorSettings.bollingerBands.enabled) active.push('BB');
     return active;
   }, [indicatorSettings]);
+  
+  // Coordinate conversion functions for drawing canvas
+  const getCoordinateFunctions = useCallback(() => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    
+    if (!chart || !series) {
+      return {
+        priceToY: () => 0,
+        yToPrice: () => 0,
+        timeToX: () => 0,
+        xToTime: () => 0,
+      };
+    }
+    
+    const timeScale = chart.timeScale();
+    
+    return {
+      priceToY: (price: number) => {
+        const y = series.priceToCoordinate(price);
+        return y ?? 0;
+      },
+      yToPrice: (y: number) => {
+        const price = series.coordinateToPrice(y);
+        return price ?? 0;
+      },
+      timeToX: (time: number) => {
+        const x = timeScale.timeToCoordinate(time as Time);
+        return x ?? 0;
+      },
+      xToTime: (x: number) => {
+        const time = timeScale.coordinateToTime(x);
+        return (time as number) ?? 0;
+      },
+    };
+  }, []);
+  
+  const coordFuncs = getCoordinateFunctions();
 
   return (
     <Card className={cn("glass border-border/50", className)}>
@@ -643,13 +701,32 @@ export const CandlestickChart = memo(function CandlestickChart({
       
       <CardContent className="relative">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         )}
-        <div ref={containerRef} className="w-full h-[400px]" />
         
-        {/* RSI and MACD Oscillator Panes */}
+        {/* Chart container with drawing canvas overlay */}
+        <div className="relative">
+          <div ref={containerRef} className="w-full h-[400px]" />
+          
+          {/* Drawing Canvas Overlay */}
+          {chartDimensions.width > 0 && (
+            <ChartDrawingCanvas
+              width={chartDimensions.width}
+              height={chartDimensions.height}
+              activeTool={activeTool}
+              drawings={drawings}
+              onAddDrawing={addDrawing}
+              priceToY={coordFuncs.priceToY}
+              yToPrice={coordFuncs.yToPrice}
+              timeToX={coordFuncs.timeToX}
+              xToTime={coordFuncs.xToTime}
+            />
+          )}
+        </div>
+        
+        {/* RSI, Stoch RSI, MACD, ATR Oscillator Panes */}
         <ChartOscillators
           candleData={candleData.map(c => ({
             time: c.time as number,
@@ -660,10 +737,18 @@ export const CandlestickChart = memo(function CandlestickChart({
           }))}
           showRSI={indicatorSettings.rsi.enabled}
           showMACD={indicatorSettings.macd.enabled}
+          showStochRSI={indicatorSettings.stochRSI.enabled}
+          showATR={indicatorSettings.atr.enabled}
           rsiPeriod={indicatorSettings.rsi.period}
           macdFast={indicatorSettings.macd.fastPeriod}
           macdSlow={indicatorSettings.macd.slowPeriod}
           macdSignal={indicatorSettings.macd.signalPeriod}
+          stochRsiPeriod={indicatorSettings.stochRSI.rsiPeriod}
+          stochKSmoothing={indicatorSettings.stochRSI.kSmoothing}
+          stochDSmoothing={indicatorSettings.stochRSI.dSmoothing}
+          atrPeriod={indicatorSettings.atr.period}
+          onCrosshairMove={handleOscillatorCrosshairMove}
+          syncedCrosshairTime={syncedCrosshairTime}
         />
       </CardContent>
     </Card>
