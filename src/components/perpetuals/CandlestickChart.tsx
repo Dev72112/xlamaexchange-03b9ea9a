@@ -14,7 +14,8 @@ import { Loader2, BarChart3, RefreshCw } from 'lucide-react';
 import { cn, resolveColor } from '@/lib/utils';
 import { hyperliquidService } from '@/services/hyperliquid';
 import { ChartIndicators, IndicatorSettings, DEFAULT_INDICATOR_SETTINGS } from './ChartIndicators';
-import { ChartDrawingTools, DrawingTool, useChartDrawings } from './ChartDrawingTools';
+import { ChartDrawingTools, DrawingTool, useChartDrawings, Drawing } from './ChartDrawingTools';
+import { DrawingsListPanel } from './DrawingsListPanel';
 import { ChartDrawingCanvas } from './ChartDrawingCanvas';
 import { ChartOscillators } from './ChartOscillators';
 import { IndicatorPresets } from './IndicatorPresets';
@@ -191,12 +192,16 @@ export const CandlestickChart = memo(function CandlestickChart({
     addDrawing, 
     removeDrawing,
     updateDrawing,
+    updateDrawingPoints,
     clearDrawings,
     deleteSelected,
   } = useChartDrawings(coin);
   
   // Chart dimensions for drawing canvas
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 400 });
+  
+  // Version counter to force canvas redraw on chart scroll/zoom
+  const [chartViewVersion, setChartViewVersion] = useState(0);
   
   // Crosshair sync state
   const [syncedCrosshairTime, setSyncedCrosshairTime] = useState<Time | null>(null);
@@ -335,6 +340,11 @@ export const CandlestickChart = memo(function CandlestickChart({
       } else {
         setSyncedCrosshairTime(null);
       }
+    });
+    
+    // Subscribe to visible range changes to update drawing positions
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+      setChartViewVersion(v => v + 1);
     });
     
     const handleResize = () => {
@@ -508,7 +518,7 @@ export const CandlestickChart = memo(function CandlestickChart({
     fetchCandleData(false);
   }, [coin, timeframe]);
 
-  // Update last candle with real-time price
+  // Update last candle with real-time price OR create new candle when time boundary crossed
   useEffect(() => {
     if (!candleSeriesRef.current || !currentPrice || isLoading || candleData.length === 0) return;
     
@@ -519,13 +529,35 @@ export const CandlestickChart = memo(function CandlestickChart({
     const lastCandle = candleData[candleData.length - 1];
     if (!lastCandle) return;
     
-    candleSeriesRef.current.update({
-      time: lastCandle.time,
-      open: lastCandle.open,
-      high: Math.max(lastCandle.high, currentPrice),
-      low: Math.min(lastCandle.low, currentPrice),
-      close: currentPrice,
-    });
+    const intervalMs = getIntervalMs(timeframe);
+    const lastCandleTimeMs = (lastCandle.time as number) * 1000;
+    const currentCandleStartMs = Math.floor(now / intervalMs) * intervalMs;
+    
+    // Check if we need to start a new candle
+    if (currentCandleStartMs > lastCandleTimeMs) {
+      // New candle period - create new candle and remove oldest if at limit
+      const newCandle: CandlestickData = {
+        time: Math.floor(currentCandleStartMs / 1000) as Time,
+        open: currentPrice,
+        high: currentPrice,
+        low: currentPrice,
+        close: currentPrice,
+      };
+      
+      const maxCandles = getCandleCount(timeframe);
+      const updatedData = [...candleData, newCandle].slice(-maxCandles);
+      setCandleData(updatedData);
+      candleSeriesRef.current.setData(updatedData);
+    } else {
+      // Update current candle
+      candleSeriesRef.current.update({
+        time: lastCandle.time,
+        open: lastCandle.open,
+        high: Math.max(lastCandle.high, currentPrice),
+        low: Math.min(lastCandle.low, currentPrice),
+        close: currentPrice,
+      });
+    }
     
     const change = currentPrice - lastCandle.open;
     const changePercent = (change / lastCandle.open) * 100;
@@ -537,7 +569,7 @@ export const CandlestickChart = memo(function CandlestickChart({
       change,
       changePercent,
     }));
-  }, [currentPrice, isLoading, candleData]);
+  }, [currentPrice, isLoading, candleData, timeframe]);
 
   // Active indicators summary for badge
   const activeIndicators = useMemo(() => {
@@ -688,6 +720,16 @@ export const CandlestickChart = memo(function CandlestickChart({
             onClearDrawings={clearDrawings}
           />
           
+          {/* Drawings List Panel */}
+          <DrawingsListPanel
+            drawings={drawings}
+            selectedDrawingId={selectedDrawingId}
+            onSelectDrawing={setSelectedDrawingId}
+            onUpdateDrawing={updateDrawing}
+            onRemoveDrawing={removeDrawing}
+            onClearDrawings={clearDrawings}
+          />
+          
           {/* History label & refresh */}
           <Badge variant="secondary" className="text-[10px] font-normal ml-auto">
             {getHistoryLabel(timeframe)} history
@@ -731,13 +773,14 @@ export const CandlestickChart = memo(function CandlestickChart({
           {/* Drawing Canvas Overlay */}
           {chartDimensions.width > 0 && (
             <ChartDrawingCanvas
+              key={chartViewVersion}
               width={chartDimensions.width}
               height={chartDimensions.height}
               activeTool={activeTool}
-              drawings={drawings}
+              drawings={drawings.filter(d => d.visible !== false)}
               onAddDrawing={addDrawing}
               onRemoveDrawing={removeDrawing}
-              onUpdateDrawing={updateDrawing}
+              onUpdateDrawing={updateDrawingPoints}
               selectedDrawingId={selectedDrawingId}
               onSelectDrawing={setSelectedDrawingId}
               priceToY={coordFuncs.priceToY}

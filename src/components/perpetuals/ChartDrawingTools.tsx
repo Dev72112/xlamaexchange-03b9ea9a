@@ -31,12 +31,21 @@ import { cn } from '@/lib/utils';
 
 export type DrawingTool = 'none' | 'trendline' | 'horizontal' | 'fibonacci' | 'ray';
 
+export interface DrawingStyle {
+  color: string;
+  lineWidth: number;
+  dashPattern: 'solid' | 'dashed' | 'dotted';
+}
+
 export interface Drawing {
   id: string;
   type: DrawingTool;
   points: { time: number; price: number }[];
   color: string;
   timestamp: number;
+  name?: string;
+  visible?: boolean;
+  style?: DrawingStyle;
 }
 
 interface ChartDrawingToolsProps {
@@ -208,7 +217,9 @@ export function useChartDrawings(coin: string) {
   const [drawings, setDrawings] = useState<Drawing[]>(() => {
     try {
       const saved = localStorage.getItem(storageKey);
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      // Ensure all drawings have visibility property
+      return parsed.map((d: Drawing) => ({ ...d, visible: d.visible !== false }));
     } catch {
       return [];
     }
@@ -221,6 +232,7 @@ export function useChartDrawings(coin: string) {
       ...drawing,
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       timestamp: Date.now(),
+      visible: true,
     };
     
     setDrawings(prev => {
@@ -242,9 +254,19 @@ export function useChartDrawings(coin: string) {
     }
   }, [storageKey, selectedDrawingId]);
   
-  const updateDrawing = useCallback((id: string, points: { time: number; price: number }[]) => {
+  // Update drawing points only
+  const updateDrawingPoints = useCallback((id: string, points: { time: number; price: number }[]) => {
     setDrawings(prev => {
       const updated = prev.map(d => d.id === id ? { ...d, points } : d);
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
+  }, [storageKey]);
+  
+  // Update any drawing property (for list panel - visibility, name, style, color)
+  const updateDrawing = useCallback((id: string, updates: Partial<Drawing>) => {
+    setDrawings(prev => {
+      const updated = prev.map(d => d.id === id ? { ...d, ...updates } : d);
       localStorage.setItem(storageKey, JSON.stringify(updated));
       return updated;
     });
@@ -269,6 +291,7 @@ export function useChartDrawings(coin: string) {
     addDrawing,
     removeDrawing,
     updateDrawing,
+    updateDrawingPoints,
     clearDrawings,
     deleteSelected,
   };
