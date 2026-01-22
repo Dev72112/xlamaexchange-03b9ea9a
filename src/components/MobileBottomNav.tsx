@@ -1,5 +1,6 @@
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeftRight, 
   Compass, 
@@ -17,18 +18,13 @@ import {
   FileText,
   HelpCircle,
   MessageSquare,
-  Home
+  Home,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useTheme } from "@/components/ThemeProvider";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import xlamaMascot from "@/assets/xlama-mascot.png";
@@ -48,6 +44,7 @@ const moreItems = [
   { path: "/tools", icon: Wrench, label: "Tools" },
   { path: "/docs", icon: FileText, label: "Docs" },
   { path: "/faq", icon: HelpCircle, label: "FAQ" },
+  { path: "/feedback", icon: MessageSquare, label: "Feedback" },
 ];
 
 export const MobileBottomNav = memo(function MobileBottomNav() {
@@ -55,154 +52,145 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
   const { trigger } = useHapticFeedback();
   const { theme, setTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
-  const handleNavClick = () => {
+  const handleNavClick = useCallback(() => {
     trigger('light');
-  };
+    setIsExpanded(false);
+    setShowMore(false);
+  }, [trigger]);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setTheme(theme === "dark" ? "light" : "dark");
     trigger('light');
-  };
+  }, [theme, setTheme, trigger]);
+
+  const toggleExpand = useCallback(() => {
+    trigger('light');
+    setIsExpanded(prev => !prev);
+    if (isExpanded) setShowMore(false);
+  }, [isExpanded, trigger]);
 
   const isMoreActive = moreItems.some(item => location.pathname === item.path);
 
   return (
     <>
-      {/* Top utility bar for mobile - replaces header */}
+      {/* Top utility bar for mobile */}
       <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur border-b border-border/40 px-3 py-2">
         <div className="flex items-center justify-between">
-          {/* Logo */}
           <div className="flex items-center gap-2">
-            <img 
-              src={xlamaMascot} 
-              alt="xLama" 
-              className="w-7 h-7 rounded-lg object-cover"
-            />
+            <img src={xlamaMascot} alt="xLama" className="w-7 h-7 rounded-lg object-cover" />
             <span className="font-semibold text-sm">xLama</span>
           </div>
-
-          {/* Right actions */}
           <div className="flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setSearchOpen(true);
-                trigger('light');
-              }}
-              className="h-8 w-8"
-            >
+            <Button variant="ghost" size="icon" onClick={() => { setSearchOpen(true); trigger('light'); }} className="h-8 w-8">
               <Search className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8">
               <Bell className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="h-8 w-8"
-            >
+            <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Spacer for fixed top bar */}
       <div className="h-[48px] md:hidden" />
 
-      {/* Bottom Navigation */}
-      <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass border-t border-border/50 safe-area-bottom"
-        role="navigation"
-        aria-label="Mobile navigation"
-      >
-        <div className="grid grid-cols-6 gap-1 px-1 py-2">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
-            
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={handleNavClick}
-                className={cn(
-                  "flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200",
-                  "touch-target min-h-[56px]",
-                  isActive 
-                    ? "text-primary bg-primary/10 glow-sm" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <Icon 
-                  className={cn(
-                    "w-5 h-5 mb-1 transition-transform duration-200",
-                    isActive && "scale-110"
-                  )} 
-                />
-                <span className={cn(
-                  "text-[10px] font-medium leading-tight truncate max-w-full",
-                  isActive && "text-primary"
-                )}>
-                  {item.label}
-                </span>
-                {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-primary animate-pulse" />
-                )}
-              </NavLink>
-            );
-          })}
-          
-          {/* More menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                onClick={handleNavClick}
-                className={cn(
-                  "flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200",
-                  "touch-target min-h-[56px]",
-                  isMoreActive 
-                    ? "text-primary bg-primary/10" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-              >
-                <MoreHorizontal className="w-5 h-5 mb-1" />
-                <span className="text-[10px] font-medium leading-tight">More</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 mb-2">
-              {moreItems.map((item) => {
+      {/* Backdrop */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+            onClick={() => { setIsExpanded(false); setShowMore(false); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Collapsed pill */}
+      <AnimatePresence>
+        {!isExpanded && (
+          <motion.button
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            onClick={toggleExpand}
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 md:hidden flex items-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 border border-primary/20 active:scale-95 transition-transform"
+          >
+            <ChevronUp className="w-4 h-4" />
+            <span className="text-sm font-medium">Menu</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Expanded nav */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.nav
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-lg border-t border-border/50 pb-[env(safe-area-inset-bottom)]"
+          >
+            {/* More menu */}
+            <AnimatePresence>
+              {showMore && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-b border-border/50">
+                  <div className="grid grid-cols-4 gap-1 p-2">
+                    {moreItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = location.pathname === item.path;
+                      return (
+                        <NavLink key={item.path} to={item.path} onClick={handleNavClick} className={cn("flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-all", isActive ? "bg-primary/10 text-primary" : "text-muted-foreground active:bg-muted")}>
+                          <Icon className="w-5 h-5" />
+                          <span className="text-[10px] font-medium">{item.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Primary nav */}
+            <div className="flex items-center justify-around px-2 py-2">
+              {navItems.map((item) => {
                 const Icon = item.icon;
+                const isActive = location.pathname === item.path;
                 return (
-                  <DropdownMenuItem key={item.path} asChild>
-                    <NavLink to={item.path} className="flex items-center gap-2 cursor-pointer">
-                      <Icon className="h-4 w-4" />
-                      {item.label}
-                    </NavLink>
-                  </DropdownMenuItem>
+                  <NavLink key={item.path} to={item.path} onClick={handleNavClick} className={cn("flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg min-w-[56px] transition-all", isActive ? "text-primary" : "text-muted-foreground active:text-foreground")}>
+                    <div className="relative">
+                      <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
+                      {isActive && <motion.div layoutId="nav-indicator-mobile" className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />}
+                    </div>
+                    <span className={cn("text-[10px] font-medium", isActive && "text-primary")}>{item.label}</span>
+                  </NavLink>
                 );
               })}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <NavLink to="/feedback" className="flex items-center gap-2 cursor-pointer">
-                  <MessageSquare className="h-4 w-4" />
-                  Feedback
-                </NavLink>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </nav>
+              <button onClick={() => { trigger('light'); setShowMore(prev => !prev); }} className={cn("flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg min-w-[56px] transition-all", showMore || isMoreActive ? "text-primary" : "text-muted-foreground active:text-foreground")}>
+                <MoreHorizontal className="w-5 h-5" />
+                <span className="text-[10px] font-medium">More</span>
+              </button>
+            </div>
 
-      {/* Global Search */}
+            {/* Collapse */}
+            <div className="flex justify-center pb-2">
+              <button onClick={toggleExpand} className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-muted-foreground text-xs bg-muted/50 active:bg-muted transition-colors">
+                <ChevronDown className="w-3.5 h-3.5" />
+                <span>Close Menu</span>
+              </button>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
+
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );

@@ -15,6 +15,7 @@ import { cn, resolveColor } from '@/lib/utils';
 import { hyperliquidService } from '@/services/hyperliquid';
 import { ChartIndicators, IndicatorSettings, DEFAULT_INDICATOR_SETTINGS } from './ChartIndicators';
 import { ChartDrawingTools, DrawingTool, useChartDrawings } from './ChartDrawingTools';
+import { ChartOscillators } from './ChartOscillators';
 import { 
   calculateSMA, 
   calculateEMA, 
@@ -647,6 +648,23 @@ export const CandlestickChart = memo(function CandlestickChart({
           </div>
         )}
         <div ref={containerRef} className="w-full h-[400px]" />
+        
+        {/* RSI and MACD Oscillator Panes */}
+        <ChartOscillators
+          candleData={candleData.map(c => ({
+            time: c.time as number,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+          }))}
+          showRSI={indicatorSettings.rsi.enabled}
+          showMACD={indicatorSettings.macd.enabled}
+          rsiPeriod={indicatorSettings.rsi.period}
+          macdFast={indicatorSettings.macd.fastPeriod}
+          macdSlow={indicatorSettings.macd.slowPeriod}
+          macdSignal={indicatorSettings.macd.signalPeriod}
+        />
       </CardContent>
     </Card>
   );
