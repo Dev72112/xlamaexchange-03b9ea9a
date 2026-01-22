@@ -416,3 +416,96 @@ export function calculateATR(data: OHLCData[], period: number = 14): (number | n
   
   return result;
 }
+
+// Stochastic RSI - combines RSI with Stochastic oscillator
+export interface StochRSIResult {
+  k: (number | null)[];  // %K line (fast)
+  d: (number | null)[];  // %D line (slow, smoothed %K)
+}
+
+export function calculateStochRSI(
+  data: OHLCData[],
+  rsiPeriod: number = 14,
+  stochPeriod: number = 14,
+  kSmoothing: number = 3,
+  dSmoothing: number = 3
+): StochRSIResult {
+  // First calculate RSI
+  const rsiValues = calculateRSI(data, rsiPeriod);
+  
+  const stochRSI: (number | null)[] = [];
+  
+  // Apply Stochastic formula to RSI values
+  for (let i = 0; i < rsiValues.length; i++) {
+    if (i < rsiPeriod + stochPeriod - 2 || rsiValues[i] === null) {
+      stochRSI.push(null);
+      continue;
+    }
+    
+    // Get RSI values for the stochastic period
+    const rsiSlice: number[] = [];
+    for (let j = i - stochPeriod + 1; j <= i; j++) {
+      if (rsiValues[j] !== null) {
+        rsiSlice.push(rsiValues[j]!);
+      }
+    }
+    
+    if (rsiSlice.length < stochPeriod) {
+      stochRSI.push(null);
+      continue;
+    }
+    
+    const minRSI = Math.min(...rsiSlice);
+    const maxRSI = Math.max(...rsiSlice);
+    const range = maxRSI - minRSI;
+    
+    if (range === 0) {
+      stochRSI.push(50); // Midpoint when no range
+    } else {
+      const currentRSI = rsiValues[i]!;
+      stochRSI.push(((currentRSI - minRSI) / range) * 100);
+    }
+  }
+  
+  // Smooth %K with SMA
+  const kLine: (number | null)[] = [];
+  for (let i = 0; i < stochRSI.length; i++) {
+    if (i < kSmoothing - 1 || stochRSI[i] === null) {
+      kLine.push(null);
+      continue;
+    }
+    
+    let sum = 0;
+    let count = 0;
+    for (let j = i - kSmoothing + 1; j <= i; j++) {
+      if (stochRSI[j] !== null) {
+        sum += stochRSI[j]!;
+        count++;
+      }
+    }
+    
+    kLine.push(count > 0 ? sum / count : null);
+  }
+  
+  // Smooth %K to get %D with SMA
+  const dLine: (number | null)[] = [];
+  for (let i = 0; i < kLine.length; i++) {
+    if (i < dSmoothing - 1 || kLine[i] === null) {
+      dLine.push(null);
+      continue;
+    }
+    
+    let sum = 0;
+    let count = 0;
+    for (let j = i - dSmoothing + 1; j <= i; j++) {
+      if (kLine[j] !== null) {
+        sum += kLine[j]!;
+        count++;
+      }
+    }
+    
+    dLine.push(count > 0 ? sum / count : null);
+  }
+  
+  return { k: kLine, d: dLine };
+}

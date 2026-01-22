@@ -24,6 +24,8 @@ export interface IndicatorSettings {
   rsi: { enabled: boolean; period: number };
   macd: { enabled: boolean; fastPeriod: number; slowPeriod: number; signalPeriod: number };
   bollingerBands: { enabled: boolean; period: number; stdDev: number };
+  stochRSI: { enabled: boolean; rsiPeriod: number; stochPeriod: number; kSmoothing: number; dSmoothing: number };
+  atr: { enabled: boolean; period: number };
 }
 
 export const DEFAULT_INDICATOR_SETTINGS: IndicatorSettings = {
@@ -32,6 +34,8 @@ export const DEFAULT_INDICATOR_SETTINGS: IndicatorSettings = {
   rsi: { enabled: false, period: 14 },
   macd: { enabled: false, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
   bollingerBands: { enabled: false, period: 20, stdDev: 2 },
+  stochRSI: { enabled: false, rsiPeriod: 14, stochPeriod: 14, kSmoothing: 3, dSmoothing: 3 },
+  atr: { enabled: false, period: 14 },
 };
 
 interface ChartIndicatorsProps {
@@ -165,6 +169,21 @@ export const ChartIndicators = memo(function ChartIndicators({
               </div>
             </div>
             
+            {/* Stochastic RSI */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="stochRsi" className="text-sm">Stoch RSI</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {settings.stochRSI.rsiPeriod}/{settings.stochRSI.stochPeriod}
+                </span>
+                <Switch
+                  id="stochRsi"
+                  checked={settings.stochRSI.enabled}
+                  onCheckedChange={(enabled) => updateIndicator('stochRSI', { enabled })}
+                />
+              </div>
+            </div>
+            
             {/* MACD */}
             <div className="flex items-center justify-between">
               <Label htmlFor="macd" className="text-sm">MACD</Label>
@@ -176,6 +195,26 @@ export const ChartIndicators = memo(function ChartIndicators({
                   id="macd"
                   checked={settings.macd.enabled}
                   onCheckedChange={(enabled) => updateIndicator('macd', { enabled })}
+                />
+              </div>
+            </div>
+            
+            {/* ATR */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="atr" className="text-sm">ATR</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={settings.atr.period}
+                  onChange={(e) => updateIndicator('atr', { period: parseInt(e.target.value) || 14 })}
+                  className="w-14 h-6 text-xs"
+                  min={1}
+                  max={100}
+                />
+                <Switch
+                  id="atr"
+                  checked={settings.atr.enabled}
+                  onCheckedChange={(enabled) => updateIndicator('atr', { enabled })}
                 />
               </div>
             </div>
