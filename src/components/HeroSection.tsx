@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight, ExternalLink, Shield, Zap, Globe, Coins, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
@@ -28,6 +29,8 @@ const features = [
 ];
 
 export const HeroSection = memo(function HeroSection() {
+  const navigate = useNavigate();
+  
   return (
     <section className="relative overflow-hidden py-16 sm:py-24 lg:py-32">
       {/* Premium Animated Background with Dynamic Gradients */}
@@ -142,7 +145,7 @@ export const HeroSection = memo(function HeroSection() {
             <Button 
               size="lg" 
               className="group relative text-base sm:text-lg px-8 sm:px-10 py-6 sm:py-7 press-effect w-full sm:w-auto bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/90 hover:via-primary/80 hover:to-primary/70 shadow-xl shadow-primary/30 border-0 overflow-hidden transition-all duration-300"
-              onClick={() => document.getElementById('exchange-widget')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => navigate('/swap')}
             >
               {/* Sweep effect overlay */}
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />

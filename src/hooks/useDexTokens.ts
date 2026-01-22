@@ -113,9 +113,12 @@ export function useDexTokens(chain: Chain | null) {
     return Array.from(seen.values());
   }, [rawTokens]);
 
-  // Get native token for the chain
+  // Get native token for the chain - use proper Solana native address
+  const SOLANA_NATIVE_SOL = 'So11111111111111111111111111111111111111112';
   const nativeToken: OkxToken | null = chain ? {
-    tokenContractAddress: NATIVE_TOKEN_ADDRESS,
+    tokenContractAddress: chain.chainIndex === '501' 
+      ? SOLANA_NATIVE_SOL // Wrapped SOL for Solana 
+      : NATIVE_TOKEN_ADDRESS, // EVM native token
     tokenSymbol: chain.nativeCurrency.symbol,
     tokenName: chain.nativeCurrency.name,
     decimals: chain.nativeCurrency.decimals.toString(),
