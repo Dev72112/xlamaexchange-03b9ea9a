@@ -14,7 +14,6 @@ export interface RouteConfig {
 
 // Lazy load all pages for code splitting
 const Index = lazy(() => import('@/pages/Index'));
-const Landing = lazy(() => import('@/pages/Landing'));
 const Bridge = lazy(() => import('@/pages/Bridge'));
 const Orders = lazy(() => import('@/pages/Orders'));
 const Tools = lazy(() => import('@/pages/Tools'));
@@ -40,7 +39,6 @@ const NotFound = lazy(() => import('@/pages/NotFound'));
  */
 export const primaryRoutes: RouteConfig[] = [
   { path: '/', element: Index, preload: true, label: 'Swap', showInNav: true },
-  { path: '/landing', element: Landing, label: 'Learn', showInNav: false },
   { path: '/bridge', element: Bridge, preload: true, label: 'Bridge', showInNav: true },
   { path: '/perpetuals', element: Perpetuals, label: 'Perpetuals', showInNav: true },
   { path: '/orders', element: Orders, label: 'Orders', showInNav: true },
