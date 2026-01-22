@@ -2,9 +2,10 @@
  * Chart Drawing Tools
  * 
  * Provides tools for drawing on the chart: trendlines, horizontal lines, Fibonacci
+ * with selection, move, and delete functionality
  */
 
-import { memo, useState } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -42,12 +43,14 @@ interface ChartDrawingToolsProps {
   activeTool: DrawingTool;
   onToolChange: (tool: DrawingTool) => void;
   drawings: Drawing[];
+  selectedDrawingId: string | null;
+  onDeleteSelected: () => void;
   onClearDrawings: () => void;
   className?: string;
 }
 
 const tools: { id: DrawingTool; icon: typeof Pencil; label: string; description: string }[] = [
-  { id: 'none', icon: MousePointer, label: 'Select', description: 'Default cursor mode' },
+  { id: 'none', icon: MousePointer, label: 'Select', description: 'Select and edit drawings' },
   { id: 'trendline', icon: TrendingUp, label: 'Trendline', description: 'Draw diagonal trendlines' },
   { id: 'horizontal', icon: Minus, label: 'Horizontal', description: 'Draw horizontal support/resistance' },
   { id: 'ray', icon: GitBranch, label: 'Ray', description: 'Draw infinite ray from point' },
@@ -58,6 +61,8 @@ export const ChartDrawingTools = memo(function ChartDrawingTools({
   activeTool,
   onToolChange,
   drawings,
+  selectedDrawingId,
+  onDeleteSelected,
   onClearDrawings,
   className,
 }: ChartDrawingToolsProps) {
@@ -65,6 +70,25 @@ export const ChartDrawingTools = memo(function ChartDrawingTools({
   
   const activeToolInfo = tools.find(t => t.id === activeTool);
   const hasDrawings = drawings.length > 0;
+  const hasSelection = selectedDrawingId !== null;
+
+  // Keyboard shortcut for delete
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (hasSelection && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) {
+          e.preventDefault();
+          onDeleteSelected();
+        }
+      }
+      if (e.key === 'Escape') {
+        onToolChange('none');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasSelection, onDeleteSelected, onToolChange]);
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
@@ -136,7 +160,7 @@ export const ChartDrawingTools = memo(function ChartDrawingTools({
         </PopoverContent>
       </Popover>
       
-      {/* Quick access buttons when a tool is active */}
+      {/* Quick access buttons when a tool is active or selection exists */}
       {activeTool !== 'none' && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -151,6 +175,25 @@ export const ChartDrawingTools = memo(function ChartDrawingTools({
           </TooltipTrigger>
           <TooltipContent>
             Exit drawing mode (ESC)
+          </TooltipContent>
+        </Tooltip>
+      )}
+      
+      {/* Delete selected button */}
+      {hasSelection && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={onDeleteSelected}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Delete selected (Del)
           </TooltipContent>
         </Tooltip>
       )}
@@ -171,34 +214,62 @@ export function useChartDrawings(coin: string) {
     }
   });
   
-  const addDrawing = (drawing: Omit<Drawing, 'id' | 'timestamp'>) => {
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+  
+  const addDrawing = useCallback((drawing: Omit<Drawing, 'id' | 'timestamp'>) => {
     const newDrawing: Drawing = {
       ...drawing,
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       timestamp: Date.now(),
     };
     
-    const updated = [...drawings, newDrawing];
-    setDrawings(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+    setDrawings(prev => {
+      const updated = [...prev, newDrawing];
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
     return newDrawing;
-  };
+  }, [storageKey]);
   
-  const removeDrawing = (id: string) => {
-    const updated = drawings.filter(d => d.id !== id);
-    setDrawings(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-  };
+  const removeDrawing = useCallback((id: string) => {
+    setDrawings(prev => {
+      const updated = prev.filter(d => d.id !== id);
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
+    if (selectedDrawingId === id) {
+      setSelectedDrawingId(null);
+    }
+  }, [storageKey, selectedDrawingId]);
   
-  const clearDrawings = () => {
+  const updateDrawing = useCallback((id: string, points: { time: number; price: number }[]) => {
+    setDrawings(prev => {
+      const updated = prev.map(d => d.id === id ? { ...d, points } : d);
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
+  }, [storageKey]);
+  
+  const clearDrawings = useCallback(() => {
     setDrawings([]);
+    setSelectedDrawingId(null);
     localStorage.removeItem(storageKey);
-  };
+  }, [storageKey]);
+  
+  const deleteSelected = useCallback(() => {
+    if (selectedDrawingId) {
+      removeDrawing(selectedDrawingId);
+    }
+  }, [selectedDrawingId, removeDrawing]);
   
   return {
     drawings,
+    selectedDrawingId,
+    setSelectedDrawingId,
     addDrawing,
     removeDrawing,
+    updateDrawing,
     clearDrawings,
+    deleteSelected,
   };
 }

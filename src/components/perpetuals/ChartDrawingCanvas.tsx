@@ -2,6 +2,7 @@
  * Chart Drawing Canvas
  * 
  * Canvas overlay for drawing trendlines, horizontal lines, Fibonacci retracements
+ * with selection, move, and delete functionality
  */
 
 import { memo, useRef, useEffect, useState, useCallback } from 'react';
@@ -19,6 +20,10 @@ interface ChartDrawingCanvasProps {
   activeTool: DrawingTool;
   drawings: Drawing[];
   onAddDrawing: (drawing: Omit<Drawing, 'id' | 'timestamp'>) => void;
+  onRemoveDrawing: (id: string) => void;
+  onUpdateDrawing: (id: string, points: { time: number; price: number }[]) => void;
+  selectedDrawingId: string | null;
+  onSelectDrawing: (id: string | null) => void;
   priceToY: (price: number) => number;
   yToPrice: (y: number) => number;
   timeToX: (time: number) => number;
@@ -28,6 +33,7 @@ interface ChartDrawingCanvasProps {
 
 const FIBONACCI_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 const FIBONACCI_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+const HIT_TOLERANCE = 8; // pixels
 
 // Get color based on tool type
 function getDrawingColor(type: DrawingTool): string {
@@ -40,12 +46,38 @@ function getDrawingColor(type: DrawingTool): string {
   }
 }
 
+// Check if point is near a line segment
+function distanceToLineSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lengthSquared = dx * dx + dy * dy;
+  
+  if (lengthSquared === 0) {
+    return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+  }
+  
+  let t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lengthSquared));
+  const nearestX = x1 + t * dx;
+  const nearestY = y1 + t * dy;
+  
+  return Math.sqrt((px - nearestX) ** 2 + (py - nearestY) ** 2);
+}
+
+// Check if point is near a horizontal line
+function distanceToHorizontalLine(py: number, lineY: number): number {
+  return Math.abs(py - lineY);
+}
+
 export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
   width,
   height,
   activeTool,
   drawings,
   onAddDrawing,
+  onRemoveDrawing,
+  onUpdateDrawing,
+  selectedDrawingId,
+  onSelectDrawing,
   priceToY,
   yToPrice,
   timeToX,
@@ -56,6 +88,95 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const [currentPoint, setCurrentPoint] = useState<Point | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPointIndex, setDragPointIndex] = useState<number | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
+
+  // Find drawing at position
+  const findDrawingAtPoint = useCallback((x: number, y: number): string | null => {
+    for (let i = drawings.length - 1; i >= 0; i--) {
+      const drawing = drawings[i];
+      
+      switch (drawing.type) {
+        case 'horizontal': {
+          const lineY = priceToY(drawing.points[0].price);
+          if (distanceToHorizontalLine(y, lineY) <= HIT_TOLERANCE) {
+            return drawing.id;
+          }
+          break;
+        }
+        
+        case 'trendline': {
+          if (drawing.points.length < 2) break;
+          const x1 = timeToX(drawing.points[0].time);
+          const y1 = priceToY(drawing.points[0].price);
+          const x2 = timeToX(drawing.points[1].time);
+          const y2 = priceToY(drawing.points[1].price);
+          
+          if (distanceToLineSegment(x, y, x1, y1, x2, y2) <= HIT_TOLERANCE) {
+            return drawing.id;
+          }
+          break;
+        }
+        
+        case 'ray': {
+          if (drawing.points.length < 2) break;
+          const x1 = timeToX(drawing.points[0].time);
+          const y1 = priceToY(drawing.points[0].price);
+          const x2 = timeToX(drawing.points[1].time);
+          const y2 = priceToY(drawing.points[1].price);
+          
+          // Extend ray to edge
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          let extendedX = x2;
+          let extendedY = y2;
+          
+          if (dx !== 0) {
+            const scale = (width - x1) / dx;
+            if (scale > 0) {
+              extendedX = x1 + dx * scale;
+              extendedY = y1 + dy * scale;
+            }
+          }
+          
+          if (distanceToLineSegment(x, y, x1, y1, extendedX, extendedY) <= HIT_TOLERANCE) {
+            return drawing.id;
+          }
+          break;
+        }
+        
+        case 'fibonacci': {
+          if (drawing.points.length < 2) break;
+          const startY = priceToY(drawing.points[0].price);
+          const endY = priceToY(drawing.points[1].price);
+          
+          // Check each Fibonacci level
+          for (const level of FIBONACCI_LEVELS) {
+            const levelY = startY + (endY - startY) * level;
+            if (distanceToHorizontalLine(y, levelY) <= HIT_TOLERANCE) {
+              return drawing.id;
+            }
+          }
+          break;
+        }
+      }
+    }
+    return null;
+  }, [drawings, priceToY, timeToX, width]);
+
+  // Find which control point is being clicked
+  const findControlPointAtPosition = useCallback((x: number, y: number, drawing: Drawing): number | null => {
+    for (let i = 0; i < drawing.points.length; i++) {
+      const px = timeToX(drawing.points[i].time);
+      const py = priceToY(drawing.points[i].price);
+      const dist = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
+      if (dist <= HIT_TOLERANCE) {
+        return i;
+      }
+    }
+    return null;
+  }, [timeToX, priceToY]);
 
   // Draw all saved drawings and active drawing
   const draw = useCallback(() => {
@@ -77,9 +198,12 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
     // Draw saved drawings
     drawings.forEach(drawing => {
       if (drawing.points.length < 1) return;
-
-      ctx.strokeStyle = drawing.color;
-      ctx.lineWidth = 1.5;
+      
+      const isSelected = drawing.id === selectedDrawingId;
+      const baseColor = drawing.color;
+      
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
       ctx.setLineDash([]);
 
       switch (drawing.type) {
@@ -92,13 +216,24 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
             ctx.stroke();
 
             // Price label
-            ctx.fillStyle = drawing.color;
+            ctx.fillStyle = baseColor;
             ctx.font = '10px Inter, sans-serif';
             const priceText = drawing.points[0].price.toLocaleString(undefined, { 
               minimumFractionDigits: 2,
               maximumFractionDigits: 2 
             });
             ctx.fillText(`$${priceText}`, width - 70, y - 4);
+            
+            // Control point when selected
+            if (isSelected) {
+              ctx.beginPath();
+              ctx.arc(width / 2, y, 5, 0, Math.PI * 2);
+              ctx.fillStyle = baseColor;
+              ctx.fill();
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
           }
           break;
         }
@@ -117,10 +252,21 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
 
           // Draw end points
           ctx.beginPath();
-          ctx.arc(x1, y1, 3, 0, Math.PI * 2);
-          ctx.arc(x2, y2, 3, 0, Math.PI * 2);
-          ctx.fillStyle = drawing.color;
+          ctx.arc(x1, y1, isSelected ? 5 : 3, 0, Math.PI * 2);
+          ctx.arc(x2, y2, isSelected ? 5 : 3, 0, Math.PI * 2);
+          ctx.fillStyle = baseColor;
           ctx.fill();
+          
+          if (isSelected) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x1, y1, 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(x2, y2, 5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
           break;
         }
 
@@ -152,9 +298,22 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
 
           // Draw origin point
           ctx.beginPath();
-          ctx.arc(x1, y1, 4, 0, Math.PI * 2);
-          ctx.fillStyle = drawing.color;
+          ctx.arc(x1, y1, isSelected ? 5 : 4, 0, Math.PI * 2);
+          ctx.fillStyle = baseColor;
           ctx.fill();
+          
+          if (isSelected) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Second control point
+            ctx.beginPath();
+            ctx.arc(x2, y2, 5, 0, Math.PI * 2);
+            ctx.fillStyle = baseColor;
+            ctx.fill();
+            ctx.stroke();
+          }
           break;
         }
 
@@ -171,7 +330,7 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
             if (y >= 0 && y <= height) {
               ctx.strokeStyle = FIBONACCI_COLORS[i];
               ctx.setLineDash([4, 2]);
-              ctx.lineWidth = 1;
+              ctx.lineWidth = isSelected ? 1.5 : 1;
               ctx.beginPath();
               ctx.moveTo(0, y);
               ctx.lineTo(width, y);
@@ -188,6 +347,26 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
               ctx.fillText(`${percentText}% - $${priceText}`, 8, y - 4);
             }
           });
+          
+          // Control points when selected
+          if (isSelected) {
+            const y1 = priceToY(drawing.points[0].price);
+            const y2 = priceToY(drawing.points[1].price);
+            ctx.setLineDash([]);
+            ctx.fillStyle = FIBONACCI_COLORS[0];
+            ctx.beginPath();
+            ctx.arc(50, y1, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = FIBONACCI_COLORS[6];
+            ctx.beginPath();
+            ctx.arc(50, y2, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
           ctx.setLineDash([]);
           break;
         }
@@ -251,12 +430,11 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
         }
 
         case 'fibonacci': {
-          const startPrice = yToPrice(startPoint.y);
-          const endPrice = yToPrice(currentPoint.y);
-          const priceDiff = endPrice - startPrice;
+          const startY = startPoint.y;
+          const endY = currentPoint.y;
 
           FIBONACCI_LEVELS.forEach((level, i) => {
-            const levelY = startPoint.y + (currentPoint.y - startPoint.y) * level;
+            const levelY = startY + (endY - startY) * level;
 
             if (levelY >= 0 && levelY <= height) {
               ctx.strokeStyle = FIBONACCI_COLORS[i];
@@ -273,7 +451,7 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
       }
       ctx.setLineDash([]);
     }
-  }, [width, height, drawings, activeTool, isDrawing, startPoint, currentPoint, priceToY, timeToX, yToPrice]);
+  }, [width, height, drawings, activeTool, isDrawing, startPoint, currentPoint, priceToY, timeToX, yToPrice, selectedDrawingId]);
 
   // Redraw on changes
   useEffect(() => {
@@ -282,44 +460,88 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
 
   // Mouse/touch handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (activeTool === 'none') return;
-
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // If no active tool, check for selection/dragging
+    if (activeTool === 'none') {
+      // Check if clicking on a selected drawing's control point
+      if (selectedDrawingId) {
+        const selectedDrawing = drawings.find(d => d.id === selectedDrawingId);
+        if (selectedDrawing) {
+          const pointIndex = findControlPointAtPosition(x, y, selectedDrawing);
+          if (pointIndex !== null) {
+            setIsDragging(true);
+            setDragPointIndex(pointIndex);
+            setDragStartPos({ x, y });
+            (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            return;
+          }
+        }
+      }
+      
+      // Otherwise, check for selection
+      const hitId = findDrawingAtPoint(x, y);
+      onSelectDrawing(hitId);
+      return;
+    }
+
+    // Drawing mode
     setIsDrawing(true);
     setStartPoint({ x, y });
     setCurrentPoint({ x, y });
+    onSelectDrawing(null);
     
     // Capture pointer for smooth drawing
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [activeTool]);
+  }, [activeTool, selectedDrawingId, drawings, findDrawingAtPoint, findControlPointAtPosition, onSelectDrawing]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDrawing || activeTool === 'none') return;
-
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // Handle dragging control point
+    if (isDragging && selectedDrawingId && dragPointIndex !== null) {
+      const selectedDrawing = drawings.find(d => d.id === selectedDrawingId);
+      if (selectedDrawing) {
+        const newPoints = [...selectedDrawing.points];
+        newPoints[dragPointIndex] = {
+          time: xToTime(x),
+          price: yToPrice(y),
+        };
+        onUpdateDrawing(selectedDrawingId, newPoints);
+      }
+      return;
+    }
+
+    if (!isDrawing || activeTool === 'none') return;
     setCurrentPoint({ x, y });
-  }, [isDrawing, activeTool]);
+  }, [isDrawing, activeTool, isDragging, selectedDrawingId, dragPointIndex, drawings, xToTime, yToPrice, onUpdateDrawing]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // Release pointer capture
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+
+    // Handle end of dragging
+    if (isDragging) {
+      setIsDragging(false);
+      setDragPointIndex(null);
+      setDragStartPos(null);
+      return;
+    }
+
     if (!isDrawing || !startPoint || !currentPoint || activeTool === 'none') {
       setIsDrawing(false);
       setStartPoint(null);
       setCurrentPoint(null);
       return;
     }
-
-    // Release pointer capture
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
 
     // Create drawing
     const points: { time: number; price: number }[] = [];
@@ -349,21 +571,32 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
     setIsDrawing(false);
     setStartPoint(null);
     setCurrentPoint(null);
-  }, [isDrawing, startPoint, currentPoint, activeTool, xToTime, yToPrice, onAddDrawing]);
+  }, [isDrawing, startPoint, currentPoint, activeTool, xToTime, yToPrice, onAddDrawing, isDragging]);
+
+  // Determine cursor style
+  const getCursorStyle = useCallback(() => {
+    if (activeTool !== 'none') return 'crosshair';
+    if (isDragging) return 'grabbing';
+    return 'default';
+  }, [activeTool, isDragging]);
+
+  // Only capture pointer events when drawing or selecting
+  const shouldCaptureEvents = activeTool !== 'none' || selectedDrawingId !== null;
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ width, height }}
-      className={cn(
-        "absolute inset-0 z-10",
-        activeTool !== 'none' && "cursor-crosshair",
-        className
-      )}
-      onPointerDown={activeTool !== 'none' ? handlePointerDown : undefined}
-      onPointerMove={activeTool !== 'none' ? handlePointerMove : undefined}
-      onPointerUp={activeTool !== 'none' ? handlePointerUp : undefined}
-      onPointerLeave={activeTool !== 'none' ? handlePointerUp : undefined}
+      style={{ 
+        width, 
+        height, 
+        cursor: getCursorStyle(),
+        pointerEvents: shouldCaptureEvents ? 'auto' : 'none',
+      }}
+      className={cn("absolute inset-0 z-10", className)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
     />
   );
 });

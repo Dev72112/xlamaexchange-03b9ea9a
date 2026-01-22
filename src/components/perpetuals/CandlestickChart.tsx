@@ -17,6 +17,7 @@ import { ChartIndicators, IndicatorSettings, DEFAULT_INDICATOR_SETTINGS } from '
 import { ChartDrawingTools, DrawingTool, useChartDrawings } from './ChartDrawingTools';
 import { ChartDrawingCanvas } from './ChartDrawingCanvas';
 import { ChartOscillators } from './ChartOscillators';
+import { IndicatorPresets } from './IndicatorPresets';
 import { 
   calculateSMA, 
   calculateEMA, 
@@ -183,7 +184,16 @@ export const CandlestickChart = memo(function CandlestickChart({
   
   // Drawing tools
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
-  const { drawings, addDrawing, clearDrawings } = useChartDrawings(coin);
+  const { 
+    drawings, 
+    selectedDrawingId, 
+    setSelectedDrawingId,
+    addDrawing, 
+    removeDrawing,
+    updateDrawing,
+    clearDrawings,
+    deleteSelected,
+  } = useChartDrawings(coin);
   
   // Chart dimensions for drawing canvas
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 400 });
@@ -656,6 +666,12 @@ export const CandlestickChart = memo(function CandlestickChart({
           
           <div className="h-4 w-px bg-border mx-1" />
           
+          {/* Indicator Presets */}
+          <IndicatorPresets
+            currentSettings={indicatorSettings}
+            onApplyPreset={handleIndicatorChange}
+          />
+          
           {/* Indicators */}
           <ChartIndicators
             settings={indicatorSettings}
@@ -667,6 +683,8 @@ export const CandlestickChart = memo(function CandlestickChart({
             activeTool={activeTool}
             onToolChange={setActiveTool}
             drawings={drawings}
+            selectedDrawingId={selectedDrawingId}
+            onDeleteSelected={deleteSelected}
             onClearDrawings={clearDrawings}
           />
           
@@ -718,6 +736,10 @@ export const CandlestickChart = memo(function CandlestickChart({
               activeTool={activeTool}
               drawings={drawings}
               onAddDrawing={addDrawing}
+              onRemoveDrawing={removeDrawing}
+              onUpdateDrawing={updateDrawing}
+              selectedDrawingId={selectedDrawingId}
+              onSelectDrawing={setSelectedDrawingId}
               priceToY={coordFuncs.priceToY}
               yToPrice={coordFuncs.yToPrice}
               timeToX={coordFuncs.timeToX}
