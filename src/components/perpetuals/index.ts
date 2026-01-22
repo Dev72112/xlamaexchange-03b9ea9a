@@ -3,6 +3,8 @@ export { ChartIndicators, DEFAULT_INDICATOR_SETTINGS } from './ChartIndicators';
 export type { IndicatorSettings } from './ChartIndicators';
 export { ChartDrawingTools, useChartDrawings } from './ChartDrawingTools';
 export type { DrawingTool, Drawing } from './ChartDrawingTools';
+export { ChartOscillators } from './ChartOscillators';
+export { ChartDrawingCanvas } from './ChartDrawingCanvas';
 export { HyperliquidOrderbook } from './HyperliquidOrderbook';
 export { HyperliquidPriceChart } from './HyperliquidPriceChart';
 export { FundingRateChart } from './FundingRateChart';
