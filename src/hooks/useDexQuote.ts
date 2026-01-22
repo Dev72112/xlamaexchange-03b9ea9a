@@ -81,6 +81,11 @@ export function useDexQuote({
 
     // Validate inputs
     if (!chainIndex || !fromAddress || !toAddress || !amt || parseFloat(amt) <= 0 || !enabled) {
+      if (!enabled) {
+        console.log('[DexQuote] Quotes disabled - tokens not fully selected');
+      } else {
+        console.log('[DexQuote] Invalid quote params', { chainIndex: !!chainIndex, fromAddress: !!fromAddress, toAddress: !!toAddress, amt: !!amt, amount: parseFloat(amt) });
+      }
       setQuote(null);
       setError(null);
       setIsLoading(false);
