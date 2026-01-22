@@ -6,11 +6,11 @@
  */
 
 import { memo, useEffect, useRef, useState, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType, CrosshairMode, LineStyle } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType, CrosshairMode } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, BarChart3, RefreshCw, TrendingUp } from 'lucide-react';
+import { Loader2, BarChart3, RefreshCw } from 'lucide-react';
 import { cn, resolveColor } from '@/lib/utils';
 import { hyperliquidService } from '@/services/hyperliquid';
 
@@ -21,8 +21,6 @@ interface CandlestickChartProps {
 }
 
 type TimeframeOption = '1m' | '5m' | '15m' | '1H' | '4H' | '1D';
-type ChartType = 'candlestick' | 'area';
-type IndicatorType = 'sma20' | 'sma50' | 'ema12' | 'rsi' | 'macd';
 
 const TIMEFRAMES: { label: string; value: TimeframeOption; interval: string }[] = [
   { label: '1m', value: '1m', interval: '1m' },
@@ -104,8 +102,6 @@ export const CandlestickChart = memo(function CandlestickChart({
   const [timeframe, setTimeframe] = useState<TimeframeOption>('15m');
   const [isLoading, setIsLoading] = useState(true);
   const [candleData, setCandleData] = useState<CandlestickData[]>([]);
-  const [chartType, setChartType] = useState<ChartType>('candlestick');
-  const [activeIndicators, setActiveIndicators] = useState<Set<IndicatorType>>(new Set(['sma20']));
   const [priceInfo, setPriceInfo] = useState({
     open: 0,
     high: 0,
@@ -341,17 +337,6 @@ export const CandlestickChart = memo(function CandlestickChart({
     }));
   }, [currentPrice, isLoading, candleData]);
 
-  // Toggle indicator visibility
-  const toggleIndicator = useCallback((indicator: IndicatorType) => {
-    const newIndicators = new Set(activeIndicators);
-    if (newIndicators.has(indicator)) {
-      newIndicators.delete(indicator);
-    } else {
-      newIndicators.add(indicator);
-    }
-    setActiveIndicators(newIndicators);
-  }, [activeIndicators]);
-
   return (
     <Card className={cn("glass border-border/50", className)}>
       <CardHeader className="pb-3">
@@ -379,31 +364,8 @@ export const CandlestickChart = memo(function CandlestickChart({
           </div>
         </div>
         
-        {/* Timeframe Selector and Controls */}
-        <div className="flex items-center gap-2 mt-3 flex-wrap">
-          {/* Chart Type Toggle */}
-          <div className="flex gap-1 border border-border rounded-lg p-1">
-            <Button
-              variant={chartType === 'candlestick' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => setChartType('candlestick')}
-              title="Candlestick chart"
-            >
-              Candle
-            </Button>
-            <Button
-              variant={chartType === 'area' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => setChartType('area')}
-              title="Area chart"
-            >
-              Area
-            </Button>
-          </div>
-
-          {/* Timeframe Selector */}
+        {/* Timeframe Selector */}
+        <div className="flex items-center gap-2 mt-3">
           <div className="flex gap-1">
             {TIMEFRAMES.map((tf) => (
               <Button
@@ -433,30 +395,6 @@ export const CandlestickChart = memo(function CandlestickChart({
           >
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
           </Button>
-        </div>
-
-        {/* Indicator Toggles */}
-        <div className="flex items-center gap-2 mt-2 flex-wrap">
-          <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-            Indicators:
-          </Badge>
-          {[
-            { id: 'sma20', label: 'SMA 20' },
-            { id: 'sma50', label: 'SMA 50' },
-            { id: 'ema12', label: 'EMA 12' },
-            { id: 'rsi', label: 'RSI' },
-            { id: 'macd', label: 'MACD' },
-          ].map((indicator) => (
-            <Button
-              key={indicator.id}
-              variant={activeIndicators.has(indicator.id as IndicatorType) ? 'default' : 'outline'}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => toggleIndicator(indicator.id as IndicatorType)}
-            >
-              {indicator.label}
-            </Button>
-          ))}
         </div>
       </CardHeader>
       

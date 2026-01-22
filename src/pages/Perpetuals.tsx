@@ -55,7 +55,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK', 'XRP', 'ADA', 'APT', 'OP', 'LDO', 'GMX', 'BLUR', 'INJ', 'SEI', 'SUI', 'PEPE', 'BONK'];
+const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK'];
 const PLATFORM_FEE_PERCENT = '0.01%';
 
 // Perpetuals-specific error fallback with detailed error display

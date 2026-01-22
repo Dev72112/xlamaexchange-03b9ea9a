@@ -3,12 +3,17 @@ import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/shared/components";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { Helmet } from "react-helmet-async";
-import { Wallet, ListOrdered, Wrench, Link2, ArrowRight } from "lucide-react";
-import { TransactionTrackerSkeleton } from "@/components/IndexSectionSkeletons";
+import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight } from "lucide-react";
+import { 
+  TrendingPairsSkeleton, 
+  TransactionTrackerSkeleton 
+} from "@/components/IndexSectionSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/shared/lib";
 
-// Lazy load transaction history
+// Lazy load heavier sections for better initial load
+const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
+const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
 
 // Memoized quick link component
 const QuickLink = memo(function QuickLink({ 
@@ -130,11 +135,32 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Section 2: Recent Trades */}
+        {/* Section 2: Trading Activity */}
         <section className="section-container bg-secondary/30">
           <div className="max-w-7xl mx-auto">
-            <Suspense fallback={<TransactionTrackerSkeleton />}>
-              <DexTransactionHistory />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Trending Pairs */}
+              <div className="lg:col-span-2">
+                <Suspense fallback={<TrendingPairsSkeleton />}>
+                  <TrendingPairs onSelectPair={handleSelectPair} />
+                </Suspense>
+              </div>
+              
+              {/* Recent Trades Sidebar */}
+              <div>
+                <Suspense fallback={<TransactionTrackerSkeleton />}>
+                  <DexTransactionHistory />
+                </Suspense>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 3: Market News */}
+        <section className="py-8 sm:py-12">
+          <div className="container px-4 sm:px-6 max-w-7xl mx-auto">
+            <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+              <CryptoNews />
             </Suspense>
           </div>
         </section>
