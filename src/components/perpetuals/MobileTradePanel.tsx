@@ -5,6 +5,7 @@
  */
 
 import { memo, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,7 +100,12 @@ export const MobileTradePanel = memo(function MobileTradePanel({
   const marginRequired = (parseFloat(size) || 0) / leverage;
   const hasInsufficientMargin = marginRequired > availableMargin;
 
-  return (
+  // Ensure the panel is truly viewport-fixed even inside animated/translated parents
+  const canUseDOM = typeof document !== 'undefined';
+
+  if (!canUseDOM) return null;
+
+  return createPortal(
     <div className="md:hidden fixed bottom-[72px] left-0 right-0 z-40 px-2 safe-area-bottom">
       <motion.div
         ref={containerRef}
@@ -316,6 +322,7 @@ export const MobileTradePanel = memo(function MobileTradePanel({
           </CardContent>
         </Card>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 });
