@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, Suspense, lazy } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -12,6 +12,9 @@ import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight } 
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { hapticFeedback } from "@/hooks/useHapticFeedback";
 import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
+
+// Lazy load news component
+const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
 
 const toolsConfig = [
   {
@@ -200,6 +203,19 @@ const Tools = memo(function Tools() {
                 </CardContent>
               </Card>
             </Link>
+          </section>
+
+          {/* Crypto News Section */}
+          <section className="mt-12 sm:mt-16">
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-2xl sm:text-3xl font-semibold mb-2">Market News</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                Stay informed with the latest cryptocurrency news and updates
+              </p>
+            </div>
+            <Suspense fallback={<div className="h-96 skeleton-shimmer rounded-lg" />}>
+              <CryptoNews />
+            </Suspense>
           </section>
         </div>
       </main>
