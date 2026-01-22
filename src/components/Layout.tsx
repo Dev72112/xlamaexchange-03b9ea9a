@@ -41,7 +41,7 @@ export const Layout = memo(function Layout({ children }: LayoutProps) {
       <Header />
       <main 
         id="main-content" 
-        className="flex-1 overflow-x-hidden min-w-0 pb-20 md:pb-0" 
+        className="flex-1 overflow-x-hidden min-w-0 pb-24 md:pb-0"
         role="main" 
         tabIndex={-1}
       >

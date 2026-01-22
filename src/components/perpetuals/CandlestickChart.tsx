@@ -2,17 +2,27 @@
  * Candlestick Chart Component
  * 
  * Professional TradingView-style candlestick chart using lightweight-charts
- * with real Hyperliquid candle data.
+ * with real Hyperliquid candle data and technical indicators.
  */
 
-import { memo, useEffect, useRef, useState, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType, CrosshairMode } from 'lightweight-charts';
+import { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, BarChart3, RefreshCw } from 'lucide-react';
 import { cn, resolveColor } from '@/lib/utils';
 import { hyperliquidService } from '@/services/hyperliquid';
+import { ChartIndicators, IndicatorSettings, DEFAULT_INDICATOR_SETTINGS } from './ChartIndicators';
+import { ChartDrawingTools, DrawingTool, useChartDrawings } from './ChartDrawingTools';
+import { 
+  calculateSMA, 
+  calculateEMA, 
+  calculateRSI, 
+  calculateMACD, 
+  calculateBollingerBands,
+  OHLCData
+} from '@/lib/technicalIndicators';
 
 interface CandlestickChartProps {
   coin: string;
@@ -38,7 +48,6 @@ const TIMEFRAMES: { label: string; value: TimeframeOption; interval: string; gro
 ];
 
 // Chart colors - resolved at module level with fallbacks
-// lightweight-charts cannot parse CSS variables, so we use hex values
 const CHART_COLORS = {
   text: '#888888',
   border: '#333333',
@@ -49,9 +58,18 @@ const CHART_COLORS = {
   successLight: '#22c55e66',
   destructiveLight: '#ef444466',
   primaryLight: '#3b82f64D',
+  sma: '#3b82f6',
+  ema: '#f59e0b',
+  bbUpper: '#8b5cf6',
+  bbLower: '#8b5cf6',
+  bbMiddle: '#a78bfa',
+  rsiLine: '#06b6d4',
+  macdLine: '#3b82f6',
+  macdSignal: '#f59e0b',
+  macdHistoUp: '#22c55e80',
+  macdHistoDown: '#ef444480',
 };
 
-// Helper to get interval in milliseconds
 function getIntervalMs(timeframe: TimeframeOption): number {
   const intervals: Record<TimeframeOption, number> = {
     '1m': 60000,
@@ -70,26 +88,24 @@ function getIntervalMs(timeframe: TimeframeOption): number {
   return intervals[timeframe];
 }
 
-// Helper to get optimal candle count per timeframe for DEEP history
 function getCandleCount(timeframe: TimeframeOption): number {
   const counts: Record<TimeframeOption, number> = {
-    '1m': 2880,   // 48 hours of 1-minute candles
-    '5m': 1728,   // 6 days of 5-minute candles
-    '15m': 1920,  // 20 days of 15-minute candles
-    '30m': 1440,  // 30 days of 30-minute candles
-    '1H': 2160,   // 90 days of hourly candles
-    '2H': 1080,   // 90 days of 2-hour candles
-    '4H': 1080,   // 180 days of 4-hour candles
-    '6H': 720,    // 180 days of 6-hour candles
-    '12H': 730,   // 1 year of 12-hour candles
-    '1D': 1095,   // 3 years of daily candles
-    '3D': 365,    // 3 years of 3-day candles
-    '1W': 208,    // 4 years of weekly candles
+    '1m': 2880,
+    '5m': 1728,
+    '15m': 1920,
+    '30m': 1440,
+    '1H': 2160,
+    '2H': 1080,
+    '4H': 1080,
+    '6H': 720,
+    '12H': 730,
+    '1D': 1095,
+    '3D': 365,
+    '1W': 208,
   };
   return counts[timeframe];
 }
 
-// Get human-readable history duration label
 function getHistoryLabel(timeframe: TimeframeOption): string {
   const labels: Record<TimeframeOption, string> = {
     '1m': '48h',
@@ -108,6 +124,18 @@ function getHistoryLabel(timeframe: TimeframeOption): string {
   return labels[timeframe];
 }
 
+// Convert candle data to OHLC format for indicator calculations
+function toOHLCData(candles: CandlestickData[]): OHLCData[] {
+  return candles.map(c => ({
+    open: c.open,
+    high: c.high,
+    low: c.low,
+    close: c.close,
+    volume: 1000000, // Placeholder since we don't have real volume
+    timestamp: (c.time as number) * 1000,
+  }));
+}
+
 export const CandlestickChart = memo(function CandlestickChart({
   coin,
   currentPrice,
@@ -118,7 +146,13 @@ export const CandlestickChart = memo(function CandlestickChart({
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   
-  // Track user's visible range to prevent reset on updates
+  // Indicator series refs
+  const smaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbUpperRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbMiddleRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbLowerRef = useRef<ISeriesApi<'Line'> | null>(null);
+  
   const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
   const isInitialLoadRef = useRef(true);
   const lastPriceUpdateRef = useRef<number>(0);
@@ -134,8 +168,28 @@ export const CandlestickChart = memo(function CandlestickChart({
     change: 0,
     changePercent: 0,
   });
+  
+  // Indicator settings with localStorage persistence
+  const [indicatorSettings, setIndicatorSettings] = useState<IndicatorSettings>(() => {
+    try {
+      const saved = localStorage.getItem('xlama-chart-indicators');
+      return saved ? { ...DEFAULT_INDICATOR_SETTINGS, ...JSON.parse(saved) } : DEFAULT_INDICATOR_SETTINGS;
+    } catch {
+      return DEFAULT_INDICATOR_SETTINGS;
+    }
+  });
+  
+  // Drawing tools
+  const [activeTool, setActiveTool] = useState<DrawingTool>('none');
+  const { drawings, clearDrawings } = useChartDrawings(coin);
+  
+  // Save indicator settings
+  const handleIndicatorChange = useCallback((settings: IndicatorSettings) => {
+    setIndicatorSettings(settings);
+    localStorage.setItem('xlama-chart-indicators', JSON.stringify(settings));
+  }, []);
 
-  // Initialize chart with resolved colors (not CSS variables)
+  // Initialize chart
   useEffect(() => {
     if (!containerRef.current) return;
     
@@ -143,7 +197,6 @@ export const CandlestickChart = memo(function CandlestickChart({
       chartRef.current.remove();
     }
 
-    // Resolve CSS variables to hex colors at runtime
     const colors = {
       text: resolveColor('hsl(var(--muted-foreground))', CHART_COLORS.text),
       border: resolveColor('hsl(var(--border))', CHART_COLORS.border),
@@ -192,9 +245,52 @@ export const CandlestickChart = memo(function CandlestickChart({
       scaleMargins: { top: 0.85, bottom: 0 },
     });
     
+    // Add indicator line series
+    const smaSeries = chart.addLineSeries({
+      color: CHART_COLORS.sma,
+      lineWidth: 1,
+      priceScaleId: 'right',
+      visible: false,
+    });
+    
+    const emaSeries = chart.addLineSeries({
+      color: CHART_COLORS.ema,
+      lineWidth: 1,
+      priceScaleId: 'right',
+      visible: false,
+    });
+    
+    const bbUpper = chart.addLineSeries({
+      color: CHART_COLORS.bbUpper,
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      priceScaleId: 'right',
+      visible: false,
+    });
+    
+    const bbMiddle = chart.addLineSeries({
+      color: CHART_COLORS.bbMiddle,
+      lineWidth: 1,
+      priceScaleId: 'right',
+      visible: false,
+    });
+    
+    const bbLower = chart.addLineSeries({
+      color: CHART_COLORS.bbLower,
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      priceScaleId: 'right',
+      visible: false,
+    });
+    
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
+    smaSeriesRef.current = smaSeries;
+    emaSeriesRef.current = emaSeries;
+    bbUpperRef.current = bbUpper;
+    bbMiddleRef.current = bbMiddle;
+    bbLowerRef.current = bbLower;
     
     chart.subscribeCrosshairMove((param) => {
       if (param.time) {
@@ -232,11 +328,74 @@ export const CandlestickChart = memo(function CandlestickChart({
     };
   }, []);
 
-  // Fetch candle data from Hyperliquid
+  // Update indicator visibility and data
+  useEffect(() => {
+    if (!candleData.length) return;
+    
+    const ohlcData = toOHLCData(candleData);
+    
+    // SMA
+    if (smaSeriesRef.current) {
+      smaSeriesRef.current.applyOptions({ visible: indicatorSettings.sma.enabled });
+      if (indicatorSettings.sma.enabled) {
+        const smaValues = calculateSMA(ohlcData, indicatorSettings.sma.period);
+        const smaData = candleData.map((c, i) => ({
+          time: c.time,
+          value: smaValues[i] ?? undefined,
+        })).filter(d => d.value !== undefined) as { time: Time; value: number }[];
+        smaSeriesRef.current.setData(smaData);
+      }
+    }
+    
+    // EMA
+    if (emaSeriesRef.current) {
+      emaSeriesRef.current.applyOptions({ visible: indicatorSettings.ema.enabled });
+      if (indicatorSettings.ema.enabled) {
+        const emaValues = calculateEMA(ohlcData, indicatorSettings.ema.period);
+        const emaData = candleData.map((c, i) => ({
+          time: c.time,
+          value: emaValues[i] ?? undefined,
+        })).filter(d => d.value !== undefined) as { time: Time; value: number }[];
+        emaSeriesRef.current.setData(emaData);
+      }
+    }
+    
+    // Bollinger Bands
+    if (bbUpperRef.current && bbMiddleRef.current && bbLowerRef.current) {
+      const enabled = indicatorSettings.bollingerBands.enabled;
+      bbUpperRef.current.applyOptions({ visible: enabled });
+      bbMiddleRef.current.applyOptions({ visible: enabled });
+      bbLowerRef.current.applyOptions({ visible: enabled });
+      
+      if (enabled) {
+        const bb = calculateBollingerBands(ohlcData, indicatorSettings.bollingerBands.period, indicatorSettings.bollingerBands.stdDev);
+        
+        const upperData = candleData.map((c, i) => ({
+          time: c.time,
+          value: bb.upper[i] ?? undefined,
+        })).filter(d => d.value !== undefined) as { time: Time; value: number }[];
+        
+        const middleData = candleData.map((c, i) => ({
+          time: c.time,
+          value: bb.middle[i] ?? undefined,
+        })).filter(d => d.value !== undefined) as { time: Time; value: number }[];
+        
+        const lowerData = candleData.map((c, i) => ({
+          time: c.time,
+          value: bb.lower[i] ?? undefined,
+        })).filter(d => d.value !== undefined) as { time: Time; value: number }[];
+        
+        bbUpperRef.current.setData(upperData);
+        bbMiddleRef.current.setData(middleData);
+        bbLowerRef.current.setData(lowerData);
+      }
+    }
+  }, [candleData, indicatorSettings]);
+
+  // Fetch candle data
   const fetchCandleData = useCallback(async (preserveRange = false) => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
     
-    // Store current visible range before fetching
     if (preserveRange && chartRef.current) {
       const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange();
       if (logicalRange) {
@@ -251,7 +410,6 @@ export const CandlestickChart = memo(function CandlestickChart({
       const intervalMs = getIntervalMs(timeframe);
       const candleCount = getCandleCount(timeframe);
       const endTime = Date.now();
-      // Extended history: variable candle count per timeframe for optimal historical view
       const startTime = endTime - intervalMs * candleCount;
       
       const rawCandles = await hyperliquidService.getCandleData(
@@ -272,14 +430,12 @@ export const CandlestickChart = memo(function CandlestickChart({
           close: parseFloat(c.c),
         }));
       } else {
-        // Fallback to generated data if API returns empty
         candles = generateFallbackData(currentPrice, timeframe, 200);
       }
       
       setCandleData(candles);
       candleSeriesRef.current.setData(candles);
       
-      // Generate volume data with resolved hex colors
       const volumeData = candles.map((candle) => ({
         time: candle.time,
         value: Math.random() * 1000000 + 500000,
@@ -289,7 +445,6 @@ export const CandlestickChart = memo(function CandlestickChart({
       }));
       volumeSeriesRef.current.setData(volumeData);
       
-      // Set price info from last candle
       const lastCandle = candles[candles.length - 1];
       if (lastCandle) {
         const change = lastCandle.close - lastCandle.open;
@@ -304,7 +459,6 @@ export const CandlestickChart = memo(function CandlestickChart({
         });
       }
       
-      // Restore visible range or fit content on initial load
       if (preserveRange && visibleRangeRef.current && chartRef.current) {
         chartRef.current.timeScale().setVisibleLogicalRange(visibleRangeRef.current);
       } else if (isInitialLoadRef.current) {
@@ -313,7 +467,6 @@ export const CandlestickChart = memo(function CandlestickChart({
       }
     } catch (error) {
       console.error('[CandlestickChart] Failed to fetch candles:', error);
-      // Use fallback data
       const fallback = generateFallbackData(currentPrice, timeframe, 200);
       candleSeriesRef.current?.setData(fallback);
     } finally {
@@ -321,17 +474,15 @@ export const CandlestickChart = memo(function CandlestickChart({
     }
   }, [coin, timeframe, currentPrice]);
 
-  // Load data when coin or timeframe changes
   useEffect(() => {
     isInitialLoadRef.current = true;
     fetchCandleData(false);
   }, [coin, timeframe]);
 
-  // Update last candle with real-time price (debounced to prevent chart jumps)
+  // Update last candle with real-time price
   useEffect(() => {
     if (!candleSeriesRef.current || !currentPrice || isLoading || candleData.length === 0) return;
     
-    // Debounce price updates to prevent excessive re-renders
     const now = Date.now();
     if (now - lastPriceUpdateRef.current < 500) return;
     lastPriceUpdateRef.current = now;
@@ -339,7 +490,6 @@ export const CandlestickChart = memo(function CandlestickChart({
     const lastCandle = candleData[candleData.length - 1];
     if (!lastCandle) return;
     
-    // Update current candle without affecting visible range
     candleSeriesRef.current.update({
       time: lastCandle.time,
       open: lastCandle.open,
@@ -348,7 +498,6 @@ export const CandlestickChart = memo(function CandlestickChart({
       close: currentPrice,
     });
     
-    // Update price info display
     const change = currentPrice - lastCandle.open;
     const changePercent = (change / lastCandle.open) * 100;
     setPriceInfo(prev => ({
@@ -360,6 +509,17 @@ export const CandlestickChart = memo(function CandlestickChart({
       changePercent,
     }));
   }, [currentPrice, isLoading, candleData]);
+
+  // Active indicators summary for badge
+  const activeIndicators = useMemo(() => {
+    const active: string[] = [];
+    if (indicatorSettings.sma.enabled) active.push(`SMA(${indicatorSettings.sma.period})`);
+    if (indicatorSettings.ema.enabled) active.push(`EMA(${indicatorSettings.ema.period})`);
+    if (indicatorSettings.rsi.enabled) active.push('RSI');
+    if (indicatorSettings.macd.enabled) active.push('MACD');
+    if (indicatorSettings.bollingerBands.enabled) active.push('BB');
+    return active;
+  }, [indicatorSettings]);
 
   return (
     <Card className={cn("glass border-border/50", className)}>
@@ -388,7 +548,7 @@ export const CandlestickChart = memo(function CandlestickChart({
           </div>
         </div>
         
-        {/* Enhanced Timeframe Selector with Groups */}
+        {/* Tools row: Timeframes + Indicators + Drawing */}
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           {/* Minutes group */}
           <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5">
@@ -435,7 +595,23 @@ export const CandlestickChart = memo(function CandlestickChart({
             ))}
           </div>
           
-          {/* History duration label */}
+          <div className="h-4 w-px bg-border mx-1" />
+          
+          {/* Indicators */}
+          <ChartIndicators
+            settings={indicatorSettings}
+            onChange={handleIndicatorChange}
+          />
+          
+          {/* Drawing Tools */}
+          <ChartDrawingTools
+            activeTool={activeTool}
+            onToolChange={setActiveTool}
+            drawings={drawings}
+            onClearDrawings={clearDrawings}
+          />
+          
+          {/* History label & refresh */}
           <Badge variant="secondary" className="text-[10px] font-normal ml-auto">
             {getHistoryLabel(timeframe)} history
           </Badge>
@@ -451,6 +627,17 @@ export const CandlestickChart = memo(function CandlestickChart({
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
           </Button>
         </div>
+        
+        {/* Active indicators badges */}
+        {activeIndicators.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            {activeIndicators.map(ind => (
+              <Badge key={ind} variant="outline" className="text-[10px] h-5">
+                {ind}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardHeader>
       
       <CardContent className="relative">
@@ -465,26 +652,21 @@ export const CandlestickChart = memo(function CandlestickChart({
   );
 });
 
-// Fallback data generator when API is unavailable - NEUTRAL random walk (no uptrend bias)
+// Fallback data generator
 function generateFallbackData(basePrice: number, timeframe: TimeframeOption, count: number = 100): CandlestickData[] {
   const now = Date.now();
   const data: CandlestickData[] = [];
-  
   const intervalMs = getIntervalMs(timeframe);
   
-  // Start at the base price (current price)
   let price = basePrice;
-  const volatility = basePrice * 0.003; // Reduced volatility for more realistic look
+  const volatility = basePrice * 0.003;
   
   for (let i = count; i > 0; i--) {
     const time = Math.floor((now - i * intervalMs) / 1000) as Time;
     const open = price;
-    
-    // TRUE random walk: 50% up, 50% down - no bias
     const change = (Math.random() - 0.5) * volatility * 2;
     const wickUp = Math.random() * volatility * 0.3;
     const wickDown = Math.random() * volatility * 0.3;
-    
     const close = open + change;
     const high = Math.max(open, close) + wickUp;
     const low = Math.min(open, close) - wickDown;
