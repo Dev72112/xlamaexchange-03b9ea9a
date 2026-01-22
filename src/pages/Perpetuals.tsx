@@ -50,12 +50,13 @@ import {
   CandlestickChart,
   TradeHistory,
   HyperliquidDepositWithdraw,
+  MarketSelector,
 } from "@/components/perpetuals";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK'];
+const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK', 'BNB', 'XRP', 'ADA', 'DOT', 'NEAR', 'APT', 'SUI', 'OP'];
 const PLATFORM_FEE_PERCENT = '0.01%';
 
 // Perpetuals-specific error fallback with detailed error display
@@ -471,33 +472,13 @@ const Perpetuals = memo(function Perpetuals() {
         </Card>
       </div>
 
-      {/* Market Selector */}
-      <Card className="glass border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" />
-            Markets
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {POPULAR_PAIRS.map(pair => (
-              <Button
-                key={pair}
-                variant={selectedPair === pair ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedPair(pair)}
-                className={cn("gap-2", selectedPair === pair && "bg-primary text-primary-foreground")}
-              >
-                {pair}-PERP
-                {currentPrices[pair] > 0 && (
-                  <span className="text-xs opacity-70">${currentPrices[pair].toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                )}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Enhanced Market Selector */}
+      <MarketSelector
+        selectedPair={selectedPair}
+        onSelectPair={setSelectedPair}
+        currentPrices={currentPrices}
+        className="glow-sm"
+      />
 
       {/* Candlestick Chart - disabled in safe mode */}
       {!safeMode && (

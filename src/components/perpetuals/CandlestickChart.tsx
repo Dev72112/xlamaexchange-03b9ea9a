@@ -20,15 +20,21 @@ interface CandlestickChartProps {
   className?: string;
 }
 
-type TimeframeOption = '1m' | '5m' | '15m' | '1H' | '4H' | '1D';
+type TimeframeOption = '1m' | '5m' | '15m' | '30m' | '1H' | '2H' | '4H' | '6H' | '12H' | '1D' | '3D' | '1W';
 
-const TIMEFRAMES: { label: string; value: TimeframeOption; interval: string }[] = [
-  { label: '1m', value: '1m', interval: '1m' },
-  { label: '5m', value: '5m', interval: '5m' },
-  { label: '15m', value: '15m', interval: '15m' },
-  { label: '1H', value: '1H', interval: '1h' },
-  { label: '4H', value: '4H', interval: '4h' },
-  { label: '1D', value: '1D', interval: '1d' },
+const TIMEFRAMES: { label: string; value: TimeframeOption; interval: string; group: 'minutes' | 'hours' | 'days' }[] = [
+  { label: '1m', value: '1m', interval: '1m', group: 'minutes' },
+  { label: '5m', value: '5m', interval: '5m', group: 'minutes' },
+  { label: '15m', value: '15m', interval: '15m', group: 'minutes' },
+  { label: '30m', value: '30m', interval: '30m', group: 'minutes' },
+  { label: '1H', value: '1H', interval: '1h', group: 'hours' },
+  { label: '2H', value: '2H', interval: '2h', group: 'hours' },
+  { label: '4H', value: '4H', interval: '4h', group: 'hours' },
+  { label: '6H', value: '6H', interval: '6h', group: 'hours' },
+  { label: '12H', value: '12H', interval: '12h', group: 'hours' },
+  { label: '1D', value: '1D', interval: '1d', group: 'days' },
+  { label: '3D', value: '3D', interval: '3d', group: 'days' },
+  { label: '1W', value: '1W', interval: '1w', group: 'days' },
 ];
 
 // Chart colors - resolved at module level with fallbacks
@@ -51,22 +57,34 @@ function getIntervalMs(timeframe: TimeframeOption): number {
     '1m': 60000,
     '5m': 300000,
     '15m': 900000,
+    '30m': 1800000,
     '1H': 3600000,
+    '2H': 7200000,
     '4H': 14400000,
+    '6H': 21600000,
+    '12H': 43200000,
     '1D': 86400000,
+    '3D': 259200000,
+    '1W': 604800000,
   };
   return intervals[timeframe];
 }
 
-// Helper to get optimal candle count per timeframe for extended history
+// Helper to get optimal candle count per timeframe for DEEP history
 function getCandleCount(timeframe: TimeframeOption): number {
   const counts: Record<TimeframeOption, number> = {
-    '1m': 1440,   // 24 hours of 1-minute candles (was 720)
-    '5m': 864,    // 3 days of 5-minute candles (was 576)
-    '15m': 960,   // 10 days of 15-minute candles (was 672)
-    '1H': 1080,   // 45 days of hourly candles (was 720)
-    '4H': 720,    // 120 days of 4-hour candles (was 540)
-    '1D': 730,    // 2 years of daily candles (was 365)
+    '1m': 2880,   // 48 hours of 1-minute candles
+    '5m': 1728,   // 6 days of 5-minute candles
+    '15m': 1920,  // 20 days of 15-minute candles
+    '30m': 1440,  // 30 days of 30-minute candles
+    '1H': 2160,   // 90 days of hourly candles
+    '2H': 1080,   // 90 days of 2-hour candles
+    '4H': 1080,   // 180 days of 4-hour candles
+    '6H': 720,    // 180 days of 6-hour candles
+    '12H': 730,   // 1 year of 12-hour candles
+    '1D': 1095,   // 3 years of daily candles
+    '3D': 365,    // 3 years of 3-day candles
+    '1W': 208,    // 4 years of weekly candles
   };
   return counts[timeframe];
 }
@@ -74,12 +92,18 @@ function getCandleCount(timeframe: TimeframeOption): number {
 // Get human-readable history duration label
 function getHistoryLabel(timeframe: TimeframeOption): string {
   const labels: Record<TimeframeOption, string> = {
-    '1m': '24h',
-    '5m': '3 days',
-    '15m': '10 days',
-    '1H': '45 days',
-    '4H': '4 months',
-    '1D': '2 years',
+    '1m': '48h',
+    '5m': '6 days',
+    '15m': '20 days',
+    '30m': '30 days',
+    '1H': '90 days',
+    '2H': '90 days',
+    '4H': '6 months',
+    '6H': '6 months',
+    '12H': '1 year',
+    '1D': '3 years',
+    '3D': '3 years',
+    '1W': '4 years',
   };
   return labels[timeframe];
 }
@@ -364,15 +388,46 @@ export const CandlestickChart = memo(function CandlestickChart({
           </div>
         </div>
         
-        {/* Timeframe Selector */}
-        <div className="flex items-center gap-2 mt-3">
-          <div className="flex gap-1">
-            {TIMEFRAMES.map((tf) => (
+        {/* Enhanced Timeframe Selector with Groups */}
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          {/* Minutes group */}
+          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5">
+            {TIMEFRAMES.filter(tf => tf.group === 'minutes').map((tf) => (
               <Button
                 key={tf.value}
                 variant={timeframe === tf.value ? 'default' : 'ghost'}
                 size="sm"
-                className="h-7 px-2 text-xs"
+                className="h-6 px-2 text-xs"
+                onClick={() => setTimeframe(tf.value)}
+              >
+                {tf.label}
+              </Button>
+            ))}
+          </div>
+          
+          {/* Hours group */}
+          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5">
+            {TIMEFRAMES.filter(tf => tf.group === 'hours').map((tf) => (
+              <Button
+                key={tf.value}
+                variant={timeframe === tf.value ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setTimeframe(tf.value)}
+              >
+                {tf.label}
+              </Button>
+            ))}
+          </div>
+          
+          {/* Days group */}
+          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5">
+            {TIMEFRAMES.filter(tf => tf.group === 'days').map((tf) => (
+              <Button
+                key={tf.value}
+                variant={timeframe === tf.value ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 px-2 text-xs"
                 onClick={() => setTimeframe(tf.value)}
               >
                 {tf.label}
@@ -381,14 +436,14 @@ export const CandlestickChart = memo(function CandlestickChart({
           </div>
           
           {/* History duration label */}
-          <Badge variant="secondary" className="text-[10px] font-normal">
-            {getHistoryLabel(timeframe)}
+          <Badge variant="secondary" className="text-[10px] font-normal ml-auto">
+            {getHistoryLabel(timeframe)} history
           </Badge>
           
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0 ml-auto"
+            className="h-7 w-7 p-0"
             onClick={() => fetchCandleData(true)}
             disabled={isLoading}
             title="Refresh chart data"

@@ -13,4 +13,5 @@ export { PerpetualsOnboarding } from './PerpetualsOnboarding';
 export { CandlestickChart } from './CandlestickChart';
 export { TradeHistory } from './TradeHistory';
 export { HyperliquidDepositWithdraw } from './HyperliquidDepositWithdraw';
+export { MarketSelector } from './MarketSelector';
 export { useFundingCountdown } from './useFundingCountdown';
