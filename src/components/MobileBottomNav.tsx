@@ -16,7 +16,8 @@ import {
   Wrench,
   FileText,
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  Home
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
@@ -33,14 +34,15 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import xlamaMascot from "@/assets/xlama-mascot.png";
 
 const navItems = [
-  { path: "/", icon: ArrowLeftRight, label: "Exchange" },
+  { path: "/", icon: Home, label: "Home" },
+  { path: "/swap", icon: ArrowLeftRight, label: "Exchange" },
   { path: "/bridge", icon: Compass, label: "Bridge" },
   { path: "/perpetuals", icon: Activity, label: "Perps" },
-  { path: "/orders", icon: ClipboardList, label: "Orders" },
   { path: "/portfolio", icon: PieChart, label: "Portfolio" },
 ];
 
 const moreItems = [
+  { path: "/orders", icon: ClipboardList, label: "Orders" },
   { path: "/analytics", icon: BarChart3, label: "Analytics" },
   { path: "/history", icon: History, label: "History" },
   { path: "/tools", icon: Wrench, label: "Tools" },

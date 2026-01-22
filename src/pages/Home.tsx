@@ -26,7 +26,7 @@ const features = [
     icon: Repeat,
     title: "DEX Aggregation",
     description: "Best rates from 400+ DEXs across 25+ blockchains. Instant swaps with optimal routing.",
-    href: "/",
+    href: "/swap",
     cta: "Start Swapping"
   },
   {
@@ -200,7 +200,7 @@ const Home = () => {
                 Connect your wallet and start swapping instantly. No registration, no KYC, no hassle.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/">
+                <Link to="/swap">
                   <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25">
                     Launch Exchange
                     <ArrowRight className="w-4 h-4 ml-2" />

@@ -74,7 +74,7 @@ const Index = () => {
   const widgetRef = useRef<HTMLDivElement>(null);
 
   const handleSelectPair = useCallback((from: string, to: string) => {
-    navigate(`/?from=${from}&to=${to}`, { replace: true });
+    navigate(`/swap?from=${from}&to=${to}`, { replace: true });
     widgetRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [navigate]);
 

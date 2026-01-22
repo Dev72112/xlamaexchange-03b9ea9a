@@ -39,8 +39,8 @@ const NotFound = lazy(() => import('@/pages/NotFound'));
  * Primary navigation routes (shown in header)
  */
 export const primaryRoutes: RouteConfig[] = [
-  { path: '/home', element: Home, preload: true, label: 'Home', showInNav: false },
-  { path: '/', element: Index, preload: true, label: 'Swap', showInNav: true },
+  { path: '/', element: Home, preload: true, label: 'Home', showInNav: true },
+  { path: '/swap', element: Index, preload: true, label: 'Exchange', showInNav: true },
   { path: '/bridge', element: Bridge, preload: true, label: 'Bridge', showInNav: true },
   { path: '/perpetuals', element: Perpetuals, label: 'Perpetuals', showInNav: true },
   { path: '/orders', element: Orders, label: 'Orders', showInNav: true },
