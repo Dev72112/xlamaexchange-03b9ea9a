@@ -13,6 +13,7 @@ export interface RouteConfig {
 }
 
 // Lazy load all pages for code splitting
+const Home = lazy(() => import('@/pages/Home'));
 const Index = lazy(() => import('@/pages/Index'));
 const Bridge = lazy(() => import('@/pages/Bridge'));
 const Orders = lazy(() => import('@/pages/Orders'));
@@ -38,6 +39,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'));
  * Primary navigation routes (shown in header)
  */
 export const primaryRoutes: RouteConfig[] = [
+  { path: '/home', element: Home, preload: true, label: 'Home', showInNav: false },
   { path: '/', element: Index, preload: true, label: 'Swap', showInNav: true },
   { path: '/bridge', element: Bridge, preload: true, label: 'Bridge', showInNav: true },
   { path: '/perpetuals', element: Perpetuals, label: 'Perpetuals', showInNav: true },
