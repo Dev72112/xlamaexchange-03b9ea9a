@@ -22,6 +22,9 @@ const OKX_SECRET_KEY = Deno.env.get('OKX_SECRET_KEY') || '';
 const OKX_API_PASSPHRASE = Deno.env.get('OKX_API_PASSPHRASE') || '';
 const OKX_PROJECT_ID = Deno.env.get('OKX_PROJECT_ID') || '';
 const OKX_REFERRER_WALLET_ADDRESS = Deno.env.get('OKX_REFERRER_WALLET_ADDRESS') || '';
+// Solana requires a separate Solana address (not EVM) for fee collection
+// Per OKX docs: "For Solana, the fee receiving address must have some SOL deposited for activation"
+const OKX_SOLANA_REFERRER_ADDRESS = Deno.env.get('OKX_SOLANA_REFERRER_ADDRESS') || '';
 
 // API Base URLs - all using v6
 const OKX_DEX_AGGREGATOR_URL = 'https://web3.okx.com/api/v6/dex/aggregator';
@@ -30,13 +33,14 @@ const OKX_BALANCE_API_URL = 'https://web3.okx.com/api/v6/dex/balance';
 const OKX_TX_HISTORY_API_URL = 'https://web3.okx.com/api/v6/dex/post-transaction';
 const OKX_CROSS_CHAIN_URL = 'https://web3.okx.com/api/v6/dex/cross-chain';
 
-// Commission fee percentage for partner revenue
-const COMMISSION_FEE_PERCENT = '1.5';
+// Commission fee percentages for partner revenue
+// Solana supports up to 10%, other chains support up to 3%
+const COMMISSION_FEE_PERCENT_EVM = '1.5';
+const COMMISSION_FEE_PERCENT_SOLANA = '1.5'; // Using same rate for consistency
 
-// Non-EVM chains that don't support toTokenReferrerWalletAddress
-// Solana (501) theoretically supports fromTokenReferrerWalletAddress, but requires a SOLANA address
-// Since OKX_REFERRER_WALLET_ADDRESS is an EVM address, we skip Solana fees until a Solana address is added
-const NON_EVM_CHAINS_NO_FEE = ['195', '784', '607', '501']; // Tron, Sui, TON, Solana (EVM address not valid)
+// Chains that don't support referrer fees at all (no native referrer mechanism)
+// Tron (195), Sui (784), TON (607) don't have documented fee support in OKX API
+const CHAINS_NO_FEE_SUPPORT = ['195', '784', '607'];
 
 // Helper to check if the referrer address looks like a Solana address (base58, 32-44 chars)
 function isSolanaAddress(addr: string): boolean {
@@ -364,10 +368,18 @@ serve(async (req) => {
           slippage: validSlippage,
         };
         
-        // Add referrer params based on chain type (EVM only, non-EVM chains don't support fees)
-        if (OKX_REFERRER_WALLET_ADDRESS && !NON_EVM_CHAINS_NO_FEE.includes(chainIndex)) {
+        // Add referrer params based on chain type
+        // Solana (501): uses fromTokenReferrerWalletAddress with a Solana address
+        // EVM chains: use toTokenReferrerWalletAddress with EVM address
+        // Tron/Sui/TON: no fee support
+        if (chainIndex === '501' && OKX_SOLANA_REFERRER_ADDRESS && isSolanaAddress(OKX_SOLANA_REFERRER_ADDRESS)) {
+          // Solana: use fromTokenReferrerWalletAddress (per OKX docs)
+          quoteParams.feePercent = COMMISSION_FEE_PERCENT_SOLANA;
+          quoteParams.fromTokenReferrerWalletAddress = OKX_SOLANA_REFERRER_ADDRESS;
+          console.log('Solana quote with fee:', COMMISSION_FEE_PERCENT_SOLANA, '% to', OKX_SOLANA_REFERRER_ADDRESS.slice(0, 8) + '...');
+        } else if (!CHAINS_NO_FEE_SUPPORT.includes(chainIndex) && chainIndex !== '501' && OKX_REFERRER_WALLET_ADDRESS) {
           // EVM chains: use toTokenReferrerWalletAddress
-          quoteParams.feePercent = COMMISSION_FEE_PERCENT;
+          quoteParams.feePercent = COMMISSION_FEE_PERCENT_EVM;
           quoteParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
         }
         
@@ -401,10 +413,18 @@ serve(async (req) => {
           userWalletAddress,
         };
         
-        // Add referrer params based on chain type (EVM only, non-EVM chains don't support fees)
-        if (OKX_REFERRER_WALLET_ADDRESS && !NON_EVM_CHAINS_NO_FEE.includes(chainIndex)) {
+        // Add referrer params based on chain type
+        // Solana (501): uses fromTokenReferrerWalletAddress with a Solana address
+        // EVM chains: use toTokenReferrerWalletAddress with EVM address
+        // Tron/Sui/TON: no fee support
+        if (chainIndex === '501' && OKX_SOLANA_REFERRER_ADDRESS && isSolanaAddress(OKX_SOLANA_REFERRER_ADDRESS)) {
+          // Solana: use fromTokenReferrerWalletAddress (per OKX docs)
+          swapParams.feePercent = COMMISSION_FEE_PERCENT_SOLANA;
+          swapParams.fromTokenReferrerWalletAddress = OKX_SOLANA_REFERRER_ADDRESS;
+          console.log('Solana swap with fee:', COMMISSION_FEE_PERCENT_SOLANA, '% to', OKX_SOLANA_REFERRER_ADDRESS.slice(0, 8) + '...');
+        } else if (!CHAINS_NO_FEE_SUPPORT.includes(chainIndex) && chainIndex !== '501' && OKX_REFERRER_WALLET_ADDRESS) {
           // EVM chains: use toTokenReferrerWalletAddress
-          swapParams.feePercent = COMMISSION_FEE_PERCENT;
+          swapParams.feePercent = COMMISSION_FEE_PERCENT_EVM;
           swapParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
         }
         
