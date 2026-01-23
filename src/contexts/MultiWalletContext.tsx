@@ -167,6 +167,9 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
   
+  // Track OKX injected provider chain ID (for detecting chain switches)
+  const [okxInjectedChainId, setOkxInjectedChainId] = useState<number | null>(null);
+  
   // Sui hooks
   const suiCurrentWallet = useCurrentWallet();
   const suiWallets = useWallets();
@@ -209,13 +212,17 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const tonAddressFinal = sessionState.ecosystem === 'ton' ? sessionState.address : (okxWallet.tonAddress || tonAddress);
   const tronAddressFinal = sessionState.ecosystem === 'tron' ? sessionState.address : tronAddress;
   
-  // EVM chain info
+  // EVM chain info - prioritize OKX injected chain (most up-to-date after switch)
   const evmChainId = useMemo(() => {
+    // Priority: OKX injected > SessionManager > AppKit
+    if (okxInjectedChainId) {
+      return okxInjectedChainId;
+    }
     if (sessionState.ecosystem === 'evm' && typeof sessionState.chainId === 'number') {
       return sessionState.chainId;
     }
     return typeof appKitChainId === 'number' ? appKitChainId : null;
-  }, [sessionState.ecosystem, sessionState.chainId, appKitChainId]);
+  }, [okxInjectedChainId, sessionState.ecosystem, sessionState.chainId, appKitChainId]);
   
   const evmChain = evmChainId ? getChainByChainId(evmChainId) : null;
   const evmWalletType: WalletType = evmAddress ? 'walletconnect' : null;
@@ -332,7 +339,40 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     } 
   }, [tronAddressFinal]);
 
-  // Wallet availability check
+  // Initialize and listen for OKX injected provider chain changes
+  useEffect(() => {
+    const okxInjected = (window as any).okxwallet;
+    if (!okxInjected) return;
+    
+    // Initialize current chain ID
+    const initChainId = async () => {
+      try {
+        const chainIdHex = await okxInjected.request({ method: 'eth_chainId' });
+        if (chainIdHex) {
+          const chainId = parseInt(chainIdHex, 16);
+          setOkxInjectedChainId(chainId);
+          console.log('[MultiWallet] OKX injected initial chain:', chainId);
+        }
+      } catch (err) {
+        // Provider might not be connected yet
+      }
+    };
+    
+    initChainId();
+    
+    // Listen for chain changes
+    const handleChainChanged = (chainIdHex: string) => {
+      const chainId = parseInt(chainIdHex, 16);
+      console.log('[MultiWallet] OKX injected chain changed:', chainId);
+      setOkxInjectedChainId(chainId);
+    };
+    
+    okxInjected.on?.('chainChanged', handleChainChanged);
+    
+    return () => {
+      okxInjected.removeListener?.('chainChanged', handleChainChanged);
+    };
+  }, []);
   const isWalletAvailable = useCallback((walletId: string): boolean => {
     switch (walletId) {
       case 'okx': 
@@ -581,7 +621,9 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: chainIdHex }],
           });
-          console.log('[MultiWallet] Switched via OKX injected provider');
+          console.log('[MultiWallet] Switched via OKX injected provider to chain', chain.chainId);
+          // Update local state immediately so UI reflects the change
+          setOkxInjectedChainId(chain.chainId);
           return true;
         } catch (err: any) {
           if (err?.code === 4902) {
