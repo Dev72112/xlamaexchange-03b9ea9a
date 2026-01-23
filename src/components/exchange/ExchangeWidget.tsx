@@ -36,7 +36,6 @@ import { useTradePreFill } from "@/contexts/TradePreFillContext";
 import { useReferral } from "@/hooks/useReferral";
 import { usePriceOracle } from "@/contexts/PriceOracleContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useLimitOrders } from "@/hooks/useLimitOrders";
 import {
   Dialog,
   DialogContent,
@@ -46,9 +45,6 @@ import {
 const AdvancedPriceChart = lazy(() => import("./AdvancedPriceChart").then(m => ({ default: m.AdvancedPriceChart })));
 const SwapReviewModal = lazy(() => import("./SwapReviewModal").then(m => ({ default: m.SwapReviewModal })));
 const HighPriceImpactModal = lazy(() => import("./HighPriceImpactModal").then(m => ({ default: m.HighPriceImpactModal })));
-const LimitOrderForm = lazy(() => import("@/components/LimitOrderForm").then(m => ({ default: m.LimitOrderForm })));
-const DCAOrderForm = lazy(() => import("@/components/DCAOrderForm").then(m => ({ default: m.DCAOrderForm })));
-const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
 const TradeDebugPanel = lazy(() => import("@/components/TradeDebugPanel").then(m => ({ default: m.TradeDebugPanel })));
 
 // Detect network from ticker and name
@@ -92,7 +88,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { triggerFeedback } = useFeedback();
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   const { recordTradeCommission } = useReferral(address);
-  const { markExecuted } = useLimitOrders();
   const { setPrice } = usePriceOracle();
   
   // Exchange mode state
@@ -128,7 +123,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showHighImpactModal, setShowHighImpactModal] = useState(false);
   const [showChart, setShowChart] = useState(false);
-  const [executingLimitOrderId, setExecutingLimitOrderId] = useState<string | null>(null);
 
   // Track if update came from prediction to avoid loops
   const lastPredictionTokenRef = useRef<string | null>(null);
@@ -661,12 +655,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         });
         refetchBalance();
         
-        // Mark limit order as executed if this was a limit order execution
-        if (executingLimitOrderId) {
-          await markExecuted(executingLimitOrderId, hash);
-          setExecutingLimitOrderId(null);
-        }
-        
         // TODO: Re-enable when referral program resumes with Li.Fi fee collection
         // Record trade for referral commission tracking
         // const tradeAmountUsd = fromUsdValue ? parseFloat(fromUsdValue.replace(/[,$]/g, '')) : 0;
@@ -684,8 +672,6 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
         updateTransaction(pendingTx.hash, {
           status: 'failed',
         });
-        // Clear executing order on error
-        setExecutingLimitOrderId(null);
         toast({
           title: "Swap Failed",
           description: err,
@@ -1264,48 +1250,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               >
                 <span className="truncate">{getSwapButtonContent()}</span>
               </Button>
-              
-              {/* Limit Order Button - DEX mode + Solana only */}
-              {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && (
-                <Suspense fallback={<Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg shrink-0" />}>
-                  <LimitOrderForm
-                    fromToken={fromDexToken}
-                    toToken={toDexToken}
-                    chain={selectedChain}
-                    currentPrice={dexExchangeRate || undefined}
-                  />
-                </Suspense>
-              )}
-              
-              {/* DCA Order Button - DEX mode + Solana only */}
-              {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && (
-                <Suspense fallback={<Skeleton className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg shrink-0" />}>
-                  <DCAOrderForm
-                    fromToken={fromDexToken ? { address: fromDexToken.tokenContractAddress, symbol: fromDexToken.tokenSymbol, decimals: parseInt(fromDexToken.decimals) || 9 } : undefined}
-                    toToken={toDexToken ? { address: toDexToken.tokenContractAddress, symbol: toDexToken.tokenSymbol, decimals: parseInt(toDexToken.decimals) || 6 } : undefined}
-                    chainIndex={selectedChain.chainIndex}
-                  />
-                </Suspense>
-              )}
             </div>
-            
-            {/* Active Limit Orders - DEX mode + Solana only */}
-            {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && (
-              <Suspense fallback={<Skeleton className="h-20 w-full rounded-lg" />}>
-                <ActiveLimitOrders 
-                  onExecuteOrder={(order) => {
-                    // Track that we're executing this limit order
-                    setExecutingLimitOrderId(order.id);
-                    // Pre-fill swap with limit order details
-                    setFromAmount(order.amount);
-                    toast({
-                      title: "Limit Order Ready",
-                      description: `Execute your ${order.from_token_symbol} → ${order.to_token_symbol} swap now. The order will be marked as executed after the swap completes.`,
-                    });
-                  }}
-                />
-              </Suspense>
-            )}
           </div>
 
           {/* Footer Info */}

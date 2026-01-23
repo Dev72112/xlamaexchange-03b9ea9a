@@ -38,6 +38,3 @@ verify_jwt = false
 
 [functions.execute-orders]
 verify_jwt = false
-
-[functions.jupiter]
-verify_jwt = false

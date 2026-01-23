@@ -35,7 +35,6 @@ import xlamaMascot from '@/assets/xlama-mascot.png';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 import { DCADashboard } from './DCADashboard';
 import { getChainIcon } from '@/data/chains';
-import { JupiterDCAOrder } from '@/services/jupiter';
 import { SUPPORTED_CHAINS } from '@/data/chains';
 
 const formatDate = (dateString: string) => {
