@@ -61,10 +61,6 @@ const faqs = [
     answer: "Li.Fi aggregates 20+ bridge protocols including Stargate, Hop Protocol, Across, Connext, Celer, Multichain, Synapse, and many more. The system automatically selects the best bridge based on your transfer size, destination, and preferences for speed vs. cost.",
   },
   {
-    question: "What is Jupiter and how does it improve Solana swaps?",
-    answer: "Jupiter is Solana's leading DEX aggregator. We use the Jupiter Ultra API to find the best swap routes across all Solana liquidity sources. This means better rates, lower slippage, and faster execution for all SPL token swaps.",
-  },
-  {
     question: "What are Limit Orders?",
     answer: "Limit Orders let you set a target price for your swap. When the market reaches your target, you'll receive a notification and can execute the swap. Create limit orders from the DEX swap form - set your tokens, amount, and target price. Manage all orders from the /orders page.",
   },
@@ -90,7 +86,7 @@ const faqs = [
   },
   {
     question: "How do Solana swaps work?",
-    answer: "Connect Phantom or Solflare wallet, select Solana network, and swap any SPL token. We use Jupiter Ultra API for best rates, aggregating from Raydium, Orca, and other Solana DEXs. Transactions confirm in ~400ms with minimal gas fees (usually under $0.01).",
+    answer: "Connect OKX Wallet, Phantom, or Solflare wallet, select Solana network, and swap any SPL token. We use OKX DEX aggregation for best rates across Solana liquidity sources. Transactions confirm in ~400ms with minimal gas fees (usually under $0.01).",
   },
   {
     question: "Why do I need to approve tokens before swapping?",
@@ -102,7 +98,7 @@ const faqs = [
   },
   {
     question: "What fees do you charge?",
-    answer: "For DEX swaps (OKX DEX), we include a 1.5% commission in the quote. For Solana swaps (Jupiter), we include a 0.8% commission. For Bridge transactions (Li.Fi), we include a 1.5% platform fee. For Instant swaps (ChangeNOW), fees are included in the exchange rate. Instant swaps typically complete in 1-5 minutes. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
+    answer: "For DEX swaps (OKX DEX), we include a 1.5% commission in the quote. For Bridge transactions (Li.Fi), we include a 1.5% platform fee. For Instant swaps (ChangeNOW), fees are included in the exchange rate. Instant swaps typically complete in 1-5 minutes. You always see the final amount before confirming. Network gas fees are separate and paid to validators.",
   },
   {
     question: "How can I track my transaction?",

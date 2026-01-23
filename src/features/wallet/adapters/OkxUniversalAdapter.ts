@@ -203,9 +203,9 @@ export class OkxUniversalAdapter extends BaseAdapter {
       perpetuals: this.ecosystem === 'evm',
     };
 
-    // Solana has full order support via Jupiter
+    // Solana orders coming soon
     if (this.ecosystem === 'solana') {
-      return { ...base, limitOrders: true, dca: true };
+      return { ...base, limitOrders: false, dca: false };
     }
 
     // EVM redirects to Hyperliquid
