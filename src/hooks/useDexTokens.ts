@@ -3,6 +3,9 @@ import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { cache, cacheKeys } from '@/lib/cache';
 
+// Solana native token address (Wrapped SOL mint)
+const SOLANA_NATIVE_SOL = 'So11111111111111111111111111111111111111112';
+
 export function useDexTokens(chain: Chain | null) {
   const [rawTokens, setRawTokens] = useState<OkxToken[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -127,7 +130,6 @@ export function useDexTokens(chain: Chain | null) {
   }, [rawTokens]);
 
   // Get native token for the chain - use proper Solana native address
-  const SOLANA_NATIVE_SOL = 'So11111111111111111111111111111111111111112';
   const nativeToken: OkxToken | null = chain ? {
     tokenContractAddress: chain.chainIndex === '501' 
       ? SOLANA_NATIVE_SOL // Wrapped SOL for Solana 
