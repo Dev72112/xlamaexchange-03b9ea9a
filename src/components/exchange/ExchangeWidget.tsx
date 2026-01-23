@@ -88,7 +88,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavoritePairs();
-  const { isConnected, hasAnyConnection, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain, isOkxConnected } = useMultiWallet();
+  const { isConnected, hasAnyConnection, activeAddress: address, evmChainId: chainId, switchEvmChain: switchChain, setActiveChain, activeChainType, isConnectedToChain, isOkxConnected, solanaAddress, openConnectModal } = useMultiWallet();
   const { triggerFeedback } = useFeedback();
   const { selectedPredictionToken, setSelectedSwapToken } = useTradePreFill();
   const { recordTradeCommission } = useReferral(address);
@@ -198,9 +198,12 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   };
 
   // Token balance hook for DEX mode
+  // Pass explicit Solana address when Solana chain is selected (fixes 0 balance issue)
+  const solanaBalanceAddress = selectedChain.chainIndex === '501' ? solanaAddress : undefined;
   const { formatted: fromTokenBalance, loading: balanceLoading, refetch: refetchBalance } = useTokenBalance(
-    exchangeMode === 'dex' && isConnected ? fromDexToken : null,
-    selectedChain.chainIndex
+    exchangeMode === 'dex' && (isConnected || solanaAddress) ? fromDexToken : null,
+    selectedChain.chainIndex,
+    solanaBalanceAddress
   );
 
   // Token prices hook for USD display
@@ -880,25 +883,25 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             </div>
           )}
 
-          {/* DEX Mode: Solana chain selected but wallet on different chain type */}
-          {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && hasAnyConnection && activeChainType !== 'solana' && (
+          {/* DEX Mode: Solana chain selected but NO Solana wallet connected */}
+          {exchangeMode === 'dex' && selectedChain.chainIndex === '501' && hasAnyConnection && !solanaAddress && !isOkxConnected && (
             <div className="mx-4 sm:mx-5 mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-sm">
                   <AlertTriangle className="w-4 h-4 text-warning" />
-                  <span className="text-warning">Switch wallet to Solana</span>
+                  <span className="text-warning">Connect Solana wallet</span>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setActiveChain(SUPPORTED_CHAINS.find(c => c.chainIndex === '501') || null)}
+                  onClick={() => openConnectModal()}
                   className="h-7 text-xs"
                 >
-                  Switch to Solana
+                  Connect Wallet
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Your wallet is connected to a different network. Switch to Solana to trade.
+                You need a Solana wallet (OKX, Phantom, Solflare) to swap on Solana.
               </p>
             </div>
           )}
