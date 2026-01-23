@@ -265,7 +265,7 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       // Reset ALL form state when chain changes (prevents stale token selection)
       setFromDexToken(null);
       setToDexToken(null);
-      setFromAmount('');
+      setFromAmount('1');
       setToAmount('');
       
       setLastChainIndex(selectedChain.chainIndex);

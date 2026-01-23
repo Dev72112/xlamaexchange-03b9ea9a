@@ -79,18 +79,33 @@ export function useDexQuote({
 
     const { chainIndex, fromAddress, toAddress, fromDecimals, amount: amt, slippage: slip } = requestParams;
 
-    // Validate inputs
-    if (!chainIndex || !fromAddress || !toAddress || !amt || parseFloat(amt) <= 0 || !enabled) {
-      if (!enabled) {
-        console.log('[DexQuote] Quotes disabled - tokens not fully selected');
-      } else {
-        console.log('[DexQuote] Invalid quote params', { chainIndex: !!chainIndex, fromAddress: !!fromAddress, toAddress: !!toAddress, amt: !!amt, amount: parseFloat(amt) });
-      }
+    // Validate inputs - detailed logging for debugging
+    const validationChecks = {
+      hasChainIndex: !!chainIndex,
+      hasFromAddress: !!fromAddress,
+      hasToAddress: !!toAddress,
+      hasAmount: !!amt,
+      amountValue: parseFloat(amt),
+      amountIsPositive: parseFloat(amt) > 0,
+      isEnabled: enabled,
+    };
+    
+    const isValid = chainIndex && fromAddress && toAddress && amt && parseFloat(amt) > 0 && enabled;
+    
+    if (!isValid) {
+      console.log('[DexQuote] Quote validation failed:', validationChecks);
       setQuote(null);
       setError(null);
       setIsLoading(false);
       return;
     }
+    
+    console.log('[DexQuote] Validation passed, fetching quote for:', {
+      chain: chainIndex,
+      from: fromAddress.slice(0, 10) + '...',
+      to: toAddress.slice(0, 10) + '...',
+      amount: amt,
+    });
 
     // Convert amount to smallest unit
     const decimals = parseInt(fromDecimals);
