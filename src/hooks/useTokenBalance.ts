@@ -63,17 +63,29 @@ interface TokenBalance {
   loading: boolean;
 }
 
-export function useTokenBalance(token: OkxToken | null, chainOrIndex?: Chain | string | null) {
+export function useTokenBalance(
+  token: OkxToken | null, 
+  chainOrIndex?: Chain | string | null,
+  explicitAddress?: string // Allow passing explicit address for cross-chain scenarios
+) {
   const { 
-    activeAddress: address, 
+    activeAddress: contextAddress, 
     isConnected, 
     getEvmProvider, 
     getSolanaConnection,
     getSuiClient,
     getTronWeb,
     evmChainId: chainId,
-    activeChainType
+    activeChainType,
+    solanaAddress, // Get Solana address directly
   } = useMultiWallet();
+  
+  // Use explicit address if provided, otherwise fall back to context address
+  // For Solana chain with explicit chain index, prefer solanaAddress
+  const chainIndex = typeof chainOrIndex === 'string' ? chainOrIndex : chainOrIndex?.chainIndex;
+  const address = explicitAddress || 
+    (chainIndex === '501' ? solanaAddress : null) || 
+    contextAddress;
   
   // Resolve chain from chainIndex string if needed
   const chain = typeof chainOrIndex === 'string' 
@@ -138,7 +150,7 @@ export function useTokenBalance(token: OkxToken | null, chainOrIndex?: Chain | s
       console.error('Error fetching token balance:', err);
       setBalance({ balance: '0', formatted: '0', loading: false });
     }
-  }, [isConnected, address, token, chain, chainOrIndex, activeChainType, getEvmProvider, getSolanaConnection, getSuiClient, getTronWeb]);
+  }, [isConnected, address, token, chain, chainOrIndex, chainIndex, activeChainType, getEvmProvider, getSolanaConnection, getSuiClient, getTronWeb, solanaAddress]);
 
   // Real-time Solana balance subscription (WebSocket)
   const subscriptionRef = useRef<number | null>(null);

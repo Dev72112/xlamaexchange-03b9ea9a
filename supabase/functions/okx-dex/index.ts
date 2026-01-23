@@ -34,7 +34,9 @@ const OKX_CROSS_CHAIN_URL = 'https://web3.okx.com/api/v6/dex/cross-chain';
 const COMMISSION_FEE_PERCENT = '1.5';
 
 // Non-EVM chains that don't support toTokenReferrerWalletAddress
-const NON_EVM_CHAINS = ['501', '195', '784', '607']; // Solana, Tron, Sui, TON
+// NOTE: Solana (501) DOES support commission via fromTokenReferrerWalletAddress (up to 10%!)
+const NON_EVM_CHAINS_NO_FEE = ['195', '784', '607']; // Tron, Sui, TON - no fee support
+const SOLANA_CHAIN = '501'; // Solana uses fromTokenReferrerWalletAddress instead of toToken
 
 // Valid actions - v6 API additions
 const VALID_ACTIONS = [
@@ -354,10 +356,17 @@ serve(async (req) => {
           slippage: validSlippage,
         };
         
-        // Only add referrer params for EVM chains (non-EVM don't support toTokenReferrerWalletAddress)
-        if (OKX_REFERRER_WALLET_ADDRESS && !NON_EVM_CHAINS.includes(chainIndex)) {
-          quoteParams.feePercent = COMMISSION_FEE_PERCENT;
-          quoteParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+        // Add referrer params based on chain type
+        if (OKX_REFERRER_WALLET_ADDRESS) {
+          if (chainIndex === SOLANA_CHAIN) {
+            // Solana: use fromTokenReferrerWalletAddress (supports up to 10% fee!)
+            quoteParams.feePercent = COMMISSION_FEE_PERCENT;
+            quoteParams.fromTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+          } else if (!NON_EVM_CHAINS_NO_FEE.includes(chainIndex)) {
+            // EVM chains: use toTokenReferrerWalletAddress
+            quoteParams.feePercent = COMMISSION_FEE_PERCENT;
+            quoteParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+          }
         }
         
         response = await okxDexRequest('/quote', quoteParams);
@@ -390,10 +399,17 @@ serve(async (req) => {
           userWalletAddress,
         };
         
-        // Only add referrer params for EVM chains (non-EVM don't support toTokenReferrerWalletAddress)
-        if (OKX_REFERRER_WALLET_ADDRESS && !NON_EVM_CHAINS.includes(chainIndex)) {
-          swapParams.feePercent = COMMISSION_FEE_PERCENT;
-          swapParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+        // Add referrer params based on chain type
+        if (OKX_REFERRER_WALLET_ADDRESS) {
+          if (chainIndex === SOLANA_CHAIN) {
+            // Solana: use fromTokenReferrerWalletAddress (supports up to 10% fee!)
+            swapParams.feePercent = COMMISSION_FEE_PERCENT;
+            swapParams.fromTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+          } else if (!NON_EVM_CHAINS_NO_FEE.includes(chainIndex)) {
+            // EVM chains: use toTokenReferrerWalletAddress
+            swapParams.feePercent = COMMISSION_FEE_PERCENT;
+            swapParams.toTokenReferrerWalletAddress = OKX_REFERRER_WALLET_ADDRESS;
+          }
         }
         
         response = await okxDexRequest('/swap', swapParams);

@@ -64,6 +64,19 @@ export function useDexTokens(chain: Chain | null) {
       // Skip native token (handled separately)
       if (token.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase()) continue;
       
+      // CRITICAL: Skip SOL/WSOL from API for Solana chain - we use manually created nativeToken instead
+      // This prevents "fake SOL" from appearing in the list
+      if (chain?.chainIndex === '501') {
+        const symbol = token.tokenSymbol?.toUpperCase();
+        const addr = token.tokenContractAddress;
+        // Skip any native SOL variants from API response
+        if (symbol === 'SOL' || symbol === 'WSOL' || 
+            addr === '11111111111111111111111111111111' ||
+            addr === SOLANA_NATIVE_SOL) {
+          continue;
+        }
+      }
+      
       const key = token.tokenContractAddress.toLowerCase();
       const symbolKey = token.tokenSymbol.toUpperCase();
       

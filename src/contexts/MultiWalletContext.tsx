@@ -614,10 +614,23 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
       } 
     }
     
-    // For non-EVM chains, update active chain state (UI-only switch)
+    // For Solana chain, check if we have a Solana wallet connected
+    if (idx === '501') {
+      setActiveChain(chain);
+      // Check for actual Solana wallet connection
+      const hasSolanaWallet = !!solanaAddress || !!(window as any).okxwallet?.solana?.publicKey;
+      if (!hasSolanaWallet) {
+        console.log('[MultiWallet] Solana chain selected but no Solana wallet connected');
+        return false; // Signal that wallet connection is needed
+      }
+      console.log('[MultiWallet] Solana wallet already connected:', solanaAddress?.slice(0, 8));
+      return true;
+    }
+    
+    // For other non-EVM chains, update active chain state (UI-only switch)
     setActiveChain(chain);
     return true;
-  }, [evmAddress, sessionState.ecosystem, sessionState.isConnected, switchEvmChain, setActiveChain]);
+  }, [evmAddress, sessionState.ecosystem, sessionState.isConnected, switchEvmChain, setActiveChain, solanaAddress]);
 
   // Build context value
   const value: MultiWalletContextType = useMemo(() => ({ 

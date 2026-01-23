@@ -40,8 +40,8 @@ function getQuoteCacheKey(
 function getDebounceDelay(amount: string): number {
   // Shorter debounce for empty/zero amounts (clear quickly)
   if (!amount || parseFloat(amount) <= 0) return 100;
-  // Longer debounce while user is typing
-  return 600;
+  // Shorter debounce for faster response when amount changes
+  return 350;
 }
 
 export function useDexQuote({
@@ -59,6 +59,7 @@ export function useDexQuote({
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastRequestKeyRef = useRef<string>('');
   const retryCountRef = useRef(0);
+  const prevAmountRef = useRef<string>('');
 
   // Memoize request parameters to detect actual changes
   const requestParams = useMemo(() => ({
@@ -218,6 +219,23 @@ export function useDexQuote({
     }
   }, [requestParams, enabled, isLoading]);
 
+  // Force refresh when amount changes significantly (not just debounce)
+  useEffect(() => {
+    const amountChanged = prevAmountRef.current !== amount;
+    const hasValidAmount = amount && parseFloat(amount) > 0;
+    
+    if (amountChanged && hasValidAmount) {
+      console.log('[DexQuote] Amount changed:', prevAmountRef.current, '->', amount);
+      prevAmountRef.current = amount;
+      
+      // Invalidate any cached quotes for this chain when amount changes
+      const { chainIndex, fromAddress, toAddress } = requestParams;
+      if (chainIndex && fromAddress && toAddress) {
+        apiCoordinator.invalidatePrefix(`quote:${chainIndex}:${fromAddress}:${toAddress}`);
+      }
+    }
+  }, [amount, requestParams]);
+  
   // Debounced fetch with dynamic delay
   useEffect(() => {
     const delay = getDebounceDelay(amount);
