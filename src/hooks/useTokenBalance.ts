@@ -77,20 +77,45 @@ export function useTokenBalance(
     getTronWeb,
     evmChainId: chainId,
     activeChainType,
-    solanaAddress, // Get Solana address directly
+    solanaAddress,
+    suiAddress,
+    tronAddress,
+    tonAddress,
+    evmAddress,
   } = useMultiWallet();
   
-  // Use explicit address if provided, otherwise fall back to context address
-  // For Solana chain with explicit chain index, prefer solanaAddress
+  // Resolve chain index and chain type
   const chainIndex = typeof chainOrIndex === 'string' ? chainOrIndex : chainOrIndex?.chainIndex;
-  const address = explicitAddress || 
-    (chainIndex === '501' ? solanaAddress : null) || 
-    contextAddress;
+  const chain = typeof chainOrIndex === 'string' ? undefined : chainOrIndex;
   
-  // Resolve chain from chainIndex string if needed
-  const chain = typeof chainOrIndex === 'string' 
-    ? undefined // We'll use activeChainType for string index
-    : chainOrIndex;
+  // Determine which chain type we're fetching for
+  const targetChainType = useMemo(() => {
+    if (chainIndex === '501') return 'solana';
+    if (chainIndex === '784') return 'sui';
+    if (chainIndex === '195') return 'tron';
+    if (chainIndex === '607') return 'ton';
+    if (chain && !chain.isEvm) {
+      const name = chain.name.toLowerCase();
+      if (name.includes('solana')) return 'solana';
+      if (name.includes('sui')) return 'sui';
+      if (name.includes('tron')) return 'tron';
+      if (name.includes('ton')) return 'ton';
+    }
+    return 'evm';
+  }, [chainIndex, chain]);
+  
+  // Get the correct address for the target chain
+  const address = useMemo(() => {
+    if (explicitAddress) return explicitAddress;
+    
+    switch (targetChainType) {
+      case 'solana': return solanaAddress;
+      case 'sui': return suiAddress;
+      case 'tron': return tronAddress;
+      case 'ton': return tonAddress;
+      default: return evmAddress || contextAddress;
+    }
+  }, [explicitAddress, targetChainType, solanaAddress, suiAddress, tronAddress, tonAddress, evmAddress, contextAddress]);
   
   const [balance, setBalance] = useState<TokenBalance>({
     balance: '0',
@@ -106,7 +131,8 @@ export function useTokenBalance(
   });
 
   const fetchBalance = useCallback(async () => {
-    if (!isConnected || !address || !token) {
+    // Must have address for the specific chain to fetch balance
+    if (!address || !token) {
       setBalance({ balance: '0', formatted: '0', loading: false });
       return;
     }
@@ -114,26 +140,19 @@ export function useTokenBalance(
     setBalance(prev => ({ ...prev, loading: true }));
 
     try {
-      // Determine chain type
-      const isEvm = chain?.isEvm ?? activeChainType === 'evm';
-      const chainName = chain?.name?.toLowerCase() || '';
-      
       let rawBalance: string = '0';
       let decimals = parseInt(token.decimals);
 
-      if (isEvm) {
-        // EVM balance fetch
+      // Use targetChainType instead of activeChainType for balance fetching
+      if (targetChainType === 'evm') {
         rawBalance = await fetchEvmBalance(token, address, getEvmProvider);
-      } else if (chainName.includes('solana') || activeChainType === 'solana') {
-        // Solana balance fetch
+      } else if (targetChainType === 'solana') {
         rawBalance = await fetchSolanaBalance(token, address, getSolanaConnection);
-      } else if (chainName.includes('sui') || activeChainType === 'sui') {
-        // Sui balance fetch
+      } else if (targetChainType === 'sui') {
         rawBalance = await fetchSuiBalance(token, address, getSuiClient);
-      } else if (chainName.includes('tron') || activeChainType === 'tron') {
-        // Tron balance fetch
+      } else if (targetChainType === 'tron') {
         rawBalance = await fetchTronBalance(token, address, getTronWeb);
-      } else if (chainName.includes('ton') || activeChainType === 'ton') {
+      } else if (targetChainType === 'ton') {
         // TON - currently no direct balance fetch, would need TonClient
         rawBalance = '0';
       }
@@ -150,7 +169,7 @@ export function useTokenBalance(
       console.error('Error fetching token balance:', err);
       setBalance({ balance: '0', formatted: '0', loading: false });
     }
-  }, [isConnected, address, token, chain, chainOrIndex, chainIndex, activeChainType, getEvmProvider, getSolanaConnection, getSuiClient, getTronWeb, solanaAddress]);
+  }, [address, token, chain, chainIndex, targetChainType, getEvmProvider, getSolanaConnection, getSuiClient, getTronWeb]);
 
   // Real-time Solana balance subscription (WebSocket)
   const subscriptionRef = useRef<number | null>(null);
@@ -158,7 +177,7 @@ export function useTokenBalance(
   // Detect when we need to refetch due to address/chain/token changes
   useEffect(() => {
     const tokenAddress = token?.tokenContractAddress || null;
-    const currentDeps = { address, token: tokenAddress, chainType: activeChainType };
+    const currentDeps = { address, token: tokenAddress, chainType: targetChainType };
     const prev = prevDepsRef.current;
     
     // Check if any critical dependency changed
@@ -171,21 +190,20 @@ export function useTokenBalance(
       console.log('[useTokenBalance] Dependencies changed, refetching:', {
         address: address?.slice(0, 8),
         token: token?.tokenSymbol,
-        chainType: activeChainType,
+        chainType: targetChainType,
         prevAddress: prev.address?.slice(0, 8),
       });
       prevDepsRef.current = currentDeps;
       fetchBalance();
     }
-  }, [address, token, activeChainType, fetchBalance]);
+  }, [address, token, targetChainType, fetchBalance]);
 
   // Fetch on mount and when dependencies change
   useEffect(() => {
     fetchBalance();
     
     // Set up WebSocket subscription for Solana tokens
-    const chainName = chain?.name?.toLowerCase() || '';
-    const isSolana = chainName.includes('solana') || activeChainType === 'solana';
+    const isSolana = targetChainType === 'solana';
     
     if (isSolana && token && address) {
       try {
@@ -225,15 +243,15 @@ export function useTokenBalance(
         subscriptionRef.current = null;
       }
     };
-  }, [fetchBalance, chainId, token, address, chain, activeChainType]);
+  }, [fetchBalance, chainId, token, address, targetChainType]);
 
   // Auto-refresh every 30 seconds (fallback for non-Solana or if WebSocket fails)
   useEffect(() => {
-    if (!isConnected || !token) return;
+    if (!address || !token) return;
     
     const interval = setInterval(fetchBalance, 30000);
     return () => clearInterval(interval);
-  }, [fetchBalance, isConnected, token]);
+  }, [fetchBalance, address, token]);
 
   return {
     ...balance,
