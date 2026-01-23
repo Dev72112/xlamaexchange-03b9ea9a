@@ -29,7 +29,6 @@ import {
   Download,
   Clock,
   ArrowRight,
-  Zap,
 } from 'lucide-react';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
@@ -84,99 +83,6 @@ const getFrequencyLabel = (freq: string) => {
   }
 };
 
-// Jupiter DCA Order Card (on-chain Solana orders)
-interface JupiterDCACardProps {
-  order: JupiterDCAOrder;
-  onCancel: (key: string) => void;
-  isSigning: boolean;
-  index: number;
-}
-
-const JupiterDCACard = memo(function JupiterDCACard({ order, onCancel, isSigning, index }: JupiterDCACardProps) {
-  // Calculate progress
-  const totalCycles = order.inAmountPerCycle ? Math.ceil(Number(order.inDeposited) / Number(order.inAmountPerCycle)) : null;
-  const completedCycles = order.inAmountPerCycle ? Math.floor(Number(order.inWithdrawn || 0) / Number(order.inAmountPerCycle)) : null;
-  const progress = totalCycles && completedCycles ? (completedCycles / totalCycles) * 100 : 0;
-  
-  // Format next execution
-  const nextExecution = order.nextCycleAt ? new Date(order.nextCycleAt * 1000) : null;
-  
-  return (
-    <div 
-      className={`p-3 sm:p-4 border border-primary/30 rounded-lg bg-primary/5 hover:border-primary/40 transition-colors sweep-effect performance-critical ${STAGGER_ITEM_CLASS}`}
-      style={getStaggerStyle(index, 50)}
-    >
-      <div className="flex items-start justify-between gap-2 sm:gap-4">
-        <div className="flex-1 min-w-0">
-          {/* Token pair and Jupiter badge with Solana chain icon */}
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
-            {/* Solana chain icon for Jupiter orders */}
-            {(() => {
-              const solanaChain = SUPPORTED_CHAINS.find(c => c.chainIndex === '501');
-              return solanaChain ? (
-                <img src={getChainIcon(solanaChain)} alt="Solana" className="w-4 h-4 rounded-full shrink-0" title="Solana" />
-              ) : null;
-            })()}
-            <span className="font-medium text-sm sm:text-base truncate">{order.inputMint?.slice(0, 6)}...</span>
-            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground shrink-0" />
-            <span className="font-medium text-sm sm:text-base truncate">{order.outputMint?.slice(0, 6)}...</span>
-            <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30 gap-1">
-              <Zap className="w-2.5 h-2.5" />
-              Jupiter
-            </Badge>
-            <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
-              on-chain
-            </Badge>
-          </div>
-          
-          {/* Details */}
-          <div className="text-xs sm:text-sm text-muted-foreground space-y-0.5 sm:space-y-1">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <CalendarClock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-              <span className="truncate">
-                {order.inAmountPerCycle ? `${(Number(order.inAmountPerCycle) / 1e9).toFixed(4)}` : '?'} per cycle
-              </span>
-            </div>
-            
-            {nextExecution && (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span className="truncate">
-                  Next: {nextExecution.toLocaleDateString()} {nextExecution.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            )}
-            
-            {totalCycles && (
-              <div className="mt-1.5 sm:mt-2">
-                <div className="flex justify-between text-[10px] sm:text-xs mb-0.5 sm:mb-1">
-                  <span>Progress</span>
-                  <span>{completedCycles || 0}/{totalCycles} cycles</span>
-                </div>
-                <Progress value={progress} className="h-1 sm:h-1.5" />
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Cancel button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-8 w-8 text-destructive hover:text-destructive" 
-          disabled={isSigning}
-          onClick={() => onCancel(order.order)}
-        >
-          {isSigning ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <X className="w-4 h-4" />
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-});
 
 interface DCAOrderCardProps {
   order: DCAOrder;
@@ -292,27 +198,24 @@ const DCAOrderCard = memo(function DCAOrderCard({
 });
 
 export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
-  const { isConnected, activeChainType } = useMultiWallet();
+  const { isConnected } = useMultiWallet();
   const { 
     orders, 
     activeOrders, 
     pausedOrders,
-    jupiterOrders,
     isLoading, 
     isSigning,
     pauseOrder,
     resumeOrder,
     cancelOrder,
-    cancelJupiterDCA,
     exportToCSV,
   } = useDCAOrders();
   
   const [isOpen, setIsOpen] = useState(true);
   
-  // Combine database orders and Jupiter on-chain orders
+  // Database orders only (Jupiter removed)
   const visibleOrders = useMemo(() => [...activeOrders, ...pausedOrders], [activeOrders, pausedOrders]);
-  const isSolana = activeChainType === 'solana';
-  const totalOrderCount = visibleOrders.length + (jupiterOrders?.length || 0);
+  const totalOrderCount = visibleOrders.length;
   
   if (!isConnected) return null;
 
@@ -334,16 +237,15 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
                     </Badge>
                   )}
                 </CardTitle>
-                {(visibleOrders.length > 0 || (jupiterOrders?.length || 0) > 0) && (
+                {visibleOrders.length > 0 && (
                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                     {activeOrders.length} active, {pausedOrders.length} paused
-                    {jupiterOrders && jupiterOrders.length > 0 && `, ${jupiterOrders.length} Jupiter`}
                   </p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {(orders.length > 0 || (jupiterOrders?.length || 0) > 0) && (
+              {orders.length > 0 && (
                 <>
                   <DCADashboard />
                   <Button 
@@ -391,21 +293,6 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
             ) : (
               <ScrollArea className="h-[350px] pr-2">
                 <div className="space-y-2 sm:space-y-3">
-                  {/* Jupiter on-chain DCA orders (Solana) */}
-                  {jupiterOrders && jupiterOrders.length > 0 && (
-                    <>
-                      {jupiterOrders.map((order, index) => (
-                        <JupiterDCACard
-                          key={order.order}
-                          order={order}
-                          onCancel={cancelJupiterDCA}
-                          isSigning={isSigning}
-                          index={index}
-                        />
-                      ))}
-                    </>
-                  )}
-                  
                   {/* Database DCA orders */}
                   {visibleOrders.map((order, index) => (
                     <DCAOrderCard
@@ -415,7 +302,7 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
                       onResume={resumeOrder}
                       onCancel={cancelOrder}
                       isSigning={isSigning}
-                      index={index + (jupiterOrders?.length || 0)}
+                      index={index}
                     />
                   ))}
                 </div>

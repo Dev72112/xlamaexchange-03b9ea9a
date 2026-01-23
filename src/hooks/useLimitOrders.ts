@@ -413,7 +413,7 @@ export function useLimitOrders() {
                 order.from_token_symbol,
                 order.to_token_symbol,
                 order.condition,
-                targetPrice.toString()
+                targetPrice
               );
             }
             
