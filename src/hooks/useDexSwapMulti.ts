@@ -1,17 +1,14 @@
 import { useState, useCallback } from 'react';
 import { okxDexService, OkxToken } from '@/services/okxdex';
-import { jupiterService, JupiterOrderResponse } from '@/services/jupiter';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
-import { Transaction, VersionedTransaction, Connection, PublicKey } from '@solana/web3.js';
+import { VersionedTransaction, Connection } from '@solana/web3.js';
 import { useAppKitProvider } from '@reown/appkit/react';
 import bs58 from 'bs58';
 import { getSolanaRpcEndpoints } from '@/config/rpc';
 import { notificationService } from '@/services/notificationService';
 
-// Wrapped SOL mint address (used by Jupiter for native SOL)
-const WRAPPED_SOL_MINT = 'So11111111111111111111111111111111111111112';
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
 interface UseDexSwapOptions {
@@ -64,7 +61,7 @@ export function useDexSwapMulti() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [apiSource, setApiSource] = useState<'jupiter' | 'okx' | null>(null);
+  const [apiSource, setApiSource] = useState<'okx' | null>(null);
 
   const executeSwap = useCallback(async ({
     chain,
@@ -255,7 +252,7 @@ export function useDexSwapMulti() {
     onSuccess?.(hash);
   };
 
-  // Solana Swap - Jupiter Primary with OKX Fallback
+  // Solana Swap - OKX DEX Only (Jupiter removed for simplicity)
   const executeSolanaSwap = async ({ chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess }: any) => {
     if (!solanaAddress) {
       throw new Error('Solana wallet not connected');
@@ -285,138 +282,14 @@ export function useDexSwapMulti() {
     const providerPubkey = provider.publicKey?.toBase58?.() || provider.publicKey?.toString?.();
     console.log('[Solana] Provider ready:', { pubkey: providerPubkey?.slice(0, 12) + '...' });
 
-    // Check if Jupiter-only mode is enabled (for debugging)
-    const jupiterOnlyMode = typeof localStorage !== 'undefined' && 
-      localStorage.getItem('xlama.solanaSwapProvider') === 'jupiter-only';
-
-    // TRY JUPITER FIRST (for commission earnings)
-    try {
-      console.log('[Solana] Attempting Jupiter Ultra swap (primary)...');
-      const result = await executeJupiterSwap({
-        fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey
-      });
-      return result;
-    } catch (jupiterError: any) {
-      console.error('[Jupiter] Swap failed:', jupiterError?.message || jupiterError);
-      
-      // Check if user rejected - don't fallback for user rejections
-      if (jupiterError?.message?.includes('rejected') || jupiterError?.code === 4001) {
-        throw jupiterError;
-      }
-      
-      // In Jupiter-only mode, don't fallback - surface the real error
-      if (jupiterOnlyMode) {
-        console.error('[Jupiter-Only Mode] Not falling back to OKX DEX');
-        throw new Error(`Jupiter swap failed: ${jupiterError?.message?.slice(0, 100) || 'Unknown error'}`);
-      }
-      
-      toast({
-        title: 'Jupiter Unavailable',
-        description: 'Using OKX DEX as fallback...',
-      });
-    }
-
-    // FALLBACK TO OKX DEX (only if not in jupiter-only mode)
-    console.log('[Solana] Falling back to OKX DEX...');
+    // Execute via OKX DEX
+    console.log('[Solana] Executing swap via OKX DEX...');
     return await executeOkxSolanaSwap({
       chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey
     });
   };
 
-  // Jupiter Ultra API Swap Implementation
-  const executeJupiterSwap = async ({ 
-    fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey 
-  }: any) => {
-    setApiSource('jupiter');
-    setStep('swapping');
-    toast({ title: 'Preparing Swap', description: 'Getting best route via Jupiter...' });
-
-    // Convert token addresses to Solana mint format
-    // Native SOL uses wrapped SOL mint in Jupiter
-    const inputMint = fromToken.tokenContractAddress?.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase()
-      ? WRAPPED_SOL_MINT
-      : fromToken.tokenContractAddress;
-    const outputMint = toToken.tokenContractAddress?.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase()
-      ? WRAPPED_SOL_MINT
-      : toToken.tokenContractAddress;
-
-    // Get order from Jupiter Ultra API (includes transaction)
-    const orderResponse = await jupiterService.getSwapOrder({
-      inputMint,
-      outputMint,
-      amount: amountInSmallestUnit,
-      takerAddress: providerPubkey,
-      slippageBps: Math.round(parseFloat(slippage) * 100), // Convert 0.5 -> 50 bps
-    });
-
-    if (!orderResponse.transaction) {
-      throw new Error('Jupiter did not return a transaction');
-    }
-
-    toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your wallet' });
-
-    // CRITICAL: Jupiter returns BASE64 encoded transactions (not base58 like OKX!)
-    const txBytes = Uint8Array.from(atob(orderResponse.transaction), c => c.charCodeAt(0));
-    
-    // Deserialize the versioned transaction
-    let tx: VersionedTransaction;
-    try {
-      tx = VersionedTransaction.deserialize(txBytes);
-      console.log('[Jupiter] Transaction deserialized:', {
-        numAccountKeys: tx.message.staticAccountKeys.length,
-        recentBlockhash: tx.message.recentBlockhash?.slice(0, 12) + '...',
-      });
-    } catch (deserError: any) {
-      console.error('[Jupiter] Transaction deserialize error:', deserError);
-      throw new Error(`Failed to parse Jupiter transaction: ${deserError?.message?.slice(0, 50)}`);
-    }
-
-    // Sign with wallet provider
-    let signedTx: VersionedTransaction;
-    try {
-      console.log('[Jupiter] Signing transaction...');
-      signedTx = await provider.signTransaction(tx);
-      console.log('[Jupiter] Transaction signed successfully');
-    } catch (signError: any) {
-      if (signError?.message?.includes('rejected') || signError?.code === 4001) {
-        throw signError;
-      }
-      throw new Error(`Failed to sign transaction: ${signError?.message?.slice(0, 50)}`);
-    }
-
-    // Convert to base64 for Jupiter execute endpoint
-    const signedBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
-
-    // Execute via Jupiter API (they handle RPC submission for reliability)
-    console.log('[Jupiter] Submitting to Jupiter execute endpoint...');
-    const executeResponse = await jupiterService.executeSwap({
-      signedTransaction: signedBase64,
-      requestId: orderResponse.requestId,
-    });
-
-    if (executeResponse.status === 'Failed') {
-      throw new Error(executeResponse.error || 'Jupiter execution failed');
-    }
-
-    const signature = executeResponse.signature;
-    setStep('confirming');
-    setTxHash(signature);
-    toast({ title: 'Transaction Submitted', description: 'Waiting for confirmation...' });
-
-    // Jupiter handles confirmation - wait briefly for UI update
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    setStep('complete');
-    notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, signature);
-    toast({ 
-      title: 'Swap Complete! 🎉', 
-      description: `Successfully swapped ${amount} ${fromToken.tokenSymbol} via Jupiter` 
-    });
-    onSuccess?.(signature);
-    return signature;
-  };
-
-  // OKX DEX Solana Swap (Fallback)
+  // OKX DEX Solana Swap
   const executeOkxSolanaSwap = async ({ 
     chain, fromToken, toToken, amount, amountInSmallestUnit, slippage, onSuccess, provider, providerPubkey 
   }: any) => {

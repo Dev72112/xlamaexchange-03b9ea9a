@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle, Zap, Loader2 } from 'lucide-react';
+import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,6 @@ import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { LimitOrderCountdown } from '@/components/LimitOrderCountdown';
 import { cn } from '@/shared/lib';
 import xlamaMascot from '@/assets/xlama-mascot.png';
-import type { JupiterOpenOrder } from '@/services/jupiter';
 import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 
 interface ActiveLimitOrdersProps {
@@ -29,20 +28,12 @@ const formatAmount = (amount: string | number, maxDecimals = 6): string => {
   return num.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });
 };
 
-// Convert Jupiter order amounts from smallest units
-const formatJupiterAmount = (amount: string, decimals = 9): string => {
-  const num = parseFloat(amount) / Math.pow(10, decimals);
-  return formatAmount(num);
-};
-
 export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrdersProps) {
-  const { isConnected, activeChainType } = useMultiWallet();
+  const { isConnected } = useMultiWallet();
   const { 
     orders, 
     activeOrders, 
-    jupiterOrders,
     cancelOrder, 
-    cancelJupiterOrder,
     dismissOrder, 
     isLoading, 
     isSigning,
@@ -52,12 +43,9 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
   } = useLimitOrders();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Determine if we're on Solana
-  const isSolana = activeChainType === 'solana';
-
-  // Count total orders including Jupiter on-chain orders
-  const totalActiveCount = activeOrders.length + (isSolana ? jupiterOrders.length : 0);
-  const totalOrdersCount = orders.length + (isSolana ? jupiterOrders.length : 0);
+  // Count total orders
+  const totalActiveCount = activeOrders.length;
+  const totalOrdersCount = orders.length;
 
   if (!isConnected || totalOrdersCount === 0) {
     return null;
@@ -93,71 +81,6 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
   const getChainInfo = (chainIndex: string) => {
     const chain = SUPPORTED_CHAINS.find(c => c.chainIndex === chainIndex);
     return chain ? { icon: getChainIcon(chain), name: chain.name } : null;
-  };
-
-  // Solana chain info for Jupiter orders
-  const solanaChain = SUPPORTED_CHAINS.find(c => c.chainIndex === '501');
-  const solanaIcon = solanaChain ? getChainIcon(solanaChain) : null;
-
-  // Render Jupiter on-chain order card
-  const renderJupiterOrderCard = (order: JupiterOpenOrder) => {
-    const remainingPercent = order.remainingMakingAmount && order.makingAmount 
-      ? (parseFloat(order.remainingMakingAmount) / parseFloat(order.makingAmount) * 100).toFixed(0)
-      : '100';
-    const isPartiallyFilled = remainingPercent !== '100';
-
-    return (
-      <div 
-        key={order.order}
-        className="p-2.5 sm:p-3 rounded-lg border bg-primary/5 border-primary/20 overflow-hidden"
-      >
-        <div className="flex items-start justify-between gap-2 min-w-0">
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-              {/* Solana chain icon */}
-              {solanaIcon && (
-                <img src={solanaIcon} alt="Solana" className="w-4 h-4 rounded-full shrink-0" />
-              )}
-              <span className="font-medium text-xs sm:text-sm truncate">
-                {order.inputMint.slice(0, 4)}...{order.inputMint.slice(-4)} → {order.outputMint.slice(0, 4)}...{order.outputMint.slice(-4)}
-              </span>
-              <Badge className="gap-1 bg-primary/20 text-primary text-[10px] shrink-0">
-                <Zap className="w-2.5 h-2.5" />Jupiter
-              </Badge>
-            </div>
-            <div className="text-[10px] sm:text-xs text-muted-foreground space-y-0.5">
-              <p className="truncate">Making: {formatJupiterAmount(order.makingAmount)}</p>
-              <p className="truncate">For: {formatJupiterAmount(order.takingAmount)}</p>
-              {isPartiallyFilled && (
-                <p className="text-warning truncate">Filled: {100 - parseFloat(remainingPercent)}%</p>
-              )}
-              {order.expiredAt && (
-                <p className="truncate">Expires: {formatDate(new Date(order.expiredAt * 1000).toISOString())}</p>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex flex-col gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => cancelJupiterOrder(order.order)}
-              disabled={isSigning}
-            >
-              {isSigning ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <>
-                  <X className="w-3 h-3 mr-1" />
-                  Cancel
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -240,26 +163,9 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
           <CardContent className="pt-0 pb-3">
             <ScrollArea className="h-[350px] pr-2">
               <div className="space-y-2">
-                {/* Jupiter On-Chain Orders Section (Solana only) */}
-                {isSolana && jupiterOrders.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
-                      <Zap className="w-3 h-3 text-primary" />
-                      <span>Jupiter On-Chain ({jupiterOrders.length})</span>
-                    </div>
-                    {jupiterOrders.map(renderJupiterOrderCard)}
-                  </div>
-                )}
-
                 {/* Database Monitored Orders */}
                 {orders.length > 0 && (
                   <div className="space-y-2">
-                    {isSolana && jupiterOrders.length > 0 && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground px-1 mt-3">
-                        <Clock className="w-3 h-3" />
-                        <span>Monitored Orders ({orders.length})</span>
-                      </div>
-                    )}
                     {orders.slice(0, 10).map(order => (
                       <div 
                         key={order.id}

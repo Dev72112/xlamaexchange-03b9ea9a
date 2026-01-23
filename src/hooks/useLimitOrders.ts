@@ -10,8 +10,6 @@ import { useSignPersonalMessage } from '@mysten/dapp-kit';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { trackOrderCreated } from '@/lib/tracking';
 import { notificationService } from '@/services/notificationService';
-import { jupiterService, JupiterOpenOrder } from '@/services/jupiter';
-import { VersionedTransaction } from '@solana/web3.js';
 
 export interface LimitOrder {
   id: string;
@@ -36,15 +34,6 @@ export interface LimitOrder {
   // Trigger timeout fields
   trigger_expires_at?: string;
   user_dismissed?: boolean;
-  // Jupiter on-chain order (Solana only)
-  jupiter_order_key?: string;
-  is_jupiter_order?: boolean;
-}
-
-// Jupiter order mapped to our interface
-export interface JupiterLimitOrderUI extends LimitOrder {
-  jupiter_order_key: string;
-  is_jupiter_order: true;
 }
 
 export function useLimitOrders() {
@@ -54,15 +43,11 @@ export function useLimitOrders() {
   const { toast } = useToast();
   const { playAlert, settings } = useFeedback();
   const [orders, setOrders] = useState<LimitOrder[]>([]);
-  const [jupiterOrders, setJupiterOrders] = useState<JupiterOpenOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const notifiedOrdersRef = useRef<Set<string>>(new Set());
-
-  // Check if Solana is selected
-  const isSolana = activeChainType === 'solana';
   
   // Create wallet-authenticated Supabase client for reads
   const walletSupabase = useMemo(() => createWalletClient(activeAddress), [activeAddress]);
@@ -132,13 +117,12 @@ export function useLimitOrders() {
     URL.revokeObjectURL(link.href);
   }, [orders]);
 
-  // Fetch user's orders (includes Jupiter on-chain orders for Solana)
+  // Fetch user's orders
   const fetchOrders = useCallback(async () => {
     if (!activeAddress) return;
     
     setIsLoading(true);
     try {
-      // Fetch off-chain monitored orders from Supabase
       const { data, error } = await walletSupabase
         .from('limit_orders')
         .select('*')
@@ -147,179 +131,12 @@ export function useLimitOrders() {
       
       if (error) throw error;
       setOrders((data as LimitOrder[]) || []);
-
-      // For Solana, also fetch Jupiter on-chain orders
-      if (isSolana) {
-        try {
-          const jupOrders = await jupiterService.getOpenLimitOrders(activeAddress);
-          setJupiterOrders(jupOrders);
-          console.log('[LimitOrders] Fetched Jupiter orders:', jupOrders.length);
-        } catch (jupErr) {
-          console.warn('[LimitOrders] Failed to fetch Jupiter orders:', jupErr);
-        }
-      }
     } catch {
       // Silently handle fetch errors
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress, walletSupabase, isSolana]);
-
-  // Create Jupiter on-chain limit order (Solana only)
-  // Uses Jupiter's Trigger API: create -> sign -> execute (Jupiter handles RPC)
-  const createJupiterOrder = useCallback(async (params: {
-    inputMint: string;
-    outputMint: string;
-    makingAmount: string;
-    takingAmount: string;
-    expiredAt?: number;
-  }) => {
-    if (!activeAddress || !isSolana) return null;
-
-    const solanaWallet = getSolanaWallet();
-    if (!solanaWallet?.signTransaction) {
-      toast({
-        title: 'Wallet Required',
-        description: 'Please connect a Solana wallet to create Jupiter limit orders',
-        variant: 'destructive',
-      });
-      return null;
-    }
-
-    setIsSigning(true);
-    try {
-      toast({
-        title: 'Creating Order',
-        description: 'Getting transaction from Jupiter...',
-      });
-
-      // Get the order transaction from Jupiter Trigger API
-      // IMPORTANT: Ensure all parameters are explicitly strings (Jupiter API Zod validation requirement)
-      console.log('[LimitOrders] Calling Jupiter with:', {
-        inputMint: String(params.inputMint),
-        outputMint: String(params.outputMint),
-        maker: String(activeAddress),
-        makingAmount: String(params.makingAmount),
-        takingAmount: String(params.takingAmount),
-      });
-      
-      const orderResponse = await jupiterService.createLimitOrder({
-        inputMint: String(params.inputMint),
-        outputMint: String(params.outputMint),
-        maker: String(activeAddress),
-        makingAmount: String(params.makingAmount),
-        takingAmount: String(params.takingAmount),
-        expiredAt: params.expiredAt ? Number(params.expiredAt) : undefined,
-      });
-
-      // Check for transaction - Jupiter returns 'tx' field (base64 encoded)
-      const txBase64 = orderResponse.tx || (orderResponse as any).transaction;
-      if (!txBase64) {
-        throw new Error('Jupiter did not return a transaction');
-      }
-
-      toast({
-        title: 'Sign Transaction',
-        description: 'Please approve the transaction in your wallet',
-      });
-
-      // Decode and sign the transaction (Jupiter returns base64)
-      const txBytes = Uint8Array.from(atob(txBase64), c => c.charCodeAt(0));
-      const transaction = VersionedTransaction.deserialize(txBytes);
-      const signedTx = await solanaWallet.signTransaction(transaction);
-
-      // Serialize to base64 for Jupiter execute endpoint
-      const signedTxBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
-      
-      // Execute via Jupiter's execute endpoint (they handle RPC submission reliably)
-      // This avoids "failed to get recent blockhash: Failed to fetch" errors
-      toast({
-        title: 'Submitting Order',
-        description: 'Jupiter is processing your order...',
-      });
-      
-      const executeResult = await jupiterService.executeTriggerOrder({
-        signedTransaction: signedTxBase64,
-        requestId: (orderResponse as any).requestId,
-      });
-      
-      const signature = executeResult.signature;
-      
-      toast({
-        title: '✅ Jupiter Limit Order Created',
-        description: `Order placed on-chain. Jupiter keepers will execute when price is reached.`,
-      });
-
-      trackOrderCreated('limit', '501', params.inputMint.slice(0, 6), params.outputMint.slice(0, 6));
-      fetchOrders();
-      
-      return { order: orderResponse.order, signature };
-    } catch (err) {
-      console.error('[LimitOrders] Jupiter order creation failed:', err);
-      toast({
-        title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to create Jupiter limit order',
-        variant: 'destructive',
-      });
-      return null;
-    } finally {
-      setIsSigning(false);
-    }
-  }, [activeAddress, isSolana, getSolanaWallet, toast, fetchOrders]);
-
-  // Cancel Jupiter on-chain order (Solana only)
-  // Uses Jupiter's cancel endpoint + execute for reliable RPC handling
-  const cancelJupiterOrder = useCallback(async (orderKey: string) => {
-    if (!activeAddress || !isSolana) return;
-
-    const solanaWallet = getSolanaWallet();
-    if (!solanaWallet?.signTransaction) return;
-
-    setIsSigning(true);
-    try {
-      toast({
-        title: 'Cancelling Order',
-        description: 'Getting cancel transaction from Jupiter...',
-      });
-      
-      const cancelResponse = await jupiterService.cancelLimitOrders(activeAddress, [orderKey]);
-      
-      // Get transaction from response - Jupiter returns txs array or tx field
-      const txBase64 = cancelResponse.tx || (cancelResponse as any).txs?.[0];
-      if (!txBase64) {
-        throw new Error('Jupiter did not return a cancel transaction');
-      }
-      
-      const txBytes = Uint8Array.from(atob(txBase64), c => c.charCodeAt(0));
-      const transaction = VersionedTransaction.deserialize(txBytes);
-      
-      toast({
-        title: 'Sign Transaction',
-        description: 'Please approve the cancellation in your wallet',
-      });
-      
-      const signedTx = await solanaWallet.signTransaction(transaction);
-      const signedTxBase64 = btoa(String.fromCharCode(...signedTx.serialize()));
-
-      // Execute via Jupiter for reliable RPC handling
-      const executeResult = await jupiterService.executeTriggerOrder({
-        signedTransaction: signedTxBase64,
-        requestId: (cancelResponse as any).requestId,
-      });
-
-      toast({ title: '✅ Order Cancelled', description: 'Jupiter limit order has been cancelled' });
-      fetchOrders();
-    } catch (err) {
-      console.error('[LimitOrders] Cancel failed:', err);
-      toast({
-        title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to cancel order',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSigning(false);
-    }
-  }, [activeAddress, isSolana, getSolanaWallet, toast, fetchOrders]);
+  }, [activeAddress, walletSupabase]);
 
   // Create new limit order with signature verification for all chains
   const createOrder = useCallback(async (order: Omit<LimitOrder, 'id' | 'user_address' | 'status' | 'created_at' | 'triggered_at'>) => {
@@ -381,7 +198,7 @@ export function useLimitOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
-          tonProof: signedRequest.tonProof, // Include tonProof for TON verification
+          tonProof: signedRequest.tonProof,
         },
       });
       
@@ -449,7 +266,7 @@ export function useLimitOrders() {
           walletAddress: activeAddress,
           chainType,
           payload: signedRequest.payload,
-          tonProof: signedRequest.tonProof, // Include tonProof for TON verification
+          tonProof: signedRequest.tonProof,
         },
       });
       
@@ -502,21 +319,21 @@ export function useLimitOrders() {
     } catch (err) {
       toast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to dismiss order',
+        description: 'Failed to dismiss order',
         variant: 'destructive',
       });
     }
   }, [activeAddress, walletSupabase, fetchOrders, toast]);
 
-  // Mark order as executed with transaction hash
+  // Mark order as executed (after swap)
   const markExecuted = useCallback(async (orderId: string, txHash: string) => {
-    if (!activeAddress) return false;
+    if (!activeAddress) return;
     
     try {
       const { error } = await walletSupabase
         .from('limit_orders')
         .update({ 
-          status: 'executed' as LimitOrder['status'],
+          status: 'executed',
           executed_at: new Date().toISOString(),
           execution_tx_hash: txHash,
         })
@@ -525,162 +342,148 @@ export function useLimitOrders() {
       
       if (error) throw error;
       
-      // Find order details for notification
-      const executedOrder = orders.find(o => o.id === orderId);
-      if (executedOrder) {
-        notificationService.notifyOrderExecuted(
-          executedOrder.from_token_symbol,
-          executedOrder.to_token_symbol,
-          executedOrder.amount,
-          txHash
-        );
-      }
-      
       toast({
-        title: '✅ Order Executed',
+        title: 'Order Executed',
         description: 'Limit order has been successfully executed',
       });
       
       fetchOrders();
-      return true;
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to mark order as executed',
-        variant: 'destructive',
-      });
-      return false;
+      console.error('Failed to mark order as executed:', err);
     }
   }, [activeAddress, walletSupabase, fetchOrders, toast]);
 
-  // Mark order as triggered (internal use - no signature needed)
+  // Mark order as triggered
   const markTriggered = useCallback(async (orderId: string) => {
+    if (!activeAddress) return;
+    
     try {
+      // Set trigger timeout to 15 minutes
+      const triggerExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      
       const { error } = await walletSupabase
         .from('limit_orders')
         .update({ 
           status: 'triggered',
           triggered_at: new Date().toISOString(),
+          trigger_expires_at: triggerExpiresAt,
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .eq('user_address', activeAddress.toLowerCase());
       
       if (error) throw error;
       fetchOrders();
-    } catch {
-      // Silently handle trigger errors
+    } catch (err) {
+      console.error('Failed to mark order as triggered:', err);
     }
-  }, [walletSupabase, fetchOrders]);
+  }, [activeAddress, walletSupabase, fetchOrders]);
 
-  // Monitor active orders for price triggers
+  // Check prices for active orders
   const checkPrices = useCallback(async () => {
+    if (!activeAddress || orders.length === 0) return;
+    
     const activeOrders = orders.filter(o => o.status === 'active');
     if (activeOrders.length === 0) return;
-
+    
     for (const order of activeOrders) {
-      // Check expiration
-      if (order.expires_at && new Date(order.expires_at) < new Date()) {
-        await walletSupabase
-          .from('limit_orders')
-          .update({ status: 'expired' })
-          .eq('id', order.id);
-        continue;
-      }
-
       try {
-        const priceInfo = await okxDexService.getTokenPriceInfo(
+        // Get current price from OKX
+        const priceData = await okxDexService.getTokenPrice(
           order.chain_index,
           order.from_token_address
         );
         
-        if (!priceInfo?.price) continue;
-        
-        const currentPrice = parseFloat(priceInfo.price);
-        const targetPrice = order.target_price;
-        
-        const triggered = order.condition === 'above' 
-          ? currentPrice >= targetPrice
-          : currentPrice <= targetPrice;
-        
-        if (triggered && !notifiedOrdersRef.current.has(order.id)) {
-          notifiedOrdersRef.current.add(order.id);
-          await markTriggered(order.id);
+        if (priceData?.price) {
+          const currentPrice = parseFloat(priceData.price);
+          const targetPrice = order.target_price;
           
-          // Push to Notification Center
-          notificationService.notifyOrderTriggered(
-            order.from_token_symbol,
-            order.to_token_symbol,
-            order.condition,
-            targetPrice
-          );
-          
-          // Play notification sound using user's selected alert sound
-          if (settings.soundEnabled) {
-            playAlert();
+          let triggered = false;
+          if (order.condition === 'above' && currentPrice >= targetPrice) {
+            triggered = true;
+          } else if (order.condition === 'below' && currentPrice <= targetPrice) {
+            triggered = true;
           }
           
-          // Browser push notification
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('🎯 Limit Order Triggered!', {
-              body: `${order.from_token_symbol} is now ${order.condition} $${targetPrice.toFixed(6)}. Current: $${currentPrice.toFixed(6)}`,
-              icon: '/favicon.ico',
-              tag: `limit-order-${order.id}`,
+          if (triggered) {
+            await markTriggered(order.id);
+            
+            // Send notification
+            if (notificationPermission === 'granted') {
+              notificationService.notifyOrderTriggered(
+                order.from_token_symbol,
+                order.to_token_symbol,
+                order.condition,
+                targetPrice.toString()
+              );
+            }
+            
+            // Play sound
+            if (settings.soundEnabled) {
+              playAlert();
+            }
+            
+            // Show toast
+            toast({
+              title: '🎯 Limit Order Triggered!',
+              description: `${order.from_token_symbol} is ${order.condition} $${targetPrice.toFixed(6)}. You have 15 minutes to execute.`,
             });
           }
-          
-          toast({
-            title: '🎯 Limit Order Triggered!',
-            description: `${order.from_token_symbol} is now ${order.condition} $${targetPrice.toFixed(6)}. Current: $${currentPrice.toFixed(6)}`,
-          });
         }
-      } catch {
-        // Silently handle price check errors
+      } catch (err) {
+        console.error(`Failed to check price for order ${order.id}:`, err);
       }
     }
-  }, [orders, walletSupabase, markTriggered, settings.soundEnabled, playAlert, toast]);
+  }, [activeAddress, orders, markTriggered, notificationPermission, settings.soundEnabled, playAlert, toast]);
 
-  // Start/stop price monitoring
+  // Start monitoring on mount when connected
   useEffect(() => {
     if (isConnected && activeAddress) {
       fetchOrders();
-    } else {
-      setOrders([]);
     }
   }, [isConnected, activeAddress, fetchOrders]);
 
+  // Set up price monitoring interval
   useEffect(() => {
-    const activeCount = orders.filter(o => o.status === 'active').length;
-    
-    if (activeCount > 0) {
-      // Check immediately, then every 30s
+    if (isConnected && orders.length > 0) {
+      // Check immediately
       checkPrices();
+      
+      // Check every 30 seconds
       monitorIntervalRef.current = setInterval(checkPrices, 30000);
+      
+      return () => {
+        if (monitorIntervalRef.current) {
+          clearInterval(monitorIntervalRef.current);
+        }
+      };
     }
-    
-    return () => {
-      if (monitorIntervalRef.current) {
-        clearInterval(monitorIntervalRef.current);
-      }
-    };
-  }, [orders, checkPrices]);
+  }, [isConnected, orders.length, checkPrices]);
+
+  // Filter orders by status
+  const activeOrders = useMemo(() => orders.filter(o => o.status === 'active'), [orders]);
+  const triggeredOrders = useMemo(() => orders.filter(o => o.status === 'triggered'), [orders]);
+  const executedOrders = useMemo(() => orders.filter(o => o.status === 'executed'), [orders]);
 
   return {
     orders,
-    jupiterOrders,
-    activeOrders: orders.filter(o => o.status === 'active'),
-    triggeredOrders: orders.filter(o => o.status === 'triggered'),
-    executedOrders: orders.filter(o => o.status === 'executed'),
+    activeOrders,
+    triggeredOrders,
+    executedOrders,
+    // Empty array for backwards compatibility - Jupiter orders removed
+    jupiterOrders: [] as any[],
     isLoading,
     isSigning,
-    isSolana,
-    notificationPermission,
     createOrder,
-    createJupiterOrder,
     cancelOrder,
-    cancelJupiterOrder,
+    // No-op for backwards compatibility
+    createJupiterOrder: async () => null,
+    cancelJupiterOrder: async () => {},
     dismissOrder,
     markExecuted,
+    markTriggered,
     refetch: fetchOrders,
     exportToCSV,
+    notificationPermission,
     requestNotificationPermission,
   };
 }

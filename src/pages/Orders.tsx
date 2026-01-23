@@ -4,7 +4,7 @@ import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity } from "lucide-react";
+import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity, Rocket } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -12,10 +12,9 @@ import { OrdersSkeleton } from "@/components/skeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { cn } from "@/lib/utils";
 import { SUPPORTED_CHAINS } from "@/data/chains";
+import { useNavigate } from "react-router-dom";
 
 // Lazy load order components from feature modules
-const ActiveLimitOrders = lazy(() => import("@/features/orders").then(m => ({ default: m.ActiveLimitOrders })));
-const ActiveDCAOrders = lazy(() => import("@/features/orders").then(m => ({ default: m.ActiveDCAOrders })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 
 const ordersFeatures = [
@@ -49,6 +48,7 @@ const chainFilterOptions: { value: ChainFilter; label: string; description: stri
 ];
 
 const Orders = memo(function Orders() {
+  const navigate = useNavigate();
   const { 
     isConnected, 
     activeChainType, 
@@ -282,7 +282,7 @@ const Orders = memo(function Orders() {
               <p className="text-center text-xs text-muted-foreground">
                 Viewing {chainFilter === 'solana' ? 'Solana' : 'EVM'} orders • 
                 {chainFilter === 'solana' 
-                  ? ' Including Jupiter on-chain orders' 
+                  ? ' Limit orders & DCA coming soon' 
                   : ' ETH, BSC, Polygon, Arbitrum, Base & more'}
               </p>
 
@@ -313,48 +313,37 @@ const Orders = memo(function Orders() {
                 </Card>
               )}
 
-              {/* Solana-only Orders UI */}
+              {/* Solana Orders - Coming Soon */}
               {chainFilter === 'solana' && (
-                <>
-                  {/* Order Stats */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
-                      <CardContent className="pt-4 pb-4 text-center">
-                        <TrendingUp className="w-5 h-5 text-primary mx-auto mb-2" />
-                        <p className="text-xs text-muted-foreground">Limit Orders</p>
-                        <p className="text-lg font-bold">Active</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
-                      <CardContent className="pt-4 pb-4 text-center">
-                        <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
-                        <p className="text-xs text-muted-foreground">DCA Orders</p>
-                        <p className="text-lg font-bold">Scheduled</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="glass border-border/50 hover-lift transition-all sweep-effect shadow-premium-hover overflow-hidden">
-                      <CardContent className="pt-4 pb-4 text-center">
-                        <ArrowRightLeft className="w-5 h-5 text-primary mx-auto mb-2" />
-                        <p className="text-xs text-muted-foreground">History</p>
-                        <p className="text-lg font-bold">View All</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Active Limit Orders */}
-                  <section id="limit-orders" className="scroll-mt-20">
-                    <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
-                      <ActiveLimitOrders />
-                    </Suspense>
-                  </section>
-
-                  {/* Active DCA Orders */}
-                  <section id="dca-orders" className="scroll-mt-20">
-                    <Suspense fallback={<div className="h-24 skeleton-shimmer rounded-lg" />}>
-                      <ActiveDCAOrders />
-                    </Suspense>
-                  </section>
-                </>
+                <Card className="glass border-warning/20 glow-sm">
+                  <CardContent className="py-8 text-center">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-warning/20 to-warning/5 flex items-center justify-center mx-auto mb-4">
+                      <Rocket className="w-8 h-8 text-warning" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">Solana Limit Orders & DCA Coming Soon</h3>
+                    <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+                      We're working on bringing limit orders and DCA schedules to Solana. 
+                      For now, you can use instant swaps or try Perpetuals for advanced trading.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <Button 
+                        onClick={() => navigate('/swap')}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <ArrowRightLeft className="w-4 h-4 mr-2" />
+                        Swap on Solana
+                      </Button>
+                      <Button 
+                        onClick={() => navigate('/perpetuals')}
+                        size="sm"
+                      >
+                        <Activity className="w-4 h-4 mr-2" />
+                        Try Perpetuals
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               {/* Transaction History */}
