@@ -79,8 +79,8 @@ export class SolanaAdapter extends BaseAdapter {
     return {
       swap: true,
       bridge: false,
-      limitOrders: true, // Via Jupiter
-      dca: true, // Via Jupiter
+      limitOrders: false, // Coming soon
+      dca: false, // Coming soon
       perpetuals: false,
     };
   }
