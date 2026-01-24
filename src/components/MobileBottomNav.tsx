@@ -22,6 +22,7 @@ import {
   ChevronUp,
   ChevronDown,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
@@ -31,7 +32,31 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { MultiWalletButton } from "@/features/wallet";
 import { FeedbackSettings } from "@/components/FeedbackSettings";
+import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import xlamaMascot from "@/assets/xlama-mascot.png";
+
+// Wallet disconnect button component
+const WalletDisconnectButton = memo(function WalletDisconnectButton() {
+  const { isConnected, disconnect } = useMultiWallet();
+  const { trigger } = useHapticFeedback();
+  
+  if (!isConnected) return null;
+  
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        trigger('medium');
+        disconnect();
+      }}
+      className="h-8 gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+    >
+      <LogOut className="h-3.5 w-3.5" />
+      <span className="text-xs">Disconnect</span>
+    </Button>
+  );
+});
 
 const navItems = [
   { path: "/", icon: Home, label: "Home" },
@@ -153,7 +178,11 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                             <span className="text-xs">{theme === "dark" ? "Light" : "Dark"}</span>
                           </Button>
                         </div>
-                        <FeedbackSettings />
+                        <div className="flex items-center gap-2">
+                          <FeedbackSettings />
+                          {/* Disconnect wallet button */}
+                          <WalletDisconnectButton />
+                        </div>
                       </div>
                     </motion.div>
                   )}
