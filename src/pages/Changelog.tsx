@@ -63,6 +63,24 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.4.0",
+    date: "2026-01-24",
+    title: "Mobile UX & Data Isolation Fixes",
+    description: "Enhanced mobile navigation, wallet disconnect, manual refresh, and critical bridge data isolation fix.",
+    type: "major",
+    changes: [
+      { category: "feature", text: "Manual refresh buttons on Portfolio and Analytics pages" },
+      { category: "feature", text: "Wallet disconnect button in mobile settings dropdown" },
+      { category: "feature", text: "NotificationCenter now functional on mobile header" },
+      { category: "feature", text: "Theme toggle and FeedbackSettings in mobile menu" },
+      { category: "improvement", text: "Larger touch targets for chart drawings (20px hit tolerance)" },
+      { category: "improvement", text: "Touch scroll prevention when drawing on charts" },
+      { category: "improvement", text: "Site-wide SEO updates: sitemap, manifest shortcuts, canonical URLs" },
+      { category: "security", text: "Bridge transaction history now properly isolated per wallet" },
+      { category: "fix", text: "Fixed bridge transactions leaking between user wallets" },
+    ],
+  },
+  {
     version: "2.3.0",
     date: "2026-01-17",
     title: "Hyperliquid Perpetuals Trading",
@@ -352,7 +370,7 @@ const Changelog = () => {
           name="description"
           content="Stay up to date with xLama platform updates, new features, improvements, and bug fixes. See what's new in our multi-chain DEX aggregator."
         />
-        <link rel="canonical" href="https://xlama.io/changelog" />
+        <link rel="canonical" href="https://xlama.exchange/changelog" />
       </Helmet>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">

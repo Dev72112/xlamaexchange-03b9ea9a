@@ -70,8 +70,8 @@ export const Footer = memo(function Footer() {
               Exchange
             </h4>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} onTouchStart={() => handleLinkHover('/')} className="text-foreground/80 hover:text-primary transition-colors">Instant Swap</Link></li>
-              <li><Link to="/" onMouseEnter={() => handleLinkHover('/')} onTouchStart={() => handleLinkHover('/')} className="text-foreground/80 hover:text-primary transition-colors">DEX Aggregator</Link></li>
+              <li><Link to="/swap" onMouseEnter={() => handleLinkHover('/swap')} onTouchStart={() => handleLinkHover('/swap')} className="text-foreground/80 hover:text-primary transition-colors">Instant Swap</Link></li>
+              <li><Link to="/swap" onMouseEnter={() => handleLinkHover('/swap')} onTouchStart={() => handleLinkHover('/swap')} className="text-foreground/80 hover:text-primary transition-colors">DEX Aggregator</Link></li>
               <li><Link to="/perpetuals" onMouseEnter={() => handleLinkHover('/perpetuals')} onTouchStart={() => handleLinkHover('/perpetuals')} className="text-foreground/80 hover:text-primary transition-colors">Perpetuals</Link></li>
               <li><Link to="/bridge" onMouseEnter={() => handleLinkHover('/bridge')} onTouchStart={() => handleLinkHover('/bridge')} className="text-foreground/80 hover:text-primary transition-colors">Cross-Chain Bridge</Link></li>
               <li><Link to="/orders" onMouseEnter={() => handleLinkHover('/orders')} onTouchStart={() => handleLinkHover('/orders')} className="text-foreground/80 hover:text-primary transition-colors">Orders</Link></li>
@@ -131,7 +131,7 @@ export const Footer = memo(function Footer() {
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <FeedbackSettings />
-            <span className="glass px-3 py-1 rounded-full">v2.4 • Powered by ChangeNow, OKX DEX, Li.Fi, Hyperliquid & Alchemy</span>
+            <span className="glass px-3 py-1 rounded-full">v2.4.0 • Powered by ChangeNow, OKX DEX, Li.Fi, Hyperliquid & Alchemy</span>
           </div>
         </div>
       </div>

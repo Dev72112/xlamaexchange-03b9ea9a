@@ -134,7 +134,7 @@ const Docs = () => {
           name="description"
           content="Learn how to use xLama for cross-chain swaps, DEX aggregation, limit orders, DCA, and portfolio tracking across 25+ blockchains."
         />
-        <link rel="canonical" href="https://xlama.io/docs" />
+        <link rel="canonical" href="https://xlama.exchange/docs" />
         <script type="application/ld+json">{JSON.stringify(DOCS_SCHEMA)}</script>
       </Helmet>
 
