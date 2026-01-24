@@ -256,11 +256,11 @@ export function PortfolioOverview({ className }: PortfolioOverviewProps) {
           )}
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* Chain Filter - show unified selector for all wallet types */}
+          {/* Chain Filter - show unified selector, no "All" option to not break main toggle */}
           <UnifiedChainSelector
             value={globalChainFilter}
             onChange={(value) => setGlobalChainFilter(value)}
-            showAllOption={true}
+            showAllOption={false}
             showEvmOnlyOption={activeChainType === 'evm'}
             compact={true}
             triggerClassName="h-9"

@@ -85,11 +85,13 @@ export const LivePriceWidget = memo(function LivePriceWidget({
   })();
 
   const fetchPrices = async () => {
+    setIsLoading(true);
+    
+    // If no trades, show prices from oracle instead  
     if (topTokens.length === 0) {
-      // If no trades, show prices from oracle instead
       const oraclePrices = getAllPrices()
         .filter(p => !chainFilter || chainFilter === 'all' || p.chainIndex === chainFilter)
-        .slice(0, 6);
+        .slice(0, 8);
       
       if (oraclePrices.length > 0) {
         setPrices(oraclePrices.map(p => ({
@@ -105,8 +107,6 @@ export const LivePriceWidget = memo(function LivePriceWidget({
       setIsLoading(false);
       return;
     }
-
-    setIsLoading(true);
     const priceData: TokenPriceData[] = [];
 
     for (const token of topTokens) {
@@ -162,9 +162,7 @@ export const LivePriceWidget = memo(function LivePriceWidget({
     return () => clearInterval(interval);
   }, [topTokens.length, chainFilter]);
 
-  if (topTokens.length === 0) {
-    return null; // Don't show if no tokens traded
-  }
+  // Always render the widget (no early return)
 
   return (
     <Card className="bg-card/50 border-border/50">

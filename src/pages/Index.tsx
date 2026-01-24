@@ -14,6 +14,7 @@ import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/shared/lib";
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
+const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
 
 // Memoized quick link component
 const QuickLink = memo(function QuickLink({ 
@@ -177,7 +178,12 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Section 3: Market News */}
+        {/* Section 3: Transaction Tracker for ChangeNow */}
+        <Suspense fallback={<TransactionTrackerSkeleton />}>
+          <TransactionTracker />
+        </Suspense>
+
+        {/* Section 4: Market News */}
         <section className="py-8 sm:py-12">
           <div className="container px-4 sm:px-6 max-w-7xl mx-auto">
             <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
