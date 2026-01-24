@@ -12,7 +12,6 @@ import { MultiWalletButton } from "@/features/wallet";
 import { PortfolioOverview, PortfolioRebalancer } from "@/features/portfolio";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { PortfolioSkeleton } from "@/components/skeletons";
-import { PullToRefresh } from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
 import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
 import { SUPPORTED_CHAINS } from "@/data/chains";
@@ -23,7 +22,8 @@ import { DeFiPositions } from "@/components/portfolio/DeFiPositions";
 import { NFTGallery } from "@/components/portfolio/NFTGallery";
 import { PnLBreakdown } from "@/components/portfolio/PnLBreakdown";
 import { DataSourceToggle } from "@/components/ui/DataSourceToggle";
-
+import { useDataSource } from "@/contexts/DataSourceContext";
+import { useOkxNFTs } from "@/hooks/useOkxNFTs";
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
 const portfolioFeatures = [
@@ -75,6 +75,9 @@ const Portfolio = memo(function Portfolio() {
   const [isSwitching, setIsSwitching] = useState(false);
   const [activeTab, setActiveTab] = useState<'holdings' | 'defi' | 'nfts'>('holdings');
 
+  // Data source context
+  const { dataSource, isZerionEnabled, isOKXEnabled } = useDataSource();
+
   // Zerion data hooks - uses activeAddress from context internally
   const { 
     defiPositions, 
@@ -83,14 +86,29 @@ const Portfolio = memo(function Portfolio() {
   } = useZerionPortfolio();
   
   const { 
-    collections: nftCollections, 
-    totalFloorValue: nftFloorValue,
-    totalCount: nftCount,
-    isLoading: nftsLoading 
+    collections: zerionNftCollections, 
+    totalFloorValue: zerionNftFloorValue,
+    totalCount: zerionNftCount,
+    isLoading: zerionNftsLoading 
   } = useZerionNFTs();
 
-  // Only show Zerion data for EVM chains
-  const showZerionData = chainFilter === 'evm' && !!evmAddress;
+  // OKX NFT data
+  const {
+    collections: okxNftCollections,
+    totalFloorValue: okxNftFloorValue,
+    totalCount: okxNftCount,
+    isLoading: okxNftsLoading,
+  } = useOkxNFTs();
+
+  // Determine which NFT data to use based on data source
+  const nftCollections = isZerionEnabled ? zerionNftCollections : (okxNftCollections as any);
+  const nftFloorValue = isZerionEnabled ? zerionNftFloorValue : okxNftFloorValue;
+  const nftCount = isZerionEnabled ? zerionNftCount : okxNftCount;
+  const nftsLoading = isZerionEnabled ? zerionNftsLoading : okxNftsLoading;
+
+  // Only show Zerion DeFi data for EVM chains when Zerion enabled
+  const showZerionData = isZerionEnabled && chainFilter === 'evm' && !!evmAddress;
+  const showOkxData = isOKXEnabled;
 
   // Sync chain filter with wallet connection changes
   useEffect(() => {
@@ -231,8 +249,7 @@ const Portfolio = memo(function Portfolio() {
             </Card>
           </div>
         ) : (
-          <PullToRefresh onRefresh={handleRefresh} showSkeleton={false}>
-            <Suspense fallback={<PortfolioSkeleton />}>
+          <Suspense fallback={<PortfolioSkeleton />}>
               <div className="space-y-8 max-w-4xl mx-auto">
                 {/* Chain Filter Toggle with Data Source */}
                 <div className="flex flex-col items-center gap-3">
@@ -421,7 +438,6 @@ const Portfolio = memo(function Portfolio() {
                 </section>
               </div>
           </Suspense>
-        </PullToRefresh>
         )}
       </main>
     </Layout>
