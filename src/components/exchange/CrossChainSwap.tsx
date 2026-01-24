@@ -488,6 +488,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
               <ChainSelector
                 selectedChain={fromChain}
                 onChainSelect={setFromChain}
+                showOnlyBridgeSupported={true}
               />
             </div>
             <div className="flex gap-2">
@@ -560,6 +561,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
               <ChainSelector
                 selectedChain={toChain}
                 onChainSelect={setToChain}
+                showOnlyBridgeSupported={true}
               />
             </div>
             <div className="flex gap-2">

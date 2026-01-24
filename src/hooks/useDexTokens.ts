@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { okxDexService, OkxToken } from '@/services/okxdex';
 import { Chain, NATIVE_TOKEN_ADDRESS } from '@/data/chains';
 import { cache, cacheKeys } from '@/lib/cache';
@@ -6,10 +6,35 @@ import { cache, cacheKeys } from '@/lib/cache';
 // Solana native token address (Wrapped SOL mint)
 const SOLANA_NATIVE_SOL = 'So11111111111111111111111111111111111111112';
 
+// Non-EVM native token addresses to filter from API responses
+const NON_EVM_NATIVE_TOKENS: Record<string, { symbols: string[]; addresses: string[] }> = {
+  // Solana (501)
+  '501': {
+    symbols: ['SOL', 'WSOL'],
+    addresses: ['11111111111111111111111111111111', SOLANA_NATIVE_SOL],
+  },
+  // Tron (195)
+  '195': {
+    symbols: ['TRX', 'WTRX'],
+    addresses: ['T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR'],
+  },
+  // Sui (784)
+  '784': {
+    symbols: ['SUI', 'WSUI'],
+    addresses: ['0x2::sui::SUI', '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'],
+  },
+  // TON (607)
+  '607': {
+    symbols: ['TON', 'WTON'],
+    addresses: ['EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c', 'EQBynBO23ywHy_CgarY9NK9FTz0yDsG82PtcbSTQgGoXwiuA'],
+  },
+};
+
 export function useDexTokens(chain: Chain | null) {
   const [rawTokens, setRawTokens] = useState<OkxToken[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prevChainRef = useRef<string | null>(null);
 
   const fetchTokens = useCallback(async () => {
     if (!chain) {
@@ -52,9 +77,17 @@ export function useDexTokens(chain: Chain | null) {
     }
   }, [chain?.chainIndex]);
 
+  // Clear tokens immediately when chain changes to prevent stale data
   useEffect(() => {
+    const currentChain = chain?.chainIndex ?? null;
+    if (prevChainRef.current !== null && prevChainRef.current !== currentChain) {
+      // Chain changed - clear tokens immediately to prevent showing stale data
+      setRawTokens([]);
+      setError(null);
+    }
+    prevChainRef.current = currentChain;
     fetchTokens();
-  }, [fetchTokens]);
+  }, [chain?.chainIndex, fetchTokens]);
 
   // Deduplicate tokens - keep ones with valid logos and proper names
   const tokens = useMemo(() => {
@@ -67,15 +100,17 @@ export function useDexTokens(chain: Chain | null) {
       // Skip native token (handled separately)
       if (token.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase()) continue;
       
-      // CRITICAL: Skip SOL/WSOL from API for Solana chain - we use manually created nativeToken instead
-      // This prevents "fake SOL" from appearing in the list
-      if (chain?.chainIndex === '501') {
+      // CRITICAL: Skip native token variants for non-EVM chains
+      // This prevents "fake" native tokens from appearing in the list
+      const chainIndex = chain?.chainIndex;
+      if (chainIndex && NON_EVM_NATIVE_TOKENS[chainIndex]) {
+        const nativeConfig = NON_EVM_NATIVE_TOKENS[chainIndex];
         const symbol = token.tokenSymbol?.toUpperCase();
         const addr = token.tokenContractAddress;
-        // Skip any native SOL variants from API response
-        if (symbol === 'SOL' || symbol === 'WSOL' || 
-            addr === '11111111111111111111111111111111' ||
-            addr === SOLANA_NATIVE_SOL) {
+        
+        // Skip any native token variants from API response
+        if (nativeConfig.symbols.includes(symbol) || 
+            nativeConfig.addresses.includes(addr)) {
           continue;
         }
       }
@@ -129,16 +164,30 @@ export function useDexTokens(chain: Chain | null) {
     return Array.from(seen.values());
   }, [rawTokens]);
 
-  // Get native token for the chain - use proper Solana native address
-  const nativeToken: OkxToken | null = chain ? {
-    tokenContractAddress: chain.chainIndex === '501' 
-      ? SOLANA_NATIVE_SOL // Wrapped SOL for Solana 
-      : NATIVE_TOKEN_ADDRESS, // EVM native token
-    tokenSymbol: chain.nativeCurrency.symbol,
-    tokenName: chain.nativeCurrency.name,
-    decimals: chain.nativeCurrency.decimals.toString(),
-    tokenLogoUrl: chain.icon,
-  } : null;
+  // Get native token for the chain - use proper native addresses per chain
+  const nativeToken: OkxToken | null = useMemo(() => {
+    if (!chain) return null;
+    
+    // Determine native token address based on chain
+    let nativeAddress = NATIVE_TOKEN_ADDRESS;
+    if (chain.chainIndex === '501') {
+      nativeAddress = SOLANA_NATIVE_SOL; // Wrapped SOL for Solana
+    } else if (chain.chainIndex === '195') {
+      nativeAddress = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'; // TRX for Tron
+    } else if (chain.chainIndex === '784') {
+      nativeAddress = '0x2::sui::SUI'; // SUI for Sui
+    } else if (chain.chainIndex === '607') {
+      nativeAddress = 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c'; // TON
+    }
+    
+    return {
+      tokenContractAddress: nativeAddress,
+      tokenSymbol: chain.nativeCurrency.symbol,
+      tokenName: chain.nativeCurrency.name,
+      decimals: chain.nativeCurrency.decimals.toString(),
+      tokenLogoUrl: chain.icon,
+    };
+  }, [chain]);
 
   return {
     tokens,

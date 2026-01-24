@@ -135,8 +135,17 @@ export function isValidChainIndex(chainIndex: string): boolean {
 export function isValidTokenAddress(address: string): boolean {
   if (!address || typeof address !== 'string') return false;
   
-  // Native token placeholder
+  // Native token placeholder (EVM)
   if (address === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') return true;
+  
+  // Sui native token and module addresses (e.g., 0x2::sui::SUI)
+  if (/^0x[a-fA-F0-9]+(::[a-zA-Z0-9_]+)+$/.test(address)) return true;
+  
+  // TON native token
+  if (address === 'EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c') return true;
+  
+  // Tron native token (TRX)
+  if (address === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb') return true;
   
   // Standard contract addresses
   return isValidWalletAddress(address);
