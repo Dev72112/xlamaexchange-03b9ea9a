@@ -18,7 +18,7 @@ const Privacy = () => {
           
           <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
             <p className="text-muted-foreground">
-              Last updated: January 18, 2026
+              Last updated: January 24, 2026
             </p>
 
             <section className="space-y-4">

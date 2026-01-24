@@ -12,15 +12,15 @@
   "scope": "/",
   "icons": [
     {
-      "src": "https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg",
+      "src": "/xlama-mascot.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://storage.googleapis.com/gpt-engineer-file-uploads/R47YcMdT25TLWn7OGv1eZacchD32/uploads/1766856980591-IMG_20251212_205620.jpg",
+      "src": "/xlama-mascot.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
@@ -31,6 +31,20 @@
   "prefer_related_applications": false,
   "related_applications": [],
   "shortcuts": [
+    {
+      "name": "Exchange",
+      "short_name": "Swap",
+      "description": "Swap tokens instantly",
+      "url": "/swap",
+      "icons": []
+    },
+    {
+      "name": "Perpetuals",
+      "short_name": "Perps",
+      "description": "Trade perpetual futures",
+      "url": "/perpetuals",
+      "icons": []
+    },
     {
       "name": "Bridge",
       "short_name": "Bridge",
