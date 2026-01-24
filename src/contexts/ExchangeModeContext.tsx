@@ -33,7 +33,7 @@ export function ExchangeModeProvider({ children }: ExchangeModeProviderProps) {
   const [swapMode, setSwapMode] = useState<SwapMode>('swap');
   const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [globalChainFilter, setGlobalChainFilter] = useState<ChainFilterValue>('all');
+  const [globalChainFilter, setGlobalChainFilter] = useState<ChainFilterValue>('all-evm');
   const transitionTimeoutRef = useRef<number | null>(null);
 
   // Cleanup on unmount

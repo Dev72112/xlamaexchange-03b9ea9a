@@ -1,5 +1,6 @@
 /**
  * Data-related providers: Price Oracle, Transactions, Data Source
+ * Note: UnifiedDataProvider is in ExchangeProviders (needs ExchangeModeContext)
  */
 import React, { ReactNode } from 'react';
 import { PriceOracleProvider } from '@/contexts/PriceOracleContext';

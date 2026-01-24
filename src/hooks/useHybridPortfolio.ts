@@ -56,25 +56,40 @@ export function useHybridPortfolio(): UseHybridPortfolioResult {
     staleTime: 30 * 1000,
   });
 
-  // Merge assets from both sources
+  // Merge assets from both sources with deduplication
   const mergedAssets = useMemo((): HybridAsset[] => {
     const assetMap = new Map<string, HybridAsset>();
     
     // Add Zerion positions (wallet positions with balances)
     if (isZerionEnabled && isEvmChain && zerionResult.walletPositions) {
       for (const pos of zerionResult.walletPositions) {
+        // Skip dust/spam tokens (less than $0.01)
+        if ((pos.value || 0) < 0.01) continue;
+        
+        // Skip tokens without valid name/symbol
+        if (!pos.tokenSymbol || pos.tokenSymbol === 'Unknown') continue;
+        
         const key = `${pos.chainId}:${pos.tokenAddress?.toLowerCase() || 'native'}`;
-        assetMap.set(key, {
-          address: pos.tokenAddress || 'native',
-          symbol: pos.tokenSymbol,
-          name: pos.name,
-          balance: pos.quantity?.toString() || '0',
-          valueUsd: pos.value || 0,
-          price: pos.price || 0,
-          logoUrl: pos.tokenIcon || '',
-          chainId: pos.chainId,
-          source: 'zerion',
-        });
+        
+        // Check for duplicate - merge if exists
+        const existing = assetMap.get(key);
+        if (existing) {
+          // Sum balances for duplicates
+          existing.balance = (parseFloat(existing.balance) + (pos.quantity || 0)).toString();
+          existing.valueUsd += pos.value || 0;
+        } else {
+          assetMap.set(key, {
+            address: pos.tokenAddress || 'native',
+            symbol: pos.tokenSymbol,
+            name: pos.name,
+            balance: pos.quantity?.toString() || '0',
+            valueUsd: pos.value || 0,
+            price: pos.price || 0,
+            logoUrl: pos.tokenIcon || '',
+            chainId: pos.chainId,
+            source: 'zerion',
+          });
+        }
       }
     }
     
@@ -87,7 +102,8 @@ export function useHybridPortfolio(): UseHybridPortfolioResult {
       });
     }
     
-    return Array.from(assetMap.values());
+    // Sort by value descending
+    return Array.from(assetMap.values()).sort((a, b) => b.valueUsd - a.valueUsd);
   }, [zerionResult.walletPositions, isZerionEnabled, isOKXEnabled, isEvmChain]);
 
   // Calculate total value
