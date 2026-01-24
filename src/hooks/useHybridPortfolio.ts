@@ -39,9 +39,9 @@ export function useHybridPortfolio(): UseHybridPortfolioResult {
   const zerionResult = useZerionPortfolio();
   const isEvmChain = activeChainType === 'evm';
   
-  // OKX token balances
+  // OKX token balances - Include dataSource for proper cache invalidation on mode switch
   const okxQuery = useQuery({
-    queryKey: ['okx-portfolio', activeAddress, activeChain?.chainIndex],
+    queryKey: ['okx-portfolio', activeAddress, activeChain?.chainIndex, dataSource],
     queryFn: async () => {
       if (!activeAddress || !activeChain) return [];
       
