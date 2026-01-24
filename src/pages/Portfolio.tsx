@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, TrendingUp, PieChart, BarChart3, Layers, Zap, AlertTriangle, Image } from "lucide-react";
+import { Wallet, TrendingUp, PieChart, BarChart3, Layers, Zap, AlertTriangle, Image, RefreshCw } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -197,10 +197,21 @@ const Portfolio = memo(function Portfolio() {
           ref={headerRef}
           className={`text-center mb-8 sm:mb-12 ${getScrollRevealClass(headerVisible, 'slide-up')}`}
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4" data-tour="portfolio-link">
-            <Wallet className="w-4 h-4" />
-            <span>Portfolio Dashboard</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary" data-tour="portfolio-link">
+              <Wallet className="w-4 h-4" />
+              <span>Portfolio Dashboard</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              className="h-8 px-3 gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
             Portfolio Dashboard

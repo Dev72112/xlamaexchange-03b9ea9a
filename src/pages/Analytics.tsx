@@ -368,9 +368,21 @@ const Analytics = () => {
 
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
-            <BarChart3 className="w-4 h-4" />
-            <span>Trading Analytics</span>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary">
+              <BarChart3 className="w-4 h-4" />
+              <span>Trading Analytics</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePullRefresh}
+              disabled={isRefreshing}
+              className="h-8 px-3 gap-1.5"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
             Trading Analytics

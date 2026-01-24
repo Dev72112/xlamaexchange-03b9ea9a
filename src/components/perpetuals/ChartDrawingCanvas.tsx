@@ -33,7 +33,9 @@ interface ChartDrawingCanvasProps {
 
 const FIBONACCI_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 const FIBONACCI_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
-const HIT_TOLERANCE = 8; // pixels
+// Increased touch tolerance for mobile devices
+const HIT_TOLERANCE = typeof window !== 'undefined' && 'ontouchstart' in window ? 20 : 10;
+const CONTROL_POINT_RADIUS = typeof window !== 'undefined' && 'ontouchstart' in window ? 12 : 6;
 
 // Get color based on tool type
 function getDrawingColor(type: DrawingTool): string {
@@ -165,13 +167,14 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
     return null;
   }, [drawings, priceToY, timeToX, width]);
 
-  // Find which control point is being clicked
+  // Find which control point is being clicked - larger touch target for mobile
   const findControlPointAtPosition = useCallback((x: number, y: number, drawing: Drawing): number | null => {
     for (let i = 0; i < drawing.points.length; i++) {
       const px = timeToX(drawing.points[i].time);
       const py = priceToY(drawing.points[i].price);
       const dist = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
-      if (dist <= HIT_TOLERANCE) {
+      // Use larger touch target for control points
+      if (dist <= CONTROL_POINT_RADIUS * 2) {
         return i;
       }
     }
@@ -224,10 +227,10 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
             });
             ctx.fillText(`$${priceText}`, width - 70, y - 4);
             
-            // Control point when selected
+            // Control point when selected - larger for touch
             if (isSelected) {
               ctx.beginPath();
-              ctx.arc(width / 2, y, 5, 0, Math.PI * 2);
+              ctx.arc(width / 2, y, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
               ctx.fillStyle = baseColor;
               ctx.fill();
               ctx.strokeStyle = '#ffffff';
@@ -250,10 +253,11 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
           ctx.lineTo(x2, y2);
           ctx.stroke();
 
-          // Draw end points
+          // Draw end points - larger for touch
+          const pointSize = isSelected ? CONTROL_POINT_RADIUS : CONTROL_POINT_RADIUS * 0.6;
           ctx.beginPath();
-          ctx.arc(x1, y1, isSelected ? 5 : 3, 0, Math.PI * 2);
-          ctx.arc(x2, y2, isSelected ? 5 : 3, 0, Math.PI * 2);
+          ctx.arc(x1, y1, pointSize, 0, Math.PI * 2);
+          ctx.arc(x2, y2, pointSize, 0, Math.PI * 2);
           ctx.fillStyle = baseColor;
           ctx.fill();
           
@@ -261,10 +265,10 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(x1, y1, 5, 0, Math.PI * 2);
+            ctx.arc(x1, y1, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
             ctx.stroke();
             ctx.beginPath();
-            ctx.arc(x2, y2, 5, 0, Math.PI * 2);
+            ctx.arc(x2, y2, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
             ctx.stroke();
           }
           break;
@@ -296,9 +300,10 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
           ctx.lineTo(extendedX, extendedY);
           ctx.stroke();
 
-          // Draw origin point
+          // Draw origin point - larger for touch
+          const rayPointSize = isSelected ? CONTROL_POINT_RADIUS : CONTROL_POINT_RADIUS * 0.8;
           ctx.beginPath();
-          ctx.arc(x1, y1, isSelected ? 5 : 4, 0, Math.PI * 2);
+          ctx.arc(x1, y1, rayPointSize, 0, Math.PI * 2);
           ctx.fillStyle = baseColor;
           ctx.fill();
           
@@ -309,7 +314,7 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
             
             // Second control point
             ctx.beginPath();
-            ctx.arc(x2, y2, 5, 0, Math.PI * 2);
+            ctx.arc(x2, y2, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
             ctx.fillStyle = baseColor;
             ctx.fill();
             ctx.stroke();
@@ -348,14 +353,14 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
             }
           });
           
-          // Control points when selected
+          // Control points when selected - larger for touch
           if (isSelected) {
             const y1 = priceToY(drawing.points[0].price);
             const y2 = priceToY(drawing.points[1].price);
             ctx.setLineDash([]);
             ctx.fillStyle = FIBONACCI_COLORS[0];
             ctx.beginPath();
-            ctx.arc(50, y1, 5, 0, Math.PI * 2);
+            ctx.arc(50, y1, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
@@ -363,7 +368,7 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
             
             ctx.fillStyle = FIBONACCI_COLORS[6];
             ctx.beginPath();
-            ctx.arc(50, y2, 5, 0, Math.PI * 2);
+            ctx.arc(50, y2, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
           }
@@ -458,10 +463,36 @@ export const ChartDrawingCanvas = memo(function ChartDrawingCanvas({
     draw();
   }, [draw]);
 
+  // Prevent default touch behavior to avoid scroll conflicts
+  const preventTouchDefault = useCallback((e: TouchEvent) => {
+    if (activeTool !== 'none' || selectedDrawingId !== null) {
+      e.preventDefault();
+    }
+  }, [activeTool, selectedDrawingId]);
+
+  // Add touch event prevention when drawing is active
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    canvas.addEventListener('touchstart', preventTouchDefault, { passive: false });
+    canvas.addEventListener('touchmove', preventTouchDefault, { passive: false });
+    
+    return () => {
+      canvas.removeEventListener('touchstart', preventTouchDefault);
+      canvas.removeEventListener('touchmove', preventTouchDefault);
+    };
+  }, [preventTouchDefault]);
+
   // Mouse/touch handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
+
+    // Prevent default to avoid scroll on touch devices
+    if (e.pointerType === 'touch' && (activeTool !== 'none' || selectedDrawingId !== null)) {
+      e.preventDefault();
+    }
 
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
