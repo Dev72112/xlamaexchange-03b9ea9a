@@ -100,7 +100,10 @@ export const ProtocolBreakdown: React.FC<ProtocolBreakdownProps> = ({
             <Layers className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>No DeFi positions found</p>
             <p className="text-xs mt-1">
-              Connect your wallet and use DeFi protocols to see breakdown
+              DeFi protocol tracking is available for EVM chains with Zerion data enabled
+            </p>
+            <p className="text-xs mt-2 text-primary/70">
+              Switch to EVM mode or connect to supported protocols to see breakdown
             </p>
           </div>
         </CardContent>

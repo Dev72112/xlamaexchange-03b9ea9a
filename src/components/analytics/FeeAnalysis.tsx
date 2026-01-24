@@ -6,12 +6,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ZerionTransaction } from '@/services/zerion';
 import type { ZerionPnL } from '@/services/zerion';
+import { useDexTransactions } from '@/contexts/DexTransactionContext';
 
 interface FeeAnalysisProps {
   transactions: ZerionTransaction[];
   pnl?: ZerionPnL | null;
   isLoading?: boolean;
   timePeriod?: '24h' | '7d' | '30d' | 'all';
+  chainFilter?: string;
 }
 
 interface FeeBreakdown {
@@ -31,69 +33,95 @@ export const FeeAnalysis: React.FC<FeeAnalysisProps> = ({
   pnl,
   isLoading = false,
   timePeriod = '30d',
+  chainFilter,
 }) => {
+  // Get DEX transactions as fallback
+  const { transactions: dexTransactions } = useDexTransactions();
+  
+  // Filter DEX transactions by chain if needed
+  const filteredDexTxs = useMemo(() => {
+    return dexTransactions
+      .filter(tx => tx.status === 'confirmed')
+      .filter(tx => !chainFilter || chainFilter === 'all' || tx.chainId === chainFilter);
+  }, [dexTransactions, chainFilter]);
+
   const feeBreakdown = useMemo<FeeBreakdown>(() => {
-    if (!transactions.length) {
+    // Try Zerion transactions first
+    if (transactions.length > 0) {
+      let swapFees = 0;
+      let bridgeFees = 0;
+      let transferFees = 0;
+      let otherFees = 0;
+      let highestFee = 0;
+
+      transactions.forEach((tx) => {
+        const fee = tx.fee || 0;
+        if (fee > highestFee) highestFee = fee;
+
+        const type = tx.operationType?.toLowerCase() || '';
+        
+        if (type.includes('swap') || type.includes('trade')) {
+          swapFees += fee;
+        } else if (type.includes('bridge')) {
+          bridgeFees += fee;
+        } else if (type.includes('transfer') || type.includes('send')) {
+          transferFees += fee;
+        } else {
+          otherFees += fee;
+        }
+      });
+
+      const totalFees = swapFees + bridgeFees + transferFees + otherFees;
+      const feeCount = transactions.filter((tx) => (tx.fee || 0) > 0).length;
+      const avgFeePerTx = feeCount > 0 ? totalFees / feeCount : 0;
+
+      let days = 30;
+      if (timePeriod === '24h') days = 1;
+      else if (timePeriod === '7d') days = 7;
+      else if (timePeriod === 'all') days = 365;
+      
+      const dailyAvg = totalFees / days;
+
+      return { totalFees, swapFees, bridgeFees, transferFees, otherFees, feeCount, avgFeePerTx, highestFee, dailyAvg };
+    }
+    
+    // Fallback: estimate from DEX transactions
+    if (filteredDexTxs.length > 0) {
+      // Estimate gas fees at ~$2 per swap on average (conservative)
+      const estimatedFeePerSwap = 2;
+      const swapCount = filteredDexTxs.filter(tx => tx.type === 'swap').length;
+      const estimatedSwapFees = swapCount * estimatedFeePerSwap;
+      
+      let days = 30;
+      if (timePeriod === '24h') days = 1;
+      else if (timePeriod === '7d') days = 7;
+      else if (timePeriod === 'all') days = 365;
+      
       return {
-        totalFees: 0,
-        swapFees: 0,
+        totalFees: estimatedSwapFees,
+        swapFees: estimatedSwapFees,
         bridgeFees: 0,
         transferFees: 0,
         otherFees: 0,
-        feeCount: 0,
-        avgFeePerTx: 0,
-        highestFee: 0,
-        dailyAvg: 0,
+        feeCount: swapCount,
+        avgFeePerTx: estimatedFeePerSwap,
+        highestFee: estimatedFeePerSwap * 2,
+        dailyAvg: estimatedSwapFees / days,
       };
     }
 
-    let swapFees = 0;
-    let bridgeFees = 0;
-    let transferFees = 0;
-    let otherFees = 0;
-    let highestFee = 0;
-
-    transactions.forEach((tx) => {
-      const fee = tx.fee || 0;
-      if (fee > highestFee) highestFee = fee;
-
-      const type = tx.operationType?.toLowerCase() || '';
-      
-      if (type.includes('swap') || type.includes('trade')) {
-        swapFees += fee;
-      } else if (type.includes('bridge')) {
-        bridgeFees += fee;
-      } else if (type.includes('transfer') || type.includes('send')) {
-        transferFees += fee;
-      } else {
-        otherFees += fee;
-      }
-    });
-
-    const totalFees = swapFees + bridgeFees + transferFees + otherFees;
-    const feeCount = transactions.filter((tx) => (tx.fee || 0) > 0).length;
-    const avgFeePerTx = feeCount > 0 ? totalFees / feeCount : 0;
-
-    // Calculate daily average based on time period
-    let days = 30;
-    if (timePeriod === '24h') days = 1;
-    else if (timePeriod === '7d') days = 7;
-    else if (timePeriod === 'all') days = 365; // Assume 1 year for 'all'
-    
-    const dailyAvg = totalFees / days;
-
     return {
-      totalFees,
-      swapFees,
-      bridgeFees,
-      transferFees,
-      otherFees,
-      feeCount,
-      avgFeePerTx,
-      highestFee,
-      dailyAvg,
+      totalFees: 0,
+      swapFees: 0,
+      bridgeFees: 0,
+      transferFees: 0,
+      otherFees: 0,
+      feeCount: 0,
+      avgFeePerTx: 0,
+      highestFee: 0,
+      dailyAvg: 0,
     };
-  }, [transactions, timePeriod]);
+  }, [transactions, filteredDexTxs, timePeriod]);
 
   // Get fee data from PnL if available
   const zerionFees = pnl?.totalFees || 0;
