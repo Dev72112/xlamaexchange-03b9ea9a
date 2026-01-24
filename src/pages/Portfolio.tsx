@@ -1,65 +1,90 @@
-import { memo, Suspense, lazy, useCallback, useState, useEffect } from "react";
+import { memo, Suspense, lazy, useCallback, useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
+import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, TrendingUp, PieChart, BarChart3, Layers, Zap, AlertTriangle, Image, RefreshCw } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { 
+  Wallet, 
+  TrendingUp, 
+  PieChart, 
+  BarChart3, 
+  Layers, 
+  Zap, 
+  AlertTriangle, 
+  Image, 
+  RefreshCw,
+  ArrowRightLeft,
+  ArrowUpRight,
+  ChevronDown,
+  Coins,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
-import { PortfolioOverview, PortfolioRebalancer } from "@/features/portfolio";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { PortfolioSkeleton } from "@/components/skeletons";
 import { useQueryClient } from "@tanstack/react-query";
-import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
 import { SUPPORTED_CHAINS } from "@/data/chains";
 import { cn } from "@/lib/utils";
-import { useZerionPortfolio } from "@/hooks/useZerionPortfolio";
 import { useZerionNFTs } from "@/hooks/useZerionNFTs";
-import { DeFiPositions } from "@/components/portfolio/DeFiPositions";
 import { NFTGallery } from "@/components/portfolio/NFTGallery";
-import { PnLBreakdown } from "@/components/portfolio/PnLBreakdown";
 import { DataSourceToggle } from "@/components/ui/DataSourceToggle";
 import { useDataSource } from "@/contexts/DataSourceContext";
 import { useOkxNFTs } from "@/hooks/useOkxNFTs";
+import { AccountSummaryCard } from "@/components/portfolio/AccountSummaryCard";
+import { PortfolioHoldingsTable } from "@/components/portfolio/PortfolioHoldingsTable";
+import { PortfolioAllocationChart } from "@/components/portfolio/PortfolioAllocationChart";
+import { okxDexService, WalletTokenBalance } from "@/services/okxdex";
+import { usePortfolioPnL } from "@/hooks/usePortfolioPnL";
+import { toast } from "sonner";
+import { SUPPORTED_CHAINS as CHAIN_DATA } from "@/data/chains";
+
 // Lazy load chart components
-const PortfolioPnLChart = lazy(() => import("@/features/portfolio").then(m => ({ default: m.PortfolioPnLChart })));
+const PortfolioPnLChart = lazy(() => import("@/components/PortfolioPnLChart").then(m => ({ default: m.PortfolioPnLChart })));
+
 const portfolioFeatures = [
   {
     icon: TrendingUp,
     title: "P&L Tracking",
-    description: "Track your profit and loss over time with daily snapshots and historical charts.",
+    description: "Track your profit and loss over time with daily snapshots.",
   },
   {
     icon: Wallet,
     title: "Holdings Overview",
-    description: "View all your holdings across 25+ chains with real-time USD values.",
+    description: "View all your holdings across 25+ chains.",
   },
   {
     icon: PieChart,
     title: "Chain Distribution",
-    description: "See how your portfolio is distributed across different blockchains.",
+    description: "See how your portfolio is distributed.",
   },
   {
     icon: BarChart3,
-    title: "Rebalancing",
-    description: "Set target allocations and get recommendations to optimize your portfolio.",
+    title: "Quick Actions",
+    description: "Swap, bridge, and manage directly.",
   },
 ];
 
 type ChainFilter = 'evm' | 'solana';
 
-const chainFilterOptions: { value: ChainFilter; label: string; description: string; icon?: React.ReactNode }[] = [
-  { value: 'evm', label: 'EVM', description: 'ETH, BSC, Polygon, etc.' },
-  { value: 'solana', label: 'Solana', description: 'SOL & SPL tokens', icon: <Zap className="w-3 h-3" /> },
+const chainFilterOptions: { value: ChainFilter; label: string; icon?: React.ReactNode }[] = [
+  { value: 'evm', label: 'EVM' },
+  { value: 'solana', label: 'Solana', icon: <Zap className="w-3 h-3" /> },
 ];
 
 const Portfolio = memo(function Portfolio() {
+  const navigate = useNavigate();
   const { 
     isConnected, 
     activeChainType, 
+    activeAddress,
+    activeChain,
     setActiveChain, 
     switchChainByIndex,
     isOkxConnected,
@@ -67,24 +92,27 @@ const Portfolio = memo(function Portfolio() {
   } = useMultiWallet();
   const { setGlobalChainFilter } = useExchangeMode();
   const queryClient = useQueryClient();
+  const { saveSnapshot, getPnLMetrics } = usePortfolioPnL();
 
   // Chain filter state - sync with wallet
   const [chainFilter, setChainFilter] = useState<ChainFilter>(
     activeChainType === 'solana' ? 'solana' : 'evm'
   );
   const [isSwitching, setIsSwitching] = useState(false);
-  const [activeTab, setActiveTab] = useState<'holdings' | 'defi' | 'nfts'>('holdings');
+  const [showChart, setShowChart] = useState(false);
+  const [showNFTs, setShowNFTs] = useState(false);
+  const [hideBalances, setHideBalances] = useState(false);
+
+  // Portfolio data
+  const [balances, setBalances] = useState<WalletTokenBalance[]>([]);
+  const [totalValue, setTotalValue] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Data source context
-  const { dataSource, isZerionEnabled, isOKXEnabled } = useDataSource();
+  const { isZerionEnabled, isOKXEnabled } = useDataSource();
 
-  // Zerion data hooks - uses activeAddress from context internally
-  const { 
-    defiPositions, 
-    pnl: zerionPnL, 
-    isLoading: zerionLoading 
-  } = useZerionPortfolio();
-  
+  // NFT data
   const { 
     collections: zerionNftCollections, 
     totalFloorValue: zerionNftFloorValue,
@@ -92,7 +120,6 @@ const Portfolio = memo(function Portfolio() {
     isLoading: zerionNftsLoading 
   } = useZerionNFTs();
 
-  // OKX NFT data
   const {
     collections: okxNftCollections,
     totalFloorValue: okxNftFloorValue,
@@ -106,10 +133,6 @@ const Portfolio = memo(function Portfolio() {
   const nftCount = isZerionEnabled ? zerionNftCount : okxNftCount;
   const nftsLoading = isZerionEnabled ? zerionNftsLoading : okxNftsLoading;
 
-  // Only show Zerion DeFi data for EVM chains when Zerion enabled
-  const showZerionData = isZerionEnabled && chainFilter === 'evm' && !!evmAddress;
-  const showOkxData = isOKXEnabled;
-
   // Sync chain filter with wallet connection changes
   useEffect(() => {
     if (activeChainType === 'solana') {
@@ -118,6 +141,75 @@ const Portfolio = memo(function Portfolio() {
       setChainFilter('evm');
     }
   }, [activeChainType]);
+
+  // Fetch portfolio data
+  const fetchPortfolio = useCallback(async () => {
+    if (!activeAddress || !isConnected) {
+      setBalances([]);
+      setTotalValue(0);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const chainIndex = activeChain?.chainIndex || '1';
+      const result = await okxDexService.getWalletBalances(activeAddress, chainIndex);
+      
+      if (result.length > 0) {
+        setBalances(result);
+        const total = result.reduce((sum, b) => {
+          return sum + (parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0'));
+        }, 0);
+        setTotalValue(total);
+        
+        // Save snapshot for P&L tracking
+        await saveSnapshot(total, chainIndex);
+      } else {
+        setBalances([]);
+        setTotalValue(0);
+      }
+    } catch (err) {
+      console.error('[Portfolio] Failed to fetch:', err);
+      setError('Failed to load portfolio data');
+      toast.error('Failed to load portfolio');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeAddress, isConnected, activeChain, saveSnapshot]);
+
+  useEffect(() => {
+    fetchPortfolio();
+  }, [fetchPortfolio]);
+
+  // Get P&L metrics
+  const pnlMetrics = useMemo(() => {
+    return getPnLMetrics(1);
+  }, [getPnLMetrics, totalValue]);
+
+  // Chain balances for allocation chart - format for component
+  const chainBalancesForChart = useMemo(() => {
+    const grouped: Record<string, number> = {};
+    balances.forEach(b => {
+      const key = b.chainIndex || '1';
+      const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
+      grouped[key] = (grouped[key] || 0) + value;
+    });
+    
+    // Convert to the format expected by PortfolioAllocationChart
+    return Object.entries(grouped).map(([chainIndex, total]) => {
+      const chainInfo = CHAIN_DATA.find(c => c.chainIndex === chainIndex);
+      return {
+        chain: { 
+          name: chainInfo?.name || 'Unknown', 
+          shortName: chainInfo?.shortName || chainIndex 
+        },
+        total,
+      };
+    }).sort((a, b) => b.total - a.total);
+  }, [balances]);
 
   // Handle chain filter change
   const handleChainFilterChange = useCallback(async (newFilter: ChainFilter) => {
@@ -155,76 +247,32 @@ const Portfolio = memo(function Portfolio() {
   const isWalletSynced = activeChainType === chainFilter || 
     (chainFilter === 'evm' && activeChainType !== 'solana' && activeChainType !== 'tron' && activeChainType !== 'sui' && activeChainType !== 'ton');
 
-  // Scroll reveal hooks
-  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>();
-  const { ref: contentRef, isVisible: contentVisible } = useScrollReveal<HTMLDivElement>();
-
   const handleRefresh = useCallback(async () => {
-    // Invalidate portfolio-related queries
     await queryClient.invalidateQueries({ queryKey: ['portfolio'] });
     await queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-    await queryClient.invalidateQueries({ queryKey: ['portfolio-snapshots'] });
-    await queryClient.invalidateQueries({ queryKey: ['zerion-portfolio'] });
     await queryClient.invalidateQueries({ queryKey: ['zerion'] });
-  }, [queryClient]);
+    await fetchPortfolio();
+    toast.success('Portfolio refreshed');
+  }, [queryClient, fetchPortfolio]);
 
-  // Counts for tabs
-  const defiCount = defiPositions?.length || 0;
-  const nftCountDisplay = nftCount || 0;
+  // Masked value display
+  const displayValue = hideBalances ? '••••••' : `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
   return (
     <Layout>
       <Helmet>
-        <title>Portfolio Dashboard | xlama - Track Your Crypto Holdings</title>
+        <title>Account | xlama - Your Crypto Portfolio</title>
         <meta
           name="description"
-          content="Track your cryptocurrency portfolio across 25+ chains. View P&L history, holdings breakdown, chain distribution, and get rebalancing recommendations."
+          content="Manage your cryptocurrency portfolio across 25+ chains. View holdings, track P&L, and access quick actions."
         />
-        <meta property="og:title" content="Portfolio Dashboard | xlama" />
-        <meta property="og:description" content="Track your crypto portfolio with P&L tracking, holdings overview, and rebalancing tools." />
         <link rel="canonical" href="https://xlama.exchange/portfolio" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-8 sm:py-12">
-        {/* Animated background accent */}
-        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
-        </div>
-
-        {/* Header with scroll reveal */}
-        <div 
-          ref={headerRef}
-          className={`text-center mb-8 sm:mb-12 ${getScrollRevealClass(headerVisible, 'slide-up')}`}
-        >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary" data-tour="portfolio-link">
-              <Wallet className="w-4 h-4" />
-              <span>Portfolio Dashboard</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              className="h-8 px-3 gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-          </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
-            Portfolio Dashboard
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Track your crypto holdings across 25+ chains, monitor P&L performance, and optimize your portfolio 
-            with intelligent rebalancing recommendations.
-          </p>
-        </div>
-
+      <main className="container px-4 sm:px-6 py-6 sm:py-8 max-w-2xl mx-auto">
         {/* Connect wallet prompt if not connected */}
         {!isConnected ? (
-          <div ref={contentRef} className={`max-w-xl mx-auto ${getScrollRevealClass(contentVisible, 'scale')}`}>
+          <div className="max-w-xl mx-auto">
             <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
               <CardContent className="pt-8 pb-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
@@ -235,14 +283,14 @@ const Portfolio = memo(function Portfolio() {
                   We recommend <strong className="text-primary">OKX Wallet</strong> for the best multi-chain experience.
                 </p>
                 <p className="text-xs text-muted-foreground mb-6">
-                  Connect to view your portfolio, track P&L, and access rebalancing tools.
+                  Connect to view your portfolio and manage your holdings.
                 </p>
                 <MultiWalletButton />
 
                 {/* Feature Preview */}
                 <div className="mt-8 pt-8 border-t border-border/50">
                   <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     {portfolioFeatures.map((feature, index) => (
                       <div
                         key={feature.title}
@@ -261,193 +309,204 @@ const Portfolio = memo(function Portfolio() {
           </div>
         ) : (
           <Suspense fallback={<PortfolioSkeleton />}>
-              <div className="space-y-8 max-w-4xl mx-auto">
-                {/* Chain Filter Toggle with Data Source */}
-                <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-                      <Layers className="w-4 h-4 text-muted-foreground ml-2" />
-                    {chainFilterOptions.map((option) => (
-                      <Button
-                        key={option.value}
-                        variant={chainFilter === option.value ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => handleChainFilterChange(option.value)}
-                        disabled={isSwitching}
-                        className={cn(
-                          "h-8 px-3 text-xs gap-1.5",
-                          chainFilter === option.value && "bg-primary text-primary-foreground"
-                        )}
-                      >
-                        {option.icon}
-                        {option.label}
-                        {chainFilter === option.value && (
-                          <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary-foreground/20">
-                            Active
-                          </Badge>
-                        )}
-                      </Button>
-                      ))}
-                    </div>
-                    
-                    {/* Data Source Toggle */}
-                    <DataSourceToggle compact />
-                  </div>
-
-                  {/* Connection Indicator */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      isWalletSynced ? 'bg-success animate-pulse' : 'bg-warning'
-                    )} />
-                    <span>
-                      Viewing <span className="font-medium text-foreground">
-                        {chainFilter === 'solana' ? 'Solana' : 'EVM'} Portfolio
-                      </span>
-                    </span>
-                  </div>
-                  
-                  {!isWalletSynced && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-xs text-warning">
-                      <AlertTriangle className="w-3 h-3" />
-                      <span>Wallet is on a different network</span>
-                    </div>
-                  )}
+            <div className="space-y-4">
+              {/* Top Controls */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {chainFilterOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      variant={chainFilter === option.value ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => handleChainFilterChange(option.value)}
+                      disabled={isSwitching}
+                      className={cn(
+                        "h-8 px-3 text-xs gap-1.5",
+                        chainFilter === option.value && "bg-primary text-primary-foreground"
+                      )}
+                    >
+                      {option.icon}
+                      {option.label}
+                    </Button>
+                  ))}
                 </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setHideBalances(!hideBalances)}
+                    className="h-8 w-8"
+                  >
+                    {hideBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                    className="h-8 w-8"
+                  >
+                    <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+                  </Button>
+                  <DataSourceToggle compact />
+                </div>
+              </div>
 
-                {/* Tabbed Content for Holdings, DeFi, NFTs */}
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'holdings' | 'defi' | 'nfts')} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 glass border border-border/50">
-                    <TabsTrigger value="holdings" className="gap-2">
-                      <Wallet className="h-4 w-4" />
+              {/* Sync Warning */}
+              {!isWalletSynced && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/20 text-xs text-warning">
+                  <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                  <span>Wallet is on a different network</span>
+                </div>
+              )}
+
+              {/* Account Summary Card */}
+              <AccountSummaryCard
+                totalValue={hideBalances ? 0 : totalValue}
+                change24h={pnlMetrics?.absoluteChange}
+                changePercent24h={pnlMetrics?.percentChange}
+                chainName={activeChain?.name || 'Ethereum'}
+                chainIcon={activeChain?.icon}
+                address={activeAddress || ''}
+                isLoading={isLoading}
+              />
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant="outline"
+                  className="h-12 flex-col gap-1 glass-subtle hover-lift"
+                  onClick={() => navigate('/swap')}
+                >
+                  <ArrowRightLeft className="w-4 h-4 text-primary" />
+                  <span className="text-xs">Swap</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-12 flex-col gap-1 glass-subtle hover-lift"
+                  onClick={() => navigate('/bridge')}
+                >
+                  <Layers className="w-4 h-4 text-primary" />
+                  <span className="text-xs">Bridge</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-12 flex-col gap-1 glass-subtle hover-lift"
+                  onClick={() => navigate('/orders')}
+                >
+                  <Coins className="w-4 h-4 text-primary" />
+                  <span className="text-xs">Orders</span>
+                </Button>
+              </div>
+
+              {/* Holdings List - Inline */}
+              <Card className="glass border-border/50">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+                    <h3 className="font-medium flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-primary" />
                       Holdings
-                    </TabsTrigger>
-                    <TabsTrigger value="defi" className="gap-2" disabled={!showZerionData}>
-                      <Layers className="h-4 w-4" />
-                      DeFi
-                      {showZerionData && defiCount > 0 && (
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                          {defiCount}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="nfts" className="gap-2" disabled={!showZerionData}>
-                      <Image className="h-4 w-4" />
-                      NFTs
-                      {showZerionData && nftCountDisplay > 0 && (
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                          {nftCountDisplay}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
+                    </h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {balances.length} tokens
+                    </Badge>
+                  </div>
+                  <ScrollArea className="h-[280px]">
+                    <PortfolioHoldingsTable 
+                      balances={balances} 
+                      isLoading={isLoading}
+                      className="border-0 shadow-none"
+                    />
+                  </ScrollArea>
+                </CardContent>
+              </Card>
 
-                  {/* Holdings Tab */}
-                  <TabsContent value="holdings" className="space-y-6 mt-6">
-                    {/* Portfolio Overview */}
-                    <section id="overview" className="scroll-mt-20">
-                      <PortfolioOverview />
-                    </section>
+              {/* Allocation Chart - Collapsible */}
+              <Collapsible open={showChart} onOpenChange={setShowChart}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
+                    <span className="flex items-center gap-2">
+                      <PieChart className="w-4 h-4 text-primary" />
+                      Chain Distribution
+                    </span>
+                    <ChevronDown className={cn(
+                      "w-4 h-4 transition-transform",
+                      showChart && "rotate-180"
+                    )} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <PortfolioAllocationChart 
+                    chainBalances={chainBalancesForChart}
+                    totalValue={totalValue}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
 
-                    {/* P&L Breakdown from Zerion (EVM only) */}
-                    {showZerionData && (
-                      <section id="pnl-breakdown" className="scroll-mt-20">
-                        <PnLBreakdown pnl={zerionPnL} isLoading={zerionLoading} />
-                      </section>
-                    )}
-
-                    {/* Performance History Chart */}
-                    <section id="pnl" className="scroll-mt-20">
-                      <Card className="glass glow-sm border-border/50 sweep-effect glow-border-animated">
-                        <CardContent className="pt-6">
-                          <div className="flex items-center gap-2 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center glow-sm">
-                              <TrendingUp className="w-4 h-4 text-primary" />
-                            </div>
-                            <h2 className="text-lg font-semibold">Performance History</h2>
-                          </div>
-                          <Suspense fallback={<div className="h-64 skeleton-shimmer rounded-lg" />}>
-                            <PortfolioPnLChart />
-                          </Suspense>
-                        </CardContent>
-                      </Card>
-                    </section>
-
-                    {/* Portfolio Rebalancer */}
-                    <section id="rebalancer" className="scroll-mt-20 max-w-xl mx-auto">
-                      <PortfolioRebalancer />
-                    </section>
-                  </TabsContent>
-
-                  {/* DeFi Positions Tab */}
-                  <TabsContent value="defi" className="mt-6">
-                    {showZerionData ? (
-                      <DeFiPositions 
-                        positions={defiPositions || []} 
-                        isLoading={zerionLoading} 
-                      />
-                    ) : (
-                      <Card className="glass-card">
-                        <CardContent className="py-12 text-center">
-                          <Layers className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
-                          <p className="text-muted-foreground">DeFi positions are available for EVM chains only</p>
-                          <p className="text-sm text-muted-foreground mt-1">Switch to EVM to view your DeFi positions</p>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </TabsContent>
-
-                  {/* NFTs Tab */}
-                  <TabsContent value="nfts" className="mt-6">
-                    {showZerionData ? (
-                      <NFTGallery 
-                        collections={nftCollections || []} 
-                        totalFloorValue={nftFloorValue || 0}
-                        totalCount={nftCountDisplay}
-                        isLoading={nftsLoading}
-                      />
-                    ) : (
-                      <Card className="glass-card">
-                        <CardContent className="py-12 text-center">
-                          <Image className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
-                          <p className="text-muted-foreground">NFT gallery is available for EVM chains only</p>
-                          <p className="text-sm text-muted-foreground mt-1">Switch to EVM to view your NFT collection</p>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </TabsContent>
-                </Tabs>
-
-                {/* Tips Section */}
-                <section className="mt-8">
-                  <Card className="glass-subtle border-border/50 sweep-effect">
-                    <CardContent className="pt-6">
-                      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-primary" />
-                        Portfolio Tips
-                      </h3>
-                      <ul className="space-y-2 text-sm text-muted-foreground">
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          <span>Daily snapshots are saved automatically when you view your portfolio.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          <span>Use the rebalancer to set target allocations and maintain your strategy.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          <span>Export your P&L history as CSV for tax reporting or external analysis.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          <span>Connect multiple wallets to see your combined portfolio across all addresses.</span>
-                        </li>
-                      </ul>
+              {/* Performance Chart - Collapsible */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
+                    <span className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      Performance History
+                    </span>
+                    <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <Card className="glass border-border/50">
+                    <CardContent className="pt-4">
+                      <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                        <PortfolioPnLChart />
+                      </Suspense>
                     </CardContent>
                   </Card>
-                </section>
-              </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* NFTs - Collapsible */}
+              {nftCount > 0 && (
+                <Collapsible open={showNFTs} onOpenChange={setShowNFTs}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
+                      <span className="flex items-center gap-2">
+                        <Image className="w-4 h-4 text-primary" />
+                        NFTs
+                        <Badge variant="secondary" className="text-xs">
+                          {nftCount}
+                        </Badge>
+                      </span>
+                      <ChevronDown className={cn(
+                        "w-4 h-4 transition-transform",
+                        showNFTs && "rotate-180"
+                      )} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <NFTGallery 
+                      collections={nftCollections || []}
+                      isLoading={nftsLoading}
+                      totalFloorValue={nftFloorValue}
+                      totalCount={nftCount}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* Error state */}
+              {error && (
+                <Card className="glass border-destructive/20">
+                  <CardContent className="py-4 text-center">
+                    <p className="text-sm text-destructive">{error}</p>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-2">
+                      Try Again
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </Suspense>
         )}
       </main>
