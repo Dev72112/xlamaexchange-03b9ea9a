@@ -5,8 +5,13 @@ import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { 
   Wallet, 
   TrendingUp, 
@@ -23,6 +28,8 @@ import {
   Coins,
   Eye,
   EyeOff,
+  Check,
+  Cpu,
 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
@@ -30,7 +37,7 @@ import { MultiWalletButton } from "@/features/wallet";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { PortfolioSkeleton } from "@/components/skeletons";
 import { useQueryClient } from "@tanstack/react-query";
-import { SUPPORTED_CHAINS } from "@/data/chains";
+import { SUPPORTED_CHAINS, getEvmChains, Chain } from "@/data/chains";
 import { cn } from "@/lib/utils";
 import { useZerionNFTs } from "@/hooks/useZerionNFTs";
 import { NFTGallery } from "@/components/portfolio/NFTGallery";
@@ -46,6 +53,7 @@ import { useZerionPortfolio } from "@/hooks/useZerionPortfolio";
 import { useUnifiedData } from "@/contexts/UnifiedDataContext";
 import { toast } from "sonner";
 import { SUPPORTED_CHAINS as CHAIN_DATA } from "@/data/chains";
+import { ChainImage } from "@/components/ui/token-image";
 
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/components/PortfolioPnLChart").then(m => ({ default: m.PortfolioPnLChart })));
@@ -73,12 +81,10 @@ const portfolioFeatures = [
   },
 ];
 
-type ChainFilter = 'evm' | 'solana';
+type ChainFilter = 'all-evm' | 'evm-chain' | 'solana';
 
-const chainFilterOptions: { value: ChainFilter; label: string; icon?: React.ReactNode }[] = [
-  { value: 'evm', label: 'EVM' },
-  { value: 'solana', label: 'Solana', icon: <Zap className="w-3 h-3" /> },
-];
+// EVM chains for selector
+const evmChains = getEvmChains();
 
 const Portfolio = memo(function Portfolio() {
   const navigate = useNavigate();
@@ -103,8 +109,10 @@ const Portfolio = memo(function Portfolio() {
 
   // Chain filter state - sync with wallet
   const [chainFilter, setChainFilter] = useState<ChainFilter>(
-    activeChainType === 'solana' ? 'solana' : 'evm'
+    activeChainType === 'solana' ? 'solana' : 'all-evm'
   );
+  const [selectedEvmChain, setSelectedEvmChain] = useState<Chain | null>(null);
+  const [chainSelectorOpen, setChainSelectorOpen] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [showChart, setShowChart] = useState(false);
   const [showNFTs, setShowNFTs] = useState(false);
@@ -144,10 +152,13 @@ const Portfolio = memo(function Portfolio() {
   useEffect(() => {
     if (activeChainType === 'solana') {
       setChainFilter('solana');
+      setSelectedEvmChain(null);
     } else if (activeChainType === 'evm') {
-      setChainFilter('evm');
+      if (chainFilter === 'solana') {
+        setChainFilter('all-evm');
+      }
     }
-  }, [activeChainType]);
+  }, [activeChainType, chainFilter]);
 
   // Fetch portfolio data
   const fetchPortfolio = useCallback(async () => {
@@ -219,20 +230,29 @@ const Portfolio = memo(function Portfolio() {
   }, [balances]);
 
   // Handle chain filter change
-  const handleChainFilterChange = useCallback(async (newFilter: ChainFilter) => {
+  const handleChainFilterChange = useCallback(async (newFilter: ChainFilter, chain?: Chain) => {
     setChainFilter(newFilter);
+    setSelectedEvmChain(chain || null);
+    setChainSelectorOpen(false);
     
     // Update global chain filter
     if (newFilter === 'solana') {
       setGlobalChainFilter('501');
+    } else if (newFilter === 'evm-chain' && chain) {
+      setGlobalChainFilter(chain.chainIndex);
     } else {
       setGlobalChainFilter('all-evm');
     }
     
     // Find target chain
-    const targetChain = newFilter === 'solana'
-      ? SUPPORTED_CHAINS.find(c => c.chainIndex === '501')
-      : SUPPORTED_CHAINS.find(c => c.chainIndex === '1');
+    let targetChain: Chain | undefined;
+    if (newFilter === 'solana') {
+      targetChain = SUPPORTED_CHAINS.find(c => c.chainIndex === '501');
+    } else if (newFilter === 'evm-chain' && chain) {
+      targetChain = chain;
+    } else {
+      targetChain = SUPPORTED_CHAINS.find(c => c.chainIndex === '1');
+    }
     
     if (!targetChain) return;
     
@@ -251,8 +271,7 @@ const Portfolio = memo(function Portfolio() {
   }, [setActiveChain, switchChainByIndex, isOkxConnected, setGlobalChainFilter]);
 
   // Check if wallet is synced
-  const isWalletSynced = activeChainType === chainFilter || 
-    (chainFilter === 'evm' && activeChainType !== 'solana' && activeChainType !== 'tron' && activeChainType !== 'sui' && activeChainType !== 'ton');
+  const isWalletSynced = activeChainType === 'evm' || activeChainType === chainFilter;
 
   const handleRefresh = useCallback(async () => {
     await invalidateAllPortfolioData();
@@ -316,27 +335,101 @@ const Portfolio = memo(function Portfolio() {
           <Suspense fallback={<PortfolioSkeleton />}>
             <div className="space-y-4">
               {/* Top Controls */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  {chainFilterOptions.map((option) => (
-                    <Button
-                      key={option.value}
-                      variant={chainFilter === option.value ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => handleChainFilterChange(option.value)}
-                      disabled={isSwitching}
-                      className={cn(
-                        "h-8 px-3 text-xs gap-1.5",
-                        chainFilter === option.value && "bg-primary text-primary-foreground"
-                      )}
-                    >
-                      {option.icon}
-                      {option.label}
-                    </Button>
-                  ))}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  {/* All EVM Button */}
+                  <Button
+                    variant={chainFilter === 'all-evm' ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => handleChainFilterChange('all-evm')}
+                    disabled={isSwitching}
+                    className={cn(
+                      "h-8 px-2.5 text-xs gap-1",
+                      chainFilter === 'all-evm' && "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    <Cpu className="w-3 h-3" />
+                    All EVM
+                  </Button>
+                  
+                  {/* EVM Chain Selector Dropdown */}
+                  <Popover open={chainSelectorOpen} onOpenChange={setChainSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={chainFilter === 'evm-chain' ? "default" : "ghost"}
+                        size="sm"
+                        disabled={isSwitching}
+                        className={cn(
+                          "h-8 px-2.5 text-xs gap-1",
+                          chainFilter === 'evm-chain' && "bg-primary text-primary-foreground"
+                        )}
+                      >
+                        {selectedEvmChain ? (
+                          <>
+                            <ChainImage 
+                              src={selectedEvmChain.icon} 
+                              alt={selectedEvmChain.shortName}
+                              fallbackText={selectedEvmChain.shortName}
+                              className="w-4 h-4"
+                            />
+                            <span className="hidden xs:inline">{selectedEvmChain.shortName}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Layers className="w-3 h-3" />
+                            Chain
+                          </>
+                        )}
+                        <ChevronDown className="w-3 h-3 ml-0.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-56 p-1 max-h-[300px] overflow-hidden" sideOffset={4}>
+                      <ScrollArea className="h-[280px]">
+                        <div className="space-y-0.5 p-1">
+                          {evmChains.slice(0, 20).map((chain) => (
+                            <button
+                              key={chain.chainIndex}
+                              onClick={() => handleChainFilterChange('evm-chain', chain)}
+                              className={cn(
+                                "flex items-center gap-2 w-full px-2 py-1.5 rounded text-left text-xs hover:bg-accent/50",
+                                selectedEvmChain?.chainIndex === chain.chainIndex && "bg-accent"
+                              )}
+                            >
+                              <ChainImage 
+                                src={chain.icon} 
+                                alt={chain.shortName}
+                                fallbackText={chain.shortName}
+                                className="w-4 h-4"
+                              />
+                              <span className="flex-1 truncate">{chain.name}</span>
+                              {selectedEvmChain?.chainIndex === chain.chainIndex && (
+                                <Check className="w-3 h-3 text-primary" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <ScrollBar orientation="vertical" />
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                  
+                  {/* Solana Button */}
+                  <Button
+                    variant={chainFilter === 'solana' ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => handleChainFilterChange('solana')}
+                    disabled={isSwitching}
+                    className={cn(
+                      "h-8 px-2.5 text-xs gap-1",
+                      chainFilter === 'solana' && "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    <Zap className="w-3 h-3" />
+                    SOL
+                  </Button>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Button
                     variant="ghost"
                     size="icon"
