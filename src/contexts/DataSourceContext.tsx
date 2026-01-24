@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export type DataSource = 'zerion' | 'okx' | 'hybrid';
 
@@ -20,6 +21,8 @@ interface DataSourceProviderProps {
 }
 
 export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children }) => {
+  const queryClient = useQueryClient();
+  
   const [dataSource, setDataSourceState] = useState<DataSource>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(DATA_SOURCE_KEY);
@@ -35,7 +38,15 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
     if (typeof window !== 'undefined') {
       localStorage.setItem(DATA_SOURCE_KEY, source);
     }
-  }, []);
+    
+    // Invalidate portfolio-related queries on mode change to force fresh data
+    // This fixes the state desync issue where old data shows during transition
+    queryClient.invalidateQueries({ queryKey: ['zerion'] });
+    queryClient.invalidateQueries({ queryKey: ['okx-portfolio'] });
+    queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+    queryClient.invalidateQueries({ queryKey: ['hybrid-portfolio'] });
+    console.log('[DataSource] Mode changed to:', source, '- invalidated portfolio queries');
+  }, [queryClient]);
 
   const toggleDataSource = useCallback(() => {
     const sources: DataSource[] = ['zerion', 'okx', 'hybrid'];

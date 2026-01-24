@@ -692,7 +692,7 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
             </div>
           )}
 
-          {/* Unsupported chain warning */}
+          {/* Unsupported chain warning with specific alternatives */}
           {!bothChainsSupported && fromChain.chainIndex !== toChain.chainIndex && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
               <div className="flex items-center gap-2 text-sm text-destructive">
@@ -706,10 +706,48 @@ export function CrossChainSwap({ className }: CrossChainSwapProps) {
                   }
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Supported chains: {supportedChainNames.join(', ')}
-                {supportedChainNames.length < SUPPORTED_CHAINS.filter(c => lifiService.isChainSupported(c.chainIndex)).length && ' and more'}
-              </p>
+              {/* Show specific alternatives for non-EVM chains */}
+              {(() => {
+                const unsupportedChain = !fromChainSupported ? fromChain : toChain;
+                const warning = lifiService.getLimitedSupportWarning(unsupportedChain.chainIndex);
+                if (warning) {
+                  return (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      {warning}
+                    </p>
+                  );
+                }
+                // Fallback for completely unsupported chains (Tron, Sui, TON)
+                const chainName = unsupportedChain.name.toLowerCase();
+                if (chainName.includes('tron')) {
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      💡 TRON is not supported by Li.Fi. Use <strong>ChangeNow</strong> (Instant Swap mode) for USDT-TRC20 or native TRX bridges.
+                    </p>
+                  );
+                }
+                if (chainName.includes('sui')) {
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      💡 Sui is not supported by Li.Fi. Try <strong>Wormhole</strong> or <strong>native Sui bridges</strong> for cross-chain transfers.
+                    </p>
+                  );
+                }
+                if (chainName.includes('ton')) {
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      💡 TON is not supported by Li.Fi. Use <strong>Tonkeeper's built-in bridge</strong> or native TON bridges for cross-chain transfers.
+                    </p>
+                  );
+                }
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    Supported chains: {supportedChainNames.join(', ')}
+                    {supportedChainNames.length < SUPPORTED_CHAINS.filter(c => lifiService.isChainSupported(c.chainIndex)).length && ' and more'}
+                  </p>
+                );
+              })()}
             </div>
           )}
 
