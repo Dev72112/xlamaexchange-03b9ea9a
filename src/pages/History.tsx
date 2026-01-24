@@ -26,7 +26,6 @@ import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } 
 import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
-import { PullToRefresh } from "@/components/PullToRefresh";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -344,7 +343,7 @@ const History = () => {
         <meta name="description" content="View your cryptocurrency exchange transaction history." />
       </Helmet>
 
-      <PullToRefresh onRefresh={handleRefresh} showSkeleton={false}>
+
         <div className="container px-4 py-12 sm:py-16 max-w-4xl">
           {/* Header with glass styling */}
           <div className="mb-10 flex items-start justify-between flex-wrap gap-4">
@@ -1211,7 +1210,6 @@ const History = () => {
           </div>
         )}
         </div>
-      </PullToRefresh>
     </Layout>
   );
 };

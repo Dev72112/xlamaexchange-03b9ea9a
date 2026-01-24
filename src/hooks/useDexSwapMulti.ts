@@ -8,7 +8,7 @@ import { useAppKitProvider } from '@reown/appkit/react';
 import bs58 from 'bs58';
 import { getSolanaRpcEndpoints } from '@/config/rpc';
 import { notificationService } from '@/services/notificationService';
-
+import { usePriceOracleOptional } from '@/contexts/PriceOracleContext';
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
 interface UseDexSwapOptions {
@@ -57,6 +57,7 @@ export function useDexSwapMulti() {
   const { walletProvider: appKitSolanaProvider } = useAppKitProvider<any>('solana');
   
   const { toast } = useToast();
+  const priceOracle = usePriceOracleOptional();
   const [step, setStep] = useState<SwapStep>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -221,6 +222,27 @@ export function useDexSwapMulti() {
     );
 
     if (!swapData?.tx) throw new Error('Failed to get swap transaction data');
+
+    // Capture token prices in oracle for P&L tracking
+    if (priceOracle && swapData.routerResult) {
+      const routerResult = swapData.routerResult as any;
+      if (routerResult.fromTokenUnitPrice) {
+        priceOracle.setPrice(
+          chain.chainIndex,
+          fromToken.tokenContractAddress,
+          fromToken.tokenSymbol,
+          parseFloat(routerResult.fromTokenUnitPrice)
+        );
+      }
+      if (routerResult.toTokenUnitPrice) {
+        priceOracle.setPrice(
+          chain.chainIndex,
+          toToken.tokenContractAddress,
+          toToken.tokenSymbol,
+          parseFloat(routerResult.toTokenUnitPrice)
+        );
+      }
+    }
 
     toast({ title: 'Confirm Swap', description: 'Please confirm the transaction in your wallet' });
 

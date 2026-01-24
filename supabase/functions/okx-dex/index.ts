@@ -76,6 +76,8 @@ const VALID_ACTIONS = [
   // Transaction History API (v6)
   'tx-history',
   'tx-detail',
+  // NFT API (Marketplace)
+  'nft-assets',
 ] as const;
 
 type ValidAction = typeof VALID_ACTIONS[number];
@@ -104,6 +106,7 @@ const RATE_LIMITS: Record<ValidAction, number> = {
   'portfolio-value': 40,
   'tx-history': 40,
   'tx-detail': 40,
+  'nft-assets': 30,
 };
 
 function checkRateLimit(action: ValidAction, clientIp: string): boolean {
@@ -874,6 +877,44 @@ serve(async (req) => {
           chainIndex,
           txHash,
         });
+        break;
+      }
+
+      // ========== NFT API (OKX Marketplace) ==========
+      case 'nft-assets': {
+        const { chain, ownerAddress, limit, cursor } = params;
+        if (!chain || !ownerAddress) {
+          return new Response(
+            JSON.stringify({ error: 'chain and ownerAddress are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log(`Fetching NFT assets for ${ownerAddress} on chain ${chain}`);
+        
+        // Map chain index to OKX NFT chain format
+        const nftChainMap: Record<string, string> = {
+          '1': 'eth',
+          '137': 'polygon',
+          '56': 'bsc',
+          '42161': 'arbitrum',
+          '10': 'optimism',
+        };
+        
+        const nftChain = nftChainMap[chain] || 'eth';
+        
+        // Build query params for NFT API
+        const queryParams = new URLSearchParams({
+          chain: nftChain,
+          ownerAddress,
+          limit: limit?.toString() || '50',
+          ...(cursor && { cursor }),
+        });
+        
+        const requestPath = `/api/v5/mktplace/nft/owner/asset-list?${queryParams}`;
+        const headers = await getOkxHeaders(requestPath);
+        
+        response = await fetch(`https://web3.okx.com${requestPath}`, { method: 'GET', headers });
         break;
       }
       

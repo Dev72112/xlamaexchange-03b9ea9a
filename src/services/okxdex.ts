@@ -499,9 +499,24 @@ class OkxDexService {
   async getTransactionDetail(chainIndex: string, txHash: string): Promise<TransactionHistoryItem | null> {
     try {
       const result = await this.callApi<TransactionHistoryItem>('tx-detail', { chainIndex, txHash });
-      return result;
+      return result || null;
     } catch {
       return null;
+    }
+  }
+
+  // ========== NFT API (OKX Marketplace) ==========
+  async getNFTAssets(chain: string, ownerAddress: string, limit = 50): Promise<any[]> {
+    try {
+      const result = await this.callApi<{ assets: any[]; cursor?: string }>('nft-assets', {
+        chain,
+        ownerAddress,
+        limit,
+      });
+      return result?.assets || [];
+    } catch (err) {
+      console.error('Failed to fetch NFT assets:', err);
+      return [];
     }
   }
 }

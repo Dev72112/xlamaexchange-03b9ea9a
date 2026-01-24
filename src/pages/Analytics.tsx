@@ -61,11 +61,9 @@ import { useScrollReveal, getScrollRevealClass } from '@/hooks/useScrollReveal';
 
 // Import analytics components from feature module
 import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings, ProtocolBreakdown, FeeAnalysis } from '@/features/analytics';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { useQueryClient } from '@tanstack/react-query';
 import { useZerionPortfolio } from '@/hooks/useZerionPortfolio';
 import { useZerionTransactions } from '@/hooks/useZerionTransactions';
-import { DataSourceToggle } from '@/components/ui/DataSourceToggle';
 
 // Analytics features for the connect prompt
 const analyticsFeatures = [
@@ -361,8 +359,7 @@ const Analytics = () => {
         <meta name="description" content="View your trading analytics, volume history, and performance metrics." />
       </Helmet>
 
-      <PullToRefresh onRefresh={handlePullRefresh} showSkeleton={false} disabled={!isConnected}>
-        <div className="container px-4 py-8 max-w-7xl mx-auto relative">
+      <div className="container px-4 py-8 max-w-7xl mx-auto relative">
           {/* Animated background accent */}
           <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
             <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
@@ -449,9 +446,6 @@ const Analytics = () => {
                   </Button>
                   ))}
                 </div>
-                
-                {/* Data Source Toggle */}
-                <DataSourceToggle compact />
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <div className={cn("w-2 h-2 rounded-full", isWalletSynced ? 'bg-success animate-pulse' : 'bg-warning')} />
@@ -1245,7 +1239,6 @@ const Analytics = () => {
           </>
         )}
         </div>
-      </PullToRefresh>
     </Layout>
   );
 };

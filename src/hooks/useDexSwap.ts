@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { trackSwapInitiated, trackSwapCompleted } from '@/lib/tracking';
 import { getUserFriendlyErrorMessage } from '@/lib/api-utils';
 import { notificationService } from '@/services/notificationService';
-
+import { usePriceOracleOptional } from '@/contexts/PriceOracleContext';
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
 interface UseDexSwapOptions {
@@ -38,6 +38,7 @@ function toSmallestUnit(amount: string, decimals: number): string {
 export function useDexSwap() {
   const { activeAddress: address, getEvmProvider, isConnected } = useMultiWallet();
   const { toast } = useToast();
+  const priceOracle = usePriceOracleOptional();
   const [step, setStep] = useState<SwapStep>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -195,6 +196,27 @@ export function useDexSwap() {
 
       if (!swapData?.tx) {
         throw new Error('Failed to get swap transaction data. Try adjusting slippage or amount.');
+      }
+
+      // Capture token prices in oracle for P&L tracking
+      if (priceOracle && swapData.routerResult) {
+        const routerResult = swapData.routerResult as any;
+        if (routerResult.fromTokenUnitPrice) {
+          priceOracle.setPrice(
+            chain.chainIndex,
+            fromToken.tokenContractAddress,
+            fromToken.tokenSymbol,
+            parseFloat(routerResult.fromTokenUnitPrice)
+          );
+        }
+        if (routerResult.toTokenUnitPrice) {
+          priceOracle.setPrice(
+            chain.chainIndex,
+            toToken.tokenContractAddress,
+            toToken.tokenSymbol,
+            parseFloat(routerResult.toTokenUnitPrice)
+          );
+        }
       }
 
       toast({
