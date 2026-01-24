@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/shared/components";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { Helmet } from "react-helmet-async";
-import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight, ChevronDown } from "lucide-react";
+import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight, ChevronDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
@@ -12,11 +12,13 @@ import {
 } from "@/components/IndexSectionSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/shared/lib";
 import { cn } from "@/lib/utils";
+import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 
 // Lazy load heavier sections
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
+const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
 
 // Memoized quick link component
 const QuickLink = memo(function QuickLink({ 
@@ -57,6 +59,8 @@ const Index = () => {
   const widgetRef = useRef<HTMLDivElement>(null);
   const [showTrending, setShowTrending] = useState(false);
   const [showNews, setShowNews] = useState(false);
+  const [showTracker, setShowTracker] = useState(false);
+  const { isInstantMode } = useExchangeMode();
 
   const handleSelectPair = useCallback((from: string, to: string) => {
     navigate(`/swap?from=${from}&to=${to}`, { replace: true });
@@ -197,6 +201,31 @@ const Index = () => {
             </CollapsibleContent>
           </Collapsible>
         </section>
+
+        {/* Section 4: Transaction Tracker - Collapsible (Instant mode only) */}
+        {isInstantMode && (
+          <section className="container px-4 sm:px-6 py-4 sm:py-8">
+            <Collapsible open={showTracker} onOpenChange={setShowTracker}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
+                  <span className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-primary" />
+                    Track Transaction
+                  </span>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 transition-transform",
+                    showTracker && "rotate-180"
+                  )} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Suspense fallback={<TransactionTrackerSkeleton />}>
+                  <TransactionTracker />
+                </Suspense>
+              </CollapsibleContent>
+            </Collapsible>
+          </section>
+        )}
       </main>
     </Layout>
   );

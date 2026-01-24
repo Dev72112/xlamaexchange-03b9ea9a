@@ -1,9 +1,10 @@
 /**
- * Exchange-related providers: Mode, PreFill
+ * Exchange-related providers: Mode, PreFill, UnifiedData
  */
 import React, { ReactNode } from 'react';
 import { ExchangeModeProvider } from '@/contexts/ExchangeModeContext';
 import { TradePreFillProvider } from '@/contexts/TradePreFillContext';
+import { UnifiedDataProvider } from '@/contexts/UnifiedDataContext';
 
 interface ExchangeProvidersProps {
   children: ReactNode;
@@ -12,9 +13,11 @@ interface ExchangeProvidersProps {
 export function ExchangeProviders({ children }: ExchangeProvidersProps) {
   return (
     <ExchangeModeProvider>
-      <TradePreFillProvider>
-        {children}
-      </TradePreFillProvider>
+      <UnifiedDataProvider>
+        <TradePreFillProvider>
+          {children}
+        </TradePreFillProvider>
+      </UnifiedDataProvider>
     </ExchangeModeProvider>
   );
 }

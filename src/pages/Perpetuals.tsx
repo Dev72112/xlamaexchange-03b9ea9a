@@ -455,8 +455,12 @@ const Perpetuals = memo(function Perpetuals() {
         <TabsContent value="chart" className="mt-4">
           {!safeMode ? (
             <div className="space-y-4">
-              <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm max-h-[50vh]" />
-              <FundingRateChart coin={selectedPair} />
+              <div className="relative z-10">
+                <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm max-h-[50vh]" />
+              </div>
+              <div className="relative z-0">
+                <FundingRateChart coin={selectedPair} />
+              </div>
             </div>
           ) : (
             <Card className="glass border-border/50">

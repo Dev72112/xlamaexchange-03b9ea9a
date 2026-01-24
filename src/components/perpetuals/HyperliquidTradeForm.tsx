@@ -109,8 +109,10 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
         <Button
           variant={side === 'long' ? 'default' : 'outline'}
           className={cn(
-            "h-12 gap-2",
-            side === 'long' && "bg-success hover:bg-success/90 text-success-foreground"
+            "h-12 gap-2 font-semibold border-2 transition-all",
+            side === 'long' 
+              ? "bg-success hover:bg-success/90 text-success-foreground border-success shadow-md" 
+              : "border-border hover:border-success/50 hover:bg-success/10"
           )}
           onClick={() => setSide('long')}
         >
@@ -120,8 +122,10 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
         <Button
           variant={side === 'short' ? 'default' : 'outline'}
           className={cn(
-            "h-12 gap-2",
-            side === 'short' && "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            "h-12 gap-2 font-semibold border-2 transition-all",
+            side === 'short' 
+              ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground border-destructive shadow-md" 
+              : "border-border hover:border-destructive/50 hover:bg-destructive/10"
           )}
           onClick={() => setSide('short')}
         >
@@ -132,9 +136,19 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
 
       {/* Order Type Tabs */}
       <Tabs value={orderType} onValueChange={(v) => setOrderType(v as 'market' | 'limit')}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="market">Market</TabsTrigger>
-          <TabsTrigger value="limit">Limit</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 h-10 p-1 bg-secondary/50">
+          <TabsTrigger 
+            value="market" 
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium"
+          >
+            Market
+          </TabsTrigger>
+          <TabsTrigger 
+            value="limit"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium"
+          >
+            Limit
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 

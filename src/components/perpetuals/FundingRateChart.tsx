@@ -173,7 +173,7 @@ export const FundingRateChart = memo(function FundingRateChart({
   }
 
   return (
-    <Card className={cn("glass border-border/50", className)}>
+    <Card className={cn("glass border-border/50 relative z-0", className)}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center justify-between">
           <span className="flex items-center gap-2">

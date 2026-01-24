@@ -34,7 +34,7 @@ import { SUPPORTED_CHAINS } from "@/data/chains";
 import { cn } from "@/lib/utils";
 import { useZerionNFTs } from "@/hooks/useZerionNFTs";
 import { NFTGallery } from "@/components/portfolio/NFTGallery";
-import { DataSourceToggle } from "@/components/ui/DataSourceToggle";
+import { DeFiPositions } from "@/components/portfolio/DeFiPositions";
 import { useDataSource } from "@/contexts/DataSourceContext";
 import { useOkxNFTs } from "@/hooks/useOkxNFTs";
 import { AccountSummaryCard } from "@/components/portfolio/AccountSummaryCard";
@@ -42,6 +42,8 @@ import { PortfolioHoldingsTable } from "@/components/portfolio/PortfolioHoldings
 import { PortfolioAllocationChart } from "@/components/portfolio/PortfolioAllocationChart";
 import { okxDexService, WalletTokenBalance } from "@/services/okxdex";
 import { usePortfolioPnL } from "@/hooks/usePortfolioPnL";
+import { useZerionPortfolio } from "@/hooks/useZerionPortfolio";
+import { useUnifiedData } from "@/contexts/UnifiedDataContext";
 import { toast } from "sonner";
 import { SUPPORTED_CHAINS as CHAIN_DATA } from "@/data/chains";
 
@@ -93,6 +95,11 @@ const Portfolio = memo(function Portfolio() {
   const { setGlobalChainFilter } = useExchangeMode();
   const queryClient = useQueryClient();
   const { saveSnapshot, getPnLMetrics } = usePortfolioPnL();
+  const { invalidateAllPortfolioData } = useUnifiedData();
+  
+  // Zerion data for DeFi positions (EVM only)
+  const { defiPositions, isLoading: zerionLoading } = useZerionPortfolio();
+  const [showDeFi, setShowDeFi] = useState(false);
 
   // Chain filter state - sync with wallet
   const [chainFilter, setChainFilter] = useState<ChainFilter>(
@@ -248,12 +255,10 @@ const Portfolio = memo(function Portfolio() {
     (chainFilter === 'evm' && activeChainType !== 'solana' && activeChainType !== 'tron' && activeChainType !== 'sui' && activeChainType !== 'ton');
 
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-    await queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-    await queryClient.invalidateQueries({ queryKey: ['zerion'] });
+    await invalidateAllPortfolioData();
     await fetchPortfolio();
     toast.success('Portfolio refreshed');
-  }, [queryClient, fetchPortfolio]);
+  }, [invalidateAllPortfolioData, fetchPortfolio]);
 
   // Masked value display
   const displayValue = hideBalances ? '••••••' : `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -349,7 +354,6 @@ const Portfolio = memo(function Portfolio() {
                   >
                     <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
                   </Button>
-                  <DataSourceToggle compact />
                 </div>
               </div>
 
@@ -466,34 +470,63 @@ const Portfolio = memo(function Portfolio() {
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* NFTs - Collapsible */}
-              {nftCount > 0 && (
-                <Collapsible open={showNFTs} onOpenChange={setShowNFTs}>
+              {/* DeFi Positions - Collapsible (EVM only) */}
+              {isZerionEnabled && activeChainType === 'evm' && (
+                <Collapsible open={showDeFi} onOpenChange={setShowDeFi}>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
                       <span className="flex items-center gap-2">
-                        <Image className="w-4 h-4 text-primary" />
-                        NFTs
-                        <Badge variant="secondary" className="text-xs">
-                          {nftCount}
-                        </Badge>
+                        <Layers className="w-4 h-4 text-primary" />
+                        DeFi Positions
+                        {defiPositions.length > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {defiPositions.length}
+                          </Badge>
+                        )}
                       </span>
                       <ChevronDown className={cn(
                         "w-4 h-4 transition-transform",
-                        showNFTs && "rotate-180"
+                        showDeFi && "rotate-180"
                       )} />
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="pt-2">
-                    <NFTGallery 
-                      collections={nftCollections || []}
-                      isLoading={nftsLoading}
-                      totalFloorValue={nftFloorValue}
-                      totalCount={nftCount}
+                    <DeFiPositions 
+                      positions={defiPositions}
+                      isLoading={zerionLoading}
                     />
                   </CollapsibleContent>
                 </Collapsible>
               )}
+
+              {/* NFTs - Collapsible (always show section) */}
+              <Collapsible open={showNFTs} onOpenChange={setShowNFTs}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
+                    <span className="flex items-center gap-2">
+                      <Image className="w-4 h-4 text-primary" />
+                      NFTs
+                      {nftCount > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {nftCount}
+                        </Badge>
+                      )}
+                    </span>
+                    <ChevronDown className={cn(
+                      "w-4 h-4 transition-transform",
+                      showNFTs && "rotate-180"
+                    )} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <NFTGallery 
+                    collections={nftCollections || []}
+                    isLoading={nftsLoading}
+                    totalFloorValue={nftFloorValue}
+                    totalCount={nftCount}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Error state */}
               {error && (
