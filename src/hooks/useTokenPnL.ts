@@ -49,7 +49,7 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
   const [isLoading, setIsLoading] = useState(false);
   const pricesFetchedRef = useRef(false);
 
-  // Unify all trades into a common format
+  // Unify all trades into a common format with USD value calculation fallbacks
   // NOTE: Only DEX swaps generate true P&L - Bridge and Instant are asset transfers/conversions
   const unifiedTrades = useMemo((): UnifiedTrade[] => {
     const trades: UnifiedTrade[] = [];
@@ -61,16 +61,26 @@ export function useTokenPnL(chainFilter?: string): TokenPnLAnalytics {
       .filter(tx => tx.type === 'swap' && tx.status === 'confirmed')
       .filter(tx => !chainFilter || chainFilter === 'all' || tx.chainId === chainFilter)
       .forEach(tx => {
+        const fromAmount = parseFloat(tx.fromTokenAmount) || 0;
+        const toAmount = parseFloat(tx.toTokenAmount) || 0;
+        
+        // Calculate USD values with fallback to price * amount
+        const fromTokenPrice = tx.fromTokenPrice || 0;
+        const toTokenPrice = tx.toTokenPrice || 0;
+        
+        const fromAmountUsd = tx.fromAmountUsd || (fromAmount * fromTokenPrice);
+        const toAmountUsd = tx.toAmountUsd || (toAmount * toTokenPrice);
+        
         trades.push({
           chainIndex: tx.chainId,
           fromSymbol: tx.fromTokenSymbol,
           fromAddress: tx.fromTokenAddress || '',
-          fromAmount: parseFloat(tx.fromTokenAmount) || 0,
-          fromAmountUsd: tx.fromAmountUsd || 0,
+          fromAmount,
+          fromAmountUsd,
           toSymbol: tx.toTokenSymbol,
           toAddress: tx.toTokenAddress || '',
-          toAmount: parseFloat(tx.toTokenAmount) || 0,
-          toAmountUsd: tx.toAmountUsd || 0,
+          toAmount,
+          toAmountUsd,
           timestamp: tx.timestamp,
           type: 'dex',
         });

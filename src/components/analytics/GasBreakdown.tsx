@@ -98,7 +98,12 @@ export const GasBreakdown = memo(function GasBreakdown({
           <div className="text-center py-8 text-muted-foreground">
             <Fuel className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No gas data yet</p>
-            <p className="text-xs">Complete some trades to track gas costs</p>
+            <p className="text-xs mt-1">
+              Complete some trades to track gas costs
+            </p>
+            <p className="text-xs mt-2 text-primary/70">
+              Gas tracking works across all connected chains
+            </p>
           </div>
         </CardContent>
       </Card>

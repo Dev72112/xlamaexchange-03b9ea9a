@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { okxDexService } from '@/services/okxdex';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
-import { usePriceOracle, PriceEntry } from '@/contexts/PriceOracleContext';
+import { usePriceOracle } from '@/contexts/PriceOracleContext';
 import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,16 @@ interface TokenPriceData {
   volume24H: number;
   logoUrl?: string;
 }
+
+// Fallback trending tokens when no trade history exists
+const FALLBACK_TRENDING_TOKENS = [
+  { chainIndex: '1', address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', symbol: 'WETH' },
+  { chainIndex: '1', address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', symbol: 'WBTC' },
+  { chainIndex: '1', address: '0xdac17f958d2ee523a2206206994597c13d831ec7', symbol: 'USDT' },
+  { chainIndex: '501', address: 'So11111111111111111111111111111111111111112', symbol: 'SOL' },
+  { chainIndex: '56', address: '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c', symbol: 'WBNB' },
+  { chainIndex: '1', address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', symbol: 'USDC' },
+];
 
 const formatPrice = (price: number): string => {
   if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -87,7 +97,7 @@ export const LivePriceWidget = memo(function LivePriceWidget({
   const fetchPrices = async () => {
     setIsLoading(true);
     
-    // If no trades, show prices from oracle instead  
+    // If no trades, try oracle first, then fallback to trending tokens
     if (topTokens.length === 0) {
       const oraclePrices = getAllPrices()
         .filter(p => !chainFilter || chainFilter === 'all' || p.chainIndex === chainFilter)
@@ -103,10 +113,54 @@ export const LivePriceWidget = memo(function LivePriceWidget({
           volume24H: p.volume24h || 0,
         })));
         setLastUpdated(new Date());
+        setIsLoading(false);
+        return;
+      }
+      
+      // Fallback: fetch trending tokens directly
+      const fallbackTokens = chainFilter && chainFilter !== 'all'
+        ? FALLBACK_TRENDING_TOKENS.filter(t => t.chainIndex === chainFilter)
+        : FALLBACK_TRENDING_TOKENS;
+      
+      const priceData: TokenPriceData[] = [];
+      
+      for (const token of fallbackTokens.slice(0, 6)) {
+        try {
+          const priceInfo = await okxDexService.getTokenPriceInfo(token.chainIndex, token.address);
+          if (priceInfo?.price) {
+            const price = parseFloat(priceInfo.price);
+            const change24H = parseFloat(priceInfo.priceChange24H || '0');
+            const volume24H = parseFloat(priceInfo.volume24H || '0');
+            
+            // Feed to oracle
+            setPrice(token.chainIndex, token.address, token.symbol, price, change24H, {
+              volume24h: volume24H,
+              marketCap: parseFloat(priceInfo.marketCap || '0'),
+            });
+            
+            priceData.push({
+              symbol: token.symbol,
+              chainIndex: token.chainIndex,
+              tokenAddress: token.address,
+              price,
+              change24H,
+              volume24H,
+            });
+          }
+        } catch (err) {
+          console.error(`Failed to fetch fallback price for ${token.symbol}:`, err);
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      if (priceData.length > 0) {
+        setPrices(priceData);
+        setLastUpdated(new Date());
       }
       setIsLoading(false);
       return;
     }
+    
     const priceData: TokenPriceData[] = [];
 
     for (const token of topTokens) {
@@ -161,8 +215,6 @@ export const LivePriceWidget = memo(function LivePriceWidget({
     const interval = setInterval(fetchPrices, 60000);
     return () => clearInterval(interval);
   }, [topTokens.length, chainFilter]);
-
-  // Always render the widget (no early return)
 
   return (
     <Card className="bg-card/50 border-border/50">
@@ -265,7 +317,9 @@ export const LivePriceWidget = memo(function LivePriceWidget({
               })
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">No price data available</p>
+                <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Fetching market prices...</p>
+                <p className="text-xs mt-1">Loading live token data</p>
               </div>
             )}
           </div>

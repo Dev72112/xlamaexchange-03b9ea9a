@@ -107,14 +107,19 @@ interface UnifiedTrade {
   source: 'dex' | 'instant' | 'bridge';
 }
 
-// Get all connected chains for balance fetching
-const ALL_CHAIN_INDICES = '1,56,137,42161,10,43114,250,8453,324,59144,534352,196,81457';
+// Get all connected chains for balance fetching - EVM chains
+const ALL_EVM_CHAIN_INDICES = '1,56,137,42161,10,43114,250,8453,324,59144,534352,196,81457';
+// Non-EVM chains
+const SOLANA_CHAIN_INDEX = '501';
+const TRON_CHAIN_INDEX = '195';
+const SUI_CHAIN_INDEX = '784';
+const TON_CHAIN_INDEX = '607';
 
 export function useTradeVsHodl(): TradeVsHodlSummary {
   const { transactions: dexTransactions } = useDexTransactions();
   const { transactions: instantTransactions } = useTransactionHistory();
   const { transactions: bridgeTransactions } = useBridgeTransactions();
-  const { evmAddress, solanaAddress, tronAddress, isOkxConnected } = useMultiWallet();
+  const { evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress, isOkxConnected } = useMultiWallet();
   
   const [performances, setPerformances] = useState<TradePerformance[]>([]);
   const [walletHoldings, setWalletHoldings] = useState<WalletHolding[]>([]);
@@ -285,17 +290,21 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     };
   }, [tradeIdsFingerprint, allConfirmedTrades]);
 
-  // Fetch actual wallet balances for HODL analysis
+  // Fetch actual wallet balances for HODL analysis - multi-wallet support
   useEffect(() => {
-    const primaryAddress = evmAddress || solanaAddress || tronAddress;
-    if (!primaryAddress) {
+    // Create a fingerprint of all connected addresses
+    const addressFingerprint = [evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]
+      .filter(Boolean)
+      .join('-');
+    
+    if (!addressFingerprint) {
       setWalletHoldings([]);
       setIsLoadingHoldings(false);
       return;
     }
 
-    // Skip if we've already fetched for this address
-    if (holdingsFetchedRef.current === primaryAddress) {
+    // Skip if we've already fetched for these addresses
+    if (holdingsFetchedRef.current === addressFingerprint) {
       return;
     }
 
@@ -305,31 +314,90 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
       setIsLoadingHoldings(true);
       
       try {
-        // Fetch wallet balances from OKX API
-        const balances = await okxDexService.getWalletBalances(
-          primaryAddress!,
-          ALL_CHAIN_INDICES,
-          true // exclude risk tokens
-        );
-
-        if (cancelled) return;
-
-        // Convert to WalletHolding format
-        const holdings: WalletHolding[] = balances
-          .filter(b => parseFloat(b.balance) > 0 && parseFloat(b.tokenPrice) > 0)
-          .map(b => ({
-            symbol: b.symbol,
-            balance: parseFloat(b.balance),
-            valueUsd: parseFloat(b.balance) * parseFloat(b.tokenPrice),
-            price: parseFloat(b.tokenPrice),
-            chainIndex: b.chainIndex,
-            tokenAddress: b.tokenContractAddress,
-          }))
-          .sort((a, b) => b.valueUsd - a.valueUsd);
+        const allHoldings: WalletHolding[] = [];
+        
+        // Fetch EVM balances
+        if (evmAddress) {
+          try {
+            const evmBalances = await okxDexService.getWalletBalances(
+              evmAddress,
+              ALL_EVM_CHAIN_INDICES,
+              true
+            );
+            if (!cancelled) {
+              evmBalances
+                .filter(b => parseFloat(b.balance) > 0 && parseFloat(b.tokenPrice) > 0)
+                .forEach(b => {
+                  allHoldings.push({
+                    symbol: b.symbol,
+                    balance: parseFloat(b.balance),
+                    valueUsd: parseFloat(b.balance) * parseFloat(b.tokenPrice),
+                    price: parseFloat(b.tokenPrice),
+                    chainIndex: b.chainIndex,
+                    tokenAddress: b.tokenContractAddress,
+                  });
+                });
+            }
+          } catch (e) {
+            console.warn('Failed to fetch EVM balances:', e);
+          }
+        }
+        
+        // Fetch Solana balances
+        if (solanaAddress && !cancelled) {
+          try {
+            const solBalances = await okxDexService.getWalletBalances(
+              solanaAddress,
+              SOLANA_CHAIN_INDEX,
+              true
+            );
+            solBalances
+              .filter(b => parseFloat(b.balance) > 0 && parseFloat(b.tokenPrice) > 0)
+              .forEach(b => {
+                allHoldings.push({
+                  symbol: b.symbol,
+                  balance: parseFloat(b.balance),
+                  valueUsd: parseFloat(b.balance) * parseFloat(b.tokenPrice),
+                  price: parseFloat(b.tokenPrice),
+                  chainIndex: b.chainIndex,
+                  tokenAddress: b.tokenContractAddress,
+                });
+              });
+          } catch (e) {
+            console.warn('Failed to fetch Solana balances:', e);
+          }
+        }
+        
+        // Fetch Tron balances
+        if (tronAddress && !cancelled) {
+          try {
+            const tronBalances = await okxDexService.getWalletBalances(
+              tronAddress,
+              TRON_CHAIN_INDEX,
+              true
+            );
+            tronBalances
+              .filter(b => parseFloat(b.balance) > 0 && parseFloat(b.tokenPrice) > 0)
+              .forEach(b => {
+                allHoldings.push({
+                  symbol: b.symbol,
+                  balance: parseFloat(b.balance),
+                  valueUsd: parseFloat(b.balance) * parseFloat(b.tokenPrice),
+                  price: parseFloat(b.tokenPrice),
+                  chainIndex: b.chainIndex,
+                  tokenAddress: b.tokenContractAddress,
+                });
+              });
+          } catch (e) {
+            console.warn('Failed to fetch Tron balances:', e);
+          }
+        }
 
         if (!cancelled) {
-          holdingsFetchedRef.current = primaryAddress!;
-          setWalletHoldings(holdings);
+          // Sort by value and save
+          allHoldings.sort((a, b) => b.valueUsd - a.valueUsd);
+          holdingsFetchedRef.current = addressFingerprint;
+          setWalletHoldings(allHoldings);
         }
       } catch (error) {
         console.warn('Failed to fetch wallet holdings:', error);
@@ -346,7 +414,7 @@ export function useTradeVsHodl(): TradeVsHodlSummary {
     fetchWalletHoldings();
 
     return () => { cancelled = true; };
-  }, [evmAddress, solanaAddress, tronAddress]);
+  }, [evmAddress, solanaAddress, tronAddress, suiAddress, tonAddress]);
 
   // Calculate summary comparing trades vs actual wallet holdings
   const summary = useMemo((): TradeVsHodlSummary => {
