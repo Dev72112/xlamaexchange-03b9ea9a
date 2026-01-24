@@ -2,7 +2,7 @@
  * Perpetuals Page
  * 
  * Hyperliquid perpetual trading interface with live trading.
- * Includes safe mode and local error boundary for crash resilience.
+ * Mobile-first design with tabs for chart/trade/positions.
  */
 
 import { memo, useState, useMemo, useCallback, useEffect } from "react";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -28,6 +29,9 @@ import {
   ArrowDownToLine,
   AlertTriangle,
   Shield,
+  LineChart,
+  ListOrdered,
+  Layers,
 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -36,6 +40,7 @@ import { useHyperliquidAccount } from "@/hooks/useHyperliquidAccount";
 import { useHyperliquidWebSocket } from "@/hooks/useHyperliquidWebSocket";
 import { useHyperliquidTrading } from "@/hooks/useHyperliquidTrading";
 import { useHyperliquidFills } from "@/hooks/useHyperliquidFills";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   HyperliquidTradeForm, 
   HyperliquidOrderbook, 
@@ -59,7 +64,7 @@ import { useToast } from "@/hooks/use-toast";
 const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK', 'BNB', 'XRP', 'ADA', 'DOT', 'NEAR', 'APT', 'SUI', 'OP'];
 const PLATFORM_FEE_PERCENT = '0.01%';
 
-// Perpetuals-specific error fallback with detailed error display
+// Perpetuals-specific error fallback
 function PerpetualsFallback({ 
   onRetry, 
   onSafeMode, 
@@ -94,7 +99,7 @@ function PerpetualsFallback({
         </div>
         <h3 className="text-lg font-semibold mb-2">Trading UI Failed to Load</h3>
         <p className="text-sm text-muted-foreground mb-6">
-          There was an issue rendering the trading interface. This may be due to wallet compatibility or network issues.
+          There was an issue rendering the trading interface.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button onClick={onRetry} variant="outline" className="gap-2">
@@ -105,12 +110,8 @@ function PerpetualsFallback({
             <Shield className="w-4 h-4" />
             Safe Mode
           </Button>
-          <Button onClick={() => window.location.reload()}>
-            Refresh Page
-          </Button>
         </div>
 
-        {/* Error Details Section */}
         {error && (
           <div className="mt-6 text-left">
             <Button
@@ -127,23 +128,13 @@ function PerpetualsFallback({
               <div className="bg-muted/50 rounded-lg p-3 border border-border">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-destructive">{error.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={copyError}
-                    className="h-6 text-xs gap-1"
-                  >
+                  <Button variant="ghost" size="sm" onClick={copyError} className="h-6 text-xs gap-1">
                     {copied ? 'Copied!' : 'Copy Error'}
                   </Button>
                 </div>
-                <p className="text-xs font-mono text-muted-foreground break-all mb-2">
+                <p className="text-xs font-mono text-muted-foreground break-all">
                   {error.message}
                 </p>
-                {error.stack && (
-                  <pre className="text-[10px] font-mono text-muted-foreground/70 whitespace-pre-wrap max-h-32 overflow-auto">
-                    {error.stack.split('\n').slice(0, 8).join('\n')}
-                  </pre>
-                )}
               </div>
             )}
           </div>
@@ -156,6 +147,7 @@ function PerpetualsFallback({
 const Perpetuals = memo(function Perpetuals() {
   const [searchParams, setSearchParams] = useSearchParams();
   const safeMode = searchParams.get('safe') === '1';
+  const isMobile = useIsMobile();
   
   const { isConnected, activeChainType, activeAddress, disconnect, switchEvmChain } = useMultiWallet();
   const { toast } = useToast();
@@ -177,7 +169,7 @@ const Perpetuals = memo(function Perpetuals() {
   const fills = fillsResult?.fills ?? [];
   const fillsLoading = fillsResult?.isLoading ?? false;
   
-  // Trading hook - wrapped in try-catch at the hook level
+  // Trading hook
   const tradingResult = useHyperliquidTrading();
   const {
     isTestnet = false,
@@ -195,7 +187,7 @@ const Perpetuals = memo(function Perpetuals() {
   } = tradingResult || {};
   
   const [selectedPair, setSelectedPair] = useState('BTC');
-  const [activeTab, setActiveTab] = useState('trade');
+  const [activeTab, setActiveTab] = useState(isMobile ? 'chart' : 'trade');
   const [showCalculator, setShowCalculator] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showBuilderApproval, setShowBuilderApproval] = useState(false);
@@ -203,16 +195,16 @@ const Perpetuals = memo(function Perpetuals() {
   const [pendingOrder, setPendingOrder] = useState<any>(null);
   const [retryKey, setRetryKey] = useState(0);
 
-  // Real-time price updates via WebSocket - disabled in safe mode (no conditional hook calls)
+  // Real-time price updates via WebSocket - disabled in safe mode
   const wsResult = useHyperliquidWebSocket(safeMode ? [] : POPULAR_PAIRS);
   const getWsPrice = wsResult.getPrice;
   
-  // Orderbook polling - disabled in safe mode by passing an empty coin (useQuery enabled: !!coin)
+  // Orderbook polling - disabled in safe mode
   const orderbookResult = useHyperliquidOrderbook(safeMode ? '' : selectedPair);
   const orderbook = orderbookResult.orderbook ?? null;
   const orderbookLoading = orderbookResult.isLoading ?? false;
 
-  // Build current prices map with real-time WebSocket data
+  // Build current prices map
   const currentPrices = useMemo(() => {
     const prices: Record<string, number> = {};
     POPULAR_PAIRS.forEach(pair => {
@@ -238,7 +230,6 @@ const Perpetuals = memo(function Perpetuals() {
       return;
     }
     
-    // Recalculate P&L based on current prices
     let totalPnl = 0;
     positions.forEach(pos => {
       const coin = pos.coin;
@@ -262,10 +253,7 @@ const Perpetuals = memo(function Perpetuals() {
       setShowBuilderApproval(true);
       return;
     }
-    setPendingOrder({
-      ...params,
-      price: currentPrice,
-    });
+    setPendingOrder({ ...params, price: currentPrice });
     setShowTradeConfirm(true);
   }, [isBuilderApproved, currentPrice]);
 
@@ -323,12 +311,8 @@ const Perpetuals = memo(function Perpetuals() {
     const isLong = parseFloat(pos.szi) > 0;
     const size = Math.abs(parseFloat(pos.szi)).toString();
     
-    if (stopLoss) {
-      await placeStopLoss({ coin, triggerPrice: stopLoss, size, isLong });
-    }
-    if (takeProfit) {
-      await placeTakeProfit({ coin, triggerPrice: takeProfit, size, isLong });
-    }
+    if (stopLoss) await placeStopLoss({ coin, triggerPrice: stopLoss, size, isLong });
+    if (takeProfit) await placeTakeProfit({ coin, triggerPrice: takeProfit, size, isLong });
     toast({ title: 'SL/TP Updated' });
   }, [positions, placeStopLoss, placeTakeProfit, toast]);
 
@@ -346,14 +330,8 @@ const Perpetuals = memo(function Perpetuals() {
     toast({ title: 'Refreshed' });
   };
 
-  const handleRetry = useCallback(() => {
-    setRetryKey(prev => prev + 1);
-  }, []);
-
-  const handleEnterSafeMode = useCallback(() => {
-    setSearchParams({ safe: '1' });
-  }, [setSearchParams]);
-
+  const handleRetry = useCallback(() => setRetryKey(prev => prev + 1), []);
+  const handleEnterSafeMode = useCallback(() => setSearchParams({ safe: '1' }), [setSearchParams]);
   const handleExitSafeMode = useCallback(() => {
     searchParams.delete('safe');
     setSearchParams(searchParams);
@@ -384,8 +362,175 @@ const Perpetuals = memo(function Perpetuals() {
     };
   }, [pendingOrder, selectedPair, currentPrice]);
 
-  // Connected trading UI - wrapped in error boundary
-  const ConnectedTradingUI = (
+  // Mobile-optimized trading UI
+  const MobileTradingUI = (
+    <div className="space-y-4">
+      {/* Sticky Market Selector */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pb-2 -mx-4 px-4">
+        <MarketSelector
+          selectedPair={selectedPair}
+          onSelectPair={setSelectedPair}
+          currentPrices={currentPrices}
+          className="glow-sm"
+        />
+      </div>
+
+      {/* Account Stats - Horizontal Scroll */}
+      <ScrollArea className="w-full">
+        <div className="flex gap-3 pb-2">
+          <Card className="glass border-border/50 min-w-[140px] flex-shrink-0">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <Wallet className="w-3 h-3" />
+                Equity
+              </div>
+              <p className="text-lg font-bold">{formatUsd(totalEquity)}</p>
+            </CardContent>
+          </Card>
+          <Card className="glass border-border/50 min-w-[140px] flex-shrink-0">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <TrendingUp className="w-3 h-3" />
+                Available
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-bold">{formatUsd(availableMargin)}</p>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowDepositModal(true)}>
+                  <ArrowDownToLine className="w-3 h-3" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className={cn(
+            "glass border-border/50 min-w-[140px] flex-shrink-0",
+            realtimePnl >= 0 ? "border-success/20" : "border-destructive/20"
+          )}>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                {realtimePnl >= 0 ? <ArrowUpRight className="w-3 h-3 text-success" /> : <ArrowDownRight className="w-3 h-3 text-destructive" />}
+                PnL
+                {!safeMode && <Badge variant="outline" className="text-[8px] px-1 py-0">LIVE</Badge>}
+              </div>
+              <p className={cn("text-lg font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
+                {realtimePnl >= 0 ? '+' : ''}{formatUsd(realtimePnl)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="glass border-border/50 min-w-[100px] flex-shrink-0">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <BarChart3 className="w-3 h-3" />
+                Positions
+              </div>
+              <p className="text-lg font-bold">{positions.length}</p>
+            </CardContent>
+          </Card>
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+
+      {/* Mobile Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 h-11">
+          <TabsTrigger value="chart" className="gap-1.5 text-xs">
+            <LineChart className="w-4 h-4" />
+            Chart
+          </TabsTrigger>
+          <TabsTrigger value="trade" className="gap-1.5 text-xs">
+            <Activity className="w-4 h-4" />
+            Trade
+          </TabsTrigger>
+          <TabsTrigger value="positions" className="gap-1.5 text-xs">
+            <Layers className="w-4 h-4" />
+            Pos
+            {positions.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{positions.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="orders" className="gap-1.5 text-xs">
+            <ListOrdered className="w-4 h-4" />
+            Orders
+            {openOrders.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{openOrders.length}</Badge>}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="chart" className="mt-4">
+          {!safeMode ? (
+            <div className="space-y-4">
+              <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm max-h-[50vh]" />
+              <FundingRateChart coin={selectedPair} />
+            </div>
+          ) : (
+            <Card className="glass border-border/50">
+              <CardContent className="py-8 text-center text-muted-foreground">
+                <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Chart disabled in Safe Mode</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="trade" className="mt-4">
+          <div className="space-y-4">
+            <HyperliquidTradeForm 
+              coin={selectedPair} 
+              currentPrice={currentPrice} 
+              availableMargin={availableMargin} 
+              onTrade={handleTrade} 
+            />
+            {!safeMode && (
+              <Card className="glass border-border/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center justify-between">
+                    Orderbook
+                    <Badge variant="outline" className="text-xs font-mono">{selectedPair}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <HyperliquidOrderbook orderbook={orderbook} isLoading={orderbookLoading} currentPrice={currentPrice} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="positions" className="mt-4">
+          <PositionManager 
+            positions={positions} 
+            currentPrices={currentPrices} 
+            onClosePosition={handleClosePosition} 
+            onModifySLTP={handleModifySLTP} 
+            onAddMargin={handleAddMargin} 
+          />
+        </TabsContent>
+
+        <TabsContent value="orders" className="mt-4">
+          {openOrders.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <History className="w-10 h-10 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">No open orders</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {openOrders.map((order: any, i: number) => (
+                <div key={i} className="p-3 rounded-lg border bg-secondary/30 flex items-center justify-between text-sm">
+                  <div>
+                    <span className="font-medium">{order.coin}-PERP</span>
+                    <Badge variant="outline" className="ml-2 text-xs">{order.side}</Badge>
+                  </div>
+                  <div className="text-right font-mono">
+                    <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{order.sz}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+
+  // Desktop trading UI
+  const DesktopTradingUI = (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Safe Mode Banner */}
       {safeMode && (
@@ -424,7 +569,7 @@ const Perpetuals = memo(function Perpetuals() {
         />
       )}
 
-      {/* Account Overview with Real-time P&L */}
+      {/* Account Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="glass border-border/50 hover-lift">
           <CardContent className="pt-4 pb-4">
@@ -472,7 +617,7 @@ const Perpetuals = memo(function Perpetuals() {
         </Card>
       </div>
 
-      {/* Enhanced Market Selector */}
+      {/* Market Selector */}
       <MarketSelector
         selectedPair={selectedPair}
         onSelectPair={setSelectedPair}
@@ -480,7 +625,7 @@ const Perpetuals = memo(function Perpetuals() {
         className="glow-sm"
       />
 
-      {/* Candlestick Chart - disabled in safe mode */}
+      {/* Candlestick Chart */}
       {!safeMode && (
         <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
       )}
@@ -586,11 +731,57 @@ const Perpetuals = memo(function Perpetuals() {
         </div>
       </div>
 
-      {/* Mobile Trade Panel - disabled in safe mode */}
+      {/* Mobile Trade Panel */}
       {!safeMode && (
         <MobileTradePanel coin={selectedPair} currentPrice={currentPrice} availableMargin={availableMargin} onTrade={handleTrade} />
       )}
     </div>
+  );
+
+  // Connected trading UI - choose based on device
+  const ConnectedTradingUI = (
+    <>
+      {/* Safe Mode Banner - Mobile */}
+      {safeMode && isMobile && (
+        <Card className="glass border-warning/20 bg-warning/5 mb-4">
+          <CardContent className="py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs">
+              <Shield className="w-3 h-3 text-warning" />
+              <span className="text-warning font-medium">Safe Mode</span>
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={handleExitSafeMode}>
+              Exit
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Network + Refresh - Mobile */}
+      {isMobile && (
+        <div className="flex items-center justify-between mb-4">
+          <NetworkToggle isTestnet={isTestnet} onToggle={setIsTestnet} />
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-1.5 h-8">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
+
+      {/* Onboarding - Mobile */}
+      {isMobile && (!hasDeposit || !isBuilderApproved) && (
+        <div className="mb-4">
+          <PerpetualsOnboarding
+            isWalletConnected={isConnected}
+            hasDeposit={hasDeposit}
+            isBuilderApproved={isBuilderApproved}
+            isTestnet={isTestnet}
+            onApproveBuilder={() => setShowBuilderApproval(true)}
+            builderApprovalLoading={builderApprovalLoading}
+          />
+        </div>
+      )}
+
+      {isMobile ? MobileTradingUI : DesktopTradingUI}
+    </>
   );
 
   return (
@@ -600,22 +791,26 @@ const Perpetuals = memo(function Perpetuals() {
         <meta name="description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-8 sm:py-12">
+      <main className="container px-4 sm:px-6 py-6 sm:py-8">
+        {/* Background accents */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-destructive/5 rounded-full blur-3xl" />
         </div>
 
-        <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
-            <Activity className="w-4 h-4" />
-            <span>Perpetual Trading</span>
-            {isTestnet && <Badge variant="secondary" className="text-xs">Testnet</Badge>}
+        {/* Header - Compact on mobile */}
+        <div className={cn("text-center mb-6", !isMobile && "mb-8 sm:mb-12")}>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border-primary/20 text-sm text-primary mb-3">
+            <Activity className="w-3.5 h-3.5" />
+            <span className="text-xs sm:text-sm">Perpetual Trading</span>
+            {isTestnet && <Badge variant="secondary" className="text-[10px]">Testnet</Badge>}
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">Trade Perpetuals</h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
-            Long or short with up to 50x leverage on Hyperliquid.
-          </p>
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-2 gradient-text">Trade Perpetuals</h1>
+          {!isMobile && (
+            <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
+              Long or short with up to 50x leverage on Hyperliquid.
+            </p>
+          )}
         </div>
 
         {!isConnected ? (
@@ -635,7 +830,7 @@ const Perpetuals = memo(function Perpetuals() {
               <CardContent className="pt-8 pb-8 text-center">
                 <Wallet className="w-12 h-12 text-warning mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Switch to EVM Network</h3>
-                <p className="text-sm text-muted-foreground mb-4">Hyperliquid requires an EVM wallet (Arbitrum or HyperEVM).</p>
+                <p className="text-sm text-muted-foreground mb-4">Hyperliquid requires an EVM wallet.</p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button onClick={() => switchEvmChain(42161)} className="gap-2">
                     Switch to Arbitrum
