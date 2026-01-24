@@ -1,6 +1,6 @@
 import { memo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeftRight, 
@@ -10,7 +10,6 @@ import {
   Activity,
   MoreHorizontal,
   Search,
-  Bell,
   Moon,
   Sun,
   BarChart3,
@@ -22,12 +21,16 @@ import {
   Home,
   ChevronUp,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useTheme } from "@/components/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { NotificationCenter } from "@/components/NotificationCenter";
+import { MultiWalletButton } from "@/features/wallet";
+import { FeedbackSettings } from "@/components/FeedbackSettings";
 import xlamaMascot from "@/assets/xlama-mascot.png";
 
 const navItems = [
@@ -55,6 +58,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const canUseDOM = typeof document !== "undefined";
 
@@ -80,7 +84,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
   return (
     <>
       {/* Spacer for the fixed top utility bar */}
-      <div className="h-[48px] md:hidden" />
+      <div className="h-[56px] md:hidden" />
 
       {/* Render fixed mobile UI in a portal so it's truly viewport-fixed even inside animated/translated parents */}
       {canUseDOM
@@ -89,11 +93,14 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
               {/* Top utility bar for mobile */}
               <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur border-b border-border/40 px-3 py-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <Link to="/" className="flex items-center gap-2">
                     <img src={xlamaMascot} alt="xLama" className="w-7 h-7 rounded-lg object-cover" />
                     <span className="font-semibold text-sm">xLama</span>
-                  </div>
-                  <div className="flex items-center gap-0.5">
+                  </Link>
+                  <div className="flex items-center gap-1">
+                    {/* Wallet Button - Compact for mobile */}
+                    <MultiWalletButton />
+                    
                     <Button
                       variant="ghost"
                       size="icon"
@@ -101,18 +108,56 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                         setSearchOpen(true);
                         trigger('light');
                       }}
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                     >
                       <Search className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Bell className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8">
-                      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                    
+                    {/* Notifications - using the component directly */}
+                    <NotificationCenter />
+                    
+                    {/* Settings dropdown */}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setShowSettings(prev => !prev);
+                        trigger('light');
+                      }}
+                      className="h-9 w-9"
+                    >
+                      <Settings className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
+                
+                {/* Settings dropdown panel */}
+                <AnimatePresence>
+                  {showSettings && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden border-t border-border/50 mt-2 pt-2"
+                    >
+                      <div className="flex items-center justify-between gap-2 px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Theme</span>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={toggleTheme} 
+                            className="h-8 gap-1.5"
+                          >
+                            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                            <span className="text-xs">{theme === "dark" ? "Light" : "Dark"}</span>
+                          </Button>
+                        </div>
+                        <FeedbackSettings />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Backdrop */}
