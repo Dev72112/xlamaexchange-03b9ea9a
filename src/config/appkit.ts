@@ -117,6 +117,84 @@ export const plasma: AppKitNetwork = {
   },
 };
 
+// Define Conflux eSpace (chainId: 1030)
+export const conflux: AppKitNetwork = {
+  id: 1030,
+  name: 'Conflux eSpace',
+  nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://evm.confluxrpc.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'ConfluxScan', url: 'https://evm.confluxscan.io' },
+  },
+};
+
+// Define Metis (chainId: 1088)
+export const metis: AppKitNetwork = {
+  id: 1088,
+  name: 'Metis',
+  nativeCurrency: { name: 'Metis', symbol: 'METIS', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://andromeda.metis.io'] },
+  },
+  blockExplorers: {
+    default: { name: 'Metis Explorer', url: 'https://andromeda-explorer.metis.io' },
+  },
+};
+
+// Define Merlin Chain (chainId: 4200)
+export const merlin: AppKitNetwork = {
+  id: 4200,
+  name: 'Merlin',
+  nativeCurrency: { name: 'Bitcoin', symbol: 'BTC', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.merlinchain.io'] },
+  },
+  blockExplorers: {
+    default: { name: 'Merlin Explorer', url: 'https://scan.merlinchain.io' },
+  },
+};
+
+// Define Manta Pacific (chainId: 169)
+export const manta: AppKitNetwork = {
+  id: 169,
+  name: 'Manta Pacific',
+  nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://pacific-rpc.manta.network/http'] },
+  },
+  blockExplorers: {
+    default: { name: 'Manta Explorer', url: 'https://pacific-explorer.manta.network' },
+  },
+};
+
+// Define Polygon zkEVM (chainId: 1101)
+export const polygonZkEvm: AppKitNetwork = {
+  id: 1101,
+  name: 'Polygon zkEVM',
+  nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://zkevm-rpc.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'PolygonScan', url: 'https://zkevm.polygonscan.com' },
+  },
+};
+
+// Define ZetaChain (chainId: 7000)
+export const zetachain: AppKitNetwork = {
+  id: 7000,
+  name: 'ZetaChain',
+  nativeCurrency: { name: 'Zeta', symbol: 'ZETA', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://zetachain-evm.blockpi.network/v1/rpc/public'] },
+  },
+  blockExplorers: {
+    default: { name: 'ZetaScan', url: 'https://explorer.zetachain.com' },
+  },
+};
+
 // All supported EVM networks
 export const evmNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   xlayer, // Primary chain first
@@ -145,6 +223,12 @@ export const evmNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   unichain, // Unichain (new)
   monad,    // Monad (new)
   plasma,   // Plasma (new)
+  conflux,  // Conflux eSpace
+  metis,    // Metis
+  merlin,   // Merlin Chain
+  manta,    // Manta Pacific
+  polygonZkEvm, // Polygon zkEVM
+  zetachain,    // ZetaChain
 ];
 
 // All networks including Solana

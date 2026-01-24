@@ -98,6 +98,84 @@ export const hyperEVM = defineChain({
   },
 });
 
+// Conflux eSpace (chainId: 1030)
+export const conflux = defineChain({
+  id: 1030,
+  name: 'Conflux eSpace',
+  nativeCurrency: { name: 'Conflux', symbol: 'CFX', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://evm.confluxrpc.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'ConfluxScan', url: 'https://evm.confluxscan.io' },
+  },
+});
+
+// Metis (chainId: 1088)
+export const metis = defineChain({
+  id: 1088,
+  name: 'Metis',
+  nativeCurrency: { name: 'Metis', symbol: 'METIS', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://andromeda.metis.io'] },
+  },
+  blockExplorers: {
+    default: { name: 'Metis Explorer', url: 'https://andromeda-explorer.metis.io' },
+  },
+});
+
+// Merlin Chain (chainId: 4200)
+export const merlin = defineChain({
+  id: 4200,
+  name: 'Merlin',
+  nativeCurrency: { name: 'Bitcoin', symbol: 'BTC', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.merlinchain.io'] },
+  },
+  blockExplorers: {
+    default: { name: 'Merlin Explorer', url: 'https://scan.merlinchain.io' },
+  },
+});
+
+// Manta Pacific (chainId: 169)
+export const manta = defineChain({
+  id: 169,
+  name: 'Manta Pacific',
+  nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://pacific-rpc.manta.network/http'] },
+  },
+  blockExplorers: {
+    default: { name: 'Manta Explorer', url: 'https://pacific-explorer.manta.network' },
+  },
+});
+
+// Polygon zkEVM (chainId: 1101)
+export const polygonZkEvm = defineChain({
+  id: 1101,
+  name: 'Polygon zkEVM',
+  nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://zkevm-rpc.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'PolygonScan', url: 'https://zkevm.polygonscan.com' },
+  },
+});
+
+// ZetaChain (chainId: 7000)
+export const zetachain = defineChain({
+  id: 7000,
+  name: 'ZetaChain',
+  nativeCurrency: { name: 'Zeta', symbol: 'ZETA', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://zetachain-evm.blockpi.network/v1/rpc/public'] },
+  },
+  blockExplorers: {
+    default: { name: 'ZetaScan', url: 'https://explorer.zetachain.com' },
+  },
+});
+
 // Export all custom chains as array for easy registration
 export const customChains = [
   sonic,
@@ -107,4 +185,10 @@ export const customChains = [
   xlayer,
   mode,
   hyperEVM,
+  conflux,
+  metis,
+  merlin,
+  manta,
+  polygonZkEvm,
+  zetachain,
 ];

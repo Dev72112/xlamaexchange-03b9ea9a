@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Check, ChevronDown, Star, Globe, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,15 +13,24 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { prefetchChain } from '@/lib/tokenPrefetch';
 import { isChainExcludedFromDex } from '@/features/wallet/core/types';
+import { lifiService } from '@/services/lifi';
 
 interface ChainSelectorProps {
   selectedChain: Chain;
   onChainSelect: (chain: Chain) => void;
   showOnlyEvm?: boolean;
   excludeChainIndex?: string;
+  /** Only show chains supported by Li.Fi bridge (Bridge mode) */
+  showOnlyBridgeSupported?: boolean;
 }
 
-export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = false, excludeChainIndex }: ChainSelectorProps) {
+export function ChainSelector({ 
+  selectedChain, 
+  onChainSelect, 
+  showOnlyEvm = false, 
+  excludeChainIndex,
+  showOnlyBridgeSupported = false
+}: ChainSelectorProps) {
   const { 
     evmChainId: chainId, 
     switchEvmChain: switchChain, 
@@ -32,11 +41,25 @@ export function ChainSelector({ selectedChain, onChainSelect, showOnlyEvm = fals
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   
-  // Filter out DEX-excluded chains (e.g., HyperEVM 999) from DEX mode
-  const evmChains = getEvmChains()
-    .filter(c => c.chainIndex !== excludeChainIndex)
-    .filter(c => !isChainExcludedFromDex(c.chainId));
-  const nonEvmChains = getNonEvmChains().filter(c => c.chainIndex !== excludeChainIndex);
+  // Filter chains based on mode
+  const evmChains = useMemo(() => {
+    let chains = getEvmChains()
+      .filter(c => c.chainIndex !== excludeChainIndex)
+      .filter(c => !isChainExcludedFromDex(c.chainId));
+    
+    // Bridge mode: only show Li.Fi supported chains
+    if (showOnlyBridgeSupported) {
+      chains = chains.filter(c => lifiService.isChainSupported(c.chainIndex));
+    }
+    
+    return chains;
+  }, [excludeChainIndex, showOnlyBridgeSupported]);
+  
+  // Non-EVM chains are NOT supported by Li.Fi bridge
+  const nonEvmChains = useMemo(() => {
+    if (showOnlyBridgeSupported) return []; // Hide all non-EVM in bridge mode
+    return getNonEvmChains().filter(c => c.chainIndex !== excludeChainIndex);
+  }, [excludeChainIndex, showOnlyBridgeSupported]);
   
   // Check if wallet is on the selected chain
   const isOnCorrectChain = chainId === selectedChain.chainId;
