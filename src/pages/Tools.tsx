@@ -8,56 +8,23 @@ import { PricePrediction } from "@/components/PricePrediction";
 import { PortfolioRebalancer } from "@/components/PortfolioRebalancer";
 import { PriceAlerts } from "@/components/PriceAlerts";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight } from "lucide-react";
-import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { hapticFeedback } from "@/hooks/useHapticFeedback";
-import { useScrollReveal, getScrollRevealClass } from "@/hooks/useScrollReveal";
+import { cn } from "@/lib/utils";
 
 const toolsConfig = [
-  {
-    id: "watchlist",
-    title: "Token Watchlist",
-    description: "Monitor token prices and set alerts for your favorite assets.",
-    icon: Eye,
-  },
-  {
-    id: "gas",
-    title: "Gas Estimator",
-    description: "Track real-time gas prices across multiple networks.",
-    icon: Fuel,
-  },
-  {
-    id: "prediction",
-    title: "Price Prediction",
-    description: "AI-powered technical analysis and price predictions.",
-    icon: TrendingUp,
-  },
-  {
-    id: "rebalancer",
-    title: "Portfolio Rebalancer",
-    description: "Set target allocations and optimize your portfolio.",
-    icon: PieChart,
-  },
-  {
-    id: "alerts",
-    title: "Price Alerts",
-    description: "Get notified when tokens reach your target prices.",
-    icon: Bell,
-  },
+  { id: "watchlist", title: "Watchlist", icon: Eye },
+  { id: "gas", title: "Gas", icon: Fuel },
+  { id: "prediction", title: "Prediction", icon: TrendingUp },
+  { id: "rebalancer", title: "Rebalancer", icon: PieChart },
+  { id: "alerts", title: "Alerts", icon: Bell },
 ];
 
 const Tools = memo(function Tools() {
-  // Scroll reveal hooks
-  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>();
-  const { ref: navRef, isVisible: navVisible } = useScrollReveal<HTMLElement>();
-  const { ref: watchlistRef, isVisible: watchlistVisible } = useScrollReveal<HTMLElement>();
-  const { ref: gasRef, isVisible: gasVisible } = useScrollReveal<HTMLElement>();
-  const { ref: rebalancerRef, isVisible: rebalancerVisible } = useScrollReveal<HTMLElement>();
-  const { ref: alertsRef, isVisible: alertsVisible } = useScrollReveal<HTMLElement>();
-  const { ref: compareRef, isVisible: compareVisible } = useScrollReveal<HTMLElement>();
-
   // Smooth scroll handler with haptic feedback
-  const handleSmoothScroll = useCallback((e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+  const handleSmoothScroll = useCallback((e: React.MouseEvent<HTMLButtonElement>, targetId: string) => {
     e.preventDefault();
     hapticFeedback('light');
     
@@ -67,8 +34,6 @@ const Tools = memo(function Tools() {
         behavior: 'smooth',
         block: 'start',
       });
-      
-      // Update URL hash without jumping
       window.history.pushState(null, '', `#${targetId}`);
     }
   }, []);
@@ -79,123 +44,87 @@ const Tools = memo(function Tools() {
         <title>Trading Tools | xlama - Gas Estimator, Price Alerts & More</title>
         <meta
           name="description"
-          content="Access powerful trading tools: multi-chain gas estimator, AI price predictions, portfolio rebalancer, token watchlist, and price alerts. All free, no registration."
+          content="Access powerful trading tools: multi-chain gas estimator, AI price predictions, portfolio rebalancer, token watchlist, and price alerts."
         />
-        <meta property="og:title" content="Trading Tools | xlama" />
-        <meta property="og:description" content="Powerful trading tools: gas estimator, price predictions, portfolio rebalancer, and price alerts." />
         <link rel="canonical" href="https://xlama.exchange/tools" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-8 sm:py-12">
-        {/* Animated background accent */}
-        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
-        </div>
-
-        {/* Header with glass styling and scroll reveal */}
-        <div 
-          ref={headerRef}
-          className={`text-center mb-8 sm:mb-12 relative ${getScrollRevealClass(headerVisible, 'slide-up')}`}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent rounded-3xl blur-2xl" />
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/20 text-sm text-primary mb-4 glow-sm">
-              <Wrench className="w-4 h-4" />
-              <span>Trading Tools</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
-              Trading Tools
-            </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-              Powerful tools to enhance your trading experience. Monitor gas prices, 
-              track tokens, set alerts, and optimize your portfolio.
-            </p>
+      <main className="container px-4 py-4 sm:py-6 max-w-4xl mx-auto">
+        {/* Header - Compact */}
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-2">
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Trading Tools</span>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
+            Trading Tools
+          </h1>
         </div>
 
-        {/* Quick Jump Navigation with smooth scroll and scroll reveal */}
-        <nav 
-          ref={navRef}
-          className={`flex flex-wrap justify-center gap-2 mb-10 ${getScrollRevealClass(navVisible, 'fade')}`}
-        >
-          {toolsConfig.map((tool, index) => (
-            <a
-              key={tool.id}
-              href={`#${tool.id}`}
-              onClick={(e) => handleSmoothScroll(e, tool.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg glass border border-border text-sm font-medium hover:bg-secondary hover:border-primary/20 hover-lift transition-all active:scale-95 sweep-effect ${STAGGER_ITEM_CLASS}`}
-              style={getStaggerStyle(index, 50)}
-            >
-              <tool.icon className="w-4 h-4 text-primary" />
-              {tool.title}
-            </a>
-          ))}
-        </nav>
+        {/* Quick Jump Navigation - Horizontal Scroll */}
+        <ScrollArea className="w-full mb-6 -mx-4 px-4">
+          <div className="flex gap-2 pb-2">
+            {toolsConfig.map((tool) => (
+              <Button
+                key={tool.id}
+                variant="outline"
+                size="sm"
+                onClick={(e) => handleSmoothScroll(e, tool.id)}
+                className="flex-shrink-0 gap-1.5 h-9 px-3 glass-subtle hover:border-primary/30"
+              >
+                <tool.icon className="w-3.5 h-3.5 text-primary" />
+                {tool.title}
+              </Button>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
 
-        {/* Tools Sections with scroll reveals */}
-        <div className="space-y-8 max-w-4xl mx-auto">
+        {/* Tools Sections */}
+        <div className="space-y-6">
           {/* Token Watchlist */}
-          <section 
-            ref={watchlistRef}
-            id="watchlist" 
-            className={`scroll-mt-20 ${getScrollRevealClass(watchlistVisible, 'slide-up')}`}
-          >
+          <section id="watchlist" className="scroll-mt-16">
             <TokenWatchlist />
           </section>
 
-          {/* Gas & Prediction side by side */}
-          <section 
-            ref={gasRef}
-            className={`grid md:grid-cols-2 gap-6 ${getScrollRevealClass(gasVisible, 'slide-up')}`}
-          >
-            <div id="gas" className="scroll-mt-20">
+          {/* Gas & Prediction - Side by side on desktop, stacked on mobile */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <section id="gas" className="scroll-mt-16">
               <GasEstimator />
-            </div>
-            <div id="prediction" className="scroll-mt-20">
+            </section>
+            <section id="prediction" className="scroll-mt-16">
               <PricePrediction />
-            </div>
-          </section>
+            </section>
+          </div>
 
           {/* Portfolio Rebalancer */}
-          <section 
-            ref={rebalancerRef}
-            id="rebalancer" 
-            className={`scroll-mt-20 max-w-xl mx-auto ${getScrollRevealClass(rebalancerVisible, 'scale')}`}
-          >
+          <section id="rebalancer" className="scroll-mt-16 max-w-xl mx-auto">
             <PortfolioRebalancer />
           </section>
 
           {/* Price Alerts */}
-          <section 
-            ref={alertsRef}
-            id="alerts" 
-            className={`scroll-mt-20 ${getScrollRevealClass(alertsVisible, 'slide-up')}`}
-          >
+          <section id="alerts" className="scroll-mt-16">
             <PriceAlerts />
           </section>
 
           {/* Token Compare Link */}
-          <section 
-            ref={compareRef}
-            className={`max-w-xl mx-auto ${getScrollRevealClass(compareVisible, 'scale')}`}
-          >
+          <section className="max-w-xl mx-auto">
             <Link to="/compare">
-              <Card className="glass border-border hover:border-primary/30 hover-lift card-hover-glow transition-all group cursor-pointer sweep-effect glow-border-animated">
-                <CardContent className="pt-6 pb-6">
+              <Card className="glass border-border hover:border-primary/30 hover-lift transition-all group cursor-pointer">
+                <CardContent className="py-4 px-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg glass border border-primary/20 flex items-center justify-center glow-sm">
-                        <BarChart3 className="w-6 h-6 text-primary" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg glass-subtle border border-primary/20 flex items-center justify-center">
+                        <BarChart3 className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold">Token Compare</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Compare up to 5 tokens side by side
+                        <h3 className="font-semibold text-sm">Token Compare</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Compare up to 5 tokens
                         </p>
                       </div>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
                 </CardContent>
               </Card>

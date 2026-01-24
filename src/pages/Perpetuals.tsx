@@ -364,139 +364,115 @@ const Perpetuals = memo(function Perpetuals() {
 
   // Mobile-optimized trading UI
   const MobileTradingUI = (
-    <div className="space-y-4">
-      {/* Sticky Market Selector */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pb-2 -mx-4 px-4">
-        <MarketSelector
-          selectedPair={selectedPair}
-          onSelectPair={setSelectedPair}
-          currentPrices={currentPrices}
-          className="glow-sm"
-        />
-      </div>
+    <div className="space-y-3 pt-2">
+      {/* Market Selector */}
+      <MarketSelector
+        selectedPair={selectedPair}
+        onSelectPair={setSelectedPair}
+        currentPrices={currentPrices}
+        className="glass-subtle"
+      />
 
       {/* Account Stats - Horizontal Scroll */}
-      <ScrollArea className="w-full">
-        <div className="flex gap-3 pb-2">
-          <Card className="glass border-border/50 min-w-[140px] flex-shrink-0">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+      <ScrollArea className="w-full -mx-4 px-4">
+        <div className="flex gap-2 pb-2">
+          <Card className="glass-subtle border-border/30 min-w-[120px] flex-shrink-0">
+            <CardContent className="p-2.5">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
                 <Wallet className="w-3 h-3" />
                 Equity
               </div>
-              <p className="text-lg font-bold">{formatUsd(totalEquity)}</p>
+              <p className="text-sm font-bold">{formatUsd(totalEquity)}</p>
             </CardContent>
           </Card>
-          <Card className="glass border-border/50 min-w-[140px] flex-shrink-0">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+          <Card className="glass-subtle border-border/30 min-w-[120px] flex-shrink-0">
+            <CardContent className="p-2.5">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
                 <TrendingUp className="w-3 h-3" />
                 Available
               </div>
-              <div className="flex items-center gap-2">
-                <p className="text-lg font-bold">{formatUsd(availableMargin)}</p>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowDepositModal(true)}>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-bold">{formatUsd(availableMargin)}</p>
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setShowDepositModal(true)}>
                   <ArrowDownToLine className="w-3 h-3" />
                 </Button>
               </div>
             </CardContent>
           </Card>
           <Card className={cn(
-            "glass border-border/50 min-w-[140px] flex-shrink-0",
+            "glass-subtle border-border/30 min-w-[120px] flex-shrink-0",
             realtimePnl >= 0 ? "border-success/20" : "border-destructive/20"
           )}>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+            <CardContent className="p-2.5">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
                 {realtimePnl >= 0 ? <ArrowUpRight className="w-3 h-3 text-success" /> : <ArrowDownRight className="w-3 h-3 text-destructive" />}
                 PnL
-                {!safeMode && <Badge variant="outline" className="text-[8px] px-1 py-0">LIVE</Badge>}
               </div>
-              <p className={cn("text-lg font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
+              <p className={cn("text-sm font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
                 {realtimePnl >= 0 ? '+' : ''}{formatUsd(realtimePnl)}
               </p>
             </CardContent>
           </Card>
-          <Card className="glass border-border/50 min-w-[100px] flex-shrink-0">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+          <Card className="glass-subtle border-border/30 min-w-[80px] flex-shrink-0">
+            <CardContent className="p-2.5">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
                 <BarChart3 className="w-3 h-3" />
-                Positions
+                Pos
               </div>
-              <p className="text-lg font-bold">{positions.length}</p>
+              <p className="text-sm font-bold">{positions.length}</p>
             </CardContent>
           </Card>
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Mobile Tabs */}
+      {/* Mobile Tabs - Compact */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-11">
-          <TabsTrigger value="chart" className="gap-1.5 text-xs">
-            <LineChart className="w-4 h-4" />
-            Chart
+        <TabsList className="grid w-full grid-cols-4 h-9">
+          <TabsTrigger value="chart" className="gap-1 text-xs px-1">
+            <LineChart className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">Chart</span>
           </TabsTrigger>
-          <TabsTrigger value="trade" className="gap-1.5 text-xs">
-            <Activity className="w-4 h-4" />
-            Trade
+          <TabsTrigger value="trade" className="gap-1 text-xs px-1">
+            <Activity className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">Trade</span>
           </TabsTrigger>
-          <TabsTrigger value="positions" className="gap-1.5 text-xs">
-            <Layers className="w-4 h-4" />
-            Pos
-            {positions.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{positions.length}</Badge>}
+          <TabsTrigger value="positions" className="gap-1 text-xs px-1">
+            <Layers className="w-3.5 h-3.5" />
+            {positions.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[9px]">{positions.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="orders" className="gap-1.5 text-xs">
-            <ListOrdered className="w-4 h-4" />
-            Orders
-            {openOrders.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{openOrders.length}</Badge>}
+          <TabsTrigger value="orders" className="gap-1 text-xs px-1">
+            <ListOrdered className="w-3.5 h-3.5" />
+            {openOrders.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[9px]">{openOrders.length}</Badge>}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chart" className="mt-4">
+        <TabsContent value="chart" className="mt-3 space-y-3">
           {!safeMode ? (
-            <div className="space-y-4">
-              <div className="relative z-10">
-                <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm max-h-[50vh]" />
-              </div>
-              <div className="relative z-0">
-                <FundingRateChart coin={selectedPair} />
-              </div>
-            </div>
+            <>
+              <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="max-h-[45vh]" />
+              <FundingRateChart coin={selectedPair} />
+            </>
           ) : (
             <Card className="glass border-border/50">
-              <CardContent className="py-8 text-center text-muted-foreground">
-                <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Chart disabled in Safe Mode</p>
+              <CardContent className="py-6 text-center text-muted-foreground">
+                <Shield className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">Chart disabled in Safe Mode</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="trade" className="mt-4">
-          <div className="space-y-4">
-            <HyperliquidTradeForm 
-              coin={selectedPair} 
-              currentPrice={currentPrice} 
-              availableMargin={availableMargin} 
-              onTrade={handleTrade} 
-            />
-            {!safeMode && (
-              <Card className="glass border-border/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center justify-between">
-                    Orderbook
-                    <Badge variant="outline" className="text-xs font-mono">{selectedPair}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <HyperliquidOrderbook orderbook={orderbook} isLoading={orderbookLoading} currentPrice={currentPrice} />
-                </CardContent>
-              </Card>
-            )}
-          </div>
+        <TabsContent value="trade" className="mt-3">
+          <HyperliquidTradeForm 
+            coin={selectedPair} 
+            currentPrice={currentPrice} 
+            availableMargin={availableMargin} 
+            onTrade={handleTrade} 
+          />
         </TabsContent>
 
-        <TabsContent value="positions" className="mt-4">
+        <TabsContent value="positions" className="mt-3">
           <PositionManager 
             positions={positions} 
             currentPrices={currentPrices} 
@@ -506,23 +482,23 @@ const Perpetuals = memo(function Perpetuals() {
           />
         </TabsContent>
 
-        <TabsContent value="orders" className="mt-4">
+        <TabsContent value="orders" className="mt-3">
           {openOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <History className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">No open orders</p>
+            <div className="text-center py-6 text-muted-foreground">
+              <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-xs">No open orders</p>
             </div>
           ) : (
             <div className="space-y-2">
               {openOrders.map((order: any, i: number) => (
-                <div key={i} className="p-3 rounded-lg border bg-secondary/30 flex items-center justify-between text-sm">
+                <div key={i} className="p-2.5 rounded-lg border bg-secondary/30 flex items-center justify-between text-xs">
                   <div>
                     <span className="font-medium">{order.coin}-PERP</span>
-                    <Badge variant="outline" className="ml-2 text-xs">{order.side}</Badge>
+                    <Badge variant="outline" className="ml-1.5 text-[10px]">{order.side}</Badge>
                   </div>
                   <div className="text-right font-mono">
                     <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">{order.sz}</p>
+                    <p className="text-[10px] text-muted-foreground">{order.sz}</p>
                   </div>
                 </div>
               ))}
