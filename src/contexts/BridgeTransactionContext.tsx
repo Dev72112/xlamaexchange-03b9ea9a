@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
+import { useMultiWallet } from "@/contexts/MultiWalletContext";
 
 export type BridgeStatus = 
   | 'idle' 
@@ -44,11 +45,13 @@ export interface BridgeTransaction {
   startTime: number;
   completedTime?: number;
   error?: string;
+  // CRITICAL: Track which wallet made this transaction
+  walletAddress?: string;
 }
 
 interface BridgeTransactionContextType {
   transactions: BridgeTransaction[];
-  addTransaction: (tx: Omit<BridgeTransaction, 'id' | 'startTime'>) => string;
+  addTransaction: (tx: Omit<BridgeTransaction, 'id' | 'startTime' | 'walletAddress'>) => string;
   updateTransaction: (id: string, updates: Partial<BridgeTransaction>) => void;
   removeTransaction: (id: string) => void;
   clearHistory: () => void;
@@ -61,7 +64,9 @@ const STORAGE_KEY = 'xlama_bridge_transactions';
 const MAX_STORED_TRANSACTIONS = 50;
 
 export function BridgeTransactionProvider({ children }: { children: React.ReactNode }) {
-  const [transactions, setTransactions] = useState<BridgeTransaction[]>(() => {
+  const { activeAddress, isConnected } = useMultiWallet();
+  
+  const [allTransactions, setAllTransactions] = useState<BridgeTransaction[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -76,29 +81,47 @@ export function BridgeTransactionProvider({ children }: { children: React.ReactN
     return [];
   });
 
+  // CRITICAL: Filter transactions to only show current wallet's transactions
+  const transactions = useMemo(() => {
+    if (!isConnected || !activeAddress) {
+      return [];
+    }
+    return allTransactions.filter(tx => 
+      tx.walletAddress?.toLowerCase() === activeAddress.toLowerCase()
+    );
+  }, [allTransactions, activeAddress, isConnected]);
+
   // Persist to localStorage
   useEffect(() => {
     try {
-      const toStore = transactions.slice(0, MAX_STORED_TRANSACTIONS);
+      const toStore = allTransactions.slice(0, MAX_STORED_TRANSACTIONS);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
     } catch (e) {
       console.error('Failed to save bridge transactions:', e);
     }
-  }, [transactions]);
+  }, [allTransactions]);
 
-  const addTransaction = useCallback((tx: Omit<BridgeTransaction, 'id' | 'startTime'>) => {
+  const addTransaction = useCallback((tx: Omit<BridgeTransaction, 'id' | 'startTime' | 'walletAddress'>) => {
+    if (!activeAddress) {
+      console.warn('[BridgeTransactionContext] Cannot add transaction: no wallet connected');
+      return '';
+    }
+    
     const id = `bridge-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const newTx: BridgeTransaction = {
       ...tx,
       id,
       startTime: Date.now(),
+      // CRITICAL: Always store the wallet address that created this transaction
+      walletAddress: activeAddress.toLowerCase(),
     };
-    setTransactions(prev => [newTx, ...prev]);
+    console.log('[BridgeTransactionContext] Adding transaction for wallet:', activeAddress, 'id:', id);
+    setAllTransactions(prev => [newTx, ...prev]);
     return id;
-  }, []);
+  }, [activeAddress]);
 
   const updateTransaction = useCallback((id: string, updates: Partial<BridgeTransaction>) => {
-    setTransactions(prev => 
+    setAllTransactions(prev => 
       prev.map(tx => 
         tx.id === id ? { ...tx, ...updates } : tx
       )
@@ -106,17 +129,23 @@ export function BridgeTransactionProvider({ children }: { children: React.ReactN
   }, []);
 
   const removeTransaction = useCallback((id: string) => {
-    setTransactions(prev => prev.filter(tx => tx.id !== id));
+    setAllTransactions(prev => prev.filter(tx => tx.id !== id));
   }, []);
 
   const clearHistory = useCallback(() => {
-    // Only clear completed/failed transactions, keep pending ones
-    setTransactions(prev => 
-      prev.filter(tx => 
-        tx.status !== 'completed' && tx.status !== 'failed'
-      )
+    if (!activeAddress) return;
+    
+    // Only clear CURRENT wallet's completed/failed transactions
+    setAllTransactions(prev => 
+      prev.filter(tx => {
+        const isCurrentWallet = tx.walletAddress?.toLowerCase() === activeAddress.toLowerCase();
+        const isPending = tx.status !== 'completed' && tx.status !== 'failed';
+        
+        // Keep if: not current wallet, OR if it's a pending transaction
+        return !isCurrentWallet || isPending;
+      })
     );
-  }, []);
+  }, [activeAddress]);
 
   const pendingCount = transactions.filter(
     tx => tx.status !== 'completed' && tx.status !== 'failed' && tx.status !== 'idle'
