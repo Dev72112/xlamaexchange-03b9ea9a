@@ -350,11 +350,12 @@ export const CandlestickChart = memo(function CandlestickChart({
     const handleResize = () => {
       if (containerRef.current) {
         const width = containerRef.current.clientWidth;
+        const height = containerRef.current.clientHeight || 400;
         chart.applyOptions({
           width,
-          height: 400,
+          height,
         });
-        setChartDimensions({ width, height: 400 });
+        setChartDimensions({ width, height });
       }
     };
     
@@ -623,7 +624,7 @@ export const CandlestickChart = memo(function CandlestickChart({
   const coordFuncs = getCoordinateFunctions();
 
   return (
-    <Card className={cn("glass border-border/50", className)}>
+    <Card className={cn("glass border-border/50 overflow-hidden", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -632,7 +633,7 @@ export const CandlestickChart = memo(function CandlestickChart({
           </CardTitle>
           
           {/* OHLC Info */}
-          <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="hidden md:flex items-center gap-3 text-xs font-mono">
             <span>O: <span className="text-foreground">${priceInfo.open.toLocaleString()}</span></span>
             <span>H: <span className="text-success">${priceInfo.high.toLocaleString()}</span></span>
             <span>L: <span className="text-destructive">${priceInfo.low.toLocaleString()}</span></span>
@@ -647,12 +648,25 @@ export const CandlestickChart = memo(function CandlestickChart({
               {priceInfo.change >= 0 ? '+' : ''}{priceInfo.changePercent.toFixed(2)}%
             </Badge>
           </div>
+
+          {/* Mobile change badge */}
+          <div className="md:hidden">
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "font-mono",
+                priceInfo.change >= 0 ? "text-success border-success/30" : "text-destructive border-destructive/30"
+              )}
+            >
+              {priceInfo.change >= 0 ? '+' : ''}{priceInfo.changePercent.toFixed(2)}%
+            </Badge>
+          </div>
         </div>
         
         {/* Tools row: Timeframes + Indicators + Drawing */}
-        <div className="flex items-center gap-2 mt-3 flex-wrap">
+        <div className="flex items-center gap-2 mt-3 flex-nowrap overflow-x-auto scrollbar-hide -mx-2 px-2 md:mx-0 md:px-0 md:flex-wrap md:overflow-visible">
           {/* Minutes group */}
-          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5">
+          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5 shrink-0">
             {TIMEFRAMES.filter(tf => tf.group === 'minutes').map((tf) => (
               <Button
                 key={tf.value}
@@ -667,7 +681,7 @@ export const CandlestickChart = memo(function CandlestickChart({
           </div>
           
           {/* Hours group */}
-          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5">
+          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5 shrink-0">
             {TIMEFRAMES.filter(tf => tf.group === 'hours').map((tf) => (
               <Button
                 key={tf.value}
@@ -682,7 +696,7 @@ export const CandlestickChart = memo(function CandlestickChart({
           </div>
           
           {/* Days group */}
-          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5">
+          <div className="flex gap-0.5 bg-secondary/50 rounded-lg p-0.5 shrink-0">
             {TIMEFRAMES.filter(tf => tf.group === 'days').map((tf) => (
               <Button
                 key={tf.value}
@@ -696,42 +710,38 @@ export const CandlestickChart = memo(function CandlestickChart({
             ))}
           </div>
           
-          <div className="h-4 w-px bg-border mx-1" />
+          <div className="hidden md:block h-4 w-px bg-border mx-1" />
           
-          {/* Indicator Presets */}
-          <IndicatorPresets
-            currentSettings={indicatorSettings}
-            onApplyPreset={handleIndicatorChange}
-          />
-          
-          {/* Indicators */}
-          <ChartIndicators
-            settings={indicatorSettings}
-            onChange={handleIndicatorChange}
-          />
-          
-          {/* Drawing Tools */}
-          <ChartDrawingTools
-            activeTool={activeTool}
-            onToolChange={setActiveTool}
-            drawings={drawings}
-            selectedDrawingId={selectedDrawingId}
-            onDeleteSelected={deleteSelected}
-            onClearDrawings={clearDrawings}
-          />
-          
-          {/* Drawings List Panel */}
-          <DrawingsListPanel
-            drawings={drawings}
-            selectedDrawingId={selectedDrawingId}
-            onSelectDrawing={setSelectedDrawingId}
-            onUpdateDrawing={updateDrawing}
-            onRemoveDrawing={removeDrawing}
-            onClearDrawings={clearDrawings}
-          />
+          {/* Advanced tools (desktop/tablet only) */}
+          <div className="hidden md:flex items-center gap-2">
+            <IndicatorPresets
+              currentSettings={indicatorSettings}
+              onApplyPreset={handleIndicatorChange}
+            />
+            <ChartIndicators
+              settings={indicatorSettings}
+              onChange={handleIndicatorChange}
+            />
+            <ChartDrawingTools
+              activeTool={activeTool}
+              onToolChange={setActiveTool}
+              drawings={drawings}
+              selectedDrawingId={selectedDrawingId}
+              onDeleteSelected={deleteSelected}
+              onClearDrawings={clearDrawings}
+            />
+            <DrawingsListPanel
+              drawings={drawings}
+              selectedDrawingId={selectedDrawingId}
+              onSelectDrawing={setSelectedDrawingId}
+              onUpdateDrawing={updateDrawing}
+              onRemoveDrawing={removeDrawing}
+              onClearDrawings={clearDrawings}
+            />
+          </div>
           
           {/* History label & refresh */}
-          <Badge variant="secondary" className="text-[10px] font-normal ml-auto">
+          <Badge variant="secondary" className="text-[10px] font-normal ml-auto shrink-0">
             {getHistoryLabel(timeframe)} history
           </Badge>
           
@@ -759,7 +769,7 @@ export const CandlestickChart = memo(function CandlestickChart({
         )}
       </CardHeader>
       
-      <CardContent className="relative">
+      <CardContent className="relative overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -767,8 +777,8 @@ export const CandlestickChart = memo(function CandlestickChart({
         )}
         
         {/* Chart container with drawing canvas overlay */}
-        <div className="relative">
-          <div ref={containerRef} className="w-full h-[400px]" />
+        <div className="relative overflow-hidden isolate rounded-md">
+          <div ref={containerRef} className="w-full h-[320px] sm:h-[400px]" />
           
           {/* Drawing Canvas Overlay */}
           {chartDimensions.width > 0 && (

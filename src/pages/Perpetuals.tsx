@@ -450,7 +450,7 @@ const Perpetuals = memo(function Perpetuals() {
         <TabsContent value="chart" className="mt-3 space-y-3">
           {!safeMode ? (
             <>
-              <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="max-h-[45vh]" />
+              <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
               <FundingRateChart coin={selectedPair} />
             </>
           ) : (
@@ -463,13 +463,35 @@ const Perpetuals = memo(function Perpetuals() {
           )}
         </TabsContent>
 
-        <TabsContent value="trade" className="mt-3">
+        <TabsContent value="trade" className="mt-3 space-y-3">
           <HyperliquidTradeForm 
             coin={selectedPair} 
             currentPrice={currentPrice} 
             availableMargin={availableMargin} 
             onTrade={handleTrade} 
           />
+
+          {!safeMode && (
+            <details className="group glass-subtle rounded-lg border border-border/50">
+              <summary className="list-none cursor-pointer select-none px-3 py-2 flex items-center justify-between">
+                <span className="text-sm font-medium">Orderbook</span>
+                <Badge variant="secondary" className="text-[10px] font-mono">{selectedPair}</Badge>
+              </summary>
+              <div className="px-3 pb-3">
+                <Card className="glass border-border/50">
+                  <CardContent className="pt-3">
+                    <ScrollArea className="h-[260px] pr-2">
+                      <HyperliquidOrderbook
+                        orderbook={orderbook}
+                        isLoading={orderbookLoading}
+                        currentPrice={currentPrice}
+                      />
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+            </details>
+          )}
         </TabsContent>
 
         <TabsContent value="positions" className="mt-3">
@@ -771,7 +793,7 @@ const Perpetuals = memo(function Perpetuals() {
         <meta name="description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-6 sm:py-8">
+      <main className="container px-4 sm:px-6 py-6 sm:py-8 relative">
         {/* Background accents */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
