@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/shared/components";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { Helmet } from "react-helmet-async";
-import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight, ChevronDown, Search } from "lucide-react";
+import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight, ChevronDown, Search, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
@@ -19,6 +19,8 @@ const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => 
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
 const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
+const HowItWorks = lazy(() => import("@/components/HowItWorks").then(m => ({ default: m.HowItWorks })));
+const DexHowItWorks = lazy(() => import("@/components/DexHowItWorks").then(m => ({ default: m.DexHowItWorks })));
 
 // Memoized quick link component
 const QuickLink = memo(function QuickLink({ 
@@ -60,6 +62,7 @@ const Index = () => {
   const [showTrending, setShowTrending] = useState(false);
   const [showNews, setShowNews] = useState(false);
   const [showTracker, setShowTracker] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const { isInstantMode } = useExchangeMode();
 
   const handleSelectPair = useCallback((from: string, to: string) => {
@@ -226,6 +229,29 @@ const Index = () => {
             </Collapsible>
           </section>
         )}
+
+        {/* Section 5: How It Works - Mode Aware Collapsible */}
+        <section className="container px-4 sm:px-6 py-4 sm:py-8">
+          <Collapsible open={showHowItWorks} onOpenChange={setShowHowItWorks}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
+                <span className="flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-primary" />
+                  How {isInstantMode ? 'Instant Exchange' : 'DEX Aggregator'} Works
+                </span>
+                <ChevronDown className={cn(
+                  "w-4 h-4 transition-transform",
+                  showHowItWorks && "rotate-180"
+                )} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                {isInstantMode ? <HowItWorks /> : <DexHowItWorks />}
+              </Suspense>
+            </CollapsibleContent>
+          </Collapsible>
+        </section>
       </main>
     </Layout>
   );

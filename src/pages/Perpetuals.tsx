@@ -823,15 +823,56 @@ const Perpetuals = memo(function Perpetuals() {
         </div>
 
         {!isConnected ? (
-          <div className="max-w-xl mx-auto">
+          <div className="max-w-xl mx-auto space-y-6">
             <Card className="glass glow-sm border-primary/10 sweep-effect">
               <CardContent className="pt-8 pb-8 text-center">
                 <Activity className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-                <p className="text-sm text-muted-foreground mb-6">Connect an EVM wallet to start trading.</p>
+                <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  We recommend <span className="text-primary font-medium">OKX Wallet</span> for the best multi-chain experience.
+                </p>
+                <p className="text-xs text-muted-foreground mb-6">
+                  Connect to start trading perpetuals with up to 50x leverage.
+                </p>
                 <MultiWalletButton />
+                <p className="text-xs text-muted-foreground mt-3">Other wallets supported via WalletConnect</p>
               </CardContent>
             </Card>
+
+            <div className="text-center text-sm text-muted-foreground mb-4">
+              What you'll get access to:
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="glass-subtle border-border/50">
+                <CardContent className="pt-4 pb-4 text-center">
+                  <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
+                  <h4 className="font-medium text-sm">50x Leverage</h4>
+                  <p className="text-xs text-muted-foreground">Trade with maximum leverage</p>
+                </CardContent>
+              </Card>
+              <Card className="glass-subtle border-border/50">
+                <CardContent className="pt-4 pb-4 text-center">
+                  <BarChart3 className="w-6 h-6 text-primary mx-auto mb-2" />
+                  <h4 className="font-medium text-sm">Live Charts</h4>
+                  <p className="text-xs text-muted-foreground">Real-time candlestick data</p>
+                </CardContent>
+              </Card>
+              <Card className="glass-subtle border-border/50">
+                <CardContent className="pt-4 pb-4 text-center">
+                  <Layers className="w-6 h-6 text-primary mx-auto mb-2" />
+                  <h4 className="font-medium text-sm">Position Management</h4>
+                  <p className="text-xs text-muted-foreground">SL/TP and margin control</p>
+                </CardContent>
+              </Card>
+              <Card className="glass-subtle border-border/50">
+                <CardContent className="pt-4 pb-4 text-center">
+                  <Calculator className="w-6 h-6 text-primary mx-auto mb-2" />
+                  <h4 className="font-medium text-sm">PnL Calculator</h4>
+                  <p className="text-xs text-muted-foreground">Plan trades before execution</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         ) : !isEVM ? (
           <div className="max-w-xl mx-auto">

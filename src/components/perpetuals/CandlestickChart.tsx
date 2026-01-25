@@ -710,10 +710,10 @@ export const CandlestickChart = memo(function CandlestickChart({
             ))}
           </div>
           
-          <div className="hidden md:block h-4 w-px bg-border mx-1" />
+          <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
           
-          {/* Advanced tools (desktop/tablet only) */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Advanced tools - visible on all devices with responsive sizing */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <IndicatorPresets
               currentSettings={indicatorSettings}
               onApplyPreset={handleIndicatorChange}

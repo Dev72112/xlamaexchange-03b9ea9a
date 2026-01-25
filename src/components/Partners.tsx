@@ -129,17 +129,17 @@ export const Partners = memo(function Partners() {
             </p>
           </a>
 
-          {/* Jupiter Partner */}
+          {/* Zerion Partner */}
           <a
-            href="https://jup.ag"
+            href="https://zerion.io"
             target="_blank"
             rel="noopener noreferrer"
             className="group flex flex-col items-center gap-3 p-5 sm:p-6 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 hover-lift transition-all sweep-effect shadow-premium-hover performance-critical overflow-hidden"
           >
             <div className="flex items-center gap-3">
               <img
-                src="https://jup.ag/favicon.ico"
-                alt="Jupiter Solana aggregator logo"
+                src="https://zerion.io/favicon.ico"
+                alt="Zerion portfolio tracker logo"
                 loading="lazy"
                 decoding="async"
                 width="48"
@@ -147,15 +147,15 @@ export const Partners = memo(function Partners() {
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0"
               />
               <div className="text-left min-w-0">
-                <span className="font-bold text-lg sm:text-xl">Jupiter</span>
+                <span className="font-bold text-lg sm:text-xl">Zerion</span>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  Solana DEX
+                  Portfolio Data
                   <ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
                 </div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center max-w-[200px]">
-              Best Solana swap rates via Ultra API
+              Real-time portfolio tracking & NFT data
             </p>
           </a>
 
