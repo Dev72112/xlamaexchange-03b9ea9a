@@ -56,7 +56,7 @@ const Favorites = () => {
         <meta name="description" content="Your saved favorite cryptocurrency trading pairs with live rates." />
       </Helmet>
 
-      <div className="container px-4 py-12 sm:py-16 max-w-4xl">
+      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl">
         {/* Header with glass styling */}
         <div className="mb-10 relative">
           <div className="absolute -inset-4 bg-gradient-to-r from-warning/5 via-transparent to-transparent rounded-2xl blur-xl" />

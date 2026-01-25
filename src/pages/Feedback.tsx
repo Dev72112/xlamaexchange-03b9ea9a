@@ -113,7 +113,7 @@ export default function Feedback() {
       </Helmet>
 
       <Layout>
-        <div className="container max-w-4xl mx-auto py-8 px-4">
+        <div className="container max-w-4xl mx-auto pb-8 px-4">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4">

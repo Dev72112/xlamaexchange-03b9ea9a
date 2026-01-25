@@ -344,7 +344,7 @@ const History = () => {
       </Helmet>
 
 
-        <div className="container px-4 pt-4 pb-12 sm:pt-12 sm:pb-16 max-w-4xl">
+        <div className="container px-4 pb-12 sm:pb-16 max-w-4xl">
           {/* Header with glass styling */}
           <div className="mb-10 flex items-start justify-between flex-wrap gap-4">
             <div className="relative">
