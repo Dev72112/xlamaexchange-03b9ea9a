@@ -5,7 +5,7 @@
  * Mobile-first design with tabs for chart/trade/positions.
  */
 
-import { memo, useState, useMemo, useCallback, useEffect } from "react";
+import { memo, useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSearchParams } from "react-router-dom";
 import { Layout } from "@/shared/components";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -32,6 +33,8 @@ import {
   LineChart,
   ListOrdered,
   Layers,
+  HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -60,6 +63,9 @@ import {
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+// Lazy load How It Works for disconnected state
+const PerpetualsHowItWorks = lazy(() => import("@/components/perpetuals/PerpetualsHowItWorks").then(m => ({ default: m.PerpetualsHowItWorks })));
 
 const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK', 'BNB', 'XRP', 'ADA', 'DOT', 'NEAR', 'APT', 'SUI', 'OP'];
 const PLATFORM_FEE_PERCENT = '0.01%';
@@ -194,6 +200,7 @@ const Perpetuals = memo(function Perpetuals() {
   const [showTradeConfirm, setShowTradeConfirm] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<any>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   // Real-time price updates via WebSocket - disabled in safe mode
   const wsResult = useHyperliquidWebSocket(safeMode ? [] : POPULAR_PAIRS);
@@ -873,6 +880,27 @@ const Perpetuals = memo(function Perpetuals() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* How Perpetuals Work - Collapsible Education */}
+            <Collapsible open={showHowItWorks} onOpenChange={setShowHowItWorks}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
+                  <span className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4 text-primary" />
+                    How Perpetual Trading Works
+                  </span>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 transition-transform",
+                    showHowItWorks && "rotate-180"
+                  )} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                  <PerpetualsHowItWorks />
+                </Suspense>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         ) : !isEVM ? (
           <div className="max-w-xl mx-auto">

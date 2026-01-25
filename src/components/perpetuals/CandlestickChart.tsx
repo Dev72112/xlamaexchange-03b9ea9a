@@ -15,6 +15,7 @@ import { cn, resolveColor } from '@/lib/utils';
 import { hyperliquidService } from '@/services/hyperliquid';
 import { ChartIndicators, IndicatorSettings, DEFAULT_INDICATOR_SETTINGS } from './ChartIndicators';
 import { ChartDrawingTools, DrawingTool, useChartDrawings, Drawing } from './ChartDrawingTools';
+import { DrawingFloatingToolbar } from './DrawingFloatingToolbar';
 import { DrawingsListPanel } from './DrawingsListPanel';
 import { ChartDrawingCanvas } from './ChartDrawingCanvas';
 import { ChartOscillators } from './ChartOscillators';
@@ -797,6 +798,22 @@ export const CandlestickChart = memo(function CandlestickChart({
               yToPrice={coordFuncs.yToPrice}
               timeToX={coordFuncs.timeToX}
               xToTime={coordFuncs.xToTime}
+            />
+          )}
+          
+          {/* Floating Toolbar for Selected Drawing */}
+          {selectedDrawingId && chartDimensions.width > 0 && (
+            <DrawingFloatingToolbar
+              drawing={drawings.find(d => d.id === selectedDrawingId) || null}
+              chartWidth={chartDimensions.width}
+              chartHeight={chartDimensions.height}
+              priceToY={coordFuncs.priceToY}
+              timeToX={coordFuncs.timeToX}
+              onUpdateColor={(id, color) => updateDrawing(id, { color })}
+              onDelete={removeDrawing}
+              onStartMove={() => {
+                // User can drag control points directly
+              }}
             />
           )}
         </div>
