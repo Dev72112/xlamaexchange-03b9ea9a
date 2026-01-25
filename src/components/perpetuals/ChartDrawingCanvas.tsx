@@ -33,9 +33,9 @@ interface ChartDrawingCanvasProps {
 
 const FIBONACCI_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 const FIBONACCI_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
-// Increased touch tolerance for mobile devices
-const HIT_TOLERANCE = typeof window !== 'undefined' && 'ontouchstart' in window ? 20 : 10;
-const CONTROL_POINT_RADIUS = typeof window !== 'undefined' && 'ontouchstart' in window ? 12 : 6;
+// Significantly increased touch tolerance for mobile devices
+const HIT_TOLERANCE = typeof window !== 'undefined' && 'ontouchstart' in window ? 32 : 12;
+const CONTROL_POINT_RADIUS = typeof window !== 'undefined' && 'ontouchstart' in window ? 16 : 8;
 
 // Get color based on tool type
 function getDrawingColor(type: DrawingTool): string {

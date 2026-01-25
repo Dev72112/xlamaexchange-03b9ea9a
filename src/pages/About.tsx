@@ -65,13 +65,6 @@ const About = () => {
       icon: Zap,
     },
     {
-      name: "Jupiter",
-      description: "Best Solana swap rates via Ultra API",
-      logo: "https://jup.ag/favicon.ico",
-      url: "https://jup.ag",
-      icon: Zap,
-    },
-    {
       name: "Hyperliquid",
       description: "Perpetual futures with up to 50x leverage",
       logo: "https://hyperliquid.xyz/favicon.ico",

@@ -12,18 +12,17 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { 
   TrendingUp, 
   TrendingDown, 
   Loader2,
   AlertTriangle,
   Zap,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -196,7 +195,19 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
       {/* Leverage Slider */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>Leverage</Label>
+          <div className="flex items-center gap-1">
+            <Label>Leverage</Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
+                  <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px]">
+                <p className="text-xs">Higher leverage increases both potential profits and losses. Risk of liquidation increases with leverage. Use with caution.</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Badge variant="outline" className="font-mono">
             {leverage}x
           </Badge>
@@ -228,7 +239,19 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
       {sizeNum > 0 && (
         <div className="p-3 rounded-lg bg-secondary/50 space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Margin Required</span>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">Margin Required</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
+                    <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <p className="text-xs">The amount of USDC collateral required to open this position at your selected leverage.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <span className="font-mono">
               ${marginRequired.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
