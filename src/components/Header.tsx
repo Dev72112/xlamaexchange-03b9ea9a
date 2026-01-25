@@ -4,7 +4,7 @@ import { HeaderThemeCustomizer } from "./HeaderThemeCustomizer";
 import { NotificationCenter } from "./NotificationCenter";
 import { Menu, X, Search, Clock, ArrowRightLeft, BarChart3, LineChart, Link2, Wrench, ListOrdered, Activity, Home } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "./GlobalSearch";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "./SocialIcons";
@@ -21,7 +21,23 @@ export function Header() {
   const { isRouteLoading, progress } = useRouteLoading();
 
   // Hide header on mobile - use MobileBottomNav instead for true app feel
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkMobile = () => setIsMobile(window.innerWidth < 768);
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+    }
+  }, []);
+  
+  // Prefetch route on hover - MUST be before conditional return
+  const handleLinkHover = useCallback((path: string) => {
+    prefetchRoute(path);
+  }, []);
+
+  // Hide header on mobile - use MobileBottomNav instead for true app feel
   if (isMobile) {
     return null;
   }
@@ -39,11 +55,6 @@ export function Header() {
     { path: "/analytics", label: "Analytics", icon: LineChart },
     { path: "/history", label: "History", icon: Clock },
   ];
-
-  // Prefetch route on hover
-  const handleLinkHover = useCallback((path: string) => {
-    prefetchRoute(path);
-  }, []);
 
   return (
     <>

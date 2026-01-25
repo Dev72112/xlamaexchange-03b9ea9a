@@ -138,7 +138,7 @@ const Docs = () => {
         <script type="application/ld+json">{JSON.stringify(DOCS_SCHEMA)}</script>
       </Helmet>
 
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="container mx-auto px-4 pt-4 pb-8 sm:pt-8 max-w-5xl">
         {/* Hero */}
         <div className="text-center mb-12" style={getStaggerStyle(0)}>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
