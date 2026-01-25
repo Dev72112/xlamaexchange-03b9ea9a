@@ -25,3 +25,5 @@ export { TradeHistory } from './TradeHistory';
 export { HyperliquidDepositWithdraw } from './HyperliquidDepositWithdraw';
 export { MarketSelector } from './MarketSelector';
 export { useFundingCountdown } from './useFundingCountdown';
+export { PerpetualsHowItWorks } from './PerpetualsHowItWorks';
+export { DrawingFloatingToolbar } from './DrawingFloatingToolbar';

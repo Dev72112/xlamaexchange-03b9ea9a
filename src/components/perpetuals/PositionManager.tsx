@@ -329,6 +329,24 @@ export const PositionManager = memo(function PositionManager({
                     <div className="flex items-center gap-2">
                       <AlertTriangle className={cn("w-3.5 h-3.5", liqColor.split(' ')[0])} />
                       <span className="text-xs text-muted-foreground">Liquidation Price</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="inline-flex">
+                            <AlertCircle className="w-3 h-3 text-muted-foreground/60 cursor-help" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[250px]">
+                          <div className="space-y-1 text-xs">
+                            <p className="font-medium">What is Liquidation?</p>
+                            <p className="text-muted-foreground">
+                              If the mark price reaches this level, your position will be automatically closed to prevent further losses.
+                            </p>
+                            <p className="text-muted-foreground">
+                              Higher leverage = closer liquidation price. Add margin to reduce risk.
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <span className={cn("font-mono text-xs font-medium", liqColor.split(' ')[0])}>
                       {liquidationPx ? `$${liquidationPx.toLocaleString()}` : 'N/A'}
