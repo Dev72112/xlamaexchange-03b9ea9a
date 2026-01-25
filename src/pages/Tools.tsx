@@ -49,7 +49,7 @@ const Tools = memo(function Tools() {
         <link rel="canonical" href="https://xlama.exchange/tools" />
       </Helmet>
 
-      <main className="container px-4 pt-4 pb-4 sm:pt-6 sm:pb-6 max-w-4xl mx-auto">
+      <main className="container px-4 pb-4 sm:pb-6 max-w-4xl mx-auto">
         {/* Header - Compact */}
         <div className="text-center mb-4">
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-2">

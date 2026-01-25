@@ -800,7 +800,7 @@ const Perpetuals = memo(function Perpetuals() {
         <meta name="description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 pt-4 pb-6 sm:pt-6 sm:pb-8 relative">
+      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 relative">
         {/* Background accents */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />

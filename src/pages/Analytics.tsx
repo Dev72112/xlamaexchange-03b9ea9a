@@ -359,7 +359,7 @@ const Analytics = () => {
         <meta name="description" content="View your trading analytics, volume history, and performance metrics." />
       </Helmet>
 
-      <div className="container px-4 pt-4 pb-8 sm:pt-8 max-w-7xl mx-auto relative">
+      <div className="container px-4 pb-8 max-w-7xl mx-auto relative">
           {/* Animated background accent */}
           <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
             <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />

@@ -90,7 +90,7 @@ const Index = () => {
         <meta name="twitter:site" content="@XLAMA_OKX" />
       </Helmet>
 
-      <main className="flex flex-col pt-4 md:pt-0">
+      <main className="flex flex-col">
         {/* Section 1: Exchange Widget - Hero */}
         <section 
           id="exchange"

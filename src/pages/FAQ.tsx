@@ -125,7 +125,7 @@ const FAQ = () => {
         />
       </Helmet>
 
-      <section className="py-20">
+      <section className="pb-20">
         <div className="container max-w-3xl">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold mb-4">
