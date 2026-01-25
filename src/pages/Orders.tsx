@@ -153,7 +153,7 @@ const Orders = memo(function Orders() {
         <link rel="canonical" href="https://xlama.exchange/orders" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-8 sm:py-12">
+      <main className="container px-4 sm:px-6 pt-4 pb-8 sm:pt-8 sm:pb-12">
         {/* Animated background accent */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />

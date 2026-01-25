@@ -293,7 +293,7 @@ const Portfolio = memo(function Portfolio() {
         <link rel="canonical" href="https://xlama.exchange/portfolio" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-6 sm:py-8 max-w-2xl mx-auto">
+      <main className="container px-4 sm:px-6 pt-4 pb-6 sm:pt-6 sm:pb-8 max-w-2xl mx-auto">
         {/* Connect wallet prompt if not connected */}
         {!isConnected ? (
           <div className="max-w-xl mx-auto">

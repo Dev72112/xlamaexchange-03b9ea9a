@@ -108,8 +108,8 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
 
   return (
     <>
-      {/* Spacer for the fixed top utility bar */}
-      <div className="h-[56px] md:hidden" />
+      {/* Spacer for the fixed top utility bar - placed before content */}
+      <div className="h-14 md:hidden mobile-top-spacer" />
 
       {/* Render fixed mobile UI in a portal so it's truly viewport-fixed even inside animated/translated parents */}
       {canUseDOM

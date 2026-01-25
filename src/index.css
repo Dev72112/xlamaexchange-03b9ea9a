@@ -33,9 +33,21 @@ body {
   padding-top: 1rem;
 }
 
-@media (max-width: 640px) {
+/* Mobile top bar spacing - 56px for mobile top nav + safe area */
+@media (max-width: 767px) {
   .main-content {
-    padding-top: 0.5rem;
+    padding-top: max(4rem, calc(56px + env(safe-area-inset-top)));
+  }
+  
+  .content-safe {
+    padding-top: max(4rem, calc(56px + env(safe-area-inset-top)));
+  }
+}
+
+/* Reduce tab glow on mobile to prevent bleeding */
+@media (max-width: 640px) {
+  [data-state="active"] {
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.2) !important;
   }
 }
 

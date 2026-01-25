@@ -447,12 +447,19 @@ const Perpetuals = memo(function Perpetuals() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chart" className="mt-3 space-y-3">
+        <TabsContent value="chart" className="mt-3 space-y-4">
           {!safeMode ? (
-            <>
-              <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
-              <FundingRateChart coin={selectedPair} />
-            </>
+            <div className="space-y-4">
+              {/* Chart container - explicit bounds to prevent overlap */}
+              <div className="relative z-10 overflow-hidden rounded-lg">
+                <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
+              </div>
+              
+              {/* Funding card - below chart with explicit z-index */}
+              <div className="relative z-0">
+                <FundingRateChart coin={selectedPair} />
+              </div>
+            </div>
           ) : (
             <Card className="glass border-border/50">
               <CardContent className="py-6 text-center text-muted-foreground">
@@ -472,7 +479,7 @@ const Perpetuals = memo(function Perpetuals() {
           />
 
           {!safeMode && (
-            <details className="group glass-subtle rounded-lg border border-border/50">
+            <details open className="group glass-subtle rounded-lg border border-border/50">
               <summary className="list-none cursor-pointer select-none px-3 py-2 flex items-center justify-between">
                 <span className="text-sm font-medium">Orderbook</span>
                 <Badge variant="secondary" className="text-[10px] font-mono">{selectedPair}</Badge>
@@ -480,7 +487,7 @@ const Perpetuals = memo(function Perpetuals() {
               <div className="px-3 pb-3">
                 <Card className="glass border-border/50">
                   <CardContent className="pt-3">
-                    <ScrollArea className="h-[260px] pr-2">
+                    <ScrollArea className="h-[200px] pr-2">
                       <HyperliquidOrderbook
                         orderbook={orderbook}
                         isLoading={orderbookLoading}
@@ -793,7 +800,7 @@ const Perpetuals = memo(function Perpetuals() {
         <meta name="description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 py-6 sm:py-8 relative">
+      <main className="container px-4 sm:px-6 pt-4 pb-6 sm:pt-6 sm:pb-8 relative">
         {/* Background accents */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
