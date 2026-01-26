@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Target, Clock, AlertTriangle, Loader2, Shield, Info } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Target, Clock, AlertTriangle, Loader2, Shield, Info, HelpCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useLimitOrders } from '@/features/orders';
+import { useOkxLimitOrders } from '@/hooks/useOkxLimitOrders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { OkxToken } from '@/services/okxdex';
@@ -41,6 +41,13 @@ const EXPIRATION_OPTIONS = [
   { label: 'Never', value: null },
 ];
 
+const PRICE_ADJUSTMENTS = [
+  { label: '-5%', value: -5 },
+  { label: '-1%', value: -1 },
+  { label: '+1%', value: 1 },
+  { label: '+5%', value: 5 },
+];
+
 export function LimitOrderForm({ 
   fromToken, 
   toToken, 
@@ -48,45 +55,318 @@ export function LimitOrderForm({
   currentPrice,
   className 
 }: LimitOrderFormProps) {
-  const { isConnected } = useMultiWallet();
-  const { isSigning } = useLimitOrders();
+  const { isConnected, activeChainType } = useMultiWallet();
+  const { createOrder, getCurrentRate, isChainSupported, isSigning } = useOkxLimitOrders();
+  
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [condition, setCondition] = useState<'above' | 'below'>('above');
   const [expirationHours, setExpirationHours] = useState<number | null>(168);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [liveRate, setLiveRate] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
 
-  const adjustPrice = (percent: number) => {
-    if (!currentPrice) return;
-    const adjusted = currentPrice * (1 + percent / 100);
+  // Get balance
+  const { formatted: balance } = useTokenBalance(fromToken, chain?.chainIndex || '');
+  
+  // Check if this chain is EVM and supported
+  const isEVM = activeChainType === 'evm';
+  const isSupported = chain && isChainSupported(chain.chainIndex);
+  const showFullForm = isConnected && isEVM && isSupported && fromToken && toToken && chain;
+
+  // Fetch current exchange rate when dialog opens
+  useEffect(() => {
+    if (open && fromToken && toToken && chain && isSupported) {
+      setRateLoading(true);
+      getCurrentRate(chain.chainIndex, fromToken.tokenContractAddress, toToken.tokenContractAddress)
+        .then(rate => {
+          if (rate) {
+            setLiveRate(rate);
+            // Initialize target price with current rate if empty
+            if (!targetPrice) {
+              setTargetPrice(rate.toFixed(8));
+            }
+          }
+        })
+        .finally(() => setRateLoading(false));
+    }
+  }, [open, fromToken, toToken, chain, isSupported, getCurrentRate, targetPrice]);
+
+  const adjustPrice = useCallback((percent: number) => {
+    const basePrice = liveRate || currentPrice;
+    if (!basePrice) return;
+    const adjusted = basePrice * (1 + percent / 100);
     setTargetPrice(adjusted.toFixed(8));
+    // Auto-set condition based on adjustment direction
+    setCondition(percent > 0 ? 'above' : 'below');
+  }, [liveRate, currentPrice]);
+
+  const handleSubmit = async () => {
+    if (!showFullForm || !amount || !targetPrice) return;
+
+    setIsSubmitting(true);
+    try {
+      const expiresAt = expirationHours 
+        ? new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString()
+        : null;
+
+      const order = await createOrder({
+        chainIndex: chain.chainIndex,
+        fromTokenAddress: fromToken.tokenContractAddress,
+        toTokenAddress: toToken.tokenContractAddress,
+        fromTokenSymbol: fromToken.tokenSymbol,
+        toTokenSymbol: toToken.tokenSymbol,
+        amount,
+        targetPrice: parseFloat(targetPrice),
+        condition,
+        slippage: '0.5',
+        expiresAt,
+      });
+
+      if (order) {
+        setOpen(false);
+        setAmount('');
+        setTargetPrice('');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (!isConnected || !fromToken || !toToken || !chain) {
-    return null;
+  const hasInsufficientBalance = balance && amount && parseFloat(amount) > parseFloat(balance);
+
+  // If not connected, not EVM, or chain not supported, show coming soon button
+  if (!showFullForm) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={cn("gap-1.5", className)}
+            onClick={() => window.open('/perpetuals', '_self')}
+          >
+            <Target className="w-3.5 h-3.5" />
+            Limit Order
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+              {isEVM ? 'Coming Soon' : 'EVM Only'}
+            </Badge>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{isEVM ? 'Limit orders coming soon for this chain. Use Perpetuals for advanced trading.' : 'Limit orders available on EVM chains only.'}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
   }
 
-  // All chains now redirect to Perpetuals for limit orders (Jupiter removed)
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button 
           variant="outline" 
           size="sm" 
           className={cn("gap-1.5", className)}
-          onClick={() => window.open('/perpetuals', '_self')}
         >
           <Target className="w-3.5 h-3.5" />
           Limit Order
-          <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
-            Coming Soon
-          </Badge>
         </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Limit orders coming soon. Use Perpetuals for advanced trading.</p>
-      </TooltipContent>
-    </Tooltip>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Create Limit Order
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Current Rate Display */}
+          <div className="p-3 rounded-lg bg-secondary/50">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground flex items-center gap-1">
+                Current Rate
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[200px]">
+                    <p className="text-xs">Live exchange rate between your selected tokens.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </span>
+              <span className="font-mono">
+                {rateLoading ? '...' : liveRate ? `1 ${fromToken.tokenSymbol} = ${liveRate.toFixed(6)} ${toToken.tokenSymbol}` : 'N/A'}
+              </span>
+            </div>
+          </div>
+
+          {/* Amount Input */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1">
+                Amount ({fromToken.tokenSymbol})
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[200px]">
+                    <p className="text-xs">The amount of tokens you want to sell when the target price is reached.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </Label>
+              {balance && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 text-xs"
+                  onClick={() => setAmount(balance)}
+                >
+                  Max: {parseFloat(balance).toFixed(4)}
+                </Button>
+              )}
+            </div>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className={cn("font-mono", hasInsufficientBalance && "border-destructive")}
+            />
+            {hasInsufficientBalance && (
+              <p className="text-xs text-destructive">Insufficient balance</p>
+            )}
+          </div>
+
+          {/* Target Price Input */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              Target Price ({toToken.tokenSymbol} per {fromToken.tokenSymbol})
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[220px]">
+                  <p className="text-xs">The price at which your order will execute. Set higher than current for profit-taking, lower for buying dips.</p>
+                </TooltipContent>
+              </Tooltip>
+            </Label>
+            <Input
+              type="number"
+              placeholder={liveRate?.toFixed(8) || '0.00000000'}
+              value={targetPrice}
+              onChange={(e) => setTargetPrice(e.target.value)}
+              className="font-mono"
+            />
+            {/* Price adjustment buttons */}
+            <div className="flex gap-1">
+              {PRICE_ADJUSTMENTS.map(({ label, value }) => (
+                <Button
+                  key={value}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => adjustPrice(value)}
+                  disabled={!liveRate && !currentPrice}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Condition Selector */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              Execute When Price Is
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[220px]">
+                  <p className="text-xs">"Above" triggers when price rises to target. "Below" triggers when price drops to target.</p>
+                </TooltipContent>
+              </Tooltip>
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={condition === 'above' ? 'default' : 'outline'}
+                className={cn(
+                  "gap-1.5",
+                  condition === 'above' && "bg-success hover:bg-success/90 text-success-foreground"
+                )}
+                onClick={() => setCondition('above')}
+              >
+                <TrendingUp className="w-4 h-4" />
+                Above Target
+              </Button>
+              <Button
+                variant={condition === 'below' ? 'default' : 'outline'}
+                className={cn(
+                  "gap-1.5",
+                  condition === 'below' && "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                )}
+                onClick={() => setCondition('below')}
+              >
+                <TrendingDown className="w-4 h-4" />
+                Below Target
+              </Button>
+            </div>
+          </div>
+
+          {/* Expiration Selector */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              Order Expires
+            </Label>
+            <Select
+              value={expirationHours?.toString() || 'never'}
+              onValueChange={(v) => setExpirationHours(v === 'never' ? null : parseInt(v))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EXPIRATION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value?.toString() || 'never'} value={opt.value?.toString() || 'never'}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Security Notice */}
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+            <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              Your order will be signed with your wallet and monitored automatically. 
+              You'll be notified when the target price is reached.
+            </p>
+          </div>
+
+          {/* Submit Button */}
+          <Button
+            className="w-full"
+            onClick={handleSubmit}
+            disabled={!amount || !targetPrice || isSubmitting || isSigning || hasInsufficientBalance}
+          >
+            {isSubmitting || isSigning ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {isSigning ? 'Signing...' : 'Creating Order...'}
+              </>
+            ) : (
+              <>
+                <Target className="w-4 h-4 mr-2" />
+                Create Limit Order
+              </>
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
