@@ -173,8 +173,21 @@ const Portfolio = memo(function Portfolio() {
     setError(null);
 
     try {
-      const chainIndex = activeChain?.chainIndex || '1';
-      const result = await okxDexService.getWalletBalances(activeAddress, chainIndex);
+      // Determine which chains to fetch based on filter
+      let chainsToFetch: string;
+      
+      if (chainFilter === 'all-evm') {
+        // Fetch balances across all EVM chains
+        chainsToFetch = evmChains.map(c => c.chainIndex).join(',');
+      } else if (chainFilter === 'solana') {
+        chainsToFetch = '501';
+      } else if (chainFilter === 'evm-chain' && selectedEvmChain) {
+        chainsToFetch = selectedEvmChain.chainIndex;
+      } else {
+        chainsToFetch = activeChain?.chainIndex || '1';
+      }
+      
+      const result = await okxDexService.getWalletBalances(activeAddress, chainsToFetch);
       
       if (result.length > 0) {
         setBalances(result);
@@ -183,8 +196,11 @@ const Portfolio = memo(function Portfolio() {
         }, 0);
         setTotalValue(total);
         
-        // Save snapshot for P&L tracking
-        await saveSnapshot(total, chainIndex);
+        // Save snapshot for P&L tracking (use first chain for snapshot tracking)
+        const primaryChainIndex = chainFilter === 'all-evm' ? '1' : 
+                                  chainFilter === 'solana' ? '501' : 
+                                  selectedEvmChain?.chainIndex || '1';
+        await saveSnapshot(total, primaryChainIndex);
       } else {
         setBalances([]);
         setTotalValue(0);
@@ -196,7 +212,7 @@ const Portfolio = memo(function Portfolio() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress, isConnected, activeChain, saveSnapshot]);
+  }, [activeAddress, isConnected, chainFilter, selectedEvmChain, activeChain, saveSnapshot]);
 
   useEffect(() => {
     fetchPortfolio();

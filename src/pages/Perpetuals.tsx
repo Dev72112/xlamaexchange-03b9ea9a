@@ -8,7 +8,7 @@
 import { memo, useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSearchParams } from "react-router-dom";
-import { Layout } from "@/shared/components";
+import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -801,7 +801,7 @@ const Perpetuals = memo(function Perpetuals() {
   );
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Perpetuals | xlama - Trade Perpetual Futures</title>
         <meta name="description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
@@ -963,7 +963,7 @@ const Perpetuals = memo(function Perpetuals() {
         availableMargin={availableMargin}
         isTestnet={isTestnet}
       />
-    </Layout>
+    </AppLayout>
   );
 });
 

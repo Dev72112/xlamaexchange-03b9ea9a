@@ -1,7 +1,7 @@
 import { memo, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
-import { Layout } from "@/components/Layout";
+import { AppLayout } from "@/components/AppLayout";
 import { TokenWatchlist } from "@/components/TokenWatchlist";
 import { GasEstimator } from "@/components/GasEstimator";
 import { PricePrediction } from "@/components/PricePrediction";
@@ -39,7 +39,7 @@ const Tools = memo(function Tools() {
   }, []);
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Trading Tools | xlama - Gas Estimator, Price Alerts & More</title>
         <meta
@@ -132,7 +132,7 @@ const Tools = memo(function Tools() {
           </section>
         </div>
       </main>
-    </Layout>
+    </AppLayout>
   );
 });
 

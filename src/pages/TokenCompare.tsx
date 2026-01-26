@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Plus, X, TrendingUp, TrendingDown, BarChart3, Search } from 'lucide-react';
-import { Layout } from '@/components/Layout';
+import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -132,7 +132,7 @@ export default function TokenCompare() {
         <meta name="description" content="Compare cryptocurrency tokens side by side - prices, volume, market cap, and performance across 25+ chains" />
       </Helmet>
       
-      <Layout>
+      <AppLayout>
         <div className="container px-4 sm:px-6 py-8">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -440,7 +440,7 @@ export default function TokenCompare() {
             </div>
           )}
         </div>
-      </Layout>
+      </AppLayout>
     </>
   );
 }

@@ -151,7 +151,7 @@ const Index = () => {
         <section className="container px-4 sm:px-6 py-4 sm:py-8">
           <Collapsible open={showTrending} onOpenChange={setShowTrending}>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
+              <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
                 <span className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
                   Trending Pairs & Activity
@@ -186,7 +186,7 @@ const Index = () => {
         <section className="container px-4 sm:px-6 py-4 sm:py-8">
           <Collapsible open={showNews} onOpenChange={setShowNews}>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
+              <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
                 <span className="flex items-center gap-2">
                   <Wallet className="w-4 h-4 text-primary" />
                   Market News
@@ -210,7 +210,7 @@ const Index = () => {
           <section className="container px-4 sm:px-6 py-4 sm:py-8">
             <Collapsible open={showTracker} onOpenChange={setShowTracker}>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
+                <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
                   <span className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-primary" />
                     Track Transaction
@@ -232,9 +232,9 @@ const Index = () => {
 
         {/* Section 5: How It Works - Mode Aware Collapsible */}
         <section className="container px-4 sm:px-6 py-4 sm:py-8">
-          <Collapsible open={showHowItWorks} onOpenChange={setShowHowItWorks}>
+          <Collapsible open={showHowItWorks} onOpenChange={setShowHowItWorks} key={isInstantMode ? 'instant' : 'dex'}>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
+              <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
                 <span className="flex items-center gap-2">
                   <HelpCircle className="w-4 h-4 text-primary" />
                   How {isInstantMode ? 'Instant Exchange' : 'DEX Aggregator'} Works
