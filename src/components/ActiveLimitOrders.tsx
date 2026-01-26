@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle, Loader2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +9,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLimitOrders, type LimitOrder } from '@/features/orders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useTradePreFill } from '@/contexts/TradePreFillContext';
 import { LimitOrderCountdown } from '@/components/LimitOrderCountdown';
 import { cn } from '@/shared/lib';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import { SUPPORTED_CHAINS, getChainIcon } from '@/data/chains';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 
 interface ActiveLimitOrdersProps {
   className?: string;
-  onExecuteOrder?: (order: LimitOrder) => void;
 }
 
 // Format large amounts to prevent overflow
@@ -28,20 +30,39 @@ const formatAmount = (amount: string | number, maxDecimals = 6): string => {
   return num.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });
 };
 
-export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrdersProps) {
+export function ActiveLimitOrders({ className }: ActiveLimitOrdersProps) {
+  const navigate = useNavigate();
   const { isConnected } = useMultiWallet();
+  const { setPreFill } = useTradePreFill();
+  const { triggerSuccess } = useHapticFeedback();
   const { 
     orders, 
     activeOrders, 
     cancelOrder, 
     dismissOrder, 
-    isLoading, 
-    isSigning,
     exportToCSV, 
     notificationPermission, 
     requestNotificationPermission 
   } = useLimitOrders();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Handle "Execute Now" - navigate to swap with pre-filled order details
+  const handleExecuteOrder = useCallback((order: LimitOrder) => {
+    triggerSuccess();
+    
+    // Set pre-fill data for the swap widget
+    setPreFill({
+      fromTokenAddress: order.from_token_address,
+      fromTokenSymbol: order.from_token_symbol,
+      toTokenAddress: order.to_token_address,
+      toTokenSymbol: order.to_token_symbol,
+      chainIndex: order.chain_index,
+      amount: order.amount,
+    });
+    
+    // Navigate to swap page (Index)
+    navigate('/');
+  }, [navigate, setPreFill, triggerSuccess]);
 
   // Count total orders
   const totalActiveCount = activeOrders.length;
@@ -225,16 +246,16 @@ export function ActiveLimitOrders({ className, onExecuteOrder }: ActiveLimitOrde
                                 Cancel
                               </Button>
                             )}
-                            {order.status === 'triggered' && onExecuteOrder && (
+                            {order.status === 'triggered' && (
                               <>
                                 <Button
                                   variant="default"
                                   size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => onExecuteOrder(order)}
+                                  className="h-7 text-xs bg-success hover:bg-success/90"
+                                  onClick={() => handleExecuteOrder(order)}
                                 >
                                   <ExternalLink className="w-3 h-3 mr-1" />
-                                  Execute
+                                  Execute Now
                                 </Button>
                                 <Button
                                   variant="ghost"
