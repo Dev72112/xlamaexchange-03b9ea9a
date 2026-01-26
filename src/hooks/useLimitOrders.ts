@@ -442,6 +442,56 @@ export function useLimitOrders() {
     }
   }, [isConnected, activeAddress, fetchOrders]);
 
+  // Set up Supabase realtime subscription for order updates
+  useEffect(() => {
+    if (!activeAddress) return;
+
+    const normalizedAddress = activeAddress.toLowerCase();
+
+    const channel = supabase
+      .channel('limit_orders_hook_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'limit_orders',
+          filter: `user_address=eq.${normalizedAddress}`,
+        },
+        (payload) => {
+          console.log('[useLimitOrders] Realtime update:', payload.eventType);
+          fetchOrders();
+
+          // Show toast for status changes
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            const newStatus = (payload.new as LimitOrder).status;
+            const oldStatus = (payload.old as LimitOrder)?.status;
+            
+            if (newStatus !== oldStatus) {
+              if (newStatus === 'triggered') {
+                toast({
+                  title: '🎯 Order Triggered!',
+                  description: 'Your limit order target was reached. Check the Orders page to execute.',
+                });
+                if (settings.soundEnabled) playAlert();
+              } else if (newStatus === 'executed') {
+                toast({
+                  title: '✅ Order Executed!',
+                  description: 'Your limit order was successfully executed.',
+                });
+                if (settings.soundEnabled) playAlert();
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeAddress, fetchOrders, toast, settings.soundEnabled, playAlert]);
+
   // Set up price monitoring interval
   useEffect(() => {
     if (isConnected && orders.length > 0) {
