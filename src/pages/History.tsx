@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Layout } from "@/shared/components";
+import { AppLayout } from "@/components/AppLayout";
 import { Helmet } from "react-helmet-async";
 import { useTransactionHistory } from "@/shared/hooks";
 import { useDexTransactions } from "@/contexts/DexTransactionContext";
@@ -337,7 +337,7 @@ const History = () => {
   const totalTransactionCount = transactions.length + dexTransactions.length + bridgeTransactions.length;
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Transaction History - xlama</title>
         <meta name="description" content="View your cryptocurrency exchange transaction history." />
@@ -1210,7 +1210,7 @@ const History = () => {
           </div>
         )}
         </div>
-    </Layout>
+    </AppLayout>
   );
 };
 

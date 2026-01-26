@@ -1,59 +1,32 @@
 import { memo, Suspense, lazy, useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { Layout } from "@/shared/components";
+import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity, Rocket, Plus } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity, ChevronDown, Target, CalendarClock, History, RefreshCw } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
-import { OrdersSkeleton } from "@/components/skeletons";
-import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { cn } from "@/lib/utils";
 import { SUPPORTED_CHAINS } from "@/data/chains";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 // Lazy load order components
-const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
 const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
 const ActiveDCAOrders = lazy(() => import("@/components/ActiveDCAOrders").then(m => ({ default: m.ActiveDCAOrders })));
 const OrderExecutionHistory = lazy(() => import("@/components/OrderExecutionHistory").then(m => ({ default: m.OrderExecutionHistory })));
 const LimitOrderForm = lazy(() => import("@/components/LimitOrderForm").then(m => ({ default: m.LimitOrderForm })));
 const DCAOrderForm = lazy(() => import("@/components/DCAOrderForm").then(m => ({ default: m.DCAOrderForm })));
 
-const ordersFeatures = [
-  {
-    icon: TrendingUp,
-    title: "Limit Orders",
-    description: "Set price targets and automatically execute trades when conditions are met.",
-  },
-  {
-    icon: Clock,
-    title: "DCA Schedules",
-    description: "Automate your investing with scheduled recurring purchases.",
-  },
-  {
-    icon: ArrowRightLeft,
-    title: "Transaction History",
-    description: "View all your past trades with detailed execution information.",
-  },
-  {
-    icon: ListOrdered,
-    title: "Order Management",
-    description: "Monitor, modify, or cancel your active orders anytime.",
-  },
-];
-
 type ChainFilter = 'evm' | 'solana';
-
-const chainFilterOptions: { value: ChainFilter; label: string; description: string; icon?: React.ReactNode }[] = [
-  { value: 'evm', label: 'EVM', description: 'ETH, BSC, Polygon, etc.' },
-  { value: 'solana', label: 'Solana', description: 'SOL & SPL tokens', icon: <Zap className="w-3 h-3" /> },
-];
 
 const Orders = memo(function Orders() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { 
     isConnected, 
     activeChainType, 
@@ -65,6 +38,12 @@ const Orders = memo(function Orders() {
   } = useMultiWallet();
   
   const { setGlobalChainFilter } = useExchangeMode();
+  
+  // Collapsible states
+  const [showLimitOrders, setShowLimitOrders] = useState(true);
+  const [showDCAOrders, setShowDCAOrders] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Default chain filter based on current wallet connection
   const [chainFilter, setChainFilter] = useState<ChainFilter>(
@@ -145,263 +124,203 @@ const Orders = memo(function Orders() {
   const isWalletSynced = activeChainType === chainFilter || 
     (chainFilter === 'evm' && activeChainType !== 'solana' && activeChainType !== 'tron' && activeChainType !== 'sui' && activeChainType !== 'ton');
 
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['limit-orders'] });
+    await queryClient.invalidateQueries({ queryKey: ['dca-orders'] });
+    toast.success('Orders refreshed');
+    setIsRefreshing(false);
+  }, [queryClient]);
+
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Orders | xlama - Manage Limit & DCA Orders</title>
         <meta
           name="description"
           content="Manage your limit orders and DCA (Dollar Cost Averaging) orders. View active orders, order history, and track execution status."
         />
-        <meta property="og:title" content="Orders | xlama" />
-        <meta property="og:description" content="Manage your limit orders and DCA orders. Track execution status and view order history." />
-        <link rel="canonical" href="https://xlama.exchange/orders" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 pb-8 sm:pb-12">
-        {/* Animated background accent */}
-        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
-        </div>
-
+      <div className="container px-4 pb-6 max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
-            <ListOrdered className="w-4 h-4" />
-            <span>Order Management</span>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h1 className="text-xl font-bold">Orders</h1>
+            <p className="text-xs text-muted-foreground">Limit orders & DCA strategies</p>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
-            Your Orders
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Manage limit orders, DCA schedules, and view your transaction history. 
-            All orders are monitored 24/7 with instant notifications.
-          </p>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="h-8 w-8"
+          >
+            <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+          </Button>
         </div>
 
-        {/* Connect wallet prompt if not connected */}
-        {!isConnected ? (
-          <div className="max-w-xl mx-auto">
-            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
-              <CardContent className="pt-8 pb-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
-                  <ListOrdered className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  We recommend <strong className="text-primary">OKX Wallet</strong> for the best multi-chain experience.
-                </p>
-                <p className="text-xs text-muted-foreground mb-6">
-                  Connect to view and manage your orders, DCA schedules, and transaction history.
-                </p>
-                <MultiWalletButton />
+        {/* Chain Toggle */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+            <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+            <Button
+              variant={chainFilter === 'evm' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleChainFilterChange('evm')}
+              disabled={isSwitching}
+              className={cn(
+                "h-7 px-2.5 text-xs",
+                chainFilter === 'evm' && "bg-primary text-primary-foreground"
+              )}
+            >
+              EVM
+            </Button>
+            <Button
+              variant={chainFilter === 'solana' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleChainFilterChange('solana')}
+              disabled={isSwitching}
+              className={cn(
+                "h-7 px-2.5 text-xs gap-1",
+                chainFilter === 'solana' && "bg-primary text-primary-foreground"
+              )}
+            >
+              <Zap className="w-3 h-3" />
+              SOL
+            </Button>
+          </div>
 
-                {/* Feature Preview */}
-                <div className="mt-8 pt-8 border-t border-border/50">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    {ordersFeatures.map((feature, index) => (
-                      <div
-                        key={feature.title}
-                        className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`}
-                        style={getStaggerStyle(index, 80)}
-                      >
-                        <feature.icon className="w-5 h-5 text-primary mb-2" />
-                        <p className="text-sm font-medium">{feature.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
-                      </div>
-                    ))}
+          {/* Sync indicator */}
+          {isConnected && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className={cn("w-1.5 h-1.5 rounded-full", isWalletSynced ? 'bg-success' : 'bg-warning')} />
+              {isWalletSynced ? 'Synced' : 'Switch wallet'}
+            </div>
+          )}
+        </div>
+
+        {/* Not connected state */}
+        {!isConnected ? (
+          <Card className="glass border-primary/10">
+            <CardContent className="pt-8 pb-8 text-center">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Wallet className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Connect Wallet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Connect an EVM wallet to create and manage orders.
+              </p>
+              <MultiWalletButton />
+            </CardContent>
+          </Card>
+        ) : chainFilter === 'solana' ? (
+          // Solana orders - coming soon
+          <Card className="glass border-border/50">
+            <CardContent className="py-12 text-center">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-2">Solana Orders Coming Soon</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Limit orders and DCA for Solana are in development.
+              </p>
+              <Button variant="outline" onClick={() => handleChainFilterChange('evm')}>
+                Switch to EVM
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          // EVM Orders - Full functionality
+          <div className="space-y-3">
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2">
+              <Suspense fallback={<div className="h-9 flex-1 skeleton-shimmer rounded-lg" />}>
+                <LimitOrderForm standalone className="flex-1" />
+              </Suspense>
+              <Suspense fallback={<div className="h-9 flex-1 skeleton-shimmer rounded-lg" />}>
+                <DCAOrderForm standalone className="flex-1" />
+              </Suspense>
+            </div>
+
+            {/* Active Limit Orders */}
+            <Collapsible open={showLimitOrders} onOpenChange={setShowLimitOrders}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between h-10 glass-subtle">
+                  <span className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    Active Limit Orders
+                  </span>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", showLimitOrders && "rotate-180")} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Suspense fallback={<div className="h-32 skeleton-shimmer rounded-lg" />}>
+                  <ActiveLimitOrders />
+                </Suspense>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Active DCA Strategies */}
+            <Collapsible open={showDCAOrders} onOpenChange={setShowDCAOrders}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between h-10 glass-subtle">
+                  <span className="flex items-center gap-2">
+                    <CalendarClock className="w-4 h-4 text-primary" />
+                    DCA Strategies
+                  </span>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", showDCAOrders && "rotate-180")} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Suspense fallback={<div className="h-32 skeleton-shimmer rounded-lg" />}>
+                  <ActiveDCAOrders />
+                </Suspense>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Order History */}
+            <Collapsible open={showHistory} onOpenChange={setShowHistory}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between h-10 glass-subtle">
+                  <span className="flex items-center gap-2">
+                    <History className="w-4 h-4 text-primary" />
+                    Order History
+                  </span>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", showHistory && "rotate-180")} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Suspense fallback={<div className="h-32 skeleton-shimmer rounded-lg" />}>
+                  <OrderExecutionHistory />
+                </Suspense>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Perpetuals CTA */}
+            <Card className="glass border-primary/10 mt-4">
+              <CardContent className="py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Trade Perpetuals</p>
+                    <p className="text-xs text-muted-foreground">Up to 50x leverage</p>
                   </div>
                 </div>
+                <Button 
+                  onClick={() => navigate('/perpetuals')}
+                  size="sm"
+                  variant="outline"
+                >
+                  Open
+                </Button>
               </CardContent>
             </Card>
           </div>
-        ) : (
-          <Suspense fallback={<OrdersSkeleton />}>
-            <div className="space-y-6 max-w-4xl mx-auto">
-              {/* Chain Filter Toggle with Connection Indicator */}
-              <div className="flex flex-col items-center gap-3">
-                <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-                  <Layers className="w-4 h-4 text-muted-foreground ml-2" />
-                  {chainFilterOptions.map((option) => (
-                    <Button
-                      key={option.value}
-                      variant={chainFilter === option.value ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => handleChainFilterChange(option.value)}
-                      disabled={isSwitching}
-                      className={cn(
-                        "h-8 px-3 text-xs gap-1.5",
-                        chainFilter === option.value && "bg-primary text-primary-foreground"
-                      )}
-                    >
-                      {option.icon}
-                      {option.label}
-                      {chainFilter === option.value && (
-                        <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary-foreground/20">
-                          Active
-                        </Badge>
-                      )}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Connection Indicator */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <div className={cn(
-                    "w-2 h-2 rounded-full",
-                    isWalletSynced ? 'bg-success animate-pulse' : 'bg-warning'
-                  )} />
-                  <span>
-                    Connected to <span className="font-medium text-foreground">
-                      {activeChainType === 'solana' ? 'Solana' : 'EVM'}
-                    </span>
-                  </span>
-                  {isWalletSynced ? (
-                    <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
-                      Synced
-                    </Badge>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNetworkSwitch}
-                      disabled={isSwitching}
-                      className="h-5 px-2 text-[10px] border-warning text-warning hover:bg-warning/10"
-                    >
-                      {isSwitching ? 'Switching...' : `Switch to ${chainFilter === 'solana' ? 'Solana' : 'Ethereum'}`}
-                    </Button>
-                  )}
-                </div>
-                
-                {/* Network mismatch warning */}
-                {!isWalletSynced && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/10 border border-warning/20 text-xs text-warning">
-                    <AlertTriangle className="w-3 h-3" />
-                    <span>Wallet is on a different network than selected filter</span>
-                  </div>
-                )}
-              </div>
-
-              {/* EVM Orders Section */}
-              {chainFilter === 'evm' && (
-                <>
-                  {/* Quick Actions - Create Order Buttons */}
-                  <div className="flex items-center justify-center gap-3">
-                    <Suspense fallback={<div className="h-9 w-32 skeleton-shimmer rounded-lg" />}>
-                      <LimitOrderForm
-                        fromToken={null}
-                        toToken={null}
-                        chain={activeChain || SUPPORTED_CHAINS[0]}
-                        currentPrice={undefined}
-                      />
-                    </Suspense>
-                    <Suspense fallback={<div className="h-9 w-32 skeleton-shimmer rounded-lg" />}>
-                      <DCAOrderForm
-                        fromToken={null}
-                        toToken={null}
-                        chain={activeChain || SUPPORTED_CHAINS[0]}
-                      />
-                    </Suspense>
-                  </div>
-
-                  <p className="text-center text-xs text-muted-foreground">
-                    ETH, BSC, Polygon, Arbitrum, Base & more • Orders monitored 24/7
-                  </p>
-
-                  {/* Active Limit Orders */}
-                  <section id="limit-orders" className="scroll-mt-20">
-                    <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                      <ActiveLimitOrders />
-                    </Suspense>
-                  </section>
-
-                  {/* Active DCA Strategies */}
-                  <section id="dca-orders" className="scroll-mt-20">
-                    <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                      <ActiveDCAOrders />
-                    </Suspense>
-                  </section>
-
-                  {/* Order Execution History */}
-                  <section id="order-history" className="scroll-mt-20">
-                    <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                      <OrderExecutionHistory />
-                    </Suspense>
-                  </section>
-
-                  {/* Perpetuals CTA */}
-                  <Card className="glass border-primary/20 glow-sm sweep-effect">
-                    <CardContent className="py-4 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <Activity className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">Trade Perpetuals on Hyperliquid</p>
-                          <p className="text-xs text-muted-foreground">
-                            Long or short with up to 50x leverage on BTC, ETH, SOL and more
-                          </p>
-                        </div>
-                      </div>
-                      <Button 
-                        onClick={() => navigate('/perpetuals')}
-                        className="shrink-0"
-                        size="sm"
-                      >
-                        <Activity className="w-4 h-4 mr-2" />
-                        Open Perpetuals
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
-
-              {/* Solana Orders - Coming Soon */}
-              {chainFilter === 'solana' && (
-                <Card className="glass border-warning/20 glow-sm">
-                  <CardContent className="py-8 text-center">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-warning/20 to-warning/5 flex items-center justify-center mx-auto mb-4">
-                      <Rocket className="w-8 h-8 text-warning" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">Solana Limit Orders & DCA Coming Soon</h3>
-                    <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-                      We're working on bringing limit orders and DCA schedules to Solana. 
-                      For now, you can use instant swaps or try Perpetuals for advanced trading.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <Button 
-                        onClick={() => navigate('/swap')}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <ArrowRightLeft className="w-4 h-4 mr-2" />
-                        Swap on Solana
-                      </Button>
-                      <Button 
-                        onClick={() => navigate('/perpetuals')}
-                        size="sm"
-                      >
-                        <Activity className="w-4 h-4 mr-2" />
-                        Try Perpetuals
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Transaction History */}
-              <section id="history" className="scroll-mt-20">
-                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                  <DexTransactionHistory />
-                </Suspense>
-              </section>
-            </div>
-          </Suspense>
         )}
-      </main>
-    </Layout>
+      </div>
+    </AppLayout>
   );
 });
 

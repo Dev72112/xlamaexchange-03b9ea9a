@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Layout } from "@/shared/components";
+import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,7 @@ const Bridge = memo(function Bridge() {
   }, []);
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Cross-Chain Bridge | xlama - Bridge Crypto Across 20+ Chains</title>
         <meta 
@@ -256,7 +256,7 @@ const Bridge = memo(function Bridge() {
           </a>
         </div>
       </main>
-    </Layout>
+    </AppLayout>
   );
 });
 

@@ -32,6 +32,8 @@ interface LimitOrderFormProps {
   chain?: Chain | null;
   currentPrice?: number;
   className?: string;
+  /** When true, shows a standalone button that opens full form with token pickers */
+  standalone?: boolean;
 }
 
 const EXPIRATION_OPTIONS = [
@@ -53,9 +55,10 @@ export function LimitOrderForm({
   toToken, 
   chain, 
   currentPrice,
-  className 
+  className,
+  standalone = false,
 }: LimitOrderFormProps) {
-  const { isConnected, activeChainType } = useMultiWallet();
+  const { isConnected, activeChainType, activeChain } = useMultiWallet();
   const { createOrder, getCurrentRate, isChainSupported, isSigning } = useOkxLimitOrders();
   
   const [open, setOpen] = useState(false);
@@ -67,13 +70,21 @@ export function LimitOrderForm({
   const [liveRate, setLiveRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
 
+  // Use active chain from wallet if not provided
+  const effectiveChain = chain || activeChain;
+
   // Get balance
-  const { formatted: balance } = useTokenBalance(fromToken, chain?.chainIndex || '');
+  const { formatted: balance } = useTokenBalance(fromToken, effectiveChain?.chainIndex || '');
   
   // Check if this chain is EVM and supported
   const isEVM = activeChainType === 'evm';
-  const isSupported = chain && isChainSupported(chain.chainIndex);
-  const showFullForm = isConnected && isEVM && isSupported && fromToken && toToken && chain;
+  const isSupported = effectiveChain && isChainSupported(effectiveChain.chainIndex);
+  
+  // For standalone mode, we only need wallet connected and EVM chain supported
+  // For inline mode (in ExchangeWidget), we also need tokens selected
+  const canOpenForm = isConnected && isEVM && isSupported;
+  const hasTokensSelected = fromToken && toToken && effectiveChain;
+  const showFullForm = standalone ? canOpenForm : (canOpenForm && hasTokensSelected);
 
   // Fetch current exchange rate when dialog opens
   useEffect(() => {
@@ -136,8 +147,8 @@ export function LimitOrderForm({
 
   const hasInsufficientBalance = balance && amount && parseFloat(amount) > parseFloat(balance);
 
-  // If not connected, not EVM, or chain not supported, show coming soon button
-  if (!showFullForm) {
+  // If not connected or not EVM, show disabled button
+  if (!isConnected || !isEVM) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -145,19 +156,90 @@ export function LimitOrderForm({
             variant="outline" 
             size="sm" 
             className={cn("gap-1.5", className)}
-            onClick={() => window.open('/perpetuals', '_self')}
+            disabled
           >
             <Target className="w-3.5 h-3.5" />
             Limit Order
             <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
-              {isEVM ? 'Coming Soon' : 'EVM Only'}
+              {!isConnected ? 'Connect Wallet' : 'EVM Only'}
             </Badge>
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{isEVM ? 'Limit orders coming soon for this chain. Use Perpetuals for advanced trading.' : 'Limit orders available on EVM chains only.'}</p>
+          <p>{!isConnected ? 'Connect an EVM wallet to create limit orders.' : 'Limit orders available on EVM chains only.'}</p>
         </TooltipContent>
       </Tooltip>
+    );
+  }
+
+  // If chain not supported, show unsupported message
+  if (!isSupported) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={cn("gap-1.5", className)}
+            disabled
+          >
+            <Target className="w-3.5 h-3.5" />
+            Limit Order
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+              Chain Not Supported
+            </Badge>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>This chain doesn't support limit orders yet. Switch to Ethereum, BSC, Polygon, Arbitrum, or other major EVM chains.</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  // For standalone mode without tokens, show button that opens dialog with message
+  if (standalone && !hasTokensSelected) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={cn("gap-1.5", className)}
+          >
+            <Target className="w-3.5 h-3.5" />
+            Create Limit Order
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5" />
+              Create Limit Order
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-6 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <Target className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium mb-2">Select tokens to create a limit order</p>
+              <p className="text-sm text-muted-foreground">
+                Go to the Swap page and select your token pair, then click "Limit Order" to set your target price.
+              </p>
+            </div>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setOpen(false);
+                window.location.href = '/swap';
+              }}
+            >
+              Go to Swap
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 

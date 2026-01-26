@@ -32,6 +32,8 @@ interface DCAOrderFormProps {
   toToken?: OkxToken | null;
   chain?: Chain | null;
   className?: string;
+  /** When true, shows a standalone button that opens full form with token pickers */
+  standalone?: boolean;
 }
 
 const FREQUENCY_OPTIONS = [
@@ -52,8 +54,9 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   toToken, 
   chain,
   className,
+  standalone = false,
 }: DCAOrderFormProps) {
-  const { isConnected, activeChainType } = useMultiWallet();
+  const { isConnected, activeChainType, activeChain } = useMultiWallet();
   const { toast } = useToast();
   
   const [open, setOpen] = useState(false);
@@ -63,13 +66,20 @@ export const DCAOrderForm = memo(function DCAOrderForm({
   const [totalIntervals, setTotalIntervals] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Use active chain from wallet if not provided
+  const effectiveChain = chain || activeChain;
+
   // Get balance
-  const { formatted: balance } = useTokenBalance(fromToken, chain?.chainIndex || '');
+  const { formatted: balance } = useTokenBalance(fromToken, effectiveChain?.chainIndex || '');
   
   // Check if this chain is EVM and supported
   const isEVM = activeChainType === 'evm';
-  const isSupported = chain && okxLimitOrdersService.isChainSupported(chain.chainIndex);
-  const showFullForm = isConnected && isEVM && isSupported && fromToken && toToken && chain;
+  const isSupported = effectiveChain && okxLimitOrdersService.isChainSupported(effectiveChain.chainIndex);
+  
+  // For standalone mode, we only need wallet connected and EVM chain supported
+  const canOpenForm = isConnected && isEVM && isSupported;
+  const hasTokensSelected = fromToken && toToken && effectiveChain;
+  const showFullForm = standalone ? canOpenForm : (canOpenForm && hasTokensSelected);
 
   // Calculate total commitment
   const totalAmount = amountPerInterval && totalIntervals 
@@ -94,8 +104,8 @@ export const DCAOrderForm = memo(function DCAOrderForm({
     }
   }, [showFullForm, amountPerInterval, toast]);
 
-  // If not connected, not EVM, or chain not supported, show coming soon button
-  if (!showFullForm) {
+  // If not connected or not EVM, show disabled button
+  if (!isConnected || !isEVM) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -103,19 +113,91 @@ export const DCAOrderForm = memo(function DCAOrderForm({
             variant="outline" 
             size="sm" 
             className={cn("gap-2", className)}
-            onClick={() => window.open('/perpetuals', '_self')}
+            disabled
           >
             <CalendarClock className="w-4 h-4" />
             <span className="hidden sm:inline">DCA</span>
             <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
-              {isEVM ? 'Coming Soon' : 'EVM Only'}
+              {!isConnected ? 'Connect' : 'EVM Only'}
             </Badge>
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{isEVM ? 'DCA orders coming soon for this chain.' : 'DCA orders available on EVM chains only.'}</p>
+          <p>{!isConnected ? 'Connect an EVM wallet to create DCA orders.' : 'DCA orders available on EVM chains only.'}</p>
         </TooltipContent>
       </Tooltip>
+    );
+  }
+
+  // If chain not supported, show unsupported message
+  if (!isSupported) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={cn("gap-2", className)}
+            disabled
+          >
+            <CalendarClock className="w-4 h-4" />
+            <span className="hidden sm:inline">DCA</span>
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+              Chain Not Supported
+            </Badge>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>This chain doesn't support DCA orders yet.</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  // For standalone mode without tokens, show button that opens dialog with message
+  if (standalone && !hasTokensSelected) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={cn("gap-2", className)}
+          >
+            <CalendarClock className="w-4 h-4" />
+            <span className="hidden sm:inline">Create DCA Strategy</span>
+            <span className="sm:hidden">DCA</span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="w-5 h-5" />
+              Create DCA Strategy
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-6 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <CalendarClock className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium mb-2">Select tokens to create a DCA strategy</p>
+              <p className="text-sm text-muted-foreground">
+                Go to the Swap page and select your token pair, then click "DCA" to set up recurring purchases.
+              </p>
+            </div>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                setOpen(false);
+                window.location.href = '/swap';
+              }}
+            >
+              Go to Swap
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
