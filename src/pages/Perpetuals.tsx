@@ -45,6 +45,7 @@ import { useHyperliquidTrading } from "@/hooks/useHyperliquidTrading";
 import { useHyperliquidFills } from "@/hooks/useHyperliquidFills";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { 
   HyperliquidTradeForm, 
   HyperliquidOrderbook, 
@@ -205,21 +206,24 @@ const Perpetuals = memo(function Perpetuals() {
   
   // Mobile tab order for swipe navigation
   const tabOrder = ['chart', 'trade', 'positions', 'orders'] as const;
+  const { trigger: hapticTrigger } = useHapticFeedback();
   
-  // Swipe handlers for mobile tab navigation
+  // Swipe handlers for mobile tab navigation with haptic feedback
   const handleSwipeLeft = useCallback(() => {
     const currentIndex = tabOrder.indexOf(activeTab as typeof tabOrder[number]);
     if (currentIndex < tabOrder.length - 1) {
+      hapticTrigger('light');
       setActiveTab(tabOrder[currentIndex + 1]);
     }
-  }, [activeTab]);
+  }, [activeTab, hapticTrigger]);
   
   const handleSwipeRight = useCallback(() => {
     const currentIndex = tabOrder.indexOf(activeTab as typeof tabOrder[number]);
     if (currentIndex > 0) {
+      hapticTrigger('light');
       setActiveTab(tabOrder[currentIndex - 1]);
     }
-  }, [activeTab]);
+  }, [activeTab, hapticTrigger]);
   
   const { handlers: swipeHandlers } = useSwipeGesture(handleSwipeLeft, handleSwipeRight, {
     threshold: 50,
