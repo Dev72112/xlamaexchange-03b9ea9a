@@ -33,10 +33,19 @@ body {
   padding-top: 1rem;
 }
 
+/* App content area - minimal spacing for trading pages */
+.app-content {
+  padding-top: 0.5rem;
+}
+
 /* Mobile top bar spacing - 56px for mobile top nav + safe area */
 @media (max-width: 767px) {
   .main-content {
     padding-top: max(4rem, calc(56px + env(safe-area-inset-top)));
+  }
+  
+  .app-content {
+    padding-top: max(3.5rem, calc(48px + env(safe-area-inset-top)));
   }
   
   .content-safe {

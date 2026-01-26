@@ -1,7 +1,7 @@
 import { memo, Suspense, lazy, useCallback, useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, Link } from "react-router-dom";
-import { Layout } from "@/shared/components";
+import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -283,7 +283,7 @@ const Portfolio = memo(function Portfolio() {
   const displayValue = hideBalances ? '••••••' : `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Account | xlama - Your Crypto Portfolio</title>
         <meta
@@ -636,7 +636,7 @@ const Portfolio = memo(function Portfolio() {
           </Suspense>
         )}
       </main>
-    </Layout>
+    </AppLayout>
   );
 });
 

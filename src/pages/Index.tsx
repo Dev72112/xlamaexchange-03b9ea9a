@@ -1,6 +1,6 @@
 import { useRef, useCallback, Suspense, lazy, memo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Layout } from "@/shared/components";
+import { AppLayout } from "@/components/AppLayout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { Helmet } from "react-helmet-async";
 import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight, ChevronDown, Search, HelpCircle } from "lucide-react";
@@ -71,7 +71,7 @@ const Index = () => {
   }, [navigate]);
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>xlama - Fast & Secure Cryptocurrency Exchange | Best Rates on X Layer</title>
         <meta
@@ -253,7 +253,7 @@ const Index = () => {
           </Collapsible>
         </section>
       </main>
-    </Layout>
+    </AppLayout>
   );
 };
 

@@ -1,6 +1,6 @@
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Layout } from '@/shared/components';
+import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -353,7 +353,7 @@ const Analytics = () => {
   const weekTrend = analytics.weekOverWeekChange > 0 ? 'up' : analytics.weekOverWeekChange < 0 ? 'down' : 'neutral';
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Trading Analytics | xlama</title>
         <meta name="description" content="View your trading analytics, volume history, and performance metrics." />
@@ -1251,7 +1251,7 @@ const Analytics = () => {
           </>
         )}
         </div>
-    </Layout>
+    </AppLayout>
   );
 };
 
