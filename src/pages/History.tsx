@@ -29,6 +29,7 @@ import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { SwipeHint } from "@/components/ui/swipe-hint";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -461,6 +462,9 @@ const History = () => {
               <span className="text-[10px] sm:text-sm">Chain</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Swipe hint for first-time mobile users */}
+          <SwipeHint hintKey="history" />
 
           {/* Tab Content with Swipe Gestures on Mobile */}
           <div {...(isMobile ? swipeHandlers : {})}>

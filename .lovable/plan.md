@@ -175,9 +175,9 @@ src/pages/History/
 2. ✅ Add DCA "Execute This Interval" button
 
 ### Short Term (Next 2-3 Sessions)
-3. Create SwipeableTabs reusable component
+3. ✅ Create SwipeableTabs reusable component
 4. Start ExchangeWidget refactoring (split modes)
-5. Add visual swipe indicator for new users
+5. ✅ Add visual swipe indicator for new users
 
 ### Medium Term (Code Quality)
 6. Refactor Perpetuals page structure
