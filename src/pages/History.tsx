@@ -26,6 +26,9 @@ import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } 
 import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
+import { useSwipeGesture } from "@/hooks/useSwipeGesture";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -49,6 +52,8 @@ type UnifiedTransaction = {
   original: any;
 };
 
+const TAB_ORDER: ('all' | 'instant' | 'dex' | 'bridge' | 'onchain')[] = ['all', 'instant', 'dex', 'bridge', 'onchain'];
+
 const History = () => {
   const { transactions, removeTransaction, clearHistory } = useTransactionHistory();
   const { transactions: dexTransactions, clearHistory: clearDexHistory } = useDexTransactions();
@@ -66,6 +71,8 @@ const History = () => {
   } = useMultiWallet();
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const { trigger: triggerHaptic } = useHapticFeedback();
   
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'instant' | 'dex' | 'bridge' | 'onchain'>('all');
@@ -83,6 +90,25 @@ const History = () => {
   const [onchainHistory, setOnchainHistory] = useState<TransactionHistoryItem[]>([]);
   const [onchainLoading, setOnchainLoading] = useState(false);
   const [onchainError, setOnchainError] = useState<string | null>(null);
+  
+  // Swipe gestures for tab navigation on mobile
+  const handleSwipeLeft = useCallback(() => {
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    if (currentIndex < TAB_ORDER.length - 1) {
+      setActiveTab(TAB_ORDER[currentIndex + 1]);
+      triggerHaptic('light');
+    }
+  }, [activeTab, triggerHaptic]);
+  
+  const handleSwipeRight = useCallback(() => {
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(TAB_ORDER[currentIndex - 1]);
+      triggerHaptic('light');
+    }
+  }, [activeTab, triggerHaptic]);
+  
+  const { handlers: swipeHandlers } = useSwipeGesture(handleSwipeLeft, handleSwipeRight);
 
   // Brief loading state for perceived performance
   useEffect(() => {
@@ -436,6 +462,8 @@ const History = () => {
             </TabsTrigger>
           </TabsList>
 
+          {/* Tab Content with Swipe Gestures on Mobile */}
+          <div {...(isMobile ? swipeHandlers : {})}>
           {/* Unified Timeline Tab */}
           <TabsContent value="all" className="space-y-4">
             {/* Search and Filters */}
@@ -1198,6 +1226,7 @@ const History = () => {
               </div>
             )}
           </TabsContent>
+          </div>
         </Tabs>
 
         {/* Summary */}

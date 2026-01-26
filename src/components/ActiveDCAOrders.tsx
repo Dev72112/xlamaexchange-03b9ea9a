@@ -1,6 +1,9 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { useDCAOrders, DCAOrder } from '@/hooks/useDCAOrders';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
+import { useTradePreFill } from '@/contexts/TradePreFillContext';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +32,7 @@ import {
   Download,
   Clock,
   ArrowRight,
+  Zap,
 } from 'lucide-react';
 import xlamaMascot from '@/assets/xlama-mascot.png';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
@@ -89,21 +93,31 @@ interface DCAOrderCardProps {
   onPause: (id: string) => void;
   onResume: (id: string) => void;
   onCancel: (id: string) => void;
+  onExecuteNow: (order: DCAOrder) => void;
   isSigning: boolean;
   index: number;
 }
+
+// Check if a DCA order is due for execution (next_execution is in the past)
+const isOrderDue = (nextExecution: string): boolean => {
+  const date = new Date(nextExecution);
+  return date.getTime() <= Date.now();
+};
 
 const DCAOrderCard = memo(function DCAOrderCard({ 
   order, 
   onPause, 
   onResume, 
   onCancel,
+  onExecuteNow,
   isSigning,
   index,
 }: DCAOrderCardProps) {
   const progress = order.total_intervals 
     ? (order.completed_intervals / order.total_intervals) * 100 
     : null;
+  
+  const isDue = order.status === 'active' && isOrderDue(order.next_execution);
 
   return (
     <div 
@@ -159,39 +173,55 @@ const DCAOrderCard = memo(function DCAOrderCard({
         </div>
         
         {/* Actions */}
-        {(order.status === 'active' || order.status === 'paused') && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isSigning}>
-                {isSigning ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Execute Now button for due orders */}
+          {isDue && (
+            <Button
+              size="sm"
+              variant="default"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => onExecuteNow(order)}
+              disabled={isSigning}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Execute Now
+            </Button>
+          )}
+          
+          {(order.status === 'active' || order.status === 'paused') && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isSigning}>
+                  {isSigning ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MoreHorizontal className="w-4 h-4" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {order.status === 'active' ? (
+                  <DropdownMenuItem onClick={() => onPause(order.id)}>
+                    <Pause className="w-4 h-4 mr-2" />
+                    Pause Order
+                  </DropdownMenuItem>
                 ) : (
-                  <MoreHorizontal className="w-4 h-4" />
+                  <DropdownMenuItem onClick={() => onResume(order.id)}>
+                    <Play className="w-4 h-4 mr-2" />
+                    Resume Order
+                  </DropdownMenuItem>
                 )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {order.status === 'active' ? (
-                <DropdownMenuItem onClick={() => onPause(order.id)}>
-                  <Pause className="w-4 h-4 mr-2" />
-                  Pause Order
+                <DropdownMenuItem 
+                  onClick={() => onCancel(order.id)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel Order
                 </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => onResume(order.id)}>
-                  <Play className="w-4 h-4 mr-2" />
-                  Resume Order
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem 
-                onClick={() => onCancel(order.id)}
-                className="text-destructive focus:text-destructive"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Cancel Order
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -199,6 +229,9 @@ const DCAOrderCard = memo(function DCAOrderCard({
 
 export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
   const { isConnected } = useMultiWallet();
+  const { setPreFill } = useTradePreFill();
+  const { triggerSuccess } = useHapticFeedback();
+  const navigate = useNavigate();
   const { 
     orders, 
     activeOrders, 
@@ -216,6 +249,20 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
   // Database orders only (Jupiter removed)
   const visibleOrders = useMemo(() => [...activeOrders, ...pausedOrders], [activeOrders, pausedOrders]);
   const totalOrderCount = visibleOrders.length;
+  
+  // Handle Execute Now - pre-fill swap form and navigate
+  const handleExecuteNow = useCallback((order: DCAOrder) => {
+    setPreFill({
+      fromTokenAddress: order.from_token_address,
+      toTokenAddress: order.to_token_address,
+      fromTokenSymbol: order.from_token_symbol,
+      toTokenSymbol: order.to_token_symbol,
+      amount: order.amount_per_interval,
+      chainIndex: order.chain_index,
+    });
+    triggerSuccess();
+    navigate('/');
+  }, [setPreFill, triggerSuccess, navigate]);
   
   if (!isConnected) return null;
 
@@ -301,6 +348,7 @@ export const ActiveDCAOrders = memo(function ActiveDCAOrders() {
                       onPause={pauseOrder}
                       onResume={resumeOrder}
                       onCancel={cancelOrder}
+                      onExecuteNow={handleExecuteNow}
                       isSigning={isSigning}
                       index={index}
                     />
