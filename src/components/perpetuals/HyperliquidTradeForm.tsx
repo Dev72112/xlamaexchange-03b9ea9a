@@ -134,22 +134,37 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
       </div>
 
       {/* Order Type Tabs */}
-      <Tabs value={orderType} onValueChange={(v) => setOrderType(v as 'market' | 'limit')}>
-        <TabsList className="grid w-full grid-cols-2 h-10 p-1 bg-secondary/50">
-          <TabsTrigger 
-            value="market" 
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium"
-          >
-            Market
-          </TabsTrigger>
-          <TabsTrigger 
-            value="limit"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium"
-          >
-            Limit
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="space-y-1">
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground">Order Type</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
+                <HelpCircle className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px]">
+              <p className="text-xs">Market orders execute immediately at current price. Limit orders execute only when price reaches your target.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <Tabs value={orderType} onValueChange={(v) => setOrderType(v as 'market' | 'limit')}>
+          <TabsList className="grid w-full grid-cols-2 h-10 p-1 bg-secondary/50">
+            <TabsTrigger 
+              value="market" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium"
+            >
+              Market
+            </TabsTrigger>
+            <TabsTrigger 
+              value="limit"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium"
+            >
+              Limit
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Limit Price (for limit orders) */}
       {orderType === 'limit' && (
@@ -168,7 +183,19 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
       {/* Size Input */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Size ({coin})</Label>
+          <div className="flex items-center gap-1">
+            <Label>Size ({coin})</Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
+                  <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[200px]">
+                <p className="text-xs">The amount of {coin} to trade. Position value = Size × Current Price.</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -280,6 +307,16 @@ export const HyperliquidTradeForm = memo(function HyperliquidTradeForm({
         <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground flex items-center gap-2">
           <Zap className="w-3.5 h-3.5" />
           Stop Loss / Take Profit (Optional)
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-auto" onClick={(e) => e.stopPropagation()}>
+                <HelpCircle className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[240px]">
+              <p className="text-xs">Stop Loss: Auto-closes to limit losses. Take Profit: Auto-closes to lock in gains. Set prices in USD.</p>
+            </TooltipContent>
+          </Tooltip>
         </summary>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div className="space-y-1">

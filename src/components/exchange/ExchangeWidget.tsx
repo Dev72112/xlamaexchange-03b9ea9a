@@ -909,168 +909,186 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
               </p>
             </div>
           )}
-          
-          {/* Header with favorite button */}
-          <div className="px-4 sm:px-5 pt-4 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">You send</span>
-            {exchangeMode === 'instant' && (
-              <button
-                onClick={handleToggleFavorite}
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
-                title={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
-                aria-label={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
-              >
-                <Star 
-                  className={cn(
-                    "w-4 h-4 transition-colors",
-                    isPairFavorite ? "fill-warning text-warning" : "text-muted-foreground hover:text-warning"
-                  )} 
-                />
-              </button>
-            )}
-          </div>
 
-          {/* From Section */}
+          {/* From Section - Updated to match Bridge styling */}
           <div className="p-4 sm:p-5 pt-2 border-b border-border overflow-hidden">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-full">
-              <div className="shrink-0 flex-none">
-                {exchangeMode === 'instant' ? (
-                  <CurrencySelector
-                    value={fromCurrency}
-                    onChange={setFromCurrency}
-                    excludeTicker={toCurrency.ticker}
-                    currencies={currencies}
-                    isLoading={currenciesLoading}
-                  />
-                ) : (
-                  <DexTokenSelector
-                    value={fromDexToken}
-                    onChange={setFromDexToken}
-                    tokens={dexTokens}
-                    nativeToken={nativeToken}
-                    chain={selectedChain}
-                    excludeAddress={toDexToken?.tokenContractAddress}
-                    isLoading={tokensLoading}
-                  />
+            <div className="space-y-2">
+              {/* Label with Chain selector for DEX mode */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">You send</span>
+                {exchangeMode === 'instant' && (
+                  <button
+                    onClick={handleToggleFavorite}
+                    className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                    title={isPairFavorite ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <Star 
+                      className={cn(
+                        "w-4 h-4 transition-colors",
+                        isPairFavorite ? "fill-warning text-warning" : "text-muted-foreground hover:text-warning"
+                      )} 
+                    />
+                  </button>
                 )}
               </div>
-              <div className="flex-1 min-w-0 overflow-hidden max-w-[calc(100%-120px)]">
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={fromAmount}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^0-9.]/g, '');
-                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                      setFromAmount(val);
-                    }
-                  }}
-                  placeholder="0"
-                  className="border-0 bg-transparent text-right text-base sm:text-lg font-medium focus-visible:ring-0 p-0 h-auto w-full truncate overflow-hidden text-ellipsis"
-                  style={{ maxWidth: '100%' }}
-                />
-                {exchangeMode === 'dex' && fromUsdValue && (
-                  <div className="text-right text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate overflow-hidden">
-                    {fromUsdValue}
-                  </div>
-                )}
-              </div>
-            </div>
-            {exchangeMode === 'instant' && minAmount > 0 && parseFloat(fromAmount) < minAmount && (
-              <p className="text-xs text-warning mt-2">
-                Min: {minAmount} {fromCurrency.ticker.toUpperCase()}
-              </p>
-            )}
-            {/* DEX Balance Display */}
-            {exchangeMode === 'dex' && isConnected && fromDexToken && (
-              <div className="flex items-center justify-between mt-2">
-                <span className={cn(
-                  "text-xs",
-                  hasInsufficientBalance ? "text-destructive" : "text-muted-foreground"
-                )}>
-                  Balance: {balanceLoading ? '...' : fromTokenBalance} {fromDexToken.tokenSymbol}
-                  {hasInsufficientBalance && " (Insufficient)"}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs text-primary hover:text-primary"
-                  onClick={handleMaxClick}
-                  disabled={!fromTokenBalance || fromTokenBalance === '0'}
-                >
-                  MAX
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Swap Button */}
-          <div className="relative h-0">
-            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 z-10">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleSwapCurrencies}
-                className="rounded-full h-10 w-10 bg-background border-2 border-border hover:bg-secondary shadow-sm"
-              >
-                <ArrowRightLeft className="w-4 h-4 rotate-90" />
-              </Button>
-            </div>
-          </div>
-
-          {/* To Section */}
-          <div className={`p-4 sm:p-5 overflow-hidden ${pairUnavailable ? 'bg-warning/5' : ''}`}>
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-full">
-              <div className="shrink-0 flex-none">
-                {exchangeMode === 'instant' ? (
-                  <CurrencySelector
-                    value={toCurrency}
-                    onChange={setToCurrency}
-                    excludeTicker={fromCurrency.ticker}
-                    currencies={currencies}
-                    isLoading={currenciesLoading}
-                  />
-                ) : (
-                  <DexTokenSelector
-                    value={toDexToken}
-                    onChange={setToDexToken}
-                    tokens={dexTokens}
-                    nativeToken={nativeToken}
-                    chain={selectedChain}
-                    excludeAddress={fromDexToken?.tokenContractAddress}
-                    isLoading={tokensLoading}
-                  />
-                )}
-              </div>
-              <div className="flex-1 min-w-0 overflow-hidden max-w-[calc(100%-120px)]">
-                <div className="text-right text-base sm:text-lg font-medium font-mono overflow-hidden text-ellipsis">
-                  {currentLoading ? (
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="h-5 w-16 sm:w-20 skeleton-shimmer rounded-md" />
-                    </div>
-                  ) : pairUnavailable ? (
-                    <span className="text-warning text-xs sm:text-sm flex items-center justify-end gap-1">
-                      <AlertTriangle className="w-3 h-3 shrink-0" />
-                      <span>Unavailable</span>
-                    </span>
-                  ) : currentOutputAmount ? (
-                    <span className="animate-fade-in block truncate" title={currentOutputAmount}>
-                      {parseFloat(currentOutputAmount) >= 1000000 
-                        ? (parseFloat(currentOutputAmount) / 1000000).toFixed(2) + 'M'
-                        : parseFloat(currentOutputAmount) >= 1000 
-                          ? (parseFloat(currentOutputAmount) / 1000).toFixed(2) + 'K'
-                          : parseFloat(currentOutputAmount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
-                    </span>
+              
+              {/* Token selector + Input row */}
+              <div className="flex gap-2">
+                <div className="shrink-0">
+                  {exchangeMode === 'instant' ? (
+                    <CurrencySelector
+                      value={fromCurrency}
+                      onChange={setFromCurrency}
+                      excludeTicker={toCurrency.ticker}
+                      currencies={currencies}
+                      isLoading={currenciesLoading}
+                    />
                   ) : (
-                    <span className="text-muted-foreground">0</span>
+                    <DexTokenSelector
+                      value={fromDexToken}
+                      onChange={setFromDexToken}
+                      tokens={dexTokens}
+                      nativeToken={nativeToken}
+                      chain={selectedChain}
+                      excludeAddress={toDexToken?.tokenContractAddress}
+                      isLoading={tokensLoading}
+                    />
                   )}
                 </div>
-                {exchangeMode === 'dex' && toUsdValue && !currentLoading && currentOutputAmount && (
-                  <div className="text-right text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate overflow-hidden">
-                    {toUsdValue}
-                  </div>
-                )}
+                <div className="flex-1 relative min-w-0">
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={fromAmount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '');
+                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                        setFromAmount(val);
+                      }
+                    }}
+                    placeholder="0.0"
+                    className={cn(
+                      "text-right font-mono text-lg pr-14 h-11",
+                      hasInsufficientBalance && exchangeMode === 'dex' && "border-destructive"
+                    )}
+                  />
+                  {exchangeMode === 'dex' && isConnected && fromTokenBalance && fromTokenBalance !== '0' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleMaxClick}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 text-xs px-2 text-primary hover:text-primary"
+                    >
+                      MAX
+                    </Button>
+                  )}
+                </div>
               </div>
+              
+              {/* Balance display below */}
+              {exchangeMode === 'dex' && isConnected && fromDexToken && (
+                <div className="flex items-center justify-end gap-2 text-xs">
+                  <span className="text-muted-foreground">Balance:</span>
+                  <span className={cn(
+                    "font-mono",
+                    hasInsufficientBalance && "text-destructive"
+                  )}>
+                    {balanceLoading ? '...' : fromTokenBalance} {fromDexToken.tokenSymbol}
+                    {hasInsufficientBalance && <span className="ml-1">(Insufficient)</span>}
+                  </span>
+                </div>
+              )}
+              
+              {/* USD value */}
+              {exchangeMode === 'dex' && fromUsdValue && (
+                <div className="text-right text-xs text-muted-foreground">
+                  {fromUsdValue}
+                </div>
+              )}
+              
+              {/* Min amount for instant mode */}
+              {exchangeMode === 'instant' && minAmount > 0 && parseFloat(fromAmount) < minAmount && (
+                <p className="text-xs text-warning">
+                  Min: {minAmount} {fromCurrency.ticker.toUpperCase()}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Swap Button - Centered like Bridge */}
+          <div className="flex justify-center py-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSwapCurrencies}
+              className="rounded-full h-10 w-10 bg-secondary/50 hover:bg-secondary"
+            >
+              <ArrowRightLeft className="w-4 h-4 rotate-90" />
+            </Button>
+          </div>
+
+          {/* To Section - Updated to match Bridge styling */}
+          <div className={cn("p-4 sm:p-5 overflow-hidden", pairUnavailable && 'bg-warning/5')}>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">You receive</span>
+              </div>
+              
+              {/* Token selector + Output row */}
+              <div className="flex gap-2">
+                <div className="shrink-0">
+                  {exchangeMode === 'instant' ? (
+                    <CurrencySelector
+                      value={toCurrency}
+                      onChange={setToCurrency}
+                      excludeTicker={fromCurrency.ticker}
+                      currencies={currencies}
+                      isLoading={currenciesLoading}
+                    />
+                  ) : (
+                    <DexTokenSelector
+                      value={toDexToken}
+                      onChange={setToDexToken}
+                      tokens={dexTokens}
+                      nativeToken={nativeToken}
+                      chain={selectedChain}
+                      excludeAddress={fromDexToken?.tokenContractAddress}
+                      isLoading={tokensLoading}
+                    />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Input
+                    type="text"
+                    placeholder="0.0"
+                    value={currentLoading ? '' : (pairUnavailable ? '' : currentOutputAmount || '0.0')}
+                    readOnly
+                    className="text-right font-mono text-lg bg-muted/30 h-11"
+                  />
+                </div>
+              </div>
+              
+              {/* Status messages */}
+              {currentLoading && (
+                <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Getting quote...
+                </div>
+              )}
+              
+              {pairUnavailable && !currentLoading && (
+                <div className="flex items-center justify-end gap-1 text-xs text-warning">
+                  <AlertTriangle className="w-3 h-3" />
+                  Pair unavailable
+                </div>
+              )}
+              
+              {/* USD value */}
+              {exchangeMode === 'dex' && toUsdValue && !currentLoading && currentOutputAmount && (
+                <div className="text-right text-xs text-muted-foreground">
+                  {toUsdValue}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1285,10 +1303,10 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                     <TooltipContent className="max-w-[280px]">
                       <div className="text-xs space-y-2">
                         <p>
-                          <strong className="text-primary">Fixed rate:</strong> Price is locked for 10 minutes.
+                          <strong className="text-primary">Fixed rate:</strong> Guaranteed rate locked for 10 minutes. Slightly lower than floating but no surprises.
                         </p>
                         <p>
-                          <strong className="text-warning">Floating rate:</strong> Rate follows the market.
+                          <strong className="text-warning">Floating rate:</strong> Best available rate that follows market movement. May change before completion.
                         </p>
                       </div>
                     </TooltipContent>
