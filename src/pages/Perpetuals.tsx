@@ -63,6 +63,7 @@ import {
   MarketSelector,
 } from "@/components/perpetuals";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SwipeHint } from "@/components/ui/swipe-hint";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -481,6 +482,9 @@ const Perpetuals = memo(function Perpetuals() {
             {openOrders.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[9px]">{openOrders.length}</Badge>}
           </TabsTrigger>
         </TabsList>
+
+        {/* Swipe hint for first-time users */}
+        <SwipeHint hintKey="perpetuals" />
 
         {/* Swipeable content area */}
         <div {...swipeHandlers} className="touch-pan-y">
