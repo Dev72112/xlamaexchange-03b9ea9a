@@ -170,9 +170,9 @@ src/pages/History/
 
 ## Implementation Priority
 
-### Immediate (This Session)
-1. Add swipe gestures to History page tabs
-2. Add DCA "Execute This Interval" button
+### Immediate (This Session) ✅ COMPLETED
+1. ✅ Add swipe gestures to History page tabs
+2. ✅ Add DCA "Execute This Interval" button
 
 ### Short Term (Next 2-3 Sessions)
 3. Create SwipeableTabs reusable component
