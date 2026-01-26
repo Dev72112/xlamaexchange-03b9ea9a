@@ -46,6 +46,8 @@ const AdvancedPriceChart = lazy(() => import("./AdvancedPriceChart").then(m => (
 const SwapReviewModal = lazy(() => import("./SwapReviewModal").then(m => ({ default: m.SwapReviewModal })));
 const HighPriceImpactModal = lazy(() => import("./HighPriceImpactModal").then(m => ({ default: m.HighPriceImpactModal })));
 const TradeDebugPanel = lazy(() => import("@/components/TradeDebugPanel").then(m => ({ default: m.TradeDebugPanel })));
+const LimitOrderForm = lazy(() => import("@/components/LimitOrderForm").then(m => ({ default: m.LimitOrderForm })));
+const DCAOrderForm = lazy(() => import("@/components/DCAOrderForm").then(m => ({ default: m.DCAOrderForm })));
 
 // Detect network from ticker and name
 function detectNetwork(ticker: string, name: string): string | undefined {
@@ -1269,6 +1271,27 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 <span className="truncate">{getSwapButtonContent()}</span>
               </Button>
             </div>
+
+            {/* DEX Advanced Order Buttons - Limit Order & DCA */}
+            {exchangeMode === 'dex' && fromDexToken && toDexToken && (
+              <div className="flex items-center justify-center gap-2">
+                <Suspense fallback={<Skeleton className="h-9 w-28" />}>
+                  <LimitOrderForm 
+                    fromToken={fromDexToken}
+                    toToken={toDexToken}
+                    chain={selectedChain}
+                    currentPrice={dexExchangeRate}
+                  />
+                </Suspense>
+                <Suspense fallback={<Skeleton className="h-9 w-28" />}>
+                  <DCAOrderForm
+                    fromToken={fromDexToken}
+                    toToken={toDexToken}
+                    chain={selectedChain}
+                  />
+                </Suspense>
+              </div>
+            )}
           </div>
 
           {/* Footer Info */}

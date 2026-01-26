@@ -264,6 +264,11 @@ export function useOkxLimitOrders(): UseOkxLimitOrdersResult {
   const triggeredOrders = useMemo(() => orders.filter(o => o.status === 'triggered'), [orders]);
   const executedOrders = useMemo(() => orders.filter(o => o.status === 'executed'), [orders]);
 
+  // Wrapper for isChainSupported to preserve `this` context
+  const isChainSupported = useCallback((chainIndex: string) => {
+    return okxLimitOrdersService.isChainSupported(chainIndex);
+  }, []);
+
   return {
     orders,
     activeOrders,
@@ -275,6 +280,6 @@ export function useOkxLimitOrders(): UseOkxLimitOrdersResult {
     cancelOrder,
     refetch: fetchOrders,
     getCurrentRate,
-    isChainSupported: okxLimitOrdersService.isChainSupported,
+    isChainSupported,
   };
 }

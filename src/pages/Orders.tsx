@@ -4,7 +4,7 @@ import { Layout } from "@/shared/components";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity, Rocket } from "lucide-react";
+import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity, Rocket, Plus } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -14,8 +14,13 @@ import { cn } from "@/lib/utils";
 import { SUPPORTED_CHAINS } from "@/data/chains";
 import { useNavigate } from "react-router-dom";
 
-// Lazy load order components from feature modules
+// Lazy load order components
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
+const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
+const ActiveDCAOrders = lazy(() => import("@/components/ActiveDCAOrders").then(m => ({ default: m.ActiveDCAOrders })));
+const OrderExecutionHistory = lazy(() => import("@/components/OrderExecutionHistory").then(m => ({ default: m.OrderExecutionHistory })));
+const LimitOrderForm = lazy(() => import("@/components/LimitOrderForm").then(m => ({ default: m.LimitOrderForm })));
+const DCAOrderForm = lazy(() => import("@/components/DCAOrderForm").then(m => ({ default: m.DCAOrderForm })));
 
 const ordersFeatures = [
   {
@@ -56,7 +61,7 @@ const Orders = memo(function Orders() {
     switchChainByIndex,
     isOkxConnected,
     switchEvmChain,
-    evmChainId,
+    activeChain,
   } = useMultiWallet();
   
   const { setGlobalChainFilter } = useExchangeMode();
@@ -279,38 +284,78 @@ const Orders = memo(function Orders() {
                 )}
               </div>
 
-              <p className="text-center text-xs text-muted-foreground">
-                Viewing {chainFilter === 'solana' ? 'Solana' : 'EVM'} orders • 
-                {chainFilter === 'solana' 
-                  ? ' Limit orders & DCA coming soon' 
-                  : ' ETH, BSC, Polygon, Arbitrum, Base & more'}
-              </p>
-
-              {/* Perpetuals CTA for EVM */}
+              {/* EVM Orders Section */}
               {chainFilter === 'evm' && (
-                <Card className="glass border-primary/20 glow-sm sweep-effect">
-                  <CardContent className="py-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Activity className="w-5 h-5 text-primary" />
+                <>
+                  {/* Quick Actions - Create Order Buttons */}
+                  <div className="flex items-center justify-center gap-3">
+                    <Suspense fallback={<div className="h-9 w-32 skeleton-shimmer rounded-lg" />}>
+                      <LimitOrderForm
+                        fromToken={null}
+                        toToken={null}
+                        chain={activeChain || SUPPORTED_CHAINS[0]}
+                        currentPrice={undefined}
+                      />
+                    </Suspense>
+                    <Suspense fallback={<div className="h-9 w-32 skeleton-shimmer rounded-lg" />}>
+                      <DCAOrderForm
+                        fromToken={null}
+                        toToken={null}
+                        chain={activeChain || SUPPORTED_CHAINS[0]}
+                      />
+                    </Suspense>
+                  </div>
+
+                  <p className="text-center text-xs text-muted-foreground">
+                    ETH, BSC, Polygon, Arbitrum, Base & more • Orders monitored 24/7
+                  </p>
+
+                  {/* Active Limit Orders */}
+                  <section id="limit-orders" className="scroll-mt-20">
+                    <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                      <ActiveLimitOrders />
+                    </Suspense>
+                  </section>
+
+                  {/* Active DCA Strategies */}
+                  <section id="dca-orders" className="scroll-mt-20">
+                    <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                      <ActiveDCAOrders />
+                    </Suspense>
+                  </section>
+
+                  {/* Order Execution History */}
+                  <section id="order-history" className="scroll-mt-20">
+                    <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                      <OrderExecutionHistory />
+                    </Suspense>
+                  </section>
+
+                  {/* Perpetuals CTA */}
+                  <Card className="glass border-primary/20 glow-sm sweep-effect">
+                    <CardContent className="py-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Activity className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Trade Perpetuals on Hyperliquid</p>
+                          <p className="text-xs text-muted-foreground">
+                            Long or short with up to 50x leverage on BTC, ETH, SOL and more
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">Trade Perpetuals on Hyperliquid</p>
-                        <p className="text-xs text-muted-foreground">
-                          Long or short with up to 50x leverage on BTC, ETH, SOL and more
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={() => window.location.href = '/perpetuals'}
-                      className="shrink-0"
-                      size="sm"
-                    >
-                      <Activity className="w-4 h-4 mr-2" />
-                      Open Perpetuals
-                    </Button>
-                  </CardContent>
-                </Card>
+                      <Button 
+                        onClick={() => navigate('/perpetuals')}
+                        className="shrink-0"
+                        size="sm"
+                      >
+                        <Activity className="w-4 h-4 mr-2" />
+                        Open Perpetuals
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </>
               )}
 
               {/* Solana Orders - Coming Soon */}

@@ -411,6 +411,50 @@ export function useDCAOrders() {
     }
   }, [isConnected, activeAddress, fetchOrders]);
 
+  // Set up Supabase realtime subscription for DCA order updates
+  useEffect(() => {
+    if (!activeAddress) return;
+
+    const normalizedAddress = activeAddress.toLowerCase();
+
+    const channel = supabase
+      .channel('dca_orders_hook_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dca_orders',
+          filter: `user_address=eq.${normalizedAddress}`,
+        },
+        (payload) => {
+          console.log('[useDCAOrders] Realtime update:', payload.eventType);
+          fetchOrders();
+
+          // Show toast for status changes
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            const newStatus = (payload.new as DCAOrder).status;
+            const oldStatus = (payload.old as DCAOrder)?.status;
+            
+            if (newStatus !== oldStatus) {
+              if (newStatus === 'completed') {
+                toast({
+                  title: '✅ DCA Strategy Completed!',
+                  description: 'All scheduled purchases have been executed.',
+                });
+                if (settings.soundEnabled) playAlert();
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeAddress, fetchOrders, toast, settings.soundEnabled, playAlert]);
+
   // Filter orders by status
   const activeOrders = useMemo(() => orders.filter(o => o.status === 'active'), [orders]);
   const pausedOrders = useMemo(() => orders.filter(o => o.status === 'paused'), [orders]);
