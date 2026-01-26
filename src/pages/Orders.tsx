@@ -1,4 +1,4 @@
-import { memo, Suspense, lazy, useState, useEffect, useCallback } from "react";
+import { memo, Suspense, lazy, useState, useEffect, useCallback, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { SUPPORTED_CHAINS } from "@/data/chains";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { OrdersFAB } from "@/components/OrdersFAB";
 
 // Lazy load order components
 const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
@@ -52,6 +53,9 @@ const Orders = memo(function Orders() {
   
   // Track if we need a network switch
   const [isSwitching, setIsSwitching] = useState(false);
+  
+  // Refs to scroll to quick actions
+  const quickActionsRef = useRef<HTMLDivElement>(null);
 
   // Sync chain filter with wallet connection changes
   useEffect(() => {
@@ -235,7 +239,7 @@ const Orders = memo(function Orders() {
           // EVM Orders - Full functionality
           <div className="space-y-3">
             {/* Quick Actions */}
-            <div className="flex items-center gap-2">
+            <div ref={quickActionsRef} className="flex items-center gap-2">
               <Suspense fallback={<div className="h-9 flex-1 skeleton-shimmer rounded-lg" />}>
                 <LimitOrderForm standalone className="flex-1" />
               </Suspense>
@@ -318,6 +322,18 @@ const Orders = memo(function Orders() {
               </CardContent>
             </Card>
           </div>
+        )}
+        
+        {/* Mobile FAB for quick order creation - scrolls to buttons */}
+        {isConnected && chainFilter === 'evm' && (
+          <OrdersFAB 
+            onCreateLimitOrder={() => {
+              quickActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }} 
+            onCreateDCAOrder={() => {
+              quickActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }} 
+          />
         )}
       </div>
     </AppLayout>

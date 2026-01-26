@@ -44,6 +44,7 @@ import { useHyperliquidWebSocket } from "@/hooks/useHyperliquidWebSocket";
 import { useHyperliquidTrading } from "@/hooks/useHyperliquidTrading";
 import { useHyperliquidFills } from "@/hooks/useHyperliquidFills";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { 
   HyperliquidTradeForm, 
   HyperliquidOrderbook, 
@@ -201,6 +202,29 @@ const Perpetuals = memo(function Perpetuals() {
   const [pendingOrder, setPendingOrder] = useState<any>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  
+  // Mobile tab order for swipe navigation
+  const tabOrder = ['chart', 'trade', 'positions', 'orders'] as const;
+  
+  // Swipe handlers for mobile tab navigation
+  const handleSwipeLeft = useCallback(() => {
+    const currentIndex = tabOrder.indexOf(activeTab as typeof tabOrder[number]);
+    if (currentIndex < tabOrder.length - 1) {
+      setActiveTab(tabOrder[currentIndex + 1]);
+    }
+  }, [activeTab]);
+  
+  const handleSwipeRight = useCallback(() => {
+    const currentIndex = tabOrder.indexOf(activeTab as typeof tabOrder[number]);
+    if (currentIndex > 0) {
+      setActiveTab(tabOrder[currentIndex - 1]);
+    }
+  }, [activeTab]);
+  
+  const { handlers: swipeHandlers } = useSwipeGesture(handleSwipeLeft, handleSwipeRight, {
+    threshold: 50,
+    restraint: 100,
+  });
 
   // Real-time price updates via WebSocket - disabled in safe mode
   const wsResult = useHyperliquidWebSocket(safeMode ? [] : POPULAR_PAIRS);
@@ -433,7 +457,7 @@ const Perpetuals = memo(function Perpetuals() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Mobile Tabs - Compact */}
+      {/* Mobile Tabs - Compact with swipe support */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-9">
           <TabsTrigger value="chart" className="gap-1 text-xs px-1">
@@ -454,93 +478,96 @@ const Perpetuals = memo(function Perpetuals() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chart" className="mt-3 space-y-4">
-          {!safeMode ? (
-            <div className="space-y-4">
-              {/* Chart container - explicit bounds to prevent overlap */}
-              <div className="relative z-10 overflow-hidden rounded-lg">
-                <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
-              </div>
-              
-              {/* Funding card - below chart with explicit z-index */}
-              <div className="relative z-0">
-                <FundingRateChart coin={selectedPair} />
-              </div>
-            </div>
-          ) : (
-            <Card className="glass border-border/50">
-              <CardContent className="py-6 text-center text-muted-foreground">
-                <Shield className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                <p className="text-xs">Chart disabled in Safe Mode</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="trade" className="mt-3 space-y-3">
-          <HyperliquidTradeForm 
-            coin={selectedPair} 
-            currentPrice={currentPrice} 
-            availableMargin={availableMargin} 
-            onTrade={handleTrade} 
-          />
-
-          {!safeMode && (
-            <details open className="group glass-subtle rounded-lg border border-border/50">
-              <summary className="list-none cursor-pointer select-none px-3 py-2 flex items-center justify-between">
-                <span className="text-sm font-medium">Orderbook</span>
-                <Badge variant="secondary" className="text-[10px] font-mono">{selectedPair}</Badge>
-              </summary>
-              <div className="px-3 pb-3">
-                <Card className="glass border-border/50">
-                  <CardContent className="pt-3">
-                    <ScrollArea className="h-[200px] pr-2">
-                      <HyperliquidOrderbook
-                        orderbook={orderbook}
-                        isLoading={orderbookLoading}
-                        currentPrice={currentPrice}
-                      />
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </div>
-            </details>
-          )}
-        </TabsContent>
-
-        <TabsContent value="positions" className="mt-3">
-          <PositionManager 
-            positions={positions} 
-            currentPrices={currentPrices} 
-            onClosePosition={handleClosePosition} 
-            onModifySLTP={handleModifySLTP} 
-            onAddMargin={handleAddMargin} 
-          />
-        </TabsContent>
-
-        <TabsContent value="orders" className="mt-3">
-          {openOrders.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-xs">No open orders</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {openOrders.map((order: any, i: number) => (
-                <div key={i} className="p-2.5 rounded-lg border bg-secondary/30 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-medium">{order.coin}-PERP</span>
-                    <Badge variant="outline" className="ml-1.5 text-[10px]">{order.side}</Badge>
-                  </div>
-                  <div className="text-right font-mono">
-                    <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
-                    <p className="text-[10px] text-muted-foreground">{order.sz}</p>
-                  </div>
+        {/* Swipeable content area */}
+        <div {...swipeHandlers} className="touch-pan-y">
+          <TabsContent value="chart" className="mt-3 space-y-4">
+            {!safeMode ? (
+              <div className="space-y-4">
+                {/* Chart container - explicit bounds to prevent overlap */}
+                <div className="relative z-10 overflow-hidden rounded-lg">
+                  <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
                 </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                
+                {/* Funding card - below chart with explicit z-index */}
+                <div className="relative z-0">
+                  <FundingRateChart coin={selectedPair} />
+                </div>
+              </div>
+            ) : (
+              <Card className="glass border-border/50">
+                <CardContent className="py-6 text-center text-muted-foreground">
+                  <Shield className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                  <p className="text-xs">Chart disabled in Safe Mode</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="trade" className="mt-3 space-y-3">
+            <HyperliquidTradeForm 
+              coin={selectedPair} 
+              currentPrice={currentPrice} 
+              availableMargin={availableMargin} 
+              onTrade={handleTrade} 
+            />
+
+            {!safeMode && (
+              <details open className="group glass-subtle rounded-lg border border-border/50">
+                <summary className="list-none cursor-pointer select-none px-3 py-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">Orderbook</span>
+                  <Badge variant="secondary" className="text-[10px] font-mono">{selectedPair}</Badge>
+                </summary>
+                <div className="px-3 pb-3">
+                  <Card className="glass border-border/50">
+                    <CardContent className="pt-3">
+                      <ScrollArea className="h-[200px] pr-2">
+                        <HyperliquidOrderbook
+                          orderbook={orderbook}
+                          isLoading={orderbookLoading}
+                          currentPrice={currentPrice}
+                        />
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
+              </details>
+            )}
+          </TabsContent>
+
+          <TabsContent value="positions" className="mt-3">
+            <PositionManager 
+              positions={positions} 
+              currentPrices={currentPrices} 
+              onClosePosition={handleClosePosition} 
+              onModifySLTP={handleModifySLTP} 
+              onAddMargin={handleAddMargin} 
+            />
+          </TabsContent>
+
+          <TabsContent value="orders" className="mt-3">
+            {openOrders.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">No open orders</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {openOrders.map((order: any, i: number) => (
+                  <div key={i} className="p-2.5 rounded-lg border bg-secondary/30 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-medium">{order.coin}-PERP</span>
+                      <Badge variant="outline" className="ml-1.5 text-[10px]">{order.side}</Badge>
+                    </div>
+                    <div className="text-right font-mono">
+                      <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">{order.sz}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   );

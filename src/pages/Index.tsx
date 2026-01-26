@@ -7,12 +7,20 @@ import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight, ChevronDown
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { 
   TrendingPairsSkeleton, 
   TransactionTrackerSkeleton 
 } from "@/components/IndexSectionSkeletons";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/shared/lib";
 import { cn } from "@/lib/utils";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Lazy load heavier sections
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
@@ -56,9 +64,80 @@ const QuickLink = memo(function QuickLink({
   );
 });
 
+// Mobile bottom sheet wrapper component
+const MobileBottomSheet = memo(function MobileBottomSheet({
+  trigger,
+  title,
+  children,
+  icon: Icon,
+}: {
+  trigger: string;
+  title: string;
+  children: React.ReactNode;
+  icon: typeof TrendingUp;
+}) {
+  return (
+    <Drawer>
+      <DrawerTrigger asChild>
+        <Button variant="ghost" className="w-full justify-between h-11 glass-subtle">
+          <span className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-primary" />
+            {trigger}
+          </span>
+          <ChevronDown className="w-4 h-4" />
+        </Button>
+      </DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+        </DrawerHeader>
+        <div className="px-4 pb-6 max-h-[70vh] overflow-y-auto">
+          {children}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+});
+
+// Desktop collapsible wrapper component
+const DesktopCollapsible = memo(function DesktopCollapsible({
+  trigger,
+  isOpen,
+  onOpenChange,
+  children,
+  icon: Icon,
+}: {
+  trigger: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+  icon: typeof TrendingUp;
+}) {
+  return (
+    <Collapsible open={isOpen} onOpenChange={onOpenChange}>
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
+          <span className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-primary" />
+            {trigger}
+          </span>
+          <ChevronDown className={cn(
+            "w-4 h-4 transition-transform",
+            isOpen && "rotate-180"
+          )} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+});
+
 const Index = () => {
   const navigate = useNavigate();
   const widgetRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const [showTrending, setShowTrending] = useState(false);
   const [showNews, setShowNews] = useState(false);
   const [showTracker, setShowTracker] = useState(false);
@@ -147,110 +226,130 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Section 2: Trading Activity - Collapsible */}
+        {/* Section 2: Trading Activity */}
         <section className="container px-4 sm:px-6 py-4 sm:py-8">
-          <Collapsible open={showTrending} onOpenChange={setShowTrending}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
-                <span className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  Trending Pairs & Activity
-                </span>
-                <ChevronDown className={cn(
-                  "w-4 h-4 transition-transform",
-                  showTrending && "rotate-180"
-                )} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
+          {isMobile ? (
+            <MobileBottomSheet
+              trigger="Trending Pairs & Activity"
+              title="Trending Pairs & Activity"
+              icon={TrendingUp}
+            >
+              <div className="space-y-6">
+                <Suspense fallback={<TrendingPairsSkeleton />}>
+                  <TrendingPairs onSelectPair={handleSelectPair} />
+                </Suspense>
+                <Suspense fallback={<TransactionTrackerSkeleton />}>
+                  <DexTransactionHistory />
+                </Suspense>
+              </div>
+            </MobileBottomSheet>
+          ) : (
+            <DesktopCollapsible
+              trigger="Trending Pairs & Activity"
+              isOpen={showTrending}
+              onOpenChange={setShowTrending}
+              icon={TrendingUp}
+            >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
-                {/* Trending Pairs */}
                 <div className="lg:col-span-2">
                   <Suspense fallback={<TrendingPairsSkeleton />}>
                     <TrendingPairs onSelectPair={handleSelectPair} />
                   </Suspense>
                 </div>
-                
-                {/* Recent Trades Sidebar */}
                 <div>
                   <Suspense fallback={<TransactionTrackerSkeleton />}>
                     <DexTransactionHistory />
                   </Suspense>
                 </div>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
+            </DesktopCollapsible>
+          )}
         </section>
 
-        {/* Section 3: Market News - Collapsible */}
+        {/* Section 3: Market News */}
         <section className="container px-4 sm:px-6 py-4 sm:py-8">
-          <Collapsible open={showNews} onOpenChange={setShowNews}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
-                <span className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-primary" />
-                  Market News
-                </span>
-                <ChevronDown className={cn(
-                  "w-4 h-4 transition-transform",
-                  showNews && "rotate-180"
-                )} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
+          {isMobile ? (
+            <MobileBottomSheet
+              trigger="Market News"
+              title="Market News"
+              icon={Wallet}
+            >
               <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
                 <CryptoNews />
               </Suspense>
-            </CollapsibleContent>
-          </Collapsible>
+            </MobileBottomSheet>
+          ) : (
+            <DesktopCollapsible
+              trigger="Market News"
+              isOpen={showNews}
+              onOpenChange={setShowNews}
+              icon={Wallet}
+            >
+              <div className="pt-2">
+                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                  <CryptoNews />
+                </Suspense>
+              </div>
+            </DesktopCollapsible>
+          )}
         </section>
 
-        {/* Section 4: Transaction Tracker - Collapsible (Instant mode only) */}
+        {/* Section 4: Transaction Tracker - Instant mode only */}
         {isInstantMode && (
           <section className="container px-4 sm:px-6 py-4 sm:py-8">
-            <Collapsible open={showTracker} onOpenChange={setShowTracker}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
-                  <span className="flex items-center gap-2">
-                    <Search className="w-4 h-4 text-primary" />
-                    Track Transaction
-                  </span>
-                  <ChevronDown className={cn(
-                    "w-4 h-4 transition-transform",
-                    showTracker && "rotate-180"
-                  )} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
+            {isMobile ? (
+              <MobileBottomSheet
+                trigger="Track Transaction"
+                title="Track Transaction"
+                icon={Search}
+              >
                 <Suspense fallback={<TransactionTrackerSkeleton />}>
                   <TransactionTracker />
                 </Suspense>
-              </CollapsibleContent>
-            </Collapsible>
+              </MobileBottomSheet>
+            ) : (
+              <DesktopCollapsible
+                trigger="Track Transaction"
+                isOpen={showTracker}
+                onOpenChange={setShowTracker}
+                icon={Search}
+              >
+                <div className="pt-2">
+                  <Suspense fallback={<TransactionTrackerSkeleton />}>
+                    <TransactionTracker />
+                  </Suspense>
+                </div>
+              </DesktopCollapsible>
+            )}
           </section>
         )}
 
-        {/* Section 5: How It Works - Mode Aware Collapsible */}
+        {/* Section 5: How It Works - Mode Aware */}
         <section className="container px-4 sm:px-6 py-4 sm:py-8">
-          <Collapsible open={showHowItWorks} onOpenChange={setShowHowItWorks} key={isInstantMode ? 'instant' : 'dex'}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between h-11 glass-subtle mb-2">
-                <span className="flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4 text-primary" />
-                  How {isInstantMode ? 'Instant Exchange' : 'DEX Aggregator'} Works
-                </span>
-                <ChevronDown className={cn(
-                  "w-4 h-4 transition-transform",
-                  showHowItWorks && "rotate-180"
-                )} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
+          {isMobile ? (
+            <MobileBottomSheet
+              trigger={`How ${isInstantMode ? 'Instant Exchange' : 'DEX Aggregator'} Works`}
+              title={`How ${isInstantMode ? 'Instant Exchange' : 'DEX Aggregator'} Works`}
+              icon={HelpCircle}
+            >
               <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
                 {isInstantMode ? <HowItWorks /> : <DexHowItWorks />}
               </Suspense>
-            </CollapsibleContent>
-          </Collapsible>
+            </MobileBottomSheet>
+          ) : (
+            <DesktopCollapsible
+              trigger={`How ${isInstantMode ? 'Instant Exchange' : 'DEX Aggregator'} Works`}
+              isOpen={showHowItWorks}
+              onOpenChange={setShowHowItWorks}
+              icon={HelpCircle}
+            >
+              <div className="pt-2">
+                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                  {isInstantMode ? <HowItWorks /> : <DexHowItWorks />}
+                </Suspense>
+              </div>
+            </DesktopCollapsible>
+          )}
         </section>
       </main>
     </AppLayout>
