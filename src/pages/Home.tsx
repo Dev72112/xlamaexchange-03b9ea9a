@@ -57,7 +57,7 @@ const stats = [
   { value: "25+", label: "Chains Supported" },
   { value: "400+", label: "DEXs Aggregated" },
   { value: "900+", label: "Tokens Available" },
-  { value: "0%", label: "Platform Fees" }
+  { value: "Low", label: "Trading Fees" }
 ];
 
 // Trust badges
