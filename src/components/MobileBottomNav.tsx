@@ -71,6 +71,7 @@ const moreItems = [
   { path: "/analytics", icon: BarChart3, label: "Analytics" },
   { path: "/history", icon: History, label: "History" },
   { path: "/tools", icon: Wrench, label: "Tools" },
+  { path: "/compare", icon: BarChart3, label: "Compare" },
   { path: "/docs", icon: FileText, label: "Docs" },
   { path: "/faq", icon: HelpCircle, label: "FAQ" },
   { path: "/feedback", icon: MessageSquare, label: "Feedback" },

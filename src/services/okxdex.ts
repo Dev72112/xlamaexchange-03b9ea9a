@@ -437,15 +437,27 @@ class OkxDexService {
   // ========== Balance API (v6) ==========
   async getWalletBalances(address: string, chains: string, excludeRiskToken: boolean = true): Promise<WalletTokenBalance[]> {
     try {
+      // Filter out HyperEVM (999) which isn't supported by balance API
+      const chainList = chains.split(',').filter(c => c !== '999');
+      const chainsToFetch = chainList.join(',');
+      
+      if (!chainsToFetch) return [];
+      
       const result = await this.callApi<{ tokenAssets: WalletTokenBalance[] }[]>('wallet-balances', {
         address,
-        chains,
+        chains: chainsToFetch,
         excludeRiskToken: excludeRiskToken ? '0' : '1',
       });
       
-      // v6 API returns nested structure
-      if (Array.isArray(result) && result[0]?.tokenAssets) {
-        return result[0].tokenAssets;
+      // v6 API returns array of chain results - aggregate all tokenAssets
+      if (Array.isArray(result)) {
+        const allTokens: WalletTokenBalance[] = [];
+        for (const chainResult of result) {
+          if (chainResult?.tokenAssets && Array.isArray(chainResult.tokenAssets)) {
+            allTokens.push(...chainResult.tokenAssets);
+          }
+        }
+        return allTokens;
       }
       return [];
     } catch (err) {
