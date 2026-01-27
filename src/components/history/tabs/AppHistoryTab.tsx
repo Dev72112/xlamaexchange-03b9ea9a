@@ -1,6 +1,7 @@
 /**
  * App History Tab
  * Local transaction history from DEX, Bridge, and Instant exchange contexts
+ * Features: Search, filtering, pagination, export, and swipe gestures
  */
 
 import { memo, useState, useMemo, useCallback } from 'react';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
   Trash2,
@@ -20,14 +22,16 @@ import {
   Layers,
   Zap,
   LayoutList,
+  Download,
 } from 'lucide-react';
 import { useTransactionHistory } from '@/shared/hooks';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
 import { useBridgeTransactions } from '@/contexts/BridgeTransactionContext';
 import { UnifiedTransactionCard, UnifiedTransaction, InstantTabContent } from '@/components/history';
 import { getChainByIndex, getExplorerTxUrl } from '@/data/chains';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -165,6 +169,36 @@ export const AppHistoryTab = memo(function AppHistoryTab() {
     setCurrentPage(1);
   }, []);
 
+  const handleExportCSV = useCallback(() => {
+    if (filteredTransactions.length === 0) {
+      toast.error('No transactions to export');
+      return;
+    }
+    
+    const csvContent = [
+      ['Date', 'Type', 'From', 'To', 'From Amount', 'To Amount', 'Status', 'Chain'].join(','),
+      ...filteredTransactions.map(tx => [
+        format(tx.timestamp, 'yyyy-MM-dd HH:mm:ss'),
+        tx.type,
+        tx.fromSymbol,
+        tx.toSymbol,
+        tx.fromAmount,
+        tx.toAmount || '',
+        tx.status,
+        tx.chainName || tx.bridgeFromChain || '',
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transaction-history-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('History exported');
+  }, [filteredTransactions]);
+
   const totalCount = instantTxs.length + dexTxs.length + bridgeTxs.length;
 
   return (
@@ -190,10 +224,22 @@ export const AppHistoryTab = memo(function AppHistoryTab() {
             </Button>
           )}
         </div>
-        <Badge variant="secondary" className="text-xs">
-          <LayoutList className="w-3 h-3 mr-1" />
-          {totalCount} transactions
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-9 gap-1.5"
+            onClick={handleExportCSV}
+            disabled={totalCount === 0}
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+          <Badge variant="secondary" className="text-xs h-6">
+            <LayoutList className="w-3 h-3 mr-1" />
+            {totalCount}
+          </Badge>
+        </div>
       </div>
 
       {/* Sub-tabs for transaction types */}

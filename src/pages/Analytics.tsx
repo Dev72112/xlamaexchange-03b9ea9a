@@ -2,13 +2,14 @@ import { memo, Suspense, lazy } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Zap, Layers, LineChart, Wallet } from 'lucide-react';
+import { BarChart3, Zap, Layers, LineChart } from 'lucide-react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { MultiWalletButton } from '@/features/wallet';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
 import { AnalyticsSkeleton } from '@/components/skeletons';
 import { useTabPersistence } from '@/hooks/useTabPersistence';
+import { SwipeableTabs, TabItem } from '@/components/ui/swipeable-tabs';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Lazy load tab components
 const OkxAnalyticsTab = lazy(() => import('@/components/analytics/tabs/OkxAnalyticsTab'));
@@ -22,9 +23,60 @@ const analyticsFeatures = [
   { icon: BarChart3, title: "Trading Patterns", description: "Discover when you trade the most." },
 ];
 
+const tabContentVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0, 0, 0.2, 1] as const } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
+};
+
 const Analytics = memo(function Analytics() {
   const { isConnected } = useMultiWallet();
   const [activeTab, setActiveTab] = useTabPersistence('analytics', 'okx');
+
+  const tabs: TabItem[] = [
+    {
+      value: 'okx',
+      label: 'OKX',
+      icon: <Zap className="w-3.5 h-3.5" />,
+      content: (
+        <AnimatePresence mode="wait">
+          <motion.div key="okx" variants={tabContentVariants} initial="initial" animate="animate" exit="exit">
+            <Suspense fallback={<AnalyticsSkeleton />}>
+              <OkxAnalyticsTab />
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
+      ),
+    },
+    {
+      value: 'zerion',
+      label: 'Zerion',
+      icon: <Layers className="w-3.5 h-3.5" />,
+      content: (
+        <AnimatePresence mode="wait">
+          <motion.div key="zerion" variants={tabContentVariants} initial="initial" animate="animate" exit="exit">
+            <Suspense fallback={<AnalyticsSkeleton />}>
+              <ZerionAnalyticsTab />
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
+      ),
+    },
+    {
+      value: 'xlama',
+      label: 'xLama',
+      icon: <LineChart className="w-3.5 h-3.5" />,
+      content: (
+        <AnimatePresence mode="wait">
+          <motion.div key="xlama" variants={tabContentVariants} initial="initial" animate="animate" exit="exit">
+            <Suspense fallback={<AnalyticsSkeleton />}>
+              <XlamaAnalyticsTab />
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
+      ),
+    },
+  ];
 
   return (
     <AppLayout>
@@ -41,7 +93,12 @@ const Analytics = memo(function Analytics() {
         </div>
 
         {/* Header */}
-        <div className="text-center mb-8 sm:mb-10">
+        <motion.div 
+          className="text-center mb-8 sm:mb-10"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
             <BarChart3 className="w-4 h-4" />
             <span>Trading Analytics</span>
@@ -50,10 +107,15 @@ const Analytics = memo(function Analytics() {
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
             Track your trading performance and patterns across all chains
           </p>
-        </div>
+        </motion.div>
 
         {!isConnected ? (
-          <div className="max-w-xl mx-auto">
+          <motion.div 
+            className="max-w-xl mx-auto"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
             <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
               <CardContent className="pt-8 pb-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
@@ -69,52 +131,39 @@ const Analytics = memo(function Analytics() {
                   <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
                   <div className="grid grid-cols-2 gap-4">
                     {analyticsFeatures.map((feature, index) => (
-                      <div key={feature.title} className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`} style={getStaggerStyle(index, 80)}>
+                      <motion.div 
+                        key={feature.title} 
+                        className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`} 
+                        style={getStaggerStyle(index, 80)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
                         <feature.icon className="w-5 h-5 text-primary mb-2" />
                         <p className="text-sm font-medium">{feature.title}</p>
                         <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full grid grid-cols-3 h-10 mb-6">
-              <TabsTrigger value="okx" className="gap-1.5 text-xs">
-                <Zap className="w-3.5 h-3.5" />
-                OKX
-              </TabsTrigger>
-              <TabsTrigger value="zerion" className="gap-1.5 text-xs">
-                <Layers className="w-3.5 h-3.5" />
-                Zerion
-              </TabsTrigger>
-              <TabsTrigger value="xlama" className="gap-1.5 text-xs">
-                <LineChart className="w-3.5 h-3.5" />
-                xLama
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="okx" className="mt-0">
-              <Suspense fallback={<AnalyticsSkeleton />}>
-                <OkxAnalyticsTab />
-              </Suspense>
-            </TabsContent>
-
-            <TabsContent value="zerion" className="mt-0">
-              <Suspense fallback={<AnalyticsSkeleton />}>
-                <ZerionAnalyticsTab />
-              </Suspense>
-            </TabsContent>
-
-            <TabsContent value="xlama" className="mt-0">
-              <Suspense fallback={<AnalyticsSkeleton />}>
-                <XlamaAnalyticsTab />
-              </Suspense>
-            </TabsContent>
-          </Tabs>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <SwipeableTabs
+              tabs={tabs}
+              value={activeTab}
+              onValueChange={setActiveTab}
+              listClassName="grid grid-cols-3 h-10 mb-6"
+              triggerClassName="gap-1.5 text-xs"
+              showSwipeHint
+              swipeHintKey="analytics"
+            />
+          </motion.div>
         )}
       </div>
     </AppLayout>
