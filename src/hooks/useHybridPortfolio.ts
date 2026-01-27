@@ -28,7 +28,7 @@ export interface UseHybridPortfolioResult {
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
-  activeSource: 'zerion' | 'okx' | 'hybrid';
+  activeSource: 'zerion' | 'okx' | 'hybrid' | 'xlama';
 }
 
 export function useHybridPortfolio(): UseHybridPortfolioResult {

@@ -14,3 +14,8 @@ export { useTradeVsHodl, type WalletHolding } from '@/hooks/useTradeVsHodl';
 // Price analytics
 export { usePricePrediction } from '@/hooks/usePricePrediction';
 export { useWebSocketPrice } from '@/hooks/useWebSocketPrice';
+
+// xLama Analytics API
+export { useXlamaPortfolio } from '@/hooks/useXlamaPortfolio';
+export { useXlamaAnalytics, type AnalyticsPeriod } from '@/hooks/useXlamaAnalytics';
+export { useXlamaTransactions, useXlamaTransactionsPaginated } from '@/hooks/useXlamaTransactions';

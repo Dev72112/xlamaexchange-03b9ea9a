@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.execute-orders]
 verify_jwt = false
+
+[functions.xlama-api]
+verify_jwt = false
+
+[functions.zerion]
+verify_jwt = false
