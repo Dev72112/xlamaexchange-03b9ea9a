@@ -12,26 +12,11 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
-  TrendingUp, 
-  TrendingDown, 
   Activity, 
-  BarChart3,
-  Wallet,
-  History,
-  Zap,
-  ArrowUpRight,
-  ArrowDownRight,
   RefreshCw,
-  Calculator,
-  ArrowDownToLine,
   AlertTriangle,
   Shield,
-  LineChart,
-  ListOrdered,
-  Layers,
 } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -41,31 +26,25 @@ import { useHyperliquidWebSocket } from "@/hooks/useHyperliquidWebSocket";
 import { useHyperliquidTrading } from "@/hooks/useHyperliquidTrading";
 import { useHyperliquidFills } from "@/hooks/useHyperliquidFills";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useSwipeGesture } from "@/hooks/useSwipeGesture";
-import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { 
-  HyperliquidTradeForm, 
-  HyperliquidOrderbook, 
-  FundingRateChart,
-  MobileTradePanel,
-  PositionManager,
-  PnLCalculator,
   BuilderFeeApproval,
   TradeConfirmModal,
   NetworkToggle,
   PerpetualsOnboarding,
-  CandlestickChart,
-  TradeHistory,
   HyperliquidDepositWithdraw,
-  MarketSelector,
 } from "@/components/perpetuals";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SwipeHint } from "@/components/ui/swipe-hint";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 // Extracted components
-import { AccountStatsRow, DisconnectedState, WrongNetworkState } from "./Perpetuals/components";
+import { 
+  AccountStatsRow, 
+  DisconnectedState, 
+  WrongNetworkState,
+  MobileTradingUI,
+  DesktopTradingUI,
+} from "./Perpetuals/components";
 
 const POPULAR_PAIRS = ['BTC', 'ETH', 'SOL', 'ARB', 'AVAX', 'MATIC', 'DOGE', 'LINK', 'BNB', 'XRP', 'ADA', 'DOT', 'NEAR', 'APT', 'SUI', 'OP'];
 const PLATFORM_FEE_PERCENT = '0.01%';
@@ -200,32 +179,6 @@ const Perpetuals = memo(function Perpetuals() {
   const [showTradeConfirm, setShowTradeConfirm] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<any>(null);
   const [retryKey, setRetryKey] = useState(0);
-  
-  // Mobile tab order for swipe navigation
-  const tabOrder = ['chart', 'trade', 'positions', 'orders'] as const;
-  const { trigger: hapticTrigger } = useHapticFeedback();
-  
-  // Swipe handlers for mobile tab navigation with haptic feedback
-  const handleSwipeLeft = useCallback(() => {
-    const currentIndex = tabOrder.indexOf(activeTab as typeof tabOrder[number]);
-    if (currentIndex < tabOrder.length - 1) {
-      hapticTrigger('light');
-      setActiveTab(tabOrder[currentIndex + 1]);
-    }
-  }, [activeTab, hapticTrigger]);
-  
-  const handleSwipeRight = useCallback(() => {
-    const currentIndex = tabOrder.indexOf(activeTab as typeof tabOrder[number]);
-    if (currentIndex > 0) {
-      hapticTrigger('light');
-      setActiveTab(tabOrder[currentIndex - 1]);
-    }
-  }, [activeTab, hapticTrigger]);
-  
-  const { handlers: swipeHandlers } = useSwipeGesture(handleSwipeLeft, handleSwipeRight, {
-    threshold: 50,
-    restraint: 100,
-  });
 
   // Real-time price updates via WebSocket - disabled in safe mode
   const wsResult = useHyperliquidWebSocket(safeMode ? [] : POPULAR_PAIRS);
@@ -394,397 +347,6 @@ const Perpetuals = memo(function Perpetuals() {
     };
   }, [pendingOrder, selectedPair, currentPrice]);
 
-  // Mobile-optimized trading UI
-  const MobileTradingUI = (
-    <div className="space-y-3 pt-2">
-      {/* Market Selector */}
-      <MarketSelector
-        selectedPair={selectedPair}
-        onSelectPair={setSelectedPair}
-        currentPrices={currentPrices}
-        className="glass-subtle"
-      />
-
-      {/* Account Stats - Horizontal Scroll */}
-      <ScrollArea className="w-full -mx-4 px-4">
-        <div className="flex gap-2 pb-2">
-          <Card className="glass-subtle border-border/30 min-w-[120px] flex-shrink-0">
-            <CardContent className="p-2.5">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
-                <Wallet className="w-3 h-3" />
-                Equity
-              </div>
-              <p className="text-sm font-bold">{formatUsd(totalEquity)}</p>
-            </CardContent>
-          </Card>
-          <Card className="glass-subtle border-border/30 min-w-[120px] flex-shrink-0">
-            <CardContent className="p-2.5">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
-                <TrendingUp className="w-3 h-3" />
-                Available
-              </div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-sm font-bold">{formatUsd(availableMargin)}</p>
-                <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setShowDepositModal(true)}>
-                  <ArrowDownToLine className="w-3 h-3" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className={cn(
-            "glass-subtle border-border/30 min-w-[120px] flex-shrink-0",
-            realtimePnl >= 0 ? "border-success/20" : "border-destructive/20"
-          )}>
-            <CardContent className="p-2.5">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
-                {realtimePnl >= 0 ? <ArrowUpRight className="w-3 h-3 text-success" /> : <ArrowDownRight className="w-3 h-3 text-destructive" />}
-                PnL
-              </div>
-              <p className={cn("text-sm font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
-                {realtimePnl >= 0 ? '+' : ''}{formatUsd(realtimePnl)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="glass-subtle border-border/30 min-w-[80px] flex-shrink-0">
-            <CardContent className="p-2.5">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
-                <BarChart3 className="w-3 h-3" />
-                Pos
-              </div>
-              <p className="text-sm font-bold">{positions.length}</p>
-            </CardContent>
-          </Card>
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
-
-      {/* Mobile Tabs - Compact with swipe support */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-9">
-          <TabsTrigger value="chart" className="gap-1 text-xs px-1">
-            <LineChart className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Chart</span>
-          </TabsTrigger>
-          <TabsTrigger value="trade" className="gap-1 text-xs px-1">
-            <Activity className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Trade</span>
-          </TabsTrigger>
-          <TabsTrigger value="positions" className="gap-1 text-xs px-1">
-            <Layers className="w-3.5 h-3.5" />
-            {positions.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[9px]">{positions.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="orders" className="gap-1 text-xs px-1">
-            <ListOrdered className="w-3.5 h-3.5" />
-            {openOrders.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[9px]">{openOrders.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Swipe hint for first-time users */}
-        <SwipeHint hintKey="perpetuals" />
-
-        {/* Swipeable content area */}
-        <div {...swipeHandlers} className="touch-pan-y">
-          <TabsContent value="chart" className="mt-3 space-y-4">
-            {!safeMode ? (
-              <div className="space-y-4">
-                {/* Chart container - explicit bounds to prevent overlap */}
-                <div className="relative z-10 overflow-hidden rounded-lg">
-                  <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
-                </div>
-                
-                {/* Funding card - below chart with explicit z-index */}
-                <div className="relative z-0">
-                  <FundingRateChart coin={selectedPair} />
-                </div>
-              </div>
-            ) : (
-              <Card className="glass border-border/50">
-                <CardContent className="py-6 text-center text-muted-foreground">
-                  <Shield className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                  <p className="text-xs">Chart disabled in Safe Mode</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="trade" className="mt-3 space-y-3">
-            <HyperliquidTradeForm 
-              coin={selectedPair} 
-              currentPrice={currentPrice} 
-              availableMargin={availableMargin} 
-              onTrade={handleTrade} 
-            />
-
-            {!safeMode && (
-              <details open className="group glass-subtle rounded-lg border border-border/50">
-                <summary className="list-none cursor-pointer select-none px-3 py-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">Orderbook</span>
-                  <Badge variant="secondary" className="text-[10px] font-mono">{selectedPair}</Badge>
-                </summary>
-                <div className="px-3 pb-3">
-                  <Card className="glass border-border/50">
-                    <CardContent className="pt-3">
-                      <ScrollArea className="h-[200px] pr-2">
-                        <HyperliquidOrderbook
-                          orderbook={orderbook}
-                          isLoading={orderbookLoading}
-                          currentPrice={currentPrice}
-                        />
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </div>
-              </details>
-            )}
-          </TabsContent>
-
-          <TabsContent value="positions" className="mt-3">
-            <PositionManager 
-              positions={positions} 
-              currentPrices={currentPrices} 
-              onClosePosition={handleClosePosition} 
-              onModifySLTP={handleModifySLTP} 
-              onAddMargin={handleAddMargin} 
-            />
-          </TabsContent>
-
-          <TabsContent value="orders" className="mt-3">
-            {openOrders.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-xs">No open orders</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {openOrders.map((order: any, i: number) => (
-                  <div key={i} className="p-2.5 rounded-lg border bg-secondary/30 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-medium">{order.coin}-PERP</span>
-                      <Badge variant="outline" className="ml-1.5 text-[10px]">{order.side}</Badge>
-                    </div>
-                    <div className="text-right font-mono">
-                      <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
-                      <p className="text-[10px] text-muted-foreground">{order.sz}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </div>
-      </Tabs>
-    </div>
-  );
-
-  // Desktop trading UI
-  const DesktopTradingUI = (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Safe Mode Banner */}
-      {safeMode && (
-        <Card className="glass border-warning/20 bg-warning/5">
-          <CardContent className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm">
-              <Shield className="w-4 h-4 text-warning" />
-              <span className="text-warning font-medium">Safe Mode Active</span>
-              <span className="text-muted-foreground">- Charts and WebSocket disabled</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleExitSafeMode}>
-              Exit Safe Mode
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Network Toggle & Refresh */}
-      <div className="flex items-center justify-between">
-        <NetworkToggle isTestnet={isTestnet} onToggle={setIsTestnet} />
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Onboarding Checklist */}
-      {(!hasDeposit || !isBuilderApproved) && (
-        <PerpetualsOnboarding
-          isWalletConnected={isConnected}
-          hasDeposit={hasDeposit}
-          isBuilderApproved={isBuilderApproved}
-          isTestnet={isTestnet}
-          onApproveBuilder={() => setShowBuilderApproval(true)}
-          builderApprovalLoading={builderApprovalLoading}
-        />
-      )}
-
-      {/* Account Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass border-border/50 hover-lift">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Equity</span>
-            </div>
-            <p className="text-lg font-bold">{formatUsd(totalEquity)}</p>
-          </CardContent>
-        </Card>
-        <Card className="glass border-border/50 hover-lift">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Available</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-lg font-bold">{formatUsd(availableMargin)}</p>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowDepositModal(true)}>
-                <ArrowDownToLine className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="glass border-border/50 hover-lift">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <BarChart3 className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Positions</span>
-            </div>
-            <p className="text-lg font-bold">{positions.length}</p>
-          </CardContent>
-        </Card>
-        <Card className={cn("glass border-border/50 hover-lift", realtimePnl >= 0 ? "border-success/20" : "border-destructive/20")}>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              {realtimePnl >= 0 ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-destructive" />}
-              <span className="text-xs text-muted-foreground">Unrealized PnL</span>
-              {!safeMode && <Badge variant="outline" className="text-[10px] px-1 py-0">LIVE</Badge>}
-            </div>
-            <p className={cn("text-lg font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
-              {realtimePnl >= 0 ? '+' : ''}{formatUsd(realtimePnl)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Market Selector */}
-      <MarketSelector
-        selectedPair={selectedPair}
-        onSelectPair={setSelectedPair}
-        currentPrices={currentPrices}
-        className="glow-sm"
-      />
-
-      {/* Candlestick Chart */}
-      {!safeMode && (
-        <CandlestickChart coin={selectedPair} currentPrice={currentPrice} className="glow-sm" />
-      )}
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card className="glass border-border/50 h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  {selectedPair}-PERP
-                </span>
-                <Badge variant="outline" className="font-mono">${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="trade">Trade</TabsTrigger>
-                  <TabsTrigger value="positions">Positions {positions.length > 0 && `(${positions.length})`}</TabsTrigger>
-                  <TabsTrigger value="orders">Orders {openOrders.length > 0 && `(${openOrders.length})`}</TabsTrigger>
-                  <TabsTrigger value="history">History</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="trade" className="mt-4">
-                  <HyperliquidTradeForm coin={selectedPair} currentPrice={currentPrice} availableMargin={availableMargin} onTrade={handleTrade} />
-                </TabsContent>
-                <TabsContent value="positions" className="mt-4">
-                  <PositionManager positions={positions} currentPrices={currentPrices} onClosePosition={handleClosePosition} onModifySLTP={handleModifySLTP} onAddMargin={handleAddMargin} />
-                </TabsContent>
-                <TabsContent value="orders" className="mt-4">
-                  {openOrders.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <History className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">No open orders</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {openOrders.map((order: any, i: number) => (
-                        <div key={i} className="p-3 rounded-lg border bg-secondary/30 flex items-center justify-between text-sm">
-                          <div>
-                            <span className="font-medium">{order.coin}-PERP</span>
-                            <Badge variant="outline" className="ml-2 text-xs">{order.side}</Badge>
-                          </div>
-                          <div className="text-right font-mono">
-                            <p>${parseFloat(order.limitPx || 0).toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">{order.sz}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-                <TabsContent value="history" className="mt-4">
-                  <TradeHistory trades={fills} isLoading={fillsLoading} />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <div className="flex gap-2">
-            <Button variant={!showCalculator ? "default" : "outline"} size="sm" className="flex-1 gap-2" onClick={() => setShowCalculator(false)}>
-              <BarChart3 className="w-4 h-4" />Orderbook
-            </Button>
-            <Button variant={showCalculator ? "default" : "outline"} size="sm" className="flex-1 gap-2" onClick={() => setShowCalculator(true)}>
-              <Calculator className="w-4 h-4" />Calculator
-            </Button>
-          </div>
-
-          {showCalculator ? (
-            <PnLCalculator coin={selectedPair} currentPrice={currentPrice} />
-          ) : (
-            <>
-              {!safeMode && (
-                <>
-                  <Card className="glass border-border/50">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center justify-between">
-                        Orderbook
-                        <Badge variant="outline" className="text-xs font-mono">{selectedPair}</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <HyperliquidOrderbook orderbook={orderbook} isLoading={orderbookLoading} currentPrice={currentPrice} />
-                    </CardContent>
-                  </Card>
-                  <FundingRateChart coin={selectedPair} />
-                </>
-              )}
-              {safeMode && (
-                <Card className="glass border-border/50">
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Orderbook disabled in Safe Mode</p>
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile Trade Panel */}
-      {!safeMode && (
-        <MobileTradePanel coin={selectedPair} currentPrice={currentPrice} availableMargin={availableMargin} onTrade={handleTrade} />
-      )}
-    </div>
-  );
-
   // Connected trading UI - choose based on device
   const ConnectedTradingUI = (
     <>
@@ -827,7 +389,62 @@ const Perpetuals = memo(function Perpetuals() {
         </div>
       )}
 
-      {isMobile ? MobileTradingUI : DesktopTradingUI}
+      {isMobile ? (
+        <MobileTradingUI
+          selectedPair={selectedPair}
+          onSelectPair={setSelectedPair}
+          currentPrices={currentPrices}
+          currentPrice={currentPrice}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          totalEquity={totalEquity}
+          availableMargin={availableMargin}
+          realtimePnl={realtimePnl}
+          positions={positions}
+          openOrders={openOrders}
+          orderbook={orderbook}
+          orderbookLoading={orderbookLoading}
+          safeMode={safeMode}
+          onTrade={handleTrade}
+          onClosePosition={handleClosePosition}
+          onModifySLTP={handleModifySLTP}
+          onAddMargin={handleAddMargin}
+          onShowDeposit={() => setShowDepositModal(true)}
+        />
+      ) : (
+        <DesktopTradingUI
+          selectedPair={selectedPair}
+          onSelectPair={setSelectedPair}
+          currentPrices={currentPrices}
+          currentPrice={currentPrice}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          totalEquity={totalEquity}
+          availableMargin={availableMargin}
+          realtimePnl={realtimePnl}
+          positions={positions}
+          openOrders={openOrders}
+          fills={fills}
+          fillsLoading={fillsLoading}
+          orderbook={orderbook}
+          orderbookLoading={orderbookLoading}
+          safeMode={safeMode}
+          isTestnet={isTestnet}
+          onTestnetToggle={setIsTestnet}
+          isBuilderApproved={isBuilderApproved}
+          builderApprovalLoading={builderApprovalLoading}
+          hasDeposit={hasDeposit}
+          isConnected={isConnected}
+          onTrade={handleTrade}
+          onClosePosition={handleClosePosition}
+          onModifySLTP={handleModifySLTP}
+          onAddMargin={handleAddMargin}
+          onShowDeposit={() => setShowDepositModal(true)}
+          onShowBuilderApproval={() => setShowBuilderApproval(true)}
+          onRefresh={handleRefresh}
+          onExitSafeMode={handleExitSafeMode}
+        />
+      )}
     </>
   );
 
