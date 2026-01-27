@@ -1,8 +1,5 @@
 /**
  * Analytics Feature Components - Barrel Export
- * 
- * Note: Components are re-exported from their original locations
- * for backwards compatibility during migration
  */
 
 // Analytics components
@@ -12,6 +9,9 @@ export { TokenPnLChart } from '@/components/analytics/TokenPnLChart';
 export { WalletHoldings } from '@/components/analytics/WalletHoldings';
 export { ProtocolBreakdown } from '@/components/analytics/ProtocolBreakdown';
 export { FeeAnalysis } from '@/components/analytics/FeeAnalysis';
+
+// Tab components
+export { OkxAnalyticsTab, ZerionAnalyticsTab, XlamaAnalyticsTab } from '@/components/analytics/tabs';
 
 // Related analytics components
 export { GasEstimator } from '@/components/GasEstimator';

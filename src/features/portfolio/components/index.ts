@@ -1,8 +1,5 @@
 /**
  * Portfolio Feature Components - Barrel Export
- * 
- * Note: Components are re-exported from their original locations
- * for backwards compatibility during migration
  */
 
 // Portfolio overview components
@@ -16,6 +13,9 @@ export { PortfolioHoldingsTable } from '@/components/portfolio/PortfolioHoldings
 export { PortfolioSummaryCard } from '@/components/portfolio/PortfolioSummaryCard';
 export { DeFiPositions } from '@/components/portfolio/DeFiPositions';
 export { NFTGallery } from '@/components/portfolio/NFTGallery';
+
+// Tab components
+export { OkxPortfolioTab, ZerionPortfolioTab, XlamaPortfolioTab } from '@/components/portfolio/tabs';
 
 // Watchlist
 export { TokenWatchlist } from '@/components/TokenWatchlist';

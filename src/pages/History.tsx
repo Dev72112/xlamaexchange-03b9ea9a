@@ -1,384 +1,30 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { memo, Suspense, lazy } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Helmet } from "react-helmet-async";
-import { useTransactionHistory } from "@/shared/hooks";
-import { useDexTransactions } from "@/contexts/DexTransactionContext";
-import { useBridgeTransactions, BridgeStatus, BridgeTransaction } from "@/contexts/BridgeTransactionContext";
-import { useBridgeStatusPolling } from "@/features/bridge";
-import { useMultiWallet } from "@/contexts/MultiWalletContext";
-import { useExchangeMode } from "@/contexts/ExchangeModeContext";
-import { useDataSource } from "@/contexts/DataSourceContext";
-import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";
-import { useXlamaTransactions } from "@/hooks/useXlamaTransactions";
-import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList, Search, Filter, X, Calendar, ChevronLeft, ChevronRight, Zap, LineChart } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { UnifiedChainSelector, ChainFilterValue } from "@/components/ui/UnifiedChainSelector";
-import { UnifiedTransactionCard, UnifiedTransaction, InstantTabContent, OnchainTabContent } from "@/components/history";
-import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
-import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
+import { Clock, LayoutList, Link2, LineChart, Wallet } from "lucide-react";
+import { useMultiWallet } from "@/contexts/MultiWalletContext";
+import { MultiWalletButton } from "@/features/wallet";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
-import { getEvmChains, getChainByIndex, getExplorerTxUrl } from "@/data/chains";
-import { useSwipeGesture } from "@/hooks/useSwipeGesture";
-import { useHapticFeedback } from "@/hooks/useHapticFeedback";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { SwipeHint } from "@/components/ui/swipe-hint";
-import { DataSourceToggle } from "@/components/ui/DataSourceToggle";
-import { XlamaSyncStatus } from "@/components/XlamaSyncStatus";
+import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 
-const ITEMS_PER_PAGE = 20;
+// Lazy load tab components
+const AppHistoryTab = lazy(() => import("@/components/history/tabs/AppHistoryTab"));
+const OnchainHistoryTab = lazy(() => import("@/components/history/tabs/OnchainHistoryTab"));
+const XlamaHistoryTab = lazy(() => import("@/components/history/tabs/XlamaHistoryTab"));
 
-// Use the shared UnifiedTransaction type from the component
-// Local type alias for compatibility
-type LocalUnifiedTransaction = UnifiedTransaction;
+const historyFeatures = [
+  { icon: LayoutList, title: "App History", description: "Local DEX swaps, bridges, and instant exchanges." },
+  { icon: Link2, title: "On-Chain", description: "Transaction history from OKX API." },
+  { icon: LineChart, title: "xLama", description: "Unified transaction feed with analytics." },
+  { icon: Clock, title: "Real-time", description: "Track pending and completed transactions." },
+];
 
-const TAB_ORDER: ('all' | 'instant' | 'dex' | 'bridge' | 'onchain')[] = ['all', 'instant', 'dex', 'bridge', 'onchain'];
-
-const History = () => {
-  const { transactions, removeTransaction, clearHistory } = useTransactionHistory();
-  const { transactions: dexTransactions, clearHistory: clearDexHistory } = useDexTransactions();
-  const { transactions: bridgeTransactions, removeTransaction: removeBridgeTx, clearHistory: clearBridgeHistory, pendingCount: bridgePendingCount } = useBridgeTransactions();
-  const { pollTransaction } = useBridgeStatusPolling();
-  const { 
-    isConnected, 
-    activeAddress,
-    isOkxConnected,
-    evmAddress,
-    solanaAddress,
-    tronAddress,
-    suiAddress,
-    tonAddress 
-  } = useMultiWallet();
-  const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
-  const { isXlamaEnabled } = useDataSource();
-  const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const { trigger: triggerHaptic } = useHapticFeedback();
-  
-  // xLama transactions (when xLama source is selected)
-  const xlamaTransactions = useXlamaTransactions({ enabled: isXlamaEnabled });
-  
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'instant' | 'dex' | 'bridge' | 'onchain'>('all');
-  
-  // Filtering state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'instant' | 'dex' | 'bridge'>('all');
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [showFilters, setShowFilters] = useState(false);
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  
-  // On-chain history state
-  const [onchainHistory, setOnchainHistory] = useState<TransactionHistoryItem[]>([]);
-  const [onchainLoading, setOnchainLoading] = useState(false);
-  const [onchainError, setOnchainError] = useState<string | null>(null);
-  
-  // Swipe gestures for tab navigation on mobile
-  const handleSwipeLeft = useCallback(() => {
-    const currentIndex = TAB_ORDER.indexOf(activeTab);
-    if (currentIndex < TAB_ORDER.length - 1) {
-      setActiveTab(TAB_ORDER[currentIndex + 1]);
-      triggerHaptic('light');
-    }
-  }, [activeTab, triggerHaptic]);
-  
-  const handleSwipeRight = useCallback(() => {
-    const currentIndex = TAB_ORDER.indexOf(activeTab);
-    if (currentIndex > 0) {
-      setActiveTab(TAB_ORDER[currentIndex - 1]);
-      triggerHaptic('light');
-    }
-  }, [activeTab, triggerHaptic]);
-  
-  const { handlers: swipeHandlers } = useSwipeGesture(handleSwipeLeft, handleSwipeRight);
-
-  // Brief loading state for perceived performance
-  useEffect(() => {
-    const timer = setTimeout(() => setIsInitialLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Fetch on-chain history when tab is selected and wallet is connected
-  useEffect(() => {
-    const fetchOnchainHistory = async () => {
-      if (activeTab !== 'onchain' || !isConnected || !activeAddress) {
-        return;
-      }
-
-      setOnchainLoading(true);
-      setOnchainError(null);
-
-      try {
-        // Get top EVM chains for history
-        const chains = getEvmChains().slice(0, 6).map(c => c.chainIndex).join(',');
-        const result = await okxDexService.getTransactionHistory(activeAddress, chains, { limit: 20 });
-        setOnchainHistory(result.transactions);
-      } catch (err) {
-        console.error('Failed to fetch on-chain history:', err);
-        setOnchainError('Failed to load on-chain history');
-        setOnchainHistory([]);
-      } finally {
-        setOnchainLoading(false);
-      }
-    };
-
-    fetchOnchainHistory();
-  }, [activeTab, isConnected, activeAddress]);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-      case 'success':
-      case 'confirmed':
-        return (
-          <Badge variant="secondary" className="bg-success/20 text-success border-success/30">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            Completed
-          </Badge>
-        );
-      case 'failed':
-      case 'fail':
-        return (
-          <Badge variant="secondary" className="bg-destructive/20 text-destructive border-destructive/30">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Failed
-          </Badge>
-        );
-      case 'bridging':
-      case 'pending-source':
-        return (
-          <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">
-            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            Bridging
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
-            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            Pending
-          </Badge>
-        );
-    }
-  };
-
-  const getBridgeExplorerUrl = (chainId: number, txHash: string): string | null => {
-    const explorerUrls: Record<number, string> = {
-      1: 'https://etherscan.io/tx/',
-      10: 'https://optimistic.etherscan.io/tx/',
-      56: 'https://bscscan.com/tx/',
-      137: 'https://polygonscan.com/tx/',
-      42161: 'https://arbiscan.io/tx/',
-      43114: 'https://snowtrace.io/tx/',
-      8453: 'https://basescan.org/tx/',
-      324: 'https://explorer.zksync.io/tx/',
-      59144: 'https://lineascan.build/tx/',
-    };
-    const base = explorerUrls[chainId];
-    return base ? `${base}${txHash}` : null;
-  };
-
-  const formatAmount = (amount: string | number) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(num)) return '0';
-    if (num >= 1000) return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-    if (num >= 1) return num.toFixed(4);
-    return num.toFixed(6);
-  };
-
-  const truncateHash = (hash: string) => {
-    if (hash.length <= 16) return hash;
-    return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
-  };
-
-  // Memoized sorted bridge transactions
-  const sortedBridgeTransactions = useMemo(() => {
-    return [...bridgeTransactions].sort((a, b) => b.startTime - a.startTime);
-  }, [bridgeTransactions]);
-
-  // Memoized DEX transactions sorted by timestamp
-  const sortedDexTransactions = useMemo(() => {
-    return [...dexTransactions].sort((a, b) => b.timestamp - a.timestamp);
-  }, [dexTransactions]);
-
-  // Unified transaction feed - merge all transaction types chronologically
-  const unifiedTransactions = useMemo((): UnifiedTransaction[] => {
-    const unified: UnifiedTransaction[] = [];
-
-    // If xLama data source is enabled, use xLama transactions
-    if (isXlamaEnabled && xlamaTransactions.transactions.length > 0) {
-      xlamaTransactions.transactions.forEach(tx => {
-        const chain = getChainByIndex(tx.chain_id);
-        unified.push({
-          id: `xlama-${tx.tx_hash}`,
-          type: tx.transaction_type === 'bridge' ? 'bridge' : 'dex',
-          timestamp: new Date(tx.timestamp).getTime(),
-          status: tx.status,
-          fromSymbol: tx.token_in?.symbol || '',
-          toSymbol: tx.token_out?.symbol || '',
-          fromAmount: tx.token_in?.amount || '0',
-          toAmount: tx.token_out?.amount || '0',
-          fromLogo: tx.token_in?.logo,
-          toLogo: tx.token_out?.logo,
-          chainName: chain?.shortName || tx.chain_name,
-          chainIcon: chain?.icon,
-          explorerUrl: undefined, // Could add explorer URL generation
-          original: tx,
-        });
-      });
-      return unified.sort((a, b) => b.timestamp - a.timestamp);
-    }
-
-    // Add instant transactions
-    transactions.forEach(tx => {
-      unified.push({
-        id: `instant-${tx.id}`,
-        type: 'instant',
-        timestamp: new Date(tx.createdAt).getTime(),
-        status: tx.status,
-        fromSymbol: tx.fromTicker,
-        toSymbol: tx.toTicker,
-        fromAmount: tx.fromAmount,
-        toAmount: tx.toAmount,
-        fromLogo: tx.fromImage,
-        toLogo: tx.toImage,
-        original: tx,
-      });
-    });
-
-    // Add DEX transactions
-    dexTransactions.forEach(tx => {
-      const chain = getChainByIndex(tx.chainId);
-      unified.push({
-        id: `dex-${tx.id}`,
-        type: 'dex',
-        timestamp: tx.timestamp,
-        status: tx.status,
-        fromSymbol: tx.fromTokenSymbol,
-        toSymbol: tx.toTokenSymbol,
-        fromAmount: String(tx.fromTokenAmount),
-        toAmount: String(tx.toTokenAmount),
-        fromLogo: tx.fromTokenLogo,
-        toLogo: tx.toTokenLogo,
-        chainName: chain?.shortName,
-        chainIcon: chain?.icon,
-        explorerUrl: tx.explorerUrl || (tx.hash ? getExplorerTxUrl(tx.chainId, tx.hash) : undefined),
-        original: tx,
-      });
-    });
-
-    // Add bridge transactions
-    bridgeTransactions.forEach(tx => {
-      const sourceExplorerUrl = tx.sourceTxHash && tx.fromChain?.chainId 
-        ? getBridgeExplorerUrl(tx.fromChain.chainId, tx.sourceTxHash) 
-        : null;
-      unified.push({
-        id: `bridge-${tx.id}`,
-        type: 'bridge',
-        timestamp: tx.startTime,
-        status: tx.status,
-        fromSymbol: tx.fromToken?.symbol || '',
-        toSymbol: tx.toToken?.symbol || '',
-        fromAmount: tx.fromAmount,
-        toAmount: tx.toAmount,
-        fromLogo: tx.fromToken?.logoURI,
-        toLogo: tx.toToken?.logoURI,
-        bridgeFromChain: tx.fromChain?.name,
-        bridgeToChain: tx.toChain?.name,
-        explorerUrl: sourceExplorerUrl || undefined,
-        original: tx,
-      });
-    });
-
-    // Sort by timestamp (newest first)
-    return unified.sort((a, b) => b.timestamp - a.timestamp);
-  }, [transactions, dexTransactions, bridgeTransactions, isXlamaEnabled, xlamaTransactions.transactions]);
-
-  // Filtered transactions based on search, type filters, and chain filter
-  const filteredTransactions = useMemo(() => {
-    const chainFilterValue = globalChainFilter === 'all-evm' ? 'all' : globalChainFilter;
-    
-    return unifiedTransactions.filter(tx => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSymbol = tx.fromSymbol.toLowerCase().includes(query) || 
-                              tx.toSymbol.toLowerCase().includes(query);
-        const matchesChain = tx.chainName?.toLowerCase().includes(query) ||
-                             tx.bridgeFromChain?.toLowerCase().includes(query) ||
-                             tx.bridgeToChain?.toLowerCase().includes(query);
-        if (!matchesSymbol && !matchesChain) return false;
-      }
-      
-      // Type filter
-      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
-      
-      // Chain filter (for DEX transactions)
-      if (chainFilterValue !== 'all' && tx.type === 'dex') {
-        const dexTx = tx.original;
-        if (dexTx?.chainId !== chainFilterValue) return false;
-      }
-      
-      // Date range filter
-      if (dateRange.from && isBefore(tx.timestamp, startOfDay(dateRange.from))) return false;
-      if (dateRange.to && isAfter(tx.timestamp, endOfDay(dateRange.to))) return false;
-      
-      return true;
-    });
-  }, [unifiedTransactions, searchQuery, typeFilter, dateRange, globalChainFilter]);
-
-  const clearFilters = useCallback(() => {
-    setSearchQuery('');
-    setTypeFilter('all');
-    setDateRange({});
-    setGlobalChainFilter('all');
-    setCurrentPage(1);
-  }, [setGlobalChainFilter]);
-
-  const hasActiveFilters = searchQuery || typeFilter !== 'all' || dateRange.from || dateRange.to || globalChainFilter !== 'all';
-
-  // Pull to refresh handler
-  const handleRefresh = useCallback(async () => {
-    // Refresh on-chain history if on that tab
-    if (activeTab === 'onchain' && isConnected && activeAddress) {
-      setOnchainLoading(true);
-      try {
-        const chains = getEvmChains().slice(0, 6).map(c => c.chainIndex).join(',');
-        const result = await okxDexService.getTransactionHistory(activeAddress, chains, { limit: 20 });
-        setOnchainHistory(result.transactions);
-      } catch (err) {
-        console.error('Refresh failed:', err);
-      } finally {
-        setOnchainLoading(false);
-      }
-    }
-  }, [activeTab, isConnected, activeAddress]);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, typeFilter, dateRange, globalChainFilter]);
-
-  // Pagination for filtered transactions
-  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
-  const paginatedTransactions = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredTransactions, currentPage]);
-
-  const totalTransactionCount = transactions.length + dexTransactions.length + bridgeTransactions.length;
+const History = memo(function History() {
+  const { isConnected } = useMultiWallet();
+  const [activeTab, setActiveTab] = useTabPersistence('history', 'app');
 
   return (
     <AppLayout>
@@ -387,593 +33,90 @@ const History = () => {
         <meta name="description" content="View your cryptocurrency exchange transaction history." />
       </Helmet>
 
-
-        <div className="container px-4 pb-12 sm:pb-16 max-w-4xl">
-          {/* Header with glass styling */}
-          <div className="mb-10 flex items-start justify-between flex-wrap gap-4">
-            <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-2xl blur-xl" />
-              <div className="relative flex items-center gap-3 mb-4">
-                <div className="p-2.5 rounded-xl glass border border-primary/20 glow-sm">
-                  <Clock className="w-6 h-6 text-primary" />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Transaction History</h1>
+      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl">
+        {/* Header */}
+        <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+          <div className="relative">
+            <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-2xl blur-xl" />
+            <div className="relative flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl glass border border-primary/20 glow-sm">
+                <Clock className="w-6 h-6 text-primary" />
               </div>
-              <p className="text-muted-foreground relative">
-                Your cryptocurrency exchanges and on-chain transactions.
-              </p>
+              <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Transaction History</h1>
             </div>
-            
-            {/* Data Source & Chain Toggle */}
-            <div className="flex items-center gap-2">
-              <DataSourceToggle compact />
-              <XlamaSyncStatus compact />
-              <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-                <Button
-                  variant={globalChainFilter === 'all' || globalChainFilter === 'all-evm' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 px-3 text-xs"
-                  onClick={() => setGlobalChainFilter('all-evm')}
-                >
-                  EVM
-                  {(globalChainFilter === 'all' || globalChainFilter === 'all-evm') && (
-                    <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
-                  )}
-                </Button>
-                <Button
-                  variant={globalChainFilter === '501' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 px-3 text-xs gap-1"
-                  onClick={() => setGlobalChainFilter('501')}
-                >
-                  <Zap className="w-3 h-3" />
-                  Solana
-                  {globalChainFilter === '501' && (
-                    <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
-                  )}
-                </Button>
-              </div>
-            </div>
+            <p className="text-muted-foreground relative">
+              Your cryptocurrency exchanges and on-chain transactions.
+            </p>
           </div>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 h-auto p-1 glass border-border/30">
-            <TabsTrigger value="all" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
-              <LayoutList className="w-4 h-4" />
-              <span className="text-[10px] sm:text-sm">All</span>
-              {totalTransactionCount > 0 && (
-                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
-                  {totalTransactionCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="instant" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
-              <ArrowRight className="w-4 h-4" />
-              <span className="text-[10px] sm:text-sm">Instant</span>
-              {transactions.length > 0 && (
-                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
-                  {transactions.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="dex" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
-              <Link2 className="w-4 h-4" />
-              <span className="text-[10px] sm:text-sm">DEX</span>
-              {dexTransactions.length > 0 && (
-                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
-                  {dexTransactions.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="bridge" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row relative">
-              <ArrowLeftRight className="w-4 h-4" />
-              <span className="text-[10px] sm:text-sm">Bridge</span>
-              {bridgeTransactions.length > 0 && (
-                <Badge variant="secondary" className="hidden sm:flex h-5 px-1.5 text-xs">
-                  {bridgeTransactions.length}
-                </Badge>
-              )}
-              {bridgePendingCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="onchain" className="gap-1 sm:gap-2 min-h-[44px] px-2 sm:px-3 flex-col sm:flex-row">
-              <Wallet className="w-4 h-4" />
-              <span className="text-[10px] sm:text-sm">Chain</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Swipe hint for first-time mobile users */}
-          <SwipeHint hintKey="history" />
-
-          {/* Tab Content with Swipe Gestures on Mobile */}
-          <div {...(isMobile ? swipeHandlers : {})}>
-          {/* Unified Timeline Tab */}
-          <TabsContent value="all" className="space-y-4">
-            {/* Search and Filters */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by token or chain..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                  {searchQuery && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                      onClick={() => setSearchQuery('')}
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  variant={showFilters ? "secondary" : "outline"}
-                  size="icon"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="shrink-0"
-                >
-                  <Filter className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              {showFilters && (
-                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
-                  {/* Chain Filter */}
-                  <UnifiedChainSelector
-                    value={globalChainFilter}
-                    onChange={(value) => setGlobalChainFilter(value)}
-                    showAllOption={true}
-                    compact={true}
-                    triggerClassName="w-full sm:w-auto min-h-[44px]"
-                  />
-                  
-                  <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
-                    <SelectTrigger className="w-full sm:w-[130px] min-h-[44px]">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="instant">Instant</SelectItem>
-                      <SelectItem value="dex">DEX</SelectItem>
-                      <SelectItem value="bridge">Bridge</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="gap-2 min-h-[44px] w-full sm:w-auto justify-start sm:justify-center">
-                        <Calendar className="w-4 h-4" />
-                        {dateRange.from ? (
-                          dateRange.to ? (
-                            `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d')}`
-                          ) : (
-                            format(dateRange.from, 'MMM d, yyyy')
-                          )
-                        ) : (
-                          'Date Range'
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="range"
-                        selected={{ from: dateRange.from, to: dateRange.to }}
-                        onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-                        numberOfMonths={1}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  
-                  {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
-                      Clear filters
-                    </Button>
-                  )}
-                </div>
-              )}
-              
-              {hasActiveFilters && (
-                <p className="text-sm text-muted-foreground">
-                  Showing {paginatedTransactions.length} of {filteredTransactions.length} transactions
-                  {filteredTransactions.length !== unifiedTransactions.length && ` (filtered from ${unifiedTransactions.length})`}
-                </p>
-              )}
-            </div>
-
-            {unifiedTransactions.length === 0 ? (
-              <Card className="p-12 text-center border-dashed">
-                <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">No transactions yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Your transaction history across all platforms will appear here.
-                </p>
-                <Button onClick={() => navigate('/')}>
-                  Start Trading
-                </Button>
-              </Card>
-            ) : filteredTransactions.length === 0 ? (
-              <Card className="p-12 text-center border-dashed">
-                <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">No matching transactions</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Try adjusting your search or filters.
-                </p>
-                <Button variant="outline" onClick={clearFilters}>
-                  Clear Filters
-                </Button>
-              </Card>
-            ) : (
-              <>
-                <div className="grid gap-3">
-                  {paginatedTransactions.map((tx, i) => (
-                    <UnifiedTransactionCard
-                      key={tx.id}
-                      transaction={tx as UnifiedTransaction}
-                      index={i}
-                    />
-                  ))}
-                </div>
-
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-4 border-t border-border mt-4 gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="gap-1 min-h-[44px] px-3"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      <span className="hidden sm:inline">Previous</span>
-                    </Button>
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">
-                      {currentPage} / {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="gap-1 min-h-[44px] px-3"
-                    >
-                      <span className="hidden sm:inline">Next</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </TabsContent>
-
-          {/* Instant Transactions Tab */}
-          <TabsContent value="instant" className="space-y-4">
-            <InstantTabContent
-              transactions={transactions}
-              isLoading={isInitialLoading}
-              onRemove={removeTransaction}
-              onClear={clearHistory}
-            />
-          </TabsContent>
-
-          {/* DEX Transactions Tab */}
-          <TabsContent value="dex" className="space-y-4">
-            {dexTransactions.length > 0 && (
-              <div className="flex justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to clear all DEX transaction history?')) {
-                      clearDexHistory();
-                    }
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Clear All
-                </Button>
-              </div>
-            )}
-            
-            {sortedDexTransactions.length === 0 ? (
-              <Card className="p-12 text-center border-dashed">
-                <Link2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">No DEX swaps yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Your on-chain DEX swaps will appear here. Switch to DEX mode to get started.
-                </p>
-                <Button onClick={() => navigate('/')}>
-                  Start Swap
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid gap-3">
-                {sortedDexTransactions.map((tx, i) => {
-                  const chain = getChainByIndex(tx.chainId);
-                  const explorerUrl = tx.explorerUrl || (tx.hash ? getExplorerTxUrl(tx.chainId, tx.hash) : null);
-                  
-                  return (
-                    <Card
-                      key={tx.id}
-                      className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
-                      style={getStaggerStyle(i, 60)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center shrink-0">
-                          <div className="relative">
-                            {tx.fromTokenLogo ? (
-                              <img
-                                src={tx.fromTokenLogo}
-                                alt={tx.fromTokenSymbol}
-                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.fromTokenSymbol}&background=random`;
-                                }}
-                              />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
-                                {tx.fromTokenSymbol?.slice(0, 2)}
-                              </div>
-                            )}
-                          </div>
-                          <div className="relative -ml-3">
-                            {tx.toTokenLogo ? (
-                              <img
-                                src={tx.toTokenLogo}
-                                alt={tx.toTokenSymbol}
-                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.toTokenSymbol}&background=random`;
-                                }}
-                              />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
-                                {tx.toTokenSymbol?.slice(0, 2)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-medium">
-                              {formatAmount(tx.fromTokenAmount)}{" "}
-                              <span className="uppercase text-muted-foreground">{tx.fromTokenSymbol}</span>
-                            </span>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span className="font-medium">
-                              {formatAmount(tx.toTokenAmount)}{" "}
-                              <span className="uppercase text-muted-foreground">{tx.toTokenSymbol}</span>
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                            {chain && (
-                              <Badge variant="outline" className="h-5 text-xs gap-1">
-                                <img src={chain.icon} alt={chain.name} className="w-3 h-3 rounded-full" />
-                                {chain.shortName}
-                              </Badge>
-                            )}
-                            {tx.hash && (
-                              <>
-                                <span className="font-mono text-xs truncate max-w-[80px]">{truncateHash(tx.hash)}</span>
-                                <span>•</span>
-                              </>
-                            )}
-                            <span>{formatDistanceToNow(tx.timestamp, { addSuffix: true })}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(tx.status)}
-                          {explorerUrl && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9"
-                              onClick={() => window.open(explorerUrl, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Bridge Transactions Tab */}
-          <TabsContent value="bridge" className="space-y-4">
-            {bridgeTransactions.length > 0 && (
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    sortedBridgeTransactions
-                      .filter(tx => tx.status === 'bridging' || tx.status === 'pending-source')
-                      .forEach(tx => pollTransaction(tx));
-                  }}
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh Status
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to clear completed bridge transactions?')) {
-                      clearBridgeHistory();
-                    }
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Clear History
-                </Button>
-              </div>
-            )}
-            
-            {sortedBridgeTransactions.length === 0 ? (
-              <Card className="p-12 text-center border-dashed">
-                <ArrowLeftRight className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">No bridge transactions yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Your cross-chain bridge transactions will appear here.
-                </p>
-                <Button onClick={() => navigate('/bridge')}>
-                  Start Bridging
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid gap-3">
-                {sortedBridgeTransactions.map((tx, i) => {
-                  const sourceExplorerUrl = tx.sourceTxHash && tx.fromChain?.chainId 
-                    ? getBridgeExplorerUrl(tx.fromChain.chainId, tx.sourceTxHash) 
-                    : null;
-                  const destExplorerUrl = tx.destTxHash && tx.toChain?.chainId 
-                    ? getBridgeExplorerUrl(tx.toChain.chainId, tx.destTxHash) 
-                    : null;
-                  
-                  return (
-                    <Card
-                      key={tx.id}
-                      className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
-                      style={getStaggerStyle(i, 60)}
-                    >
-                      <div className="flex items-center gap-4">
-                        {/* Chain icons */}
-                        <div className="flex items-center shrink-0">
-                          <div className="relative">
-                            {tx.fromChain?.icon ? (
-                              <img
-                                src={tx.fromChain.icon}
-                                alt={tx.fromChain.name}
-                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
-                                {tx.fromChain?.name?.slice(0, 2) || '?'}
-                              </div>
-                            )}
-                          </div>
-                          <div className="relative -ml-3">
-                            {tx.toChain?.icon ? (
-                              <img
-                                src={tx.toChain.icon}
-                                alt={tx.toChain.name}
-                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
-                                {tx.toChain?.name?.slice(0, 2) || '?'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-medium">
-                              {formatAmount(tx.fromAmount)}{" "}
-                              <span className="uppercase text-muted-foreground">{tx.fromToken?.symbol}</span>
-                            </span>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span className="font-medium">
-                              {formatAmount(tx.toAmount)}{" "}
-                              <span className="uppercase text-muted-foreground">{tx.toToken?.symbol}</span>
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                            <Badge variant="outline" className="h-5 text-xs">
-                              {tx.fromChain?.name} → {tx.toChain?.name}
-                            </Badge>
-                            {tx.bridgeName && (
-                              <Badge variant="secondary" className="h-5 text-xs">
-                                {tx.bridgeName}
-                              </Badge>
-                            )}
-                            <span>•</span>
-                            <span>{formatDistanceToNow(tx.startTime, { addSuffix: true })}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(tx.status)}
-                          {sourceExplorerUrl && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9"
-                              title="View source transaction"
-                              onClick={() => window.open(sourceExplorerUrl, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {destExplorerUrl && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9"
-                              title="View destination transaction"
-                              onClick={() => window.open(destExplorerUrl, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4 text-success" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                              "h-9 w-9 text-muted-foreground hover:text-destructive",
-                              "opacity-0 group-hover:opacity-100 transition-opacity"
-                            )}
-                            onClick={() => removeBridgeTx(tx.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* On-Chain History Tab (from OKX v6 API) */}
-          <TabsContent value="onchain" className="space-y-4">
-            <OnchainTabContent
-              isConnected={isConnected}
-              isLoading={onchainLoading}
-              error={onchainError}
-              transactions={onchainHistory}
-              activeAddress={activeAddress}
-              onRetry={handleRefresh}
-            />
-          </TabsContent>
-          </div>
-        </Tabs>
-
-        {/* Summary */}
-        {(transactions.length > 0 || dexTransactions.length > 0 || bridgeTransactions.length > 0) && (
-          <div className="mt-8 p-4 rounded-xl bg-secondary/30 border border-border">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Total transactions</span>
-              <span className="font-medium">{transactions.length + dexTransactions.length + bridgeTransactions.length}</span>
-            </div>
-          </div>
-        )}
         </div>
+
+        {!isConnected ? (
+          <div className="max-w-xl mx-auto">
+            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
+              <CardContent className="pt-8 pb-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
+                  <Clock className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Connect to view your transaction history.
+                </p>
+                <MultiWalletButton />
+
+                <div className="mt-8 pt-8 border-t border-border/50">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {historyFeatures.map((feature, index) => (
+                      <div key={feature.title} className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`} style={getStaggerStyle(index, 80)}>
+                        <feature.icon className="w-5 h-5 text-primary mb-2" />
+                        <p className="text-sm font-medium">{feature.title}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full grid grid-cols-3 h-10 mb-6">
+              <TabsTrigger value="app" className="gap-1.5 text-xs">
+                <LayoutList className="w-3.5 h-3.5" />
+                App History
+              </TabsTrigger>
+              <TabsTrigger value="onchain" className="gap-1.5 text-xs">
+                <Link2 className="w-3.5 h-3.5" />
+                On-Chain
+              </TabsTrigger>
+              <TabsTrigger value="xlama" className="gap-1.5 text-xs">
+                <LineChart className="w-3.5 h-3.5" />
+                xLama
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="app" className="mt-0">
+              <Suspense fallback={<TransactionCardsSkeleton />}>
+                <AppHistoryTab />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="onchain" className="mt-0">
+              <Suspense fallback={<TransactionCardsSkeleton />}>
+                <OnchainHistoryTab />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="xlama" className="mt-0">
+              <Suspense fallback={<TransactionCardsSkeleton />}>
+                <XlamaHistoryTab />
+              </Suspense>
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
     </AppLayout>
   );
-};
+});
 
 export default History;
