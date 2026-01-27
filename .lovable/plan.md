@@ -176,13 +176,13 @@ src/pages/History/
 
 ### Short Term (Next 2-3 Sessions)
 3. ✅ Create SwipeableTabs reusable component
-4. Start ExchangeWidget refactoring (split modes)
+4. ✅ Start ExchangeWidget refactoring - created `useExchangeState` hook (Phase 1)
 5. ✅ Add visual swipe indicator for new users
 
 ### Medium Term (Code Quality)
 6. Refactor Perpetuals page structure
 7. Refactor Analytics page structure
-8. Refactor History page structure
+8. ✅ Refactor History page structure - created TransactionCard and EmptyHistoryState components
 
 ### Long Term (Architecture)
 9. Implement unified state management
