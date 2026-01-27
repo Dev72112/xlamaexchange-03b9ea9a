@@ -7,7 +7,7 @@ import { useState, useCallback } from 'react';
 
 const TAB_STORAGE_KEY = 'xlama-active-tabs';
 
-type PageKey = 'portfolio' | 'analytics' | 'history';
+type PageKey = 'portfolio' | 'analytics' | 'history' | 'orders';
 
 export function useTabPersistence(page: PageKey, defaultTab: string) {
   const [activeTab, setActiveTab] = useState<string>(() => {
