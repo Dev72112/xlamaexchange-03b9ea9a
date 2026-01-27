@@ -55,6 +55,8 @@ import { useXlamaPortfolio } from "@/hooks/useXlamaPortfolio";
 import { toast } from "sonner";
 import { SUPPORTED_CHAINS as CHAIN_DATA } from "@/data/chains";
 import { ChainImage } from "@/components/ui/token-image";
+import { DataSourceToggle } from "@/components/ui/DataSourceToggle";
+import { XlamaSyncStatus } from "@/components/XlamaSyncStatus";
 
 // Lazy load chart components
 const PortfolioPnLChart = lazy(() => import("@/components/PortfolioPnLChart").then(m => ({ default: m.PortfolioPnLChart })));
@@ -499,6 +501,8 @@ const Portfolio = memo(function Portfolio() {
                   >
                     <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
                   </Button>
+                  <DataSourceToggle compact />
+                  <XlamaSyncStatus compact />
                 </div>
               </div>
 

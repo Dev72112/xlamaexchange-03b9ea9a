@@ -66,6 +66,8 @@ import { LivePriceWidget, TokenPnLChart, GasBreakdown, WalletHoldings, ProtocolB
 import { useQueryClient } from '@tanstack/react-query';
 import { useZerionPortfolio } from '@/hooks/useZerionPortfolio';
 import { useZerionTransactions } from '@/hooks/useZerionTransactions';
+import { DataSourceToggle } from '@/components/ui/DataSourceToggle';
+import { XlamaSyncStatus } from '@/components/XlamaSyncStatus';
 
 // Analytics features for the connect prompt
 const analyticsFeatures = [
@@ -427,6 +429,8 @@ const Analytics = () => {
               <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
+            <DataSourceToggle compact />
+            <XlamaSyncStatus compact />
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
             Trading Analytics
