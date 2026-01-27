@@ -32,13 +32,16 @@ Components created:
 - Created `vitest.config.ts`
 - Created `src/test/setup.ts` with mocks
 
+### ✅ Task 7: Integrate Tab Components into History.tsx
+**Status**: Complete - Replaced inline Instant & OnChain tabs with components (~200 lines saved)
+
 ---
 
 ## File Size Tracking
 
 | File | Before | After | Target | Status |
 |------|--------|-------|--------|--------|
-| History.tsx | 1141 | ~900 | < 800 | ✅ Improved |
+| History.tsx | 1141 | ~930 | < 800 | ✅ Improved |
 | ExchangeWidget.tsx | 1449 | 1449 | < 800 | ⏸️ Deferred |
 | Perpetuals.tsx | 917 | ~535 | < 500 | ✅ Near target |
 
@@ -57,9 +60,25 @@ Components created:
 
 ---
 
-## Next Steps
+## Next Steps (Tasks 8 & 9)
 
-1. **Integrate new tab components** into History.tsx to reduce file size
-2. **Create unit tests** for SwipeableTabs, TokenInputPanel
-3. **Extract DEX and Bridge tab content** from History.tsx
-4. **Create usePerpetualsState hook** for centralized state management
+### 📋 Task 8: Extract DEX & Bridge Tab Content
+**Goal**: Create `DexTabContent.tsx` and `BridgeTabContent.tsx` components
+
+- Extract DEX tab rendering (lines 722-860) into `DexTabContent.tsx`
+- Extract Bridge tab rendering (lines 862-1007) into `BridgeTabContent.tsx`
+- Expected savings: ~250 lines from History.tsx
+
+### 📋 Task 9: Create Unit Tests for Core Components
+**Goal**: Add tests for critical shared components
+
+- `UnifiedTransactionCard.test.tsx` - Test rendering, status badges, explorer links
+- `InstantTabContent.test.tsx` - Test empty states, loading, transaction display
+- `TokenInputPanel.test.tsx` - Test amount formatting, MAX button, balance display
+
+---
+
+## Future Considerations
+
+- **Create usePerpetualsState hook** for centralized state management
+- **Extract remaining ExchangeWidget modes** when state management is refactored

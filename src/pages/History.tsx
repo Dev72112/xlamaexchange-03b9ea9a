@@ -20,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UnifiedChainSelector, ChainFilterValue } from "@/components/ui/UnifiedChainSelector";
-import { UnifiedTransactionCard, UnifiedTransaction } from "@/components/history";
+import { UnifiedTransactionCard, UnifiedTransaction, InstantTabContent, OnchainTabContent } from "@/components/history";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
@@ -617,106 +617,12 @@ const History = () => {
 
           {/* Instant Transactions Tab */}
           <TabsContent value="instant" className="space-y-4">
-            {transactions.length > 0 && (
-              <div className="flex justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to clear all instant transaction history?')) {
-                      clearHistory();
-                    }
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Clear All
-                </Button>
-              </div>
-            )}
-            
-            {isInitialLoading ? (
-              <TransactionCardsSkeleton count={3} />
-            ) : transactions.length === 0 ? (
-              <Card className="p-12 text-center border-dashed">
-                <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">No instant exchanges yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Your completed instant exchanges will appear here.
-                </p>
-                <Button onClick={() => navigate('/')}>
-                  Start Exchange
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid gap-3">
-                {transactions.map((tx, i) => (
-                  <Card
-                    key={tx.id}
-                    className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
-                    style={getStaggerStyle(i, 60)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center shrink-0">
-                        <div className="relative">
-                          <img
-                            src={tx.fromImage}
-                            alt={tx.fromName}
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.fromTicker}&background=random`;
-                            }}
-                          />
-                        </div>
-                        <div className="relative -ml-3">
-                          <img
-                            src={tx.toImage}
-                            alt={tx.toName}
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.toTicker}&background=random`;
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-medium">
-                            {tx.fromAmount}{" "}
-                            <span className="uppercase text-muted-foreground">{tx.fromTicker}</span>
-                          </span>
-                          <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                          <span className="font-medium">
-                            {parseFloat(tx.toAmount).toFixed(6)}{" "}
-                            <span className="uppercase text-muted-foreground">{tx.toTicker}</span>
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="font-mono text-xs truncate max-w-[100px]">{tx.id}</span>
-                          <span>•</span>
-                          <span>{formatDistanceToNow(tx.createdAt, { addSuffix: true })}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {getStatusBadge(tx.status)}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            "h-9 w-9 text-muted-foreground hover:text-destructive",
-                            "opacity-0 group-hover:opacity-100 transition-opacity"
-                          )}
-                          onClick={() => removeTransaction(tx.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <InstantTabContent
+              transactions={transactions}
+              isLoading={isInitialLoading}
+              onRemove={removeTransaction}
+              onClear={clearHistory}
+            />
           </TabsContent>
 
           {/* DEX Transactions Tab */}
@@ -1008,118 +914,14 @@ const History = () => {
 
           {/* On-Chain History Tab (from OKX v6 API) */}
           <TabsContent value="onchain" className="space-y-4">
-            {!isConnected ? (
-              <Card className="p-12 text-center border-dashed">
-                <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">Connect wallet to view history</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Connect your wallet to see your on-chain transaction history across multiple networks.
-                </p>
-              </Card>
-            ) : onchainLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Card key={i} className="p-4 sm:p-5">
-                    <div className="flex items-center gap-4">
-                      <Skeleton className="w-12 h-12 rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="w-48 h-4" />
-                        <Skeleton className="w-32 h-3" />
-                      </div>
-                      <Skeleton className="w-20 h-6" />
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : onchainError ? (
-              <Card className="p-12 text-center border-dashed">
-                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive/30" />
-                <h3 className="text-lg font-semibold mb-2">Failed to load history</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  {onchainError}
-                </p>
-                <Button variant="outline" onClick={() => setActiveTab('onchain')}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Try Again
-                </Button>
-              </Card>
-            ) : onchainHistory.length === 0 ? (
-              <Card className="p-12 text-center border-dashed">
-                <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">No on-chain transactions found</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  No recent transactions found for this wallet across supported networks.
-                </p>
-              </Card>
-            ) : (
-              <div className="grid gap-3">
-                {onchainHistory.map((tx, i) => {
-                  const chain = getChainByIndex(tx.chainIndex);
-                  const explorerUrl = tx.txHash ? getExplorerTxUrl(tx.chainIndex, tx.txHash) : null;
-                  const fromAddr = tx.from[0]?.address || '';
-                  const isSent = fromAddr.toLowerCase() === activeAddress?.toLowerCase();
-                  
-                  return (
-                    <Card
-                      key={`${tx.txHash}-${i}`}
-                      className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
-                      style={getStaggerStyle(i, 60)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={cn(
-                          "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shrink-0",
-                          isSent ? "bg-destructive/10" : "bg-success/10"
-                        )}>
-                          <ArrowRight className={cn(
-                            "w-5 h-5",
-                            isSent ? "text-destructive rotate-45" : "text-success -rotate-45"
-                          )} />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-medium">
-                              {isSent ? 'Sent' : 'Received'}{" "}
-                              {tx.amount && (
-                                <>
-                                  {formatAmount(tx.amount)}{" "}
-                                  <span className="uppercase text-muted-foreground">{tx.symbol || 'ETH'}</span>
-                                </>
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                            {chain && (
-                              <Badge variant="outline" className="h-5 text-xs gap-1">
-                                <img src={chain.icon} alt={chain.name} className="w-3 h-3 rounded-full" />
-                                {chain.shortName}
-                              </Badge>
-                            )}
-                            <span className="font-mono text-xs truncate max-w-[80px]">{truncateHash(tx.txHash)}</span>
-                            <span>•</span>
-                            <span>{formatDistanceToNow(parseInt(tx.txTime), { addSuffix: true })}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(tx.txStatus)}
-                          {explorerUrl && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9"
-                              onClick={() => window.open(explorerUrl, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+            <OnchainTabContent
+              isConnected={isConnected}
+              isLoading={onchainLoading}
+              error={onchainError}
+              transactions={onchainHistory}
+              activeAddress={activeAddress}
+              onRetry={handleRefresh}
+            />
           </TabsContent>
           </div>
         </Tabs>
