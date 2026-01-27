@@ -41,6 +41,28 @@ Created hooks:
 
 ---
 
+## ✅ Phase 3: Page Integration (COMPLETE)
+
+### ✅ Task 3.1: Portfolio Page
+- `AccountSummaryCard` uses xLama portfolio total when xLama source selected
+- `PortfolioHoldingsTable` uses xLama holdings
+- Badge indicator shows "xLama" when active
+- Seamless fallback to OKX data when not using xLama
+
+### ✅ Task 3.2: Analytics Page
+- Added `useXlamaAnalytics` hook integration
+- `displayAnalytics` computed object selects between xLama and local data
+- Supports all time periods (7d, 30d, 90d, all)
+- Refresh includes xLama query invalidation
+
+### ✅ Task 3.3: History Page
+- Added `useXlamaTransactions` hook integration
+- Unified transaction feed includes xLama transactions when enabled
+- Proper mapping to `UnifiedTransaction` format
+- Maintains existing DEX/Bridge/Instant transaction display when not using xLama
+
+---
+
 ## ✅ Phase 4: Data Source Toggle (COMPLETE)
 
 ### ✅ Task 4.1: Update DataSourceContext
@@ -51,30 +73,6 @@ type DataSource = 'okx' | 'zerion' | 'hybrid' | 'xlama';
 
 ### ✅ Task 4.2: DataSourceToggle UI
 Updated toggle component with xLama option (LineChart icon)
-
----
-
-## 🔄 Phase 3: Page Integration (NEXT)
-
-### Task 3.1: Portfolio Page
-Replace/augment current API calls with xLama API:
-- `AccountSummaryCard` uses xLama portfolio total
-- `PortfolioHoldingsTable` uses xLama holdings
-- Chain breakdown from xLama API
-
-### Task 3.2: Analytics Page
-Integrate xLama trading analytics:
-- Total trades count
-- Total volume USD
-- Realized PnL display
-- Most traded pairs chart
-- Chain distribution pie chart
-
-### Task 3.3: History Page
-Connect xLama transactions to history tabs:
-- "OnChain" tab uses xLama transaction data
-- Unified format mapping to `UnifiedTransactionCard`
-- Real-time sync status indicator
 
 ---
 
@@ -150,9 +148,9 @@ Configure webhook for real-time updates:
 | 2.2 | React Query hooks | ✅ Done |
 | 4.1 | DataSource context update | ✅ Done |
 | 4.2 | Toggle UI update | ✅ Done |
-| 3.1 | Portfolio integration | 🔄 Next |
-| 3.2 | Analytics integration | ⏳ Pending |
-| 3.3 | History integration | ⏳ Pending |
+| 3.1 | Portfolio integration | ✅ Done |
+| 3.2 | Analytics integration | ✅ Done |
+| 3.3 | History integration | ✅ Done |
 
 ---
 
@@ -172,3 +170,18 @@ Configure webhook for real-time updates:
 - `src/hooks/useHybridPortfolio.ts` - Updated type for xlama
 - `src/features/analytics/hooks/index.ts` - Exported new hooks
 - `src/features/analytics/index.ts` - Exported new hooks
+- `src/pages/Portfolio.tsx` - Integrated xLama portfolio data
+- `src/pages/Analytics.tsx` - Integrated xLama analytics data
+- `src/pages/History.tsx` - Integrated xLama transaction data
+
+---
+
+## How to Test
+
+1. **Switch data source**: Use the Data Source Toggle dropdown (in Portfolio page header or settings) and select "xLama API"
+2. **Connect wallet**: Connect an EVM wallet with transaction history
+3. **View Portfolio**: Should display holdings from xLama API
+4. **View Analytics**: Should show trading analytics from xLama API
+5. **View History**: Should display transactions from xLama API
+
+The integration is designed to be seamless - when xLama is selected, data flows from the xLama API; when other sources are selected, existing OKX/Zerion data is used.

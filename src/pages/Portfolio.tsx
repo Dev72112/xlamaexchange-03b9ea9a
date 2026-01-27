@@ -51,6 +51,7 @@ import { okxDexService, WalletTokenBalance } from "@/services/okxdex";
 import { usePortfolioPnL } from "@/hooks/usePortfolioPnL";
 import { useZerionPortfolio } from "@/hooks/useZerionPortfolio";
 import { useUnifiedData } from "@/contexts/UnifiedDataContext";
+import { useXlamaPortfolio } from "@/hooks/useXlamaPortfolio";
 import { toast } from "sonner";
 import { SUPPORTED_CHAINS as CHAIN_DATA } from "@/data/chains";
 import { ChainImage } from "@/components/ui/token-image";
@@ -125,7 +126,10 @@ const Portfolio = memo(function Portfolio() {
   const [error, setError] = useState<string | null>(null);
 
   // Data source context
-  const { isZerionEnabled, isOKXEnabled } = useDataSource();
+  const { isZerionEnabled, isOKXEnabled, isXlamaEnabled, dataSource } = useDataSource();
+
+  // xLama Portfolio data (when xLama source is selected)
+  const xlamaPortfolio = useXlamaPortfolio({ enabled: isXlamaEnabled });
 
   // NFT data
   const { 
@@ -160,8 +164,14 @@ const Portfolio = memo(function Portfolio() {
     }
   }, [activeChainType, chainFilter]);
 
-  // Fetch portfolio data
+  // Fetch portfolio data (OKX/Hybrid mode)
   const fetchPortfolio = useCallback(async () => {
+    // Skip if using xLama data source
+    if (isXlamaEnabled) {
+      setIsLoading(false);
+      return;
+    }
+
     if (!activeAddress || !isConnected) {
       setBalances([]);
       setTotalValue(0);
@@ -212,11 +222,37 @@ const Portfolio = memo(function Portfolio() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeAddress, isConnected, chainFilter, selectedEvmChain, activeChain, saveSnapshot]);
+  }, [activeAddress, isConnected, chainFilter, selectedEvmChain, activeChain, saveSnapshot, isXlamaEnabled]);
 
   useEffect(() => {
     fetchPortfolio();
   }, [fetchPortfolio]);
+
+  // Determine which data to display based on data source
+  const displayBalances = useMemo((): WalletTokenBalance[] => {
+    if (isXlamaEnabled && xlamaPortfolio.holdings.length > 0) {
+      // Convert xLama holdings to WalletTokenBalance format
+      return xlamaPortfolio.holdings.map(h => ({
+        chainIndex: h.chain_id,
+        tokenContractAddress: h.token_address,
+        address: h.token_address,
+        symbol: h.token_symbol,
+        balance: h.balance,
+        tokenPrice: String(h.price_usd),
+        isRiskToken: false,
+      }));
+    }
+    return balances;
+  }, [isXlamaEnabled, xlamaPortfolio.holdings, balances]);
+
+  const displayTotalValue = useMemo(() => {
+    if (isXlamaEnabled) {
+      return xlamaPortfolio.totalValue;
+    }
+    return totalValue;
+  }, [isXlamaEnabled, xlamaPortfolio.totalValue, totalValue]);
+
+  const displayIsLoading = isXlamaEnabled ? xlamaPortfolio.isLoading : isLoading;
 
   // Get P&L metrics
   const pnlMetrics = useMemo(() => {
@@ -226,7 +262,7 @@ const Portfolio = memo(function Portfolio() {
   // Chain balances for allocation chart - format for component
   const chainBalancesForChart = useMemo(() => {
     const grouped: Record<string, number> = {};
-    balances.forEach(b => {
+    displayBalances.forEach(b => {
       const key = b.chainIndex || '1';
       const value = parseFloat(b.tokenPrice || '0') * parseFloat(b.balance || '0');
       grouped[key] = (grouped[key] || 0) + value;
@@ -243,7 +279,7 @@ const Portfolio = memo(function Portfolio() {
         total,
       };
     }).sort((a, b) => b.total - a.total);
-  }, [balances]);
+  }, [displayBalances]);
 
   // Handle chain filter change
   const handleChainFilterChange = useCallback(async (newFilter: ChainFilter, chain?: Chain) => {
@@ -476,13 +512,13 @@ const Portfolio = memo(function Portfolio() {
 
               {/* Account Summary Card */}
               <AccountSummaryCard
-                totalValue={hideBalances ? 0 : totalValue}
+                totalValue={hideBalances ? 0 : displayTotalValue}
                 change24h={pnlMetrics?.absoluteChange}
                 changePercent24h={pnlMetrics?.percentChange}
-                chainName={activeChain?.name || 'Ethereum'}
+                chainName={isXlamaEnabled ? 'xLama API' : (activeChain?.name || 'Ethereum')}
                 chainIcon={activeChain?.icon}
                 address={activeAddress || ''}
-                isLoading={isLoading}
+                isLoading={displayIsLoading}
               />
 
               {/* Quick Actions */}
@@ -520,15 +556,18 @@ const Portfolio = memo(function Portfolio() {
                     <h3 className="font-medium flex items-center gap-2">
                       <Wallet className="w-4 h-4 text-primary" />
                       Holdings
+                      {isXlamaEnabled && (
+                        <Badge variant="outline" className="text-[10px] py-0">xLama</Badge>
+                      )}
                     </h3>
                     <Badge variant="secondary" className="text-xs">
-                      {balances.length} tokens
+                      {displayBalances.length} tokens
                     </Badge>
                   </div>
                   <ScrollArea className="h-[280px]">
                     <PortfolioHoldingsTable 
-                      balances={balances} 
-                      isLoading={isLoading}
+                      balances={displayBalances} 
+                      isLoading={displayIsLoading}
                       className="border-0 shadow-none"
                     />
                   </ScrollArea>
