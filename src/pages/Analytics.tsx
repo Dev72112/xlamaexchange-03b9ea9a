@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UnifiedChainSelector, ChainFilterValue } from '@/components/ui/UnifiedChainSelector';
 import { useExchangeMode } from '@/contexts/ExchangeModeContext';
+import { useDataSource } from '@/contexts/DataSourceContext';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -34,8 +35,9 @@ import {
   ArrowRightLeft,
   Fuel,
   AlertTriangle,
+  LineChart,
 } from 'lucide-react';
-import { useTradeAnalytics, useTradeVsHodl, useGasAnalytics, type TimePeriod } from '@/features/analytics';
+import { useTradeAnalytics, useTradeVsHodl, useGasAnalytics, type TimePeriod, useXlamaAnalytics } from '@/features/analytics';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { SUPPORTED_CHAINS, getChainIcon, getEvmChains, getNonEvmChains } from '@/data/chains';
 import { 
@@ -251,6 +253,7 @@ const Analytics = () => {
     switchChainByIndex,
   } = useMultiWallet();
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
+  const { isXlamaEnabled, dataSource } = useDataSource();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
@@ -305,10 +308,50 @@ const Analytics = () => {
   // Use chain filter for analytics
   const analyticsChainFilter = chainFilter === 'solana' ? '501' : 'all';
   
+  // Map TimePeriod to xLama period format
+  const xlamaPeriod = useMemo((): '7d' | '30d' | '90d' | 'all' => {
+    const mapping: Record<TimePeriod, '7d' | '30d' | '90d' | 'all'> = {
+      '24h': '7d',
+      '3d': '7d',
+      '7d': '7d',
+      '30d': '30d',
+      '90d': '90d',
+      'all': 'all',
+    };
+    return mapping[timePeriod] || '30d';
+  }, [timePeriod]);
+  
   // Pass timePeriod to analytics hook - all filtering happens inside the hook
   const analytics = useTradeAnalytics(analyticsChainFilter, timePeriod);
+  const xlamaAnalytics = useXlamaAnalytics({ period: xlamaPeriod, enabled: isXlamaEnabled });
   const tradeVsHodl = useTradeVsHodl();
   const gasAnalytics = useGasAnalytics(analyticsChainFilter);
+  
+  // Determine which analytics data to display
+  const displayAnalytics = useMemo(() => {
+    if (isXlamaEnabled && xlamaAnalytics.data) {
+      return {
+        totalTrades: xlamaAnalytics.totalTrades,
+        totalVolume: xlamaAnalytics.totalVolume,
+        realizedPnl: xlamaAnalytics.realizedPnl,
+        successRate: xlamaAnalytics.successRate,
+        isLoading: xlamaAnalytics.isLoading,
+        mostTradedPairs: xlamaAnalytics.mostTradedPairs,
+        mostUsedChains: xlamaAnalytics.mostUsedChains,
+        isXlama: true,
+      };
+    }
+    return {
+      totalTrades: analytics.totalTrades,
+      totalVolume: analytics.totalVolumeUsd,
+      realizedPnl: 0,
+      successRate: analytics.successRate,
+      isLoading: false,
+      mostTradedPairs: analytics.topPairs.map(p => ({ pair: p.pair, trade_count: p.count, volume_usd: p.volumeUsd, from_symbol: '', to_symbol: '' })),
+      mostUsedChains: analytics.chainDistribution.map(c => ({ chain: c.chain, count: c.count })),
+      isXlama: false,
+    };
+  }, [isXlamaEnabled, xlamaAnalytics, analytics]);
   
   // Zerion data for protocol/fee breakdown (EVM only)
   const { defiPositions, isLoading: zerionLoading } = useZerionPortfolio();
@@ -323,6 +366,7 @@ const Analytics = () => {
     await queryClient.invalidateQueries({ queryKey: ['trade-analytics'] });
     await queryClient.invalidateQueries({ queryKey: ['gas-analytics'] });
     await queryClient.invalidateQueries({ queryKey: ['zerion'] });
+    await queryClient.invalidateQueries({ queryKey: ['xlama-analytics'] });
     await new Promise(resolve => setTimeout(resolve, 500));
     setIsRefreshing(false);
   }, [queryClient]);

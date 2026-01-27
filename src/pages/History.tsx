@@ -7,8 +7,10 @@ import { useBridgeTransactions, BridgeStatus, BridgeTransaction } from "@/contex
 import { useBridgeStatusPolling } from "@/features/bridge";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
+import { useDataSource } from "@/contexts/DataSourceContext";
 import { okxDexService, TransactionHistoryItem } from "@/services/okxdex";
-import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList, Search, Filter, X, Calendar, ChevronLeft, ChevronRight, Zap } from "lucide-react";
+import { useXlamaTransactions } from "@/hooks/useXlamaTransactions";
+import { Clock, ArrowRight, ExternalLink, Trash2, AlertCircle, CheckCircle2, Loader2, Wallet, Link2, RefreshCw, ArrowLeftRight, LayoutList, Search, Filter, X, Calendar, ChevronLeft, ChevronRight, Zap, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,9 +58,13 @@ const History = () => {
     tonAddress 
   } = useMultiWallet();
   const { globalChainFilter, setGlobalChainFilter } = useExchangeMode();
+  const { isXlamaEnabled } = useDataSource();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { trigger: triggerHaptic } = useHapticFeedback();
+  
+  // xLama transactions (when xLama source is selected)
+  const xlamaTransactions = useXlamaTransactions({ enabled: isXlamaEnabled });
   
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'instant' | 'dex' | 'bridge' | 'onchain'>('all');
@@ -209,6 +215,30 @@ const History = () => {
   const unifiedTransactions = useMemo((): UnifiedTransaction[] => {
     const unified: UnifiedTransaction[] = [];
 
+    // If xLama data source is enabled, use xLama transactions
+    if (isXlamaEnabled && xlamaTransactions.transactions.length > 0) {
+      xlamaTransactions.transactions.forEach(tx => {
+        const chain = getChainByIndex(tx.chain_id);
+        unified.push({
+          id: `xlama-${tx.tx_hash}`,
+          type: tx.transaction_type === 'bridge' ? 'bridge' : 'dex',
+          timestamp: new Date(tx.timestamp).getTime(),
+          status: tx.status,
+          fromSymbol: tx.token_in?.symbol || '',
+          toSymbol: tx.token_out?.symbol || '',
+          fromAmount: tx.token_in?.amount || '0',
+          toAmount: tx.token_out?.amount || '0',
+          fromLogo: tx.token_in?.logo,
+          toLogo: tx.token_out?.logo,
+          chainName: chain?.shortName || tx.chain_name,
+          chainIcon: chain?.icon,
+          explorerUrl: undefined, // Could add explorer URL generation
+          original: tx,
+        });
+      });
+      return unified.sort((a, b) => b.timestamp - a.timestamp);
+    }
+
     // Add instant transactions
     transactions.forEach(tx => {
       unified.push({
@@ -272,7 +302,7 @@ const History = () => {
 
     // Sort by timestamp (newest first)
     return unified.sort((a, b) => b.timestamp - a.timestamp);
-  }, [transactions, dexTransactions, bridgeTransactions]);
+  }, [transactions, dexTransactions, bridgeTransactions, isXlamaEnabled, xlamaTransactions.transactions]);
 
   // Filtered transactions based on search, type filters, and chain filter
   const filteredTransactions = useMemo(() => {
