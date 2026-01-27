@@ -7,3 +7,5 @@ export type { TransactionCardProps } from './TransactionCard';
 export { EmptyHistoryState } from './EmptyHistoryState';
 export { UnifiedTransactionCard } from './UnifiedTransactionCard';
 export type { UnifiedTransaction } from './UnifiedTransactionCard';
+export { InstantTabContent } from './InstantTabContent';
+export { OnchainTabContent } from './OnchainTabContent';

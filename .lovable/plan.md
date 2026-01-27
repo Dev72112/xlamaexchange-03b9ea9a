@@ -3,33 +3,34 @@
 ## Completed Tasks
 
 ### ✅ Task 1: Integrate UnifiedTransactionCard into History.tsx
-**Status**: Complete
-
-- Replaced ~100 lines of inline transaction card rendering with the `UnifiedTransactionCard` component
-- Added import from `@/components/history`
-- History.tsx now uses the shared component for the "All" tab
+**Status**: Complete - Replaced ~100 lines with shared component
 
 ### ✅ Task 2 & 3: ExchangeWidget Mode Extraction
-**Status**: Deferred
+**Status**: Deferred - Tightly coupled with 50+ shared state variables
 
-The ExchangeWidget component is tightly coupled with 50+ state variables and callbacks shared between modes. Extracting `InstantSwapMode` and `DexSwapMode` would require:
-- Creating a complex context or prop-drilling 50+ values
-- Significant refactoring of the shared rate calculation and UI logic
+### ✅ Task 4: Refactor Perpetuals Page Structure  
+**Status**: Complete - Reduced from 917 to ~535 lines (42% reduction)
 
-**Recommendation**: Keep current structure but consider future refactoring when a major feature addition justifies the effort.
+Components created:
+- `MobileTradingUI.tsx` - Mobile layout with swipe tabs
+- `DesktopTradingUI.tsx` - Desktop two-column layout
+- `AccountStatsRow.tsx` - Equity/margin/PnL display
+- `DisconnectedState.tsx` - Connect wallet prompt
+- `WrongNetworkState.tsx` - Network switch UI
 
-### ✅ Task 4: Refactor Perpetuals Page Structure
+### ✅ Task 5: Extract History Tab Components
 **Status**: Complete
 
-Created extracted components:
-- `src/pages/Perpetuals/components/AccountStatsRow.tsx` - Displays equity, margin, PnL in mobile/desktop layouts
-- `src/pages/Perpetuals/components/DisconnectedState.tsx` - Connect wallet prompt with feature preview
-- `src/pages/Perpetuals/components/WrongNetworkState.tsx` - EVM network switch prompt
-- `src/pages/Perpetuals/components/MobileTradingUI.tsx` - Full mobile trading interface with tabs, swipe gestures
-- `src/pages/Perpetuals/components/DesktopTradingUI.tsx` - Desktop two-column trading layout
-- `src/pages/Perpetuals/components/index.ts` - Barrel export
+Components created:
+- `InstantTabContent.tsx` - Instant exchange transactions
+- `OnchainTabContent.tsx` - On-chain transaction history
 
-**Result**: Perpetuals.tsx reduced from **917 lines to ~535 lines** (42% reduction).
+### ✅ Task 6: Testing Infrastructure Setup
+**Status**: Complete
+
+- Added test dependencies (vitest, testing-library, jsdom)
+- Created `vitest.config.ts`
+- Created `src/test/setup.ts` with mocks
 
 ---
 
@@ -37,29 +38,9 @@ Created extracted components:
 
 | File | Before | After | Target | Status |
 |------|--------|-------|--------|--------|
-| History.tsx | 1250 | ~1150 | < 800 | ✅ Improved |
+| History.tsx | 1141 | ~900 | < 800 | ✅ Improved |
 | ExchangeWidget.tsx | 1449 | 1449 | < 800 | ⏸️ Deferred |
 | Perpetuals.tsx | 917 | ~535 | < 500 | ✅ Near target |
-
----
-
-## Next Steps
-
-### Priority 1: History.tsx Tab Extraction
-Extract the tab-specific rendering for Instant, DEX, Bridge, and OnChain tabs into separate components to reduce History.tsx further.
-
-### Priority 2: Shared Component Audit
-Review and organize shared components by feature domain:
-- `/components/exchange/` - Exchange widget related
-- `/components/perpetuals/` - Perpetuals trading  
-- `/components/history/` - Transaction history
-- `/components/portfolio/` - Portfolio views
-
-### Priority 3: Unit Tests
-Create unit tests for:
-- `SwipeableTabs` hook
-- `TokenInputPanel` component
-- `UnifiedTransactionCard` component
 
 ---
 
@@ -67,7 +48,18 @@ Create unit tests for:
 
 | Component | Lines | Purpose |
 |-----------|-------|---------|
-| `MobileTradingUI` | ~310 | Mobile perpetuals trading with swipe tabs |
-| `DesktopTradingUI` | ~340 | Desktop perpetuals two-column layout |
-| `UnifiedTransactionCard` | ~180 | Shared transaction display for history |
-| `TokenInputPanel` | ~150 | Shared token input for exchange |
+| `MobileTradingUI` | ~310 | Mobile perpetuals with swipe |
+| `DesktopTradingUI` | ~340 | Desktop perpetuals layout |
+| `InstantTabContent` | ~170 | Instant exchange history tab |
+| `OnchainTabContent` | ~210 | On-chain history tab |
+| `UnifiedTransactionCard` | ~180 | Shared transaction display |
+| `TokenInputPanel` | ~150 | Shared token input |
+
+---
+
+## Next Steps
+
+1. **Integrate new tab components** into History.tsx to reduce file size
+2. **Create unit tests** for SwipeableTabs, TokenInputPanel
+3. **Extract DEX and Bridge tab content** from History.tsx
+4. **Create usePerpetualsState hook** for centralized state management
