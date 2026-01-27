@@ -128,6 +128,27 @@ export interface HealthCheck {
   timestamp: string;
 }
 
+export interface WalletInfo {
+  wallet_address: string;
+  label: string;
+  sync_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  last_synced_at: string | null;
+  transaction_count: number;
+}
+
+export interface WalletStatusResponse {
+  success: boolean;
+  wallet: WalletInfo | null;
+}
+
+export interface SyncResponse {
+  success: boolean;
+  synced: number;
+  new_transactions: number;
+}
+
 // ============ API Functions ============
 
 async function fetchFromProxy<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -210,6 +231,60 @@ export const xlamaApi = {
     params.set('tokens', tokens.join(','));
     if (chain) params.set('chain', chain);
     return fetchFromProxy<PriceData>(`price-oracle?${params.toString()}`);
+  },
+
+  /**
+   * Register a wallet for tracking
+   */
+  registerWallet: async (wallet: string, label?: string): Promise<{
+    success: boolean;
+    wallet: WalletInfo;
+  }> => {
+    return fetchFromProxy('wallets', {
+      method: 'POST',
+      body: JSON.stringify({
+        wallet_address: wallet,
+        label: label || 'xLama Exchange',
+        sync_enabled: true,
+      }),
+    });
+  },
+
+  /**
+   * Sync transactions for a wallet
+   */
+  syncTransactions: async (wallet: string, source?: 'okx' | 'lifi' | 'all'): Promise<SyncResponse> => {
+    return fetchFromProxy<SyncResponse>('sync-transactions', {
+      method: 'POST',
+      body: JSON.stringify({
+        wallet,
+        source: source || 'all',
+      }),
+    });
+  },
+
+  /**
+   * List all tracked wallets
+   */
+  listWallets: async (): Promise<{
+    success: boolean;
+    wallets: WalletInfo[];
+    total: number;
+  }> => {
+    return fetchFromProxy('wallets');
+  },
+
+  /**
+   * Get wallet registration status
+   */
+  getWalletStatus: async (wallet: string): Promise<WalletStatusResponse> => {
+    try {
+      const response = await fetchFromProxy<{ success: boolean; wallet: WalletInfo }>(`wallets/${wallet}`);
+      return { success: true, wallet: response.wallet };
+    } catch (error) {
+      // Wallet not found is expected for unregistered wallets
+      return { success: false, wallet: null };
+    }
   },
 };
 

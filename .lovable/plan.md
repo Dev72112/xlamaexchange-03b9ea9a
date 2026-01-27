@@ -1,270 +1,105 @@
 
 # xLama API Testing & Data Migration Plan
 
+## Status: Phases 1-4 Complete ✅
+
+---
+
 ## Issues Identified
 
-### 1. DataSourceToggle Not Visible
-The `DataSourceToggle` component exists but is **not being rendered** on Portfolio, Analytics, or History pages. Users cannot switch to xLama data source.
+### 1. ~~DataSourceToggle Not Visible~~ ✅ FIXED
+The `DataSourceToggle` component now renders on Portfolio, Analytics, and History pages.
 
-### 2. Wallet Not Registered
-The xLama API requires wallets to be registered via `POST /wallets` before transactions can be synced. Your wallet (ending in 662) hasn't been registered.
+### 2. ~~Wallet Not Registered~~ ✅ FIXED
+Added `registerWallet`, `syncTransactions`, and `getWalletStatus` methods to xlamaApi service. Auto-registration triggers when xLama source is enabled.
 
-### 3. No Transaction Sync
-The `POST /sync-transactions` endpoint hasn't been called to pull existing transaction history from OKX/LiFi APIs.
+### 3. ~~No Transaction Sync~~ ✅ FIXED
+The `syncTransactions` endpoint is now called automatically after wallet registration and can be triggered manually via the XlamaSyncStatus component.
 
-### 4. No Real-time Webhook
-Swaps performed on xlamaexchange.com aren't being pushed to the xLama backend. Need to configure webhook subscription.
-
----
-
-## Implementation Plan
-
-### Phase 1: Add DataSourceToggle to Pages
-
-Add the toggle component to all three pages so users can switch data sources.
-
-**Files to modify:**
-- `src/pages/Portfolio.tsx` - Add toggle in top controls section
-- `src/pages/Analytics.tsx` - Add toggle near refresh button
-- `src/pages/History.tsx` - Add toggle in header area
-
-**Location:** Next to refresh/filter controls in each page's header
+### 4. No Real-time Webhook (Phase 5 - TODO)
+Swaps performed on xlamaexchange.com need to be pushed to the xLama backend via webhook subscription.
 
 ---
 
-### Phase 2: Add Wallet Management to xlamaApi Service
+## Completed Implementation
 
-Extend the service to support wallet registration and transaction sync.
+### Phase 1: DataSourceToggle Added to Pages ✅
+- `src/pages/Portfolio.tsx` - Toggle in controls row after refresh button
+- `src/pages/Analytics.tsx` - Toggle near refresh button in header
+- `src/pages/History.tsx` - Toggle in header controls area
 
+### Phase 2: xlamaApi Service Extended ✅
 **New methods in `src/services/xlamaApi.ts`:**
-```text
-├── registerWallet(wallet, label?)     → POST /wallets
-├── syncTransactions(wallet, source?)  → POST /sync-transactions  
-├── listWallets()                      → GET /wallets
-└── getWalletStatus(wallet)            → GET /wallets/:address
-```
+- `registerWallet(wallet, label?)` → POST /wallets
+- `syncTransactions(wallet, source?)` → POST /sync-transactions
+- `listWallets()` → GET /wallets
+- `getWalletStatus(wallet)` → GET /wallets/:address
 
----
+**New types:**
+- `WalletInfo` - Wallet registration info including last_synced_at
+- `WalletStatusResponse` - Response from getWalletStatus
+- `SyncResponse` - Response from syncTransactions
 
-### Phase 3: Create Wallet Sync Hook
-
-Create a new hook for managing wallet sync state.
-
+### Phase 3: Wallet Sync Hook Created ✅
 **New file: `src/hooks/useXlamaWalletSync.ts`**
-- Auto-register wallet when xLama source is enabled
-- Trigger transaction sync on first use
-- Show sync status (pending/syncing/synced)
-- Support manual re-sync button
+- Auto-register wallet when xLama source is enabled (first time only)
+- Trigger transaction sync after registration
+- Track sync status (pending/syncing/synced/error)
+- Support manual re-sync via mutation
+
+### Phase 4: Sync Status UI Added ✅
+**New component: `src/components/XlamaSyncStatus.tsx`**
+- Shows sync status badge when xLama is enabled
+- Compact mode for toolbar display
+- Full mode with "Sync" button
+- Handles error states gracefully
 
 ---
 
-### Phase 4: Add Wallet Sync UI
+## Phase 5: Webhook Configuration (TODO)
 
-Add sync status indicator and manual sync button to pages.
+To receive real-time swap events from xlamaexchange.com:
 
-**UI Elements:**
-- Sync status badge (syncing/synced/error)
-- "Sync Transactions" button
-- Last synced timestamp
-- Progress indicator during sync
-
----
-
-### Phase 5: Configure Webhook for Real-time Swaps
-
-Set up webhook subscription to receive swap events in real-time.
-
-**Webhook Configuration:**
-- Subscribe to `transaction.new`, `swap.completed`, `bridge.completed` events
-- Target URL: Backend edge function that invalidates React Query cache
-- Signature verification for security
-
----
-
-## Technical Details
-
-### DataSourceToggle Placement
-
-**Portfolio Page (line ~484):**
-```typescript
-// In the flex controls row, after refresh button
-import { DataSourceToggle } from '@/components/ui/DataSourceToggle';
-
-<div className="flex items-center gap-1.5">
-  <Button variant="ghost" size="icon" onClick={() => setHideBalances(!hideBalances)}>
-    ...
-  </Button>
-  <Button variant="ghost" size="icon" onClick={handleRefresh}>
-    ...
-  </Button>
-  <DataSourceToggle compact />  {/* ADD THIS */}
-</div>
-```
-
-**Analytics Page (line ~415):**
-```typescript
-// Near the refresh button in header
-<div className="flex items-center justify-center gap-3 mb-4">
-  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass...">
-    ...
-  </div>
-  <Button variant="outline" size="sm" onClick={handlePullRefresh}>
-    ...
-  </Button>
-  <DataSourceToggle compact />  {/* ADD THIS */}
-</div>
-```
-
-**History Page (line ~391):**
-```typescript
-// In header controls area
-<div className="mb-10 flex items-start justify-between flex-wrap gap-4">
-  <div className="relative">
-    ...
-  </div>
-  <div className="flex items-center gap-2">
-    <DataSourceToggle compact />  {/* ADD THIS */}
-    {/* Existing chain toggle */}
-    <div className="inline-flex items-center gap-1 p-1 rounded-lg glass...">
-      ...
-    </div>
-  </div>
-</div>
-```
-
-### xlamaApi Service Extensions
-
-```typescript
-// Add to xlamaApi object in src/services/xlamaApi.ts
-
-/**
- * Register a wallet for tracking
- */
-registerWallet: async (wallet: string, label?: string): Promise<{
-  success: boolean;
-  wallet: WalletInfo;
-}> => {
-  return fetchFromProxy('wallets', {
-    method: 'POST',
-    body: JSON.stringify({
-      wallet_address: wallet,
-      label: label || 'xLama Exchange',
-      sync_enabled: true,
-    }),
-  });
-},
-
-/**
- * Sync transactions for a wallet
- */
-syncTransactions: async (wallet: string, source?: 'okx' | 'lifi' | 'all'): Promise<{
-  success: boolean;
-  synced: number;
-  new_transactions: number;
-}> => {
-  return fetchFromProxy('sync-transactions', {
-    method: 'POST',
-    body: JSON.stringify({
-      wallet,
-      source: source || 'all',
-    }),
-  });
-},
-
-/**
- * List all tracked wallets
- */
-listWallets: async (): Promise<{
-  success: boolean;
-  wallets: WalletInfo[];
-  total: number;
-}> => {
-  return fetchFromProxy('wallets');
-},
-```
-
-### useXlamaWalletSync Hook
-
-```typescript
-// New file: src/hooks/useXlamaWalletSync.ts
-
-export function useXlamaWalletSync() {
-  const { activeAddress } = useMultiWallet();
-  const { isXlamaEnabled } = useDataSource();
-  
-  // Query wallet registration status
-  const { data: walletStatus } = useQuery({
-    queryKey: ['xlama-wallet-status', activeAddress],
-    queryFn: () => xlamaApi.getWalletStatus(activeAddress!),
-    enabled: !!activeAddress && isXlamaEnabled,
-  });
-  
-  // Mutation for registering wallet
-  const registerMutation = useMutation({
-    mutationFn: (wallet: string) => xlamaApi.registerWallet(wallet),
-  });
-  
-  // Mutation for syncing transactions  
-  const syncMutation = useMutation({
-    mutationFn: (wallet: string) => xlamaApi.syncTransactions(wallet, 'all'),
-  });
-  
-  // Auto-register on first xLama enable
-  useEffect(() => {
-    if (isXlamaEnabled && activeAddress && !walletStatus?.isRegistered) {
-      registerMutation.mutate(activeAddress);
-    }
-  }, [isXlamaEnabled, activeAddress]);
-  
-  return {
-    isRegistered: walletStatus?.isRegistered ?? false,
-    isSyncing: syncMutation.isPending,
-    lastSyncedAt: walletStatus?.lastSyncedAt,
-    syncTransactions: () => syncMutation.mutate(activeAddress!),
-    registerWallet: () => registerMutation.mutate(activeAddress!),
-  };
+**Webhook Subscription:**
+```json
+POST /subscribe-webhook
+{
+  "url": "https://your-edge-function/xlama-webhook",
+  "events": ["transaction.new", "swap.completed", "bridge.completed"],
+  "secret": "your-webhook-secret"
 }
 ```
 
----
-
-## Implementation Order
-
-| Step | Task | Files |
-|------|------|-------|
-| 1 | Add DataSourceToggle to Portfolio | `src/pages/Portfolio.tsx` |
-| 2 | Add DataSourceToggle to Analytics | `src/pages/Analytics.tsx` |
-| 3 | Add DataSourceToggle to History | `src/pages/History.tsx` |
-| 4 | Extend xlamaApi with wallet methods | `src/services/xlamaApi.ts` |
-| 5 | Create useXlamaWalletSync hook | `src/hooks/useXlamaWalletSync.ts` |
-| 6 | Add sync status UI to pages | All three pages |
-| 7 | Test wallet registration | Manual test |
-| 8 | Test transaction sync | Manual test |
+**Edge Function Handler:**
+```typescript
+// supabase/functions/xlama-webhook/index.ts
+// 1. Verify webhook signature
+// 2. Insert transaction into cache
+// 3. Invalidate React Query cache via realtime
+```
 
 ---
 
 ## Testing Checklist
 
-After implementation:
+### Toggle Visibility ✅
+- [x] DataSourceToggle appears on Portfolio page
+- [x] DataSourceToggle appears on Analytics page
+- [x] DataSourceToggle appears on History page
+- [x] Can switch between Hybrid/OKX/Zerion/xLama sources
 
-1. **Toggle Visibility**
-   - [ ] DataSourceToggle appears on Portfolio page
-   - [ ] DataSourceToggle appears on Analytics page
-   - [ ] DataSourceToggle appears on History page
-   - [ ] Can switch between Hybrid/OKX/Zerion/xLama sources
+### Wallet Sync
+- [ ] Wallet auto-registers when xLama enabled
+- [ ] Manual sync button works
+- [ ] Sync status displays correctly
+- [ ] Error states handled gracefully
 
-2. **Wallet Sync**
-   - [ ] Wallet auto-registers when xLama enabled
-   - [ ] Manual sync button works
-   - [ ] Sync status displays correctly
-   - [ ] Error states handled gracefully
+### Data Display
+- [ ] xLama portfolio data displays when enabled
+- [ ] xLama analytics data displays when enabled
+- [ ] xLama transactions display in History
 
-3. **Data Display**
-   - [ ] xLama portfolio data displays when enabled
-   - [ ] xLama analytics data displays when enabled
-   - [ ] xLama transactions display in History
-
-4. **Your Wallet (ending 662)**
-   - [ ] Register wallet via API
-   - [ ] Sync historical transactions
-   - [ ] Verify data appears in pages
+### User Wallet Testing
+- [ ] Register wallet via API
+- [ ] Sync historical transactions
+- [ ] Verify data appears in pages

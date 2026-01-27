@@ -33,6 +33,8 @@ import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SwipeHint } from "@/components/ui/swipe-hint";
+import { DataSourceToggle } from "@/components/ui/DataSourceToggle";
+import { XlamaSyncStatus } from "@/components/XlamaSyncStatus";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -402,31 +404,35 @@ const History = () => {
               </p>
             </div>
             
-            {/* Chain Toggle */}
-            <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-              <Button
-                variant={globalChainFilter === 'all' || globalChainFilter === 'all-evm' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-8 px-3 text-xs"
-                onClick={() => setGlobalChainFilter('all-evm')}
-              >
-                EVM
-                {(globalChainFilter === 'all' || globalChainFilter === 'all-evm') && (
-                  <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
-                )}
-              </Button>
-              <Button
-                variant={globalChainFilter === '501' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-8 px-3 text-xs gap-1"
-                onClick={() => setGlobalChainFilter('501')}
-              >
-                <Zap className="w-3 h-3" />
-                Solana
-                {globalChainFilter === '501' && (
-                  <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
-                )}
-              </Button>
+            {/* Data Source & Chain Toggle */}
+            <div className="flex items-center gap-2">
+              <DataSourceToggle compact />
+              <XlamaSyncStatus compact />
+              <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+                <Button
+                  variant={globalChainFilter === 'all' || globalChainFilter === 'all-evm' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setGlobalChainFilter('all-evm')}
+                >
+                  EVM
+                  {(globalChainFilter === 'all' || globalChainFilter === 'all-evm') && (
+                    <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
+                  )}
+                </Button>
+                <Button
+                  variant={globalChainFilter === '501' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-3 text-xs gap-1"
+                  onClick={() => setGlobalChainFilter('501')}
+                >
+                  <Zap className="w-3 h-3" />
+                  Solana
+                  {globalChainFilter === '501' && (
+                    <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">Active</Badge>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
 
