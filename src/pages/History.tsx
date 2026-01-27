@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UnifiedChainSelector, ChainFilterValue } from "@/components/ui/UnifiedChainSelector";
+import { UnifiedTransactionCard, UnifiedTransaction } from "@/components/history";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
@@ -33,25 +34,9 @@ import { SwipeHint } from "@/components/ui/swipe-hint";
 
 const ITEMS_PER_PAGE = 20;
 
-// Unified transaction type for the timeline
-type UnifiedTransaction = {
-  id: string;
-  type: 'instant' | 'dex' | 'bridge';
-  timestamp: number;
-  status: string;
-  fromSymbol: string;
-  toSymbol: string;
-  fromAmount: string;
-  toAmount: string;
-  fromLogo?: string;
-  toLogo?: string;
-  chainName?: string;
-  chainIcon?: string;
-  explorerUrl?: string;
-  bridgeFromChain?: string;
-  bridgeToChain?: string;
-  original: any;
-};
+// Use the shared UnifiedTransaction type from the component
+// Local type alias for compatibility
+type LocalUnifiedTransaction = UnifiedTransaction;
 
 const TAB_ORDER: ('all' | 'instant' | 'dex' | 'bridge' | 'onchain')[] = ['all', 'instant', 'dex', 'bridge', 'onchain'];
 
@@ -592,105 +577,11 @@ const History = () => {
               <>
                 <div className="grid gap-3">
                   {paginatedTransactions.map((tx, i) => (
-                    <Card
+                    <UnifiedTransactionCard
                       key={tx.id}
-                      className={cn("p-4 sm:p-5 hover:border-primary/30 transition-all group", STAGGER_ITEM_CLASS)}
-                      style={getStaggerStyle(i, 60)}
-                    >
-                      <div className="flex items-center gap-4">
-                        {/* Token/Chain icons */}
-                        <div className="flex items-center shrink-0">
-                          <div className="relative">
-                            {tx.fromLogo ? (
-                              <img
-                                src={tx.fromLogo}
-                                alt={tx.fromSymbol}
-                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.fromSymbol}&background=random`;
-                                }}
-                              />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
-                                {tx.fromSymbol?.slice(0, 2)}
-                              </div>
-                            )}
-                          </div>
-                          <div className="relative -ml-3">
-                            {tx.toLogo ? (
-                              <img
-                                src={tx.toLogo}
-                                alt={tx.toSymbol}
-                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${tx.toSymbol}&background=random`;
-                                }}
-                              />
-                            ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-bold">
-                                {tx.toSymbol?.slice(0, 2)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-medium">
-                              {formatAmount(tx.fromAmount)}{" "}
-                              <span className="uppercase text-muted-foreground">{tx.fromSymbol}</span>
-                            </span>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span className="font-medium">
-                              {formatAmount(tx.toAmount)}{" "}
-                              <span className="uppercase text-muted-foreground">{tx.toSymbol}</span>
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                            <Badge 
-                              variant="outline" 
-                              className={cn(
-                                "h-5 text-xs",
-                                tx.type === 'instant' && "border-blue-500/30 text-blue-500",
-                                tx.type === 'dex' && "border-green-500/30 text-green-500",
-                                tx.type === 'bridge' && "border-purple-500/30 text-purple-500"
-                              )}
-                            >
-                              {tx.type === 'instant' && 'Instant'}
-                              {tx.type === 'dex' && 'DEX'}
-                              {tx.type === 'bridge' && 'Bridge'}
-                            </Badge>
-                            {tx.type === 'bridge' && tx.bridgeFromChain && tx.bridgeToChain && (
-                              <Badge variant="secondary" className="h-5 text-xs">
-                                {tx.bridgeFromChain} → {tx.bridgeToChain}
-                              </Badge>
-                            )}
-                            {tx.chainName && tx.chainIcon && (
-                              <Badge variant="outline" className="h-5 text-xs gap-1">
-                                <img src={tx.chainIcon} alt={tx.chainName} className="w-3 h-3 rounded-full" />
-                                {tx.chainName}
-                              </Badge>
-                            )}
-                            <span>•</span>
-                            <span>{formatDistanceToNow(tx.timestamp, { addSuffix: true })}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(tx.status)}
-                          {tx.explorerUrl && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9"
-                              onClick={() => window.open(tx.explorerUrl, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
+                      transaction={tx as UnifiedTransaction}
+                      index={i}
+                    />
                   ))}
                 </div>
 
