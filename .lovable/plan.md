@@ -1,109 +1,250 @@
-# Refactoring Progress
 
-## Completed Tasks
 
-### ✅ Task 1: Integrate UnifiedTransactionCard into History.tsx
-**Status**: Complete - Replaced ~100 lines with shared component
+# xLama Analytics API Integration Plan
 
-### ✅ Task 2 & 3: ExchangeWidget Mode Extraction
-**Status**: Deferred - Tightly coupled with 50+ shared state variables
+## Overview
 
-### ✅ Task 4: Refactor Perpetuals Page Structure  
-**Status**: Complete - Reduced from 917 to ~535 lines (42% reduction)
-
-Components created:
-- `MobileTradingUI.tsx` - Mobile layout with swipe tabs
-- `DesktopTradingUI.tsx` - Desktop two-column layout
-- `AccountStatsRow.tsx` - Equity/margin/PnL display
-- `DisconnectedState.tsx` - Connect wallet prompt
-- `WrongNetworkState.tsx` - Network switch UI
-
-### ✅ Task 5: Extract History Tab Components
-**Status**: Complete
-
-Components created:
-- `InstantTabContent.tsx` - Instant exchange transactions
-- `OnchainTabContent.tsx` - On-chain transaction history
-
-### ✅ Task 6: Testing Infrastructure Setup
-**Status**: Complete
-
-- Added test dependencies (vitest, testing-library, jsdom)
-- Created `vitest.config.ts`
-- Created `src/test/setup.ts` with mocks
-
-### ✅ Task 7: Integrate Tab Components into History.tsx
-**Status**: Complete - Replaced inline Instant & OnChain tabs with components (~200 lines saved)
+This plan covers testing and integrating the external **xLama Analytics API** (hosted at `ciandnwvnweoyoutaysb.supabase.co/functions/v1`) into the xLama frontend. The API provides comprehensive endpoints for portfolio holdings, trading analytics, transaction history, and real-time webhooks.
 
 ---
 
-## File Size Tracking
+## Phase 1: API Key Setup & Initial Testing
 
-| File | Before | After | Target | Status |
-|------|--------|-------|--------|--------|
-| History.tsx | 1141 | ~930 | < 800 | ✅ Improved |
-| ExchangeWidget.tsx | 1449 | 1449 | < 800 | ⏸️ Deferred |
-| Perpetuals.tsx | 917 | ~535 | < 500 | ✅ Near target |
+### Task 1.1: Store API Key as Secret
+- Add `XLAMA_API_KEY` to project secrets for secure storage
+- This key will be used by a new edge function proxy to call the external API
 
----
+### Task 1.2: Create API Proxy Edge Function
+Create a new edge function `xlama-api` that:
+- Acts as a secure proxy to the external API
+- Adds the API key from secrets to requests
+- Handles CORS and error responses
+- Supports all major endpoints
 
-## Components Created This Session
+**File**: `supabase/functions/xlama-api/index.ts`
 
-| Component | Lines | Purpose |
-|-----------|-------|---------|
-| `MobileTradingUI` | ~310 | Mobile perpetuals with swipe |
-| `DesktopTradingUI` | ~340 | Desktop perpetuals layout |
-| `InstantTabContent` | ~170 | Instant exchange history tab |
-| `OnchainTabContent` | ~210 | On-chain history tab |
-| `UnifiedTransactionCard` | ~180 | Shared transaction display |
-| `TokenInputPanel` | ~150 | Shared token input |
+```text
+Supported Routes:
+├── /health                    → GET  (no auth)
+├── /portfolio/:wallet         → GET  (portfolio:read)
+├── /trading-analytics         → GET  (analytics:read)
+├── /fetch-transactions        → GET  (transactions:read)
+├── /cross-chain-analytics     → GET  (analytics:read)
+├── /price-oracle              → GET  (prices:read)
+└── /wallets                   → CRUD (wallets:*)
+```
 
----
-
-## Next Steps (Tasks 8 & 9)
-
-### 📋 Task 8: Extract DEX & Bridge Tab Content
-**Goal**: Create `DexTabContent.tsx` and `BridgeTabContent.tsx` components
-
-- Extract DEX tab rendering into `DexTabContent.tsx`
-- Extract Bridge tab rendering into `BridgeTabContent.tsx`
-- Expected savings: ~250 lines from History.tsx
-
-### 📋 Task 9: Create Unit Tests for Core Components
-**Goal**: Add tests for critical shared components
-
-- `UnifiedTransactionCard.test.tsx` - Test rendering, status badges, explorer links
-- `InstantTabContent.test.tsx` - Test empty states, loading, transaction display
-- `TokenInputPanel.test.tsx` - Test amount formatting, MAX button, balance display
+### Task 1.3: Manual API Testing
+Test each endpoint using the edge function curl tool:
+1. Health check (verify connectivity)
+2. Portfolio endpoint with test wallet
+3. Trading analytics with test wallet
+4. Transaction fetch with test wallet
 
 ---
 
-## Recent Updates (January 2026)
+## Phase 2: Create Integration Services
 
-### ✅ Onboarding Tour Fix
-- Now only triggers on home page (`/` or `/swap`) to prevent jumping around
-- Added more tour steps for Bridge, Perpetuals, Portfolio
-- Smooth animations with proper framer-motion transitions
+### Task 2.1: xLama API Service
+Create a new service module to interface with the proxy:
 
-### ✅ Mobile Navigation Enhancement
-- Subtle spring animations for floating pill button
-- Smooth expand/collapse transitions
-- Animated icons (settings rotation, theme toggle)
-- Staggered grid animation for "More" menu items
+**File**: `src/services/xlamaApi.ts`
 
-### ✅ Landing Page Refresh
-- Animated hero section with staggered fade-in
-- Updated tagline: "DEX Aggregator" instead of "DEX Swap"
-- Improved badge copy: "Live on 25+ Chains"
+```typescript
+// Type definitions matching API responses
+interface XlamaPortfolio {
+  success: boolean;
+  wallet: string;
+  holdings: TokenHolding[];
+  total_value_usd: number;
+  chain_breakdown: Record<string, number>;
+}
 
-### ✅ About Page Update
-- Added "What We Offer" feature grid section
-- Smooth motion animations for hero content
-- Better visual hierarchy
+interface XlamaAnalytics {
+  success: boolean;
+  analytics: {
+    total_trades: number;
+    total_volume_usd: number;
+    realized_pnl: number;
+    most_traded_pairs: TradedPair[];
+    chain_distribution: Record<string, number>;
+  };
+}
+
+interface XlamaTransaction {
+  tx_hash: string;
+  wallet_address: string;
+  chain_id: string;
+  transaction_type: string;
+  token_in: TokenInfo;
+  token_out: TokenInfo;
+  value_usd: number;
+  timestamp: string;
+}
+
+// Service functions
+export const xlamaApi = {
+  getPortfolio: (wallet: string) => Promise<XlamaPortfolio>,
+  getAnalytics: (wallet: string, period?: string) => Promise<XlamaAnalytics>,
+  getTransactions: (wallet: string, options?: TransactionOptions) => Promise<XlamaTransaction[]>,
+  getCrossChainAnalytics: (wallets?: string[]) => Promise<CrossChainData>,
+  getPrices: (tokens: string[], chain?: string) => Promise<PriceData>,
+};
+```
+
+### Task 2.2: React Query Hooks
+Create hooks that leverage the service:
+
+**File**: `src/hooks/useXlamaPortfolio.ts`
+- Fetches portfolio data from xLama API
+- Integrates with `useMultiWallet` for active address
+- Respects `DataSourceContext` toggle
+- 30s stale time, auto-refresh
+
+**File**: `src/hooks/useXlamaAnalytics.ts`
+- Fetches trading analytics by period
+- Supports 7d, 30d, 90d, all timeframes
+- Aggregates cross-chain data
+
+**File**: `src/hooks/useXlamaTransactions.ts`
+- Fetches transaction history
+- Supports source filtering (okx, lifi, all)
+- Pagination support
 
 ---
 
-## Future Considerations
+## Phase 3: Page Integration
 
-- **Create usePerpetualsState hook** for centralized state management
-- **Extract remaining ExchangeWidget modes** when state management is refactored
+### Task 3.1: Portfolio Page
+Replace/augment current OKX API calls with xLama API:
+- `AccountSummaryCard` uses xLama portfolio total
+- `PortfolioHoldingsTable` uses xLama holdings
+- Chain breakdown from xLama API
+
+### Task 3.2: Analytics Page
+Integrate xLama trading analytics:
+- Total trades count
+- Total volume USD
+- Realized PnL display
+- Most traded pairs chart
+- Chain distribution pie chart
+
+### Task 3.3: History Page
+Connect xLama transactions to history tabs:
+- "OnChain" tab uses xLama transaction data
+- Unified format mapping to `UnifiedTransactionCard`
+- Real-time sync status indicator
+
+---
+
+## Phase 4: Data Source Toggle
+
+### Task 4.1: Update DataSourceContext
+Add xLama as a data source option:
+```typescript
+type DataSource = 'okx' | 'zerion' | 'xlama';
+```
+
+### Task 4.2: DataSourceToggle UI
+Update the toggle component to include xLama option with proper labeling
+
+---
+
+## Phase 5: Webhook Integration (Future)
+
+### Task 5.1: Webhook Subscription
+Configure webhook for real-time updates:
+- `transaction.new` → Invalidate transaction cache
+- `swap.completed` → Update analytics
+- `price.update` → Update PriceOracleContext
+
+---
+
+## Technical Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                     xLama Frontend                          │
+├─────────────────────────────────────────────────────────────┤
+│  Portfolio Page    Analytics Page    History Page           │
+│       │                 │                 │                 │
+│       └────────────┬────┴────────────────┘                 │
+│                    ▼                                        │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              React Query Hooks                        │  │
+│  │  useXlamaPortfolio │ useXlamaAnalytics │ useXlama... │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                    │                                        │
+│                    ▼                                        │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              xlamaApi Service                         │  │
+│  │          src/services/xlamaApi.ts                     │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                    │                                        │
+└────────────────────│────────────────────────────────────────┘
+                     │ HTTP
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Lovable Cloud Edge Function                     │
+│              supabase/functions/xlama-api                    │
+│                    │                                        │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  - Adds x-api-key header from secrets                 │  │
+│  │  - Proxies to external xLama API                      │  │
+│  │  - Handles errors and rate limiting                   │  │
+│  └──────────────────────────────────────────────────────┘  │
+└────────────────────│────────────────────────────────────────┘
+                     │ HTTP
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│         External xLama Analytics API                         │
+│     ciandnwvnweoyoutaysb.supabase.co/functions/v1           │
+├─────────────────────────────────────────────────────────────┤
+│  /portfolio/:wallet     │  Portfolio holdings               │
+│  /trading-analytics     │  Trade metrics & PnL              │
+│  /fetch-transactions    │  Transaction history              │
+│  /cross-chain-analytics │  Multi-chain aggregation          │
+│  /price-oracle          │  Token prices                     │
+│  /webhook/*             │  Real-time subscriptions          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Implementation Order
+
+| Phase | Task | Effort |
+|-------|------|--------|
+| 1.1 | Store API key secret | 2 min |
+| 1.2 | Create xlama-api edge function | 15 min |
+| 1.3 | Manual endpoint testing | 10 min |
+| 2.1 | xlamaApi service | 15 min |
+| 2.2 | React Query hooks | 20 min |
+| 3.1 | Portfolio integration | 20 min |
+| 3.2 | Analytics integration | 20 min |
+| 3.3 | History integration | 15 min |
+| 4.1 | DataSource context update | 10 min |
+| 4.2 | Toggle UI update | 5 min |
+
+**Total Estimated Time**: ~2.5 hours
+
+---
+
+## Supported Chains (from API docs)
+
+The xLama API supports 30+ chains including:
+- **L1s**: Ethereum, BNB Chain, Avalanche, Fantom
+- **L2s**: Arbitrum, Optimism, Base, zkSync, Linea, Scroll, Blast
+- **Alt-L1s**: Solana, Tron, Sui, TON
+- **Others**: Polygon, Gnosis, Celo, Moonbeam, Cronos
+
+---
+
+## Next Steps After Approval
+
+1. **Add API key to secrets** using the secret input tool
+2. **Create the edge function proxy** for secure API access
+3. **Test endpoints** to verify connectivity
+4. **Build service layer and hooks**
+5. **Integrate into pages**
+
