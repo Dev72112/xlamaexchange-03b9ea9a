@@ -65,8 +65,8 @@ Components created:
 ### 📋 Task 8: Extract DEX & Bridge Tab Content
 **Goal**: Create `DexTabContent.tsx` and `BridgeTabContent.tsx` components
 
-- Extract DEX tab rendering (lines 722-860) into `DexTabContent.tsx`
-- Extract Bridge tab rendering (lines 862-1007) into `BridgeTabContent.tsx`
+- Extract DEX tab rendering into `DexTabContent.tsx`
+- Extract Bridge tab rendering into `BridgeTabContent.tsx`
 - Expected savings: ~250 lines from History.tsx
 
 ### 📋 Task 9: Create Unit Tests for Core Components
@@ -75,6 +75,31 @@ Components created:
 - `UnifiedTransactionCard.test.tsx` - Test rendering, status badges, explorer links
 - `InstantTabContent.test.tsx` - Test empty states, loading, transaction display
 - `TokenInputPanel.test.tsx` - Test amount formatting, MAX button, balance display
+
+---
+
+## Recent Updates (January 2026)
+
+### ✅ Onboarding Tour Fix
+- Now only triggers on home page (`/` or `/swap`) to prevent jumping around
+- Added more tour steps for Bridge, Perpetuals, Portfolio
+- Smooth animations with proper framer-motion transitions
+
+### ✅ Mobile Navigation Enhancement
+- Subtle spring animations for floating pill button
+- Smooth expand/collapse transitions
+- Animated icons (settings rotation, theme toggle)
+- Staggered grid animation for "More" menu items
+
+### ✅ Landing Page Refresh
+- Animated hero section with staggered fade-in
+- Updated tagline: "DEX Aggregator" instead of "DEX Swap"
+- Improved badge copy: "Live on 25+ Chains"
+
+### ✅ About Page Update
+- Added "What We Offer" feature grid section
+- Smooth motion animations for hero content
+- Better visual hierarchy
 
 ---
 

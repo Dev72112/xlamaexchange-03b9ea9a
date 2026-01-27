@@ -1,8 +1,16 @@
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
-import { Users, Zap, Heart, Code, Target, Rocket, ArrowRightLeft, Link2, Shield, ExternalLink, Activity } from "lucide-react";
+import { motion } from "framer-motion";
+import { Users, Zap, Heart, Code, Target, Rocket, ArrowRightLeft, Link2, Shield, ExternalLink, Activity, Wallet, TrendingUp } from "lucide-react";
 import { XIcon, TelegramIcon, SOCIAL_LINKS } from "@/components/SocialIcons";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] }
+};
 
 const About = () => {
   const values = [
@@ -33,6 +41,15 @@ const About = () => {
     { icon: Heart, text: "Culture before hype" },
     { icon: Rocket, text: "Progress over perfection" },
     { icon: Zap, text: "Memes with meaning" },
+  ];
+
+  const features = [
+    { icon: ArrowRightLeft, title: "DEX Aggregator", desc: "Best rates from 400+ DEXs across 25+ chains" },
+    { icon: Link2, title: "Cross-Chain Bridge", desc: "Move assets via 20+ bridge protocols" },
+    { icon: Activity, title: "Perpetual Trading", desc: "Up to 50x leverage via Hyperliquid" },
+    { icon: Wallet, title: "Multi-Wallet", desc: "526+ wallets supported via WalletConnect" },
+    { icon: TrendingUp, title: "Advanced Orders", desc: "Limit orders and DCA automation" },
+    { icon: Shield, title: "Non-Custodial", desc: "Your keys, your crypto, always" },
   ];
 
   const techPartners = [
@@ -99,13 +116,45 @@ const About = () => {
       <main className="container pb-12 sm:pb-16 lg:pb-20">
         {/* Hero Section */}
         <section className="text-center mb-16" aria-labelledby="about-heading">
-          <h1 id="about-heading" className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 tracking-tight">
+          <motion.h1 
+            {...fadeInUp}
+            id="about-heading" 
+            className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 tracking-tight"
+          >
             WTF is <span className="text-primary">xLAMA</span>?
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+          </motion.h1>
+          <motion.p 
+            {...fadeInUp}
+            transition={{ ...fadeInUp.transition, delay: 0.1 }}
+            className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed"
+          >
             The unapologetic, chaos-powered crypto exchange — existing purely for builders, 
             meme lords, and market raiders who thrive on community vibes.
-          </p>
+          </motion.p>
+        </section>
+
+        {/* Key Features */}
+        <section className="mb-20" aria-labelledby="features-heading">
+          <h2 id="features-heading" className="text-2xl sm:text-3xl font-bold text-center mb-10">What We Offer</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.4 }}
+                className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <feature.icon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </section>
 
         {/* Origin Story */}
