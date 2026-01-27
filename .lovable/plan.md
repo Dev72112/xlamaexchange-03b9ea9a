@@ -182,7 +182,12 @@ src/pages/History/
 ### Medium Term (Code Quality)
 6. Refactor Perpetuals page structure
 7. Refactor Analytics page structure
-8. ✅ Refactor History page structure - created TransactionCard and EmptyHistoryState components
+8. ✅ Refactor History page structure - created TransactionCard, EmptyHistoryState, and UnifiedTransactionCard components
+
+### ExchangeWidget Refactoring Progress
+- ✅ Phase 1: Created `useExchangeState` hook for centralized state management
+- ✅ Phase 2: Created `TokenInputPanel` shared component for token/amount inputs
+- 🔄 Phase 3: Next - extract mode-specific components (InstantSwapMode, DexSwapMode)
 
 ### Long Term (Architecture)
 9. Implement unified state management

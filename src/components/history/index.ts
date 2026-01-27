@@ -5,3 +5,5 @@
 export { TransactionCard } from './TransactionCard';
 export type { TransactionCardProps } from './TransactionCard';
 export { EmptyHistoryState } from './EmptyHistoryState';
+export { UnifiedTransactionCard } from './UnifiedTransactionCard';
+export type { UnifiedTransaction } from './UnifiedTransactionCard';
