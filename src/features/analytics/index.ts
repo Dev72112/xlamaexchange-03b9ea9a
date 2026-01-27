@@ -15,10 +15,15 @@ export {
   useTradeVsHodl,
   usePricePrediction,
   useWebSocketPrice,
+  useXlamaPortfolio,
+  useXlamaAnalytics,
+  useXlamaTransactions,
+  useXlamaTransactionsPaginated,
 } from './hooks';
 
 // Re-export TimePeriod type from useTradeAnalytics
 export type { TimePeriod } from '@/hooks/useTradeAnalytics';
+export type { AnalyticsPeriod } from './hooks';
 
 // Types
 export type { 

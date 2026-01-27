@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Database, Layers, Zap, ChevronDown, Check } from 'lucide-react';
+import { Database, Layers, Zap, ChevronDown, Check, LineChart } from 'lucide-react';
 import { useDataSource, DataSource } from '@/contexts/DataSourceContext';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +31,11 @@ const sourceConfig: Record<DataSource, { label: string; icon: typeof Database; d
     label: 'Hybrid',
     icon: Database,
     description: 'Best of both sources',
+  },
+  xlama: {
+    label: 'xLama API',
+    icon: LineChart,
+    description: 'Unified analytics & history',
   },
 };
 

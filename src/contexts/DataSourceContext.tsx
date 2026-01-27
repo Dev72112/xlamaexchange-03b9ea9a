@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-export type DataSource = 'zerion' | 'okx' | 'hybrid';
+export type DataSource = 'zerion' | 'okx' | 'hybrid' | 'xlama';
 
 interface DataSourceContextValue {
   dataSource: DataSource;
   setDataSource: (source: DataSource) => void;
   isZerionEnabled: boolean;
   isOKXEnabled: boolean;
+  isXlamaEnabled: boolean;
   preferredSource: DataSource;
   toggleDataSource: () => void;
 }
@@ -26,7 +27,7 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
   const [dataSource, setDataSourceState] = useState<DataSource>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(DATA_SOURCE_KEY);
-      if (stored && ['zerion', 'okx', 'hybrid'].includes(stored)) {
+      if (stored && ['zerion', 'okx', 'hybrid', 'xlama'].includes(stored)) {
         return stored as DataSource;
       }
     }
@@ -45,11 +46,14 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
     queryClient.invalidateQueries({ queryKey: ['okx-portfolio'] });
     queryClient.invalidateQueries({ queryKey: ['portfolio'] });
     queryClient.invalidateQueries({ queryKey: ['hybrid-portfolio'] });
+    queryClient.invalidateQueries({ queryKey: ['xlama-portfolio'] });
+    queryClient.invalidateQueries({ queryKey: ['xlama-analytics'] });
+    queryClient.invalidateQueries({ queryKey: ['xlama-transactions'] });
     console.log('[DataSource] Mode changed to:', source, '- invalidated portfolio queries');
   }, [queryClient]);
 
   const toggleDataSource = useCallback(() => {
-    const sources: DataSource[] = ['zerion', 'okx', 'hybrid'];
+    const sources: DataSource[] = ['zerion', 'okx', 'hybrid', 'xlama'];
     const currentIndex = sources.indexOf(dataSource);
     const nextIndex = (currentIndex + 1) % sources.length;
     setDataSource(sources[nextIndex]);
@@ -60,6 +64,7 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
     setDataSource,
     isZerionEnabled: dataSource === 'zerion' || dataSource === 'hybrid',
     isOKXEnabled: dataSource === 'okx' || dataSource === 'hybrid',
+    isXlamaEnabled: dataSource === 'xlama',
     preferredSource: dataSource === 'hybrid' ? 'zerion' : dataSource, // Prefer Zerion in hybrid mode
     toggleDataSource,
   };
