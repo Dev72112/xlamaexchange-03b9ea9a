@@ -291,15 +291,14 @@ export function useDexSwap() {
       const gasLimit = parseInt(swapData.tx?.gas || '0');
       const gasPrice = parseFloat(routerResult?.estimateGasFee || '0'); // in native token units
       
-      // Native token price approximation - fetch from router result if available
-      // OKX usually returns native token price in the swap response
-      const nativeSymbol = chain.nativeCurrency?.symbol || 'ETH';
-      const nativeTokenPriceFromRoute = routerResult?.fromToken?.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
-        ? fromTokenPrice : (routerResult?.toToken?.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? toTokenPrice : 0);
+      // Native token price approximation - check if from/to token is native
+      const isFromNative = fromToken.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+      const isToNative = toToken.tokenContractAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+      const nativeTokenPrice = isFromNative ? fromTokenPrice : (isToNative ? toTokenPrice : 0);
       
       // Use a default approximate price if not found (will be improved by backend enrichment)
       const gasFeeNative = gasPrice > 0 ? gasPrice : (gasLimit * 30 / 1e9); // fallback: assume 30 gwei
-      const gasFeeUsd = gasFeeNative * (nativeTokenPriceFromRoute || 0);
+      const gasFeeUsd = gasFeeNative * nativeTokenPrice;
       
       // Send webhook to xLama backend for real-time sync (fire and forget)
       sendSwapWebhook({
