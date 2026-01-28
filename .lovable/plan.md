@@ -1,311 +1,380 @@
 
 
-# Data Source Separation Architecture Plan
+# xLama Backend Integration & Zerion Removal Plan
 
-## Problem Statement
+## Overview
 
-The current implementation tries to handle **4 different data sources** (Zerion, OKX, Hybrid, xLama) within single components across Portfolio, Analytics, and History pages. This creates:
+This plan addresses three key improvements:
+1. **Webhook Integration**: Create a webhook endpoint to notify the xLama backend when swaps complete
+2. **Fix Wallet Sync Error**: Improve error handling in `useXlamaWalletSync` to not show "Sync Error" when wallet is already registered
+3. **Remove Zerion Integration**: Completely remove Zerion from the codebase (service, edge function, hooks, components)
 
-1. **Complex conditional rendering** - Large `useMemo` blocks converting between different data formats
-2. **Mixed data structures** - Each source has different response shapes that get force-converted
-3. **Feature gaps** - Some features only exist in certain sources (e.g., DeFi positions in Zerion, Realized PnL in xLama)
-4. **Difficult debugging** - Hard to trace which data source is causing issues
-5. **Poor separation of concerns** - UI logic mixed with data transformation logic
+---
 
-## Proposed Architecture
+## Part 1: Webhook Integration for Swap Completion
 
-Replace the single-component-multi-source pattern with a **tabbed interface** where each tab renders source-specific components.
+### Current State
+When a swap completes in `useDexSwap.ts`, it:
+- Updates local transaction context
+- Sends notification via `notificationService`
+- Tracks analytics via `trackSwapCompleted`
 
-```text
-Portfolio Page
-├── Tab: "OKX" (default for multi-chain balances)
-│   └── OkxPortfolioTab component
-├── Tab: "Zerion" (DeFi + NFTs + advanced PnL)
-│   └── ZerionPortfolioTab component
-└── Tab: "xLama" (unified analytics backend - replaces "Hybrid")
-    └── XlamaPortfolioTab component
+**Missing**: No webhook call to notify the xLama backend for real-time sync.
 
-Analytics Page
-├── Tab: "OKX" (trading volume, basic stats)
-│   └── OkxAnalyticsTab component
-├── Tab: "Zerion" (protocol breakdown, fee analysis)
-│   └── ZerionAnalyticsTab component
-└── Tab: "xLama" (unified metrics: Realized PnL, Success Rate)
-    └── XlamaAnalyticsTab component
+### Solution
+Create a webhook service that POSTs to the xLama backend whenever a swap completes.
 
-History Page
-├── Tab: "App History" (local: DEX + Bridge + Instant)
-│   └── AppHistoryTab component (current tabs for instant/dex/bridge)
-├── Tab: "On-Chain" (OKX transaction history API)
-│   └── OnchainHistoryTab component
-└── Tab: "xLama" (xLama unified transaction feed)
-    └── XlamaHistoryTab component
-```
-
-## Implementation Details
-
-### Phase 1: Create Source-Specific Portfolio Tab Components
-
-**New Files:**
-- `src/components/portfolio/tabs/OkxPortfolioTab.tsx`
-- `src/components/portfolio/tabs/ZerionPortfolioTab.tsx`
-- `src/components/portfolio/tabs/XlamaPortfolioTab.tsx`
-- `src/components/portfolio/tabs/index.ts`
-
-Each tab component will:
-- Use its dedicated hook directly (no conditional switching)
-- Render source-specific UI features
-- Handle its own loading/error states
-
-**OkxPortfolioTab** features:
-- Multi-chain token balances
-- Chain selector
-- Holdings table with swap actions
-- Allocation chart
-
-**ZerionPortfolioTab** features:
-- Wallet positions
-- DeFi positions (staking, lending, liquidity)
-- NFT gallery
-- Advanced PnL chart
-- Protocol breakdown
-
-**XlamaPortfolioTab** features:
-- Unified holdings from xLama API
-- Sync status indicator
-- Chain breakdown
-- Automatic OKX fallback when xLama data unavailable
-
-### Phase 2: Create Source-Specific Analytics Tab Components
-
-**New Files:**
-- `src/components/analytics/tabs/OkxAnalyticsTab.tsx`
-- `src/components/analytics/tabs/ZerionAnalyticsTab.tsx`
-- `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
-- `src/components/analytics/tabs/index.ts`
-
-**OkxAnalyticsTab** features:
-- Trading volume from local transaction context
-- Gas analytics
-- Trade patterns
-
-**ZerionAnalyticsTab** features:
-- Protocol breakdown
-- Fee analysis
-- DeFi position value tracking
-
-**XlamaAnalyticsTab** features:
-- Unified metrics: Total Trades, Volume, Realized PnL, Success Rate
-- Most traded pairs
-- Most used chains
-- Sync status
-
-### Phase 3: Restructure History Page with Source Tabs
-
-**New Files:**
-- `src/components/history/tabs/AppHistoryTab.tsx`
-- `src/components/history/tabs/OnchainHistoryTab.tsx`
-- `src/components/history/tabs/XlamaHistoryTab.tsx`
-- `src/components/history/tabs/index.ts`
-
-**AppHistoryTab** - Moves existing local transaction UI:
-- Instant exchanges (ChangeNOW)
-- DEX swaps (from context)
-- Bridge transactions (from context)
-- Sub-tabs for filtering by type
-
-**OnchainHistoryTab** - OKX on-chain history:
-- Transaction history from OKX API
-- Chain filtering
-
-**XlamaHistoryTab** - xLama unified feed:
-- Unified transaction list from xLama API
-- Infinite scroll pagination
-- Sync status
-
-### Phase 4: Refactor Page Components
-
-Simplify `Portfolio.tsx`, `Analytics.tsx`, and `History.tsx` to:
-1. Remove all data source conditional logic
-2. Render a tabbed interface using Radix Tabs
-3. Each tab lazy-loads its component
-
-**Example Portfolio.tsx structure:**
-```typescript
-<Tabs defaultValue="okx">
-  <TabsList>
-    <TabsTrigger value="okx">OKX</TabsTrigger>
-    <TabsTrigger value="zerion">Zerion</TabsTrigger>
-    <TabsTrigger value="xlama">xLama</TabsTrigger>
-  </TabsList>
-  <TabsContent value="okx">
-    <Suspense fallback={<PortfolioSkeleton />}>
-      <OkxPortfolioTab />
-    </Suspense>
-  </TabsContent>
-  <TabsContent value="zerion">
-    <Suspense fallback={<PortfolioSkeleton />}>
-      <ZerionPortfolioTab />
-    </Suspense>
-  </TabsContent>
-  <TabsContent value="xlama">
-    <Suspense fallback={<PortfolioSkeleton />}>
-      <XlamaPortfolioTab />
-    </Suspense>
-  </TabsContent>
-</Tabs>
-```
-
-### Phase 5: Remove DataSourceToggle Global Approach
-
-- **Remove** the global `DataSourceToggle` dropdown
-- **Keep** `DataSourceContext` for backward compatibility but deprecate for future removal
-- Tab selection naturally replaces data source switching
-- Each tab remembers user's last-used tab via localStorage
-
-### Phase 6: Cleanup and Migration
-
-- Move shared components (charts, tables) to be data-agnostic
-- Create adapter interfaces for consistent data shapes within each source
-- Update feature barrel exports
-- Remove unused hybrid/conversion logic
-
-## Technical Details
-
-### OkxPortfolioTab Component Structure
+### New File: `src/services/xlamaWebhook.ts`
 
 ```typescript
-// src/components/portfolio/tabs/OkxPortfolioTab.tsx
-export function OkxPortfolioTab() {
-  const { activeAddress, isConnected } = useMultiWallet();
-  const [chainFilter, setChainFilter] = useState<'all-evm' | string>('all-evm');
-  
-  // Direct OKX hook - no source switching
-  const { data: balances, isLoading } = useQuery({
-    queryKey: ['okx-balances', activeAddress, chainFilter],
-    queryFn: () => okxDexService.getWalletBalances(activeAddress, chainFilter),
-    enabled: isConnected && !!activeAddress,
-  });
-  
-  return (
-    <div className="space-y-4">
-      <ChainFilterRow value={chainFilter} onChange={setChainFilter} />
-      <AccountSummaryCard balances={balances} isLoading={isLoading} />
-      <PortfolioHoldingsTable balances={balances} isLoading={isLoading} />
-      <PortfolioAllocationChart balances={balances} />
-    </div>
-  );
-}
-```
+// Webhook service for notifying xLama backend of completed swaps
+const XLAMA_WEBHOOK_URL = 'https://ciandnwvnweoyoutaysb.supabase.co/functions/v1/webhook';
 
-### XlamaAnalyticsTab Component Structure
-
-```typescript
-// src/components/analytics/tabs/XlamaAnalyticsTab.tsx
-export function XlamaAnalyticsTab() {
-  const { activeAddress } = useMultiWallet();
-  const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('30d');
-  
-  // Direct xLama hook
-  const analytics = useXlamaAnalytics({ period, enabled: true });
-  
-  return (
-    <div className="space-y-6">
-      <XlamaSyncStatus />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total Trades" value={analytics.totalTrades} />
-        <StatCard label="Volume" value={formatUsd(analytics.totalVolume)} />
-        <StatCard label="Realized PnL" value={formatUsd(analytics.realizedPnl)} variant="pnl" />
-        <StatCard label="Success Rate" value={`${analytics.successRate}%`} />
-      </div>
-      <MostTradedPairsChart pairs={analytics.mostTradedPairs} />
-      <ChainDistributionChart chains={analytics.mostUsedChains} />
-    </div>
-  );
-}
-```
-
-### Tab Persistence
-
-```typescript
-// Store last active tab per page
-const TAB_STORAGE_KEY = 'xlama-active-tabs';
-
-function useTabPersistence(page: 'portfolio' | 'analytics' | 'history', defaultTab: string) {
-  const [activeTab, setActiveTab] = useState(() => {
-    const stored = localStorage.getItem(TAB_STORAGE_KEY);
-    if (stored) {
-      const tabs = JSON.parse(stored);
-      return tabs[page] || defaultTab;
-    }
-    return defaultTab;
-  });
-  
-  const setTab = (tab: string) => {
-    setActiveTab(tab);
-    const stored = JSON.parse(localStorage.getItem(TAB_STORAGE_KEY) || '{}');
-    stored[page] = tab;
-    localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(stored));
+interface SwapWebhookPayload {
+  event: 'swap.completed';
+  source: 'xlamaexchange';
+  data: {
+    tx_hash: string;
+    wallet_address: string;
+    chain_id: string;
+    token_in_symbol: string;
+    token_in_amount: string;
+    token_in_usd_value: number;
+    token_out_symbol: string;
+    token_out_amount: string;
+    token_out_usd_value: number;
+    gas_fee: string;
+    gas_fee_usd: number;
+    slippage: string;
+    status: 'completed';
   };
-  
-  return [activeTab, setTab] as const;
+}
+
+export async function sendSwapWebhook(payload: SwapWebhookPayload): Promise<boolean> {
+  try {
+    const apiKey = await getApiKey(); // From edge function proxy
+    const response = await fetch(XLAMA_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('[xLama Webhook] Failed to send swap notification:', error);
+    return false;
+  }
 }
 ```
 
-## File Changes Summary
+### Modify: `src/hooks/useDexSwap.ts`
 
-### New Files (12 files)
-| Path | Description |
+Add webhook call after successful swap completion (line 266-278):
+
+```typescript
+// After swap completion tracking
+await sendSwapWebhook({
+  event: 'swap.completed',
+  source: 'xlamaexchange',
+  data: {
+    tx_hash: hash,
+    wallet_address: address,
+    chain_id: chain.chainIndex,
+    token_in_symbol: fromToken.tokenSymbol,
+    token_in_amount: amount,
+    token_in_usd_value: swapData.routerResult?.fromTokenUnitPrice * parseFloat(amount) || 0,
+    token_out_symbol: toToken.tokenSymbol,
+    token_out_amount: toAmount,
+    token_out_usd_value: toAmountUsd,
+    gas_fee: gasUsed,
+    gas_fee_usd: gasUsd,
+    slippage,
+    status: 'completed',
+  },
+});
+```
+
+### API Key Handling
+
+The webhook call requires the `XLAMA_API_KEY`. Since this secret is already configured and available in edge functions, we have two options:
+
+**Option A: Direct call via Edge Function Proxy** (Recommended)
+- Create a new endpoint in `xlama-api` edge function for webhook forwarding
+- The frontend calls our edge function, which injects the API key
+
+**Option B: Store API key in app context** 
+- Not recommended as it exposes the key to the frontend
+
+### New Endpoint in `supabase/functions/xlama-api/index.ts`
+
+Add a new route for webhook forwarding:
+
+```typescript
+// Handle webhook forwarding for swap.completed events
+if (endpointPath === 'webhook' && req.method === 'POST') {
+  const body = await req.json();
+  
+  // Validate payload
+  if (body.event !== 'swap.completed') {
+    return new Response(
+      JSON.stringify({ error: 'Invalid event type' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  // Forward to xLama webhook endpoint
+  const webhookUrl = 'https://ciandnwvnweoyoutaysb.supabase.co/functions/v1/webhook';
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+  
+  const data = await response.text();
+  return new Response(data, {
+    status: response.status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+```
+
+---
+
+## Part 2: Fix Wallet Sync Error Display
+
+### Current Problem
+The `XlamaSyncStatus` component shows "Sync Error" even when the wallet is already registered. This happens because:
+
+1. `statusError` from the query is set when API returns an error (even 404)
+2. The `getWalletStatus` in `xlamaApi.ts` catches the error but still may return error state
+3. The status check logic doesn't differentiate between "not registered" vs "sync failed"
+
+### Root Cause in `useXlamaWalletSync.ts`
+
+```typescript
+// Line 48-55 in XlamaSyncStatus.tsx
+if (syncError || registerError) {
+  return {
+    icon: AlertCircle,
+    label: 'Sync Error',
+    variant: 'destructive' as const,
+    animate: false,
+  };
+}
+```
+
+The issue: `syncError` is checked before `isRegistered`, so even a registered wallet with a temporary sync failure shows "Sync Error".
+
+### Solution
+
+Update `XlamaSyncStatus.tsx` to:
+1. Prioritize showing registered status over transient errors
+2. Only show sync error if wallet IS registered but sync actually failed
+3. Add detailed error message in tooltip
+
+```typescript
+const getSyncStatus = () => {
+  if (isSyncing || isRegistering) {
+    return {
+      icon: Loader2,
+      label: isRegistering ? 'Registering...' : 'Syncing...',
+      variant: 'default' as const,
+      animate: true,
+    };
+  }
+  
+  // Registered wallet with last sync time - show success even if sync mutation had error
+  if (isRegistered && lastSyncedAt) {
+    return {
+      icon: Check,
+      label: `Synced ${formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}`,
+      variant: 'secondary' as const,
+      animate: false,
+    };
+  }
+  
+  // Registered but never synced - show pending, not error
+  if (isRegistered && !lastSyncedAt) {
+    return {
+      icon: Clock,
+      label: 'Pending Sync',
+      variant: 'secondary' as const,
+      animate: false,
+    };
+  }
+  
+  // Registration error - this is a real error
+  if (registerError) {
+    return {
+      icon: AlertCircle,
+      label: 'Registration Failed',
+      variant: 'destructive' as const,
+      animate: false,
+    };
+  }
+  
+  // Not registered yet
+  if (!isRegistered) {
+    return {
+      icon: Clock,
+      label: 'Not Registered',
+      variant: 'secondary' as const,
+      animate: false,
+    };
+  }
+  
+  // Fallback
+  return {
+    icon: Clock,
+    label: 'Pending',
+    variant: 'secondary' as const,
+    animate: false,
+  };
+};
+```
+
+Also update `useXlamaWalletSync.ts` to not show toast errors for already-registered wallets:
+
+```typescript
+// In registerMutation.onError
+onError: (error: Error) => {
+  // Don't show error if wallet already exists - this is expected
+  if (error.message?.includes('already exists') || error.message?.includes('duplicate')) {
+    // Wallet exists, just refresh status
+    queryClient.invalidateQueries({ queryKey: ['xlama-wallet-status', activeAddress] });
+    return;
+  }
+  toast.error(`Failed to register wallet: ${error.message}`);
+},
+```
+
+---
+
+## Part 3: Remove Zerion Integration Completely
+
+### Files to Delete
+
+| File | Description |
 |------|-------------|
-| `src/components/portfolio/tabs/OkxPortfolioTab.tsx` | OKX-specific portfolio view |
-| `src/components/portfolio/tabs/ZerionPortfolioTab.tsx` | Zerion DeFi/NFT portfolio view |
-| `src/components/portfolio/tabs/XlamaPortfolioTab.tsx` | xLama unified portfolio view |
-| `src/components/portfolio/tabs/index.ts` | Barrel export |
-| `src/components/analytics/tabs/OkxAnalyticsTab.tsx` | OKX trading analytics |
-| `src/components/analytics/tabs/ZerionAnalyticsTab.tsx` | Zerion protocol analytics |
-| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | xLama unified analytics |
-| `src/components/analytics/tabs/index.ts` | Barrel export |
-| `src/components/history/tabs/AppHistoryTab.tsx` | Local app transaction history |
-| `src/components/history/tabs/OnchainHistoryTab.tsx` | OKX on-chain history |
-| `src/components/history/tabs/XlamaHistoryTab.tsx` | xLama unified history |
-| `src/components/history/tabs/index.ts` | Barrel export |
+| `supabase/functions/zerion/index.ts` | Zerion edge function |
+| `src/services/zerion.ts` | Zerion API service |
+| `src/hooks/useZerionPortfolio.ts` | Zerion portfolio hook |
+| `src/hooks/useZerionNFTs.ts` | Zerion NFT hook |
+| `src/hooks/useZerionTransactions.ts` | Zerion transactions hook |
+| `src/components/portfolio/tabs/ZerionPortfolioTab.tsx` | Zerion portfolio tab |
+| `src/components/analytics/tabs/ZerionAnalyticsTab.tsx` | Zerion analytics tab |
 
-### Modified Files (5 files)
-| Path | Changes |
-|------|---------|
-| `src/pages/Portfolio.tsx` | Replace monolithic component with tabbed interface |
-| `src/pages/Analytics.tsx` | Replace monolithic component with tabbed interface |
-| `src/pages/History.tsx` | Replace monolithic component with tabbed interface |
-| `src/features/portfolio/components/index.ts` | Export new tab components |
-| `src/features/analytics/components/index.ts` | Export new tab components |
+### Files to Modify
 
-### Deprecated (to remove in future)
-| Path | Reason |
-|------|--------|
-| `src/components/ui/DataSourceToggle.tsx` | Replaced by tab selection |
-| `src/contexts/DataSourceContext.tsx` | Can be simplified or removed |
+#### 1. `src/pages/Portfolio.tsx`
+Remove Zerion tab from tabs array (lines 51-64):
 
-## Benefits
+```typescript
+// Remove this entire tab object
+{
+  value: 'zerion',
+  label: 'Zerion',
+  icon: <Layers className="w-3.5 h-3.5" />,
+  content: (/* ZerionPortfolioTab */),
+},
+```
 
-1. **Clear separation** - Each data source has its own component tree
-2. **Easier debugging** - Issues are isolated to specific sources
-3. **Feature parity visibility** - Easy to see what each source offers
-4. **Simpler components** - No more complex conditional rendering
-5. **Better UX** - Users explicitly choose their data view
-6. **Maintainability** - Can update one source without affecting others
-7. **Type safety** - Each tab uses native types from its source
+Change grid from 3 to 2 columns:
+```typescript
+listClassName="grid grid-cols-2 h-10 mb-4"
+```
+
+Update `portfolioFeatures` to remove Zerion entry.
+
+#### 2. `src/pages/Analytics.tsx`
+Remove Zerion tab from tabs array (lines 51-64).
+Change grid from 3 to 2 columns.
+Update `analyticsFeatures` to remove Zerion entry.
+
+#### 3. `src/contexts/DataSourceContext.tsx`
+Remove Zerion from DataSource type and toggle logic:
+
+```typescript
+export type DataSource = 'okx' | 'xlama';  // Remove 'zerion' | 'hybrid'
+
+const value: DataSourceContextValue = {
+  dataSource,
+  setDataSource,
+  isZerionEnabled: false,  // Always false now
+  isOKXEnabled: dataSource === 'okx' || dataSource === 'xlama',
+  isXlamaEnabled: dataSource === 'xlama',
+  preferredSource: dataSource,
+  toggleDataSource,
+};
+```
+
+#### 4. `src/components/portfolio/tabs/index.ts`
+Remove ZerionPortfolioTab export:
+
+```typescript
+export { OkxPortfolioTab } from './OkxPortfolioTab';
+// export { ZerionPortfolioTab } from './ZerionPortfolioTab'; // REMOVE
+export { XlamaPortfolioTab } from './XlamaPortfolioTab';
+```
+
+#### 5. `src/components/analytics/tabs/index.ts`
+Remove ZerionAnalyticsTab export.
+
+#### 6. `src/features/portfolio/hooks/index.ts`
+Remove Zerion hook exports (lines 14-17).
+
+#### 7. `src/features/portfolio/components/index.ts`
+Remove ZerionPortfolioTab from tab exports.
+
+#### 8. `src/features/analytics/components/index.ts`
+Remove ZerionAnalyticsTab from tab exports.
+
+#### 9. `src/hooks/useHybridPortfolio.ts`
+Remove Zerion imports and usage - this hook may no longer be needed.
+
+#### 10. `src/components/portfolio/DeFiPositions.tsx`
+Remove ZerionPosition type import - use a local type or keep for other DeFi integrations.
+
+#### 11. `src/components/portfolio/NFTGallery.tsx`
+Remove UseZerionNFTsResult import - define local types.
+
+#### 12. `src/components/ui/DataSourceToggle.tsx`
+Remove Zerion option from sourceConfig.
+
+### Delete Edge Function
+Run `supabase--delete_edge_functions` for the `zerion` function.
+
+---
 
 ## Implementation Order
 
-| Step | Task | Files | Estimate |
-|------|------|-------|----------|
-| 1 | Create Portfolio tab components | 4 new files | Core |
-| 2 | Refactor Portfolio.tsx | 1 file | Core |
-| 3 | Create Analytics tab components | 4 new files | Core |
-| 4 | Refactor Analytics.tsx | 1 file | Core |
-| 5 | Create History tab components | 4 new files | Core |
-| 6 | Refactor History.tsx | 1 file | Core |
-| 7 | Update feature barrel exports | 2 files | Polish |
-| 8 | Add tab persistence hook | 1 new file | Polish |
-| 9 | Remove DataSourceToggle usage | Multiple | Cleanup |
+| Step | Task | Files |
+|------|------|-------|
+| 1 | Fix sync error display logic | `XlamaSyncStatus.tsx`, `useXlamaWalletSync.ts` |
+| 2 | Add webhook endpoint to edge function | `xlama-api/index.ts` |
+| 3 | Create webhook service | `src/services/xlamaWebhook.ts` |
+| 4 | Integrate webhook in swap flow | `useDexSwap.ts`, `useLiFiSwapExecution.ts` |
+| 5 | Remove Zerion from pages | `Portfolio.tsx`, `Analytics.tsx` |
+| 6 | Remove Zerion hooks & service | 5 hook files, 1 service file |
+| 7 | Remove Zerion tab components | 2 tab component files |
+| 8 | Update barrel exports | 4 index.ts files |
+| 9 | Update DataSourceContext | `DataSourceContext.tsx` |
+| 10 | Delete Zerion edge function | `supabase/functions/zerion/` |
+| 11 | Cleanup dependent components | `DeFiPositions.tsx`, `NFTGallery.tsx`, `useHybridPortfolio.ts` |
+
+---
+
+## Benefits
+
+1. **Real-time sync**: Swaps immediately sync to xLama backend via webhook
+2. **Better UX**: No false "Sync Error" messages for registered wallets
+3. **Cleaner codebase**: Removal of Zerion reduces complexity and maintenance burden
+4. **Focused integration**: xLama backend now serves as the unified data layer (replacing hybrid mode)
+5. **Reduced dependencies**: One less external API to manage (Zerion)
 
