@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const XLAMA_API_BASE = "https://ciandnwvnweoyoutaysb.supabase.co/functions/v1";
+const XLAMA_WEBHOOK_URL = "https://ciandnwvnweoyoutaysb.supabase.co/functions/v1/webhook";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +36,54 @@ serve(async (req) => {
         JSON.stringify({ error: "No endpoint specified", usage: "GET /xlama-api/{endpoint}" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Handle webhook forwarding for swap.completed events
+    if (endpointPath === "webhook" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        
+        // Validate payload
+        if (body.event !== "swap.completed") {
+          return new Response(
+            JSON.stringify({ error: "Invalid event type. Expected 'swap.completed'" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!body.source || body.source !== "xlamaexchange") {
+          return new Response(
+            JSON.stringify({ error: "Invalid source. Expected 'xlamaexchange'" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log(`[xlama-api] Forwarding webhook for tx: ${body.data?.tx_hash}`);
+
+        // Forward to xLama webhook endpoint
+        const response = await fetch(XLAMA_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+          body: JSON.stringify(body),
+        });
+
+        const data = await response.text();
+        console.log(`[xlama-api] Webhook response status: ${response.status}`);
+
+        return new Response(data, {
+          status: response.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (parseError) {
+        console.error("[xlama-api] Webhook parse error:", parseError);
+        return new Response(
+          JSON.stringify({ error: "Invalid JSON payload" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Build the target URL with query params

@@ -2,7 +2,7 @@ import { memo, Suspense, lazy } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { BarChart3, Zap, Layers, LineChart } from 'lucide-react';
+import { BarChart3, Zap, LineChart } from 'lucide-react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { MultiWalletButton } from '@/features/wallet';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
@@ -13,12 +13,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // Lazy load tab components
 const OkxAnalyticsTab = lazy(() => import('@/components/analytics/tabs/OkxAnalyticsTab'));
-const ZerionAnalyticsTab = lazy(() => import('@/components/analytics/tabs/ZerionAnalyticsTab'));
 const XlamaAnalyticsTab = lazy(() => import('@/components/analytics/tabs/XlamaAnalyticsTab'));
 
 const analyticsFeatures = [
   { icon: Zap, title: "OKX Analytics", description: "Trading volume and gas analytics from local transactions." },
-  { icon: Layers, title: "Zerion Analytics", description: "Protocol breakdown and DeFi fee analysis." },
   { icon: LineChart, title: "xLama Analytics", description: "Unified metrics: Realized PnL, Success Rate." },
   { icon: BarChart3, title: "Trading Patterns", description: "Discover when you trade the most." },
 ];
@@ -43,20 +41,6 @@ const Analytics = memo(function Analytics() {
           <motion.div key="okx" variants={tabContentVariants} initial="initial" animate="animate" exit="exit">
             <Suspense fallback={<AnalyticsSkeleton />}>
               <OkxAnalyticsTab />
-            </Suspense>
-          </motion.div>
-        </AnimatePresence>
-      ),
-    },
-    {
-      value: 'zerion',
-      label: 'Zerion',
-      icon: <Layers className="w-3.5 h-3.5" />,
-      content: (
-        <AnimatePresence mode="wait">
-          <motion.div key="zerion" variants={tabContentVariants} initial="initial" animate="animate" exit="exit">
-            <Suspense fallback={<AnalyticsSkeleton />}>
-              <ZerionAnalyticsTab />
             </Suspense>
           </motion.div>
         </AnimatePresence>
@@ -129,7 +113,7 @@ const Analytics = memo(function Analytics() {
 
                 <div className="mt-8 pt-8 border-t border-border/50">
                   <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     {analyticsFeatures.map((feature, index) => (
                       <motion.div 
                         key={feature.title} 
@@ -158,7 +142,7 @@ const Analytics = memo(function Analytics() {
               tabs={tabs}
               value={activeTab}
               onValueChange={setActiveTab}
-              listClassName="grid grid-cols-3 h-10 mb-6"
+              listClassName="grid grid-cols-2 h-10 mb-6"
               triggerClassName="gap-1.5 text-xs"
               showSwipeHint
               swipeHintKey="analytics"

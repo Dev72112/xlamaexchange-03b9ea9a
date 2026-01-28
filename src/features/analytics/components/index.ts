@@ -11,7 +11,7 @@ export { ProtocolBreakdown } from '@/components/analytics/ProtocolBreakdown';
 export { FeeAnalysis } from '@/components/analytics/FeeAnalysis';
 
 // Tab components
-export { OkxAnalyticsTab, ZerionAnalyticsTab, XlamaAnalyticsTab } from '@/components/analytics/tabs';
+export { OkxAnalyticsTab, XlamaAnalyticsTab } from '@/components/analytics/tabs';
 
 // Related analytics components
 export { GasEstimator } from '@/components/GasEstimator';

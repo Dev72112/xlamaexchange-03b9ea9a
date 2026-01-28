@@ -4,13 +4,41 @@ import { Badge } from '@/components/ui/badge';
 import { Coins, TrendingDown, ArrowDownUp, Zap, Calendar, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { ZerionTransaction } from '@/services/zerion';
-import type { ZerionPnL } from '@/services/zerion';
 import { useDexTransactions } from '@/contexts/DexTransactionContext';
 
+// Define PnL type locally (no longer depends on Zerion)
+interface PnLData {
+  totalFees?: number;
+  realizedGain?: number;
+  unrealizedGain?: number;
+  totalReturn?: number;
+  totalInvested?: number;
+}
+
+// Define Transaction type locally
+interface Transaction {
+  id: string;
+  hash: string;
+  chainId: string;
+  chainName: string;
+  status: string;
+  type: string;
+  operationType: string;
+  timestamp: string;
+  fee: number;
+  nonce: number;
+  changes: Array<{
+    direction: 'in' | 'out';
+    value: number;
+    quantity: number;
+    tokenSymbol: string;
+    tokenIcon: string | null;
+  }>;
+}
+
 interface FeeAnalysisProps {
-  transactions: ZerionTransaction[];
-  pnl?: ZerionPnL | null;
+  transactions: Transaction[];
+  pnl?: PnLData | null;
   isLoading?: boolean;
   timePeriod?: '24h' | '7d' | '30d' | 'all';
   chainFilter?: string;

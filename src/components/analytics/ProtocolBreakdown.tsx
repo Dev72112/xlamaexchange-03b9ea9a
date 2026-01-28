@@ -4,10 +4,28 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Layers, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { ZerionPosition } from '@/services/zerion';
+
+// Define Position type locally (no longer depends on Zerion)
+interface Position {
+  id: string;
+  protocol: string;
+  protocolIcon?: string | null;
+  positionType: 'wallet' | 'deposited' | 'staked' | 'locked' | 'borrowed' | 'claimable';
+  name: string;
+  value: number;
+  quantity: number;
+  price: number;
+  absoluteChange1d: number;
+  percentChange1d: number;
+  chainId: string;
+  chainName: string;
+  tokenAddress: string;
+  tokenSymbol: string;
+  tokenIcon?: string | null;
+}
 
 interface ProtocolBreakdownProps {
-  positions: ZerionPosition[];
+  positions: Position[];
   isLoading?: boolean;
 }
 

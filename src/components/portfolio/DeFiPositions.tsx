@@ -21,10 +21,28 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ZerionPosition } from '@/services/zerion';
+
+// Define Position type locally (no longer depends on Zerion)
+export interface DeFiPosition {
+  id: string;
+  protocol: string;
+  protocolIcon?: string | null;
+  positionType: 'wallet' | 'deposited' | 'staked' | 'locked' | 'borrowed' | 'claimable';
+  name: string;
+  value: number;
+  quantity: number;
+  price: number;
+  absoluteChange1d: number;
+  percentChange1d: number;
+  chainId: string;
+  chainName: string;
+  tokenAddress: string;
+  tokenSymbol: string;
+  tokenIcon?: string | null;
+}
 
 interface DeFiPositionsProps {
-  positions: ZerionPosition[];
+  positions: DeFiPosition[];
   isLoading?: boolean;
   className?: string;
 }
@@ -42,7 +60,7 @@ const positionTypeConfig: Record<string, { icon: React.ReactNode; label: string;
 interface ProtocolGroup {
   protocol: string;
   protocolIcon: string | null;
-  positions: ZerionPosition[];
+  positions: DeFiPosition[];
   totalValue: number;
   totalChange: number;
 }

@@ -35,8 +35,9 @@ export const XlamaSyncStatus: React.FC<XlamaSyncStatusProps> = ({
   // Only show when xLama is enabled
   if (!isXlamaEnabled) return null;
 
-  // Status display
+  // Status display - prioritize registered state over transient errors
   const getSyncStatus = () => {
+    // Loading states first
     if (isSyncing || isRegistering) {
       return {
         icon: Loader2,
@@ -45,14 +46,38 @@ export const XlamaSyncStatus: React.FC<XlamaSyncStatusProps> = ({
         animate: true,
       };
     }
-    if (syncError || registerError) {
+    
+    // Registered wallet with last sync time - show success even if sync mutation had transient error
+    if (isRegistered && lastSyncedAt) {
+      return {
+        icon: Check,
+        label: `Synced ${formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}`,
+        variant: 'secondary' as const,
+        animate: false,
+      };
+    }
+    
+    // Registered but never synced - show pending, not error
+    if (isRegistered && !lastSyncedAt) {
+      return {
+        icon: Clock,
+        label: 'Pending Sync',
+        variant: 'secondary' as const,
+        animate: false,
+      };
+    }
+    
+    // Registration error - this is a real error only if not registered
+    if (registerError && !isRegistered) {
       return {
         icon: AlertCircle,
-        label: 'Sync Error',
+        label: 'Registration Failed',
         variant: 'destructive' as const,
         animate: false,
       };
     }
+    
+    // Not registered yet
     if (!isRegistered) {
       return {
         icon: Clock,
@@ -61,17 +86,11 @@ export const XlamaSyncStatus: React.FC<XlamaSyncStatusProps> = ({
         animate: false,
       };
     }
-    if (lastSyncedAt) {
-      return {
-        icon: Check,
-        label: `Synced ${formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}`,
-        variant: 'secondary' as const,
-        animate: false,
-      };
-    }
+    
+    // Fallback
     return {
       icon: Clock,
-      label: 'Pending Sync',
+      label: 'Pending',
       variant: 'secondary' as const,
       animate: false,
     };
