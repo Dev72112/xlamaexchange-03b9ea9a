@@ -7,6 +7,8 @@ import { trackSwapInitiated, trackSwapCompleted } from '@/lib/tracking';
 import { getUserFriendlyErrorMessage } from '@/lib/api-utils';
 import { notificationService } from '@/services/notificationService';
 import { usePriceOracleOptional } from '@/contexts/PriceOracleContext';
+import { sendSwapWebhook } from '@/services/xlamaWebhook';
+
 export type SwapStep = 'idle' | 'checking-allowance' | 'approving' | 'swapping' | 'confirming' | 'complete' | 'error';
 
 interface UseDexSwapOptions {
@@ -270,6 +272,38 @@ export function useDexSwap() {
       
       // Push to Notification Center
       notificationService.notifySwapComplete(fromToken.tokenSymbol, toToken.tokenSymbol, amount, hash as string);
+      
+      // Calculate USD values for webhook
+      const routerResult = swapData.routerResult as any;
+      const fromUsdValue = routerResult?.fromTokenUnitPrice 
+        ? parseFloat(routerResult.fromTokenUnitPrice) * parseFloat(amount) 
+        : 0;
+      const toUsdValue = routerResult?.toTokenUnitPrice && routerResult?.toTokenAmount
+        ? parseFloat(routerResult.toTokenUnitPrice) * parseFloat(routerResult.toTokenAmount) / Math.pow(10, parseInt(toToken.decimals))
+        : 0;
+      
+      // Send webhook to xLama backend for real-time sync (fire and forget)
+      sendSwapWebhook({
+        event: 'swap.completed',
+        source: 'xlamaexchange',
+        data: {
+          tx_hash: hash as string,
+          wallet_address: address,
+          chain_id: chain.chainIndex,
+          token_in_symbol: fromToken.tokenSymbol,
+          token_in_amount: amount,
+          token_in_usd_value: fromUsdValue,
+          token_out_symbol: toToken.tokenSymbol,
+          token_out_amount: routerResult?.toTokenAmount 
+            ? (parseFloat(routerResult.toTokenAmount) / Math.pow(10, parseInt(toToken.decimals))).toString()
+            : '0',
+          token_out_usd_value: toUsdValue,
+          gas_fee: swapData.tx?.gas || '0',
+          gas_fee_usd: 0, // TODO: Calculate if needed
+          slippage,
+          status: 'completed',
+        },
+      }).catch(err => console.warn('[Webhook] Failed to send:', err));
       
       toast({
         title: "Swap Complete! 🎉",

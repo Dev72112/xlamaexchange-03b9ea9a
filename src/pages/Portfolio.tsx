@@ -2,7 +2,7 @@ import { memo, Suspense, lazy, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Wallet, Zap, Layers, LineChart } from "lucide-react";
+import { Wallet, Zap, LineChart } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
@@ -13,12 +13,10 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // Lazy load tab components
 const OkxPortfolioTab = lazy(() => import("@/components/portfolio/tabs/OkxPortfolioTab"));
-const ZerionPortfolioTab = lazy(() => import("@/components/portfolio/tabs/ZerionPortfolioTab"));
 const XlamaPortfolioTab = lazy(() => import("@/components/portfolio/tabs/XlamaPortfolioTab"));
 
 const portfolioFeatures = [
   { icon: Zap, title: "OKX DEX", description: "Multi-chain token balances across 25+ EVM chains." },
-  { icon: Layers, title: "Zerion DeFi", description: "DeFi positions, staking, lending & NFTs." },
   { icon: LineChart, title: "xLama API", description: "Unified analytics with OKX fallback." },
   { icon: Wallet, title: "Quick Actions", description: "Swap, bridge, and manage directly." },
 ];
@@ -43,20 +41,6 @@ const Portfolio = memo(function Portfolio() {
           <motion.div key="okx" variants={tabContentVariants} initial="initial" animate="animate" exit="exit">
             <Suspense fallback={<PortfolioSkeleton />}>
               <OkxPortfolioTab />
-            </Suspense>
-          </motion.div>
-        </AnimatePresence>
-      ),
-    },
-    {
-      value: 'zerion',
-      label: 'Zerion',
-      icon: <Layers className="w-3.5 h-3.5" />,
-      content: (
-        <AnimatePresence mode="wait">
-          <motion.div key="zerion" variants={tabContentVariants} initial="initial" animate="animate" exit="exit">
-            <Suspense fallback={<PortfolioSkeleton />}>
-              <ZerionPortfolioTab />
             </Suspense>
           </motion.div>
         </AnimatePresence>
@@ -110,7 +94,7 @@ const Portfolio = memo(function Portfolio() {
 
                 <div className="mt-8 pt-8 border-t border-border/50">
                   <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     {portfolioFeatures.map((feature, index) => (
                       <motion.div 
                         key={feature.title} 
@@ -140,7 +124,7 @@ const Portfolio = memo(function Portfolio() {
               tabs={tabs}
               value={activeTab}
               onValueChange={setActiveTab}
-              listClassName="grid grid-cols-3 h-10 mb-4"
+              listClassName="grid grid-cols-2 h-10 mb-4"
               triggerClassName="gap-1.5 text-xs"
               showSwipeHint
               swipeHintKey="portfolio"

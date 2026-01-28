@@ -39,7 +39,7 @@ export function useXlamaWalletSync() {
     mutationFn: (wallet: string) => xlamaApi.registerWallet(wallet),
     onSuccess: (data) => {
       if (data.success) {
-        toast.success('Wallet registered with xLama API');
+        toast.success('Wallet registered successfully');
         queryClient.invalidateQueries({ queryKey: ['xlama-wallet-status', activeAddress] });
         // Trigger initial sync after registration
         if (activeAddress) {
@@ -48,10 +48,14 @@ export function useXlamaWalletSync() {
       }
     },
     onError: (error: Error) => {
-      // Don't show error if wallet already exists
-      if (!error.message?.includes('already exists')) {
-        toast.error(`Failed to register wallet: ${error.message}`);
+      // Don't show error if wallet already exists - this is expected behavior
+      const message = error.message?.toLowerCase() || '';
+      if (message.includes('already exists') || message.includes('duplicate') || message.includes('conflict')) {
+        // Wallet exists, just refresh status silently
+        queryClient.invalidateQueries({ queryKey: ['xlama-wallet-status', activeAddress] });
+        return;
       }
+      toast.error(`Failed to register wallet: ${error.message}`);
     },
   });
 

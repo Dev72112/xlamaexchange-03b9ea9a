@@ -15,7 +15,7 @@ export { DeFiPositions } from '@/components/portfolio/DeFiPositions';
 export { NFTGallery } from '@/components/portfolio/NFTGallery';
 
 // Tab components
-export { OkxPortfolioTab, ZerionPortfolioTab, XlamaPortfolioTab } from '@/components/portfolio/tabs';
+export { OkxPortfolioTab, XlamaPortfolioTab } from '@/components/portfolio/tabs';
 
 // Watchlist
 export { TokenWatchlist } from '@/components/TokenWatchlist';

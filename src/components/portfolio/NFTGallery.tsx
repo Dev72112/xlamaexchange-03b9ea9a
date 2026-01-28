@@ -17,7 +17,26 @@ import {
   ChevronUp 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { NFTCollection, UseZerionNFTsResult } from '@/hooks/useZerionNFTs';
+
+// Define NFT type locally (no longer depends on Zerion)
+export interface NFT {
+  id: string;
+  collection: string;
+  collectionIcon?: string | null;
+  name: string;
+  floorPrice: number;
+  chainId: string;
+  imageUrl?: string | null;
+  lastSalePrice?: number | null;
+}
+
+export interface NFTCollection {
+  name: string;
+  icon: string | null;
+  nfts: NFT[];
+  totalFloorValue: number;
+  count: number;
+}
 
 interface NFTGalleryProps {
   collections: NFTCollection[];

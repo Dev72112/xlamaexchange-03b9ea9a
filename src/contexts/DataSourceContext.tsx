@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-export type DataSource = 'zerion' | 'okx' | 'hybrid' | 'xlama';
+export type DataSource = 'okx' | 'xlama';
 
 interface DataSourceContextValue {
   dataSource: DataSource;
   setDataSource: (source: DataSource) => void;
-  isZerionEnabled: boolean;
+  isZerionEnabled: boolean; // Always false now (Zerion removed)
   isOKXEnabled: boolean;
   isXlamaEnabled: boolean;
   preferredSource: DataSource;
@@ -27,11 +27,16 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
   const [dataSource, setDataSourceState] = useState<DataSource>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(DATA_SOURCE_KEY);
-      if (stored && ['zerion', 'okx', 'hybrid', 'xlama'].includes(stored)) {
+      // Migrate old values
+      if (stored === 'zerion' || stored === 'hybrid') {
+        localStorage.setItem(DATA_SOURCE_KEY, 'xlama');
+        return 'xlama';
+      }
+      if (stored && ['okx', 'xlama'].includes(stored)) {
         return stored as DataSource;
       }
     }
-    return 'hybrid'; // Default to hybrid for best coverage
+    return 'xlama'; // Default to xLama for best coverage
   });
 
   const setDataSource = useCallback((source: DataSource) => {
@@ -41,8 +46,6 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
     }
     
     // Invalidate portfolio-related queries on mode change to force fresh data
-    // This fixes the state desync issue where old data shows during transition
-    queryClient.invalidateQueries({ queryKey: ['zerion'] });
     queryClient.invalidateQueries({ queryKey: ['okx-portfolio'] });
     queryClient.invalidateQueries({ queryKey: ['portfolio'] });
     queryClient.invalidateQueries({ queryKey: ['hybrid-portfolio'] });
@@ -53,7 +56,7 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
   }, [queryClient]);
 
   const toggleDataSource = useCallback(() => {
-    const sources: DataSource[] = ['zerion', 'okx', 'hybrid', 'xlama'];
+    const sources: DataSource[] = ['okx', 'xlama'];
     const currentIndex = sources.indexOf(dataSource);
     const nextIndex = (currentIndex + 1) % sources.length;
     setDataSource(sources[nextIndex]);
@@ -62,10 +65,10 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
   const value: DataSourceContextValue = {
     dataSource,
     setDataSource,
-    isZerionEnabled: dataSource === 'zerion' || dataSource === 'hybrid',
-    isOKXEnabled: dataSource === 'okx' || dataSource === 'hybrid',
+    isZerionEnabled: false, // Zerion removed
+    isOKXEnabled: dataSource === 'okx' || dataSource === 'xlama',
     isXlamaEnabled: dataSource === 'xlama',
-    preferredSource: dataSource === 'hybrid' ? 'zerion' : dataSource, // Prefer Zerion in hybrid mode
+    preferredSource: dataSource,
     toggleDataSource,
   };
 

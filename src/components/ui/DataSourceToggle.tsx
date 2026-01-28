@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Database, Layers, Zap, ChevronDown, Check, LineChart } from 'lucide-react';
+import { Database, Zap, ChevronDown, Check, LineChart } from 'lucide-react';
 import { useDataSource, DataSource } from '@/contexts/DataSourceContext';
 import { cn } from '@/lib/utils';
 
@@ -17,20 +17,10 @@ interface DataSourceToggleProps {
 }
 
 const sourceConfig: Record<DataSource, { label: string; icon: typeof Database; description: string }> = {
-  zerion: {
-    label: 'Zerion',
-    icon: Layers,
-    description: 'DeFi positions, NFTs & PnL tracking',
-  },
   okx: {
     label: 'OKX DEX',
     icon: Zap,
     description: 'Multi-chain token balances',
-  },
-  hybrid: {
-    label: 'Hybrid',
-    icon: Database,
-    description: 'Best of both sources',
   },
   xlama: {
     label: 'xLama API',
@@ -68,7 +58,7 @@ export const DataSourceToggle: React.FC<DataSourceToggleProps> = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {(Object.entries(sourceConfig) as [DataSource, typeof sourceConfig['zerion']][]).map(
+        {(Object.entries(sourceConfig) as [DataSource, typeof sourceConfig['okx']][]).map(
           ([key, config]) => {
             const ItemIcon = config.icon;
             const isSelected = dataSource === key;
@@ -86,7 +76,7 @@ export const DataSourceToggle: React.FC<DataSourceToggleProps> = ({
                       {config.label}
                     </span>
                     {isSelected && <Check className="h-3 w-3 text-primary" />}
-                    {key === 'hybrid' && (
+                    {key === 'xlama' && (
                       <Badge variant="secondary" className="text-[10px] py-0">
                         Recommended
                       </Badge>
