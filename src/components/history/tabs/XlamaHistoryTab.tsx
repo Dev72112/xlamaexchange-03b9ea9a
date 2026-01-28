@@ -206,7 +206,18 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
         <div className="space-y-3">
           {paginatedTransactions.map((tx, index) => {
             const chain = getChainByIndex(tx.chain_id);
-            const timestamp = new Date(tx.timestamp).getTime();
+            
+            // Safely parse timestamp - handle invalid dates
+            let timeAgo = 'Unknown';
+            try {
+              const timestampDate = new Date(tx.timestamp);
+              // Check if date is valid
+              if (!isNaN(timestampDate.getTime())) {
+                timeAgo = formatDistanceToNow(timestampDate, { addSuffix: true });
+              }
+            } catch {
+              // Keep default "Unknown"
+            }
 
             return (
               <Card 
@@ -260,7 +271,7 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
                           </span>
                         )}
                         <span>•</span>
-                        <span>{formatDistanceToNow(timestamp, { addSuffix: true })}</span>
+                        <span>{timeAgo}</span>
                         <span>•</span>
                         <span className="capitalize">{tx.transaction_type}</span>
                       </div>

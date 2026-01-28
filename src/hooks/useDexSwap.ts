@@ -275,12 +275,31 @@ export function useDexSwap() {
       
       // Calculate USD values for webhook
       const routerResult = swapData.routerResult as any;
-      const fromUsdValue = routerResult?.fromTokenUnitPrice 
-        ? parseFloat(routerResult.fromTokenUnitPrice) * parseFloat(amount) 
-        : 0;
-      const toUsdValue = routerResult?.toTokenUnitPrice && routerResult?.toTokenAmount
-        ? parseFloat(routerResult.toTokenUnitPrice) * parseFloat(routerResult.toTokenAmount) / Math.pow(10, parseInt(toToken.decimals))
-        : 0;
+      const fromTokenPrice = routerResult?.fromTokenUnitPrice ? parseFloat(routerResult.fromTokenUnitPrice) : 0;
+      const toTokenPrice = routerResult?.toTokenUnitPrice ? parseFloat(routerResult.toTokenUnitPrice) : 0;
+      
+      const fromUsdValue = fromTokenPrice * parseFloat(amount);
+      
+      // Calculate output amount in human units
+      const toTokenDecimals = parseInt(toToken.decimals);
+      const toAmountRaw = routerResult?.toTokenAmount || '0';
+      const toAmountHuman = parseFloat(toAmountRaw) / Math.pow(10, toTokenDecimals);
+      const toUsdValue = toTokenPrice * toAmountHuman;
+      
+      // Calculate gas fee in USD
+      // gas = gas limit in units, we need gas price to convert to native token cost
+      const gasLimit = parseInt(swapData.tx?.gas || '0');
+      const gasPrice = parseFloat(routerResult?.estimateGasFee || '0'); // in native token units
+      
+      // Native token price approximation - fetch from router result if available
+      // OKX usually returns native token price in the swap response
+      const nativeSymbol = chain.nativeCurrency?.symbol || 'ETH';
+      const nativeTokenPriceFromRoute = routerResult?.fromToken?.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+        ? fromTokenPrice : (routerResult?.toToken?.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? toTokenPrice : 0);
+      
+      // Use a default approximate price if not found (will be improved by backend enrichment)
+      const gasFeeNative = gasPrice > 0 ? gasPrice : (gasLimit * 30 / 1e9); // fallback: assume 30 gwei
+      const gasFeeUsd = gasFeeNative * (nativeTokenPriceFromRoute || 0);
       
       // Send webhook to xLama backend for real-time sync (fire and forget)
       sendSwapWebhook({
@@ -294,12 +313,10 @@ export function useDexSwap() {
           token_in_amount: amount,
           token_in_usd_value: fromUsdValue,
           token_out_symbol: toToken.tokenSymbol,
-          token_out_amount: routerResult?.toTokenAmount 
-            ? (parseFloat(routerResult.toTokenAmount) / Math.pow(10, parseInt(toToken.decimals))).toString()
-            : '0',
+          token_out_amount: toAmountHuman.toString(),
           token_out_usd_value: toUsdValue,
-          gas_fee: swapData.tx?.gas || '0',
-          gas_fee_usd: 0, // TODO: Calculate if needed
+          gas_fee: gasFeeNative.toString(),
+          gas_fee_usd: gasFeeUsd,
           slippage,
           status: 'completed',
         },

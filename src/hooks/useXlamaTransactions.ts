@@ -58,10 +58,40 @@ function convertOkxToXlamaTransaction(tx: TransactionHistoryItem, wallet: string
     gas_used: '0',
     gas_price: '0',
     gas_usd: parseFloat(tx.txFee) || 0,
-    timestamp: new Date(parseInt(tx.txTime)).toISOString(),
+    timestamp: safeParseTimestamp(tx.txTime),
     source: 'okx',
     status: tx.txStatus === 'success' ? 'success' : tx.txStatus === 'pending' ? 'pending' : 'failed',
   };
+}
+
+// Safely parse timestamp from various formats
+function safeParseTimestamp(txTime: string | number | undefined): string {
+  if (!txTime) return new Date().toISOString();
+  
+  try {
+    // If it's a number or numeric string (milliseconds)
+    const numTime = typeof txTime === 'string' ? parseInt(txTime, 10) : txTime;
+    if (!isNaN(numTime) && numTime > 0) {
+      // If timestamp looks like seconds (< year 2100 in seconds), convert to ms
+      const ms = numTime < 4102444800 ? numTime * 1000 : numTime;
+      const date = new Date(ms);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    
+    // Try parsing as ISO string directly
+    if (typeof txTime === 'string') {
+      const date = new Date(txTime);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+  
+  return new Date().toISOString();
 }
 
 function getChainName(chainIndex: string): string {
