@@ -40,13 +40,18 @@ export default defineConfig(({ mode }) => ({
       'lucide-react',
       'clsx',
       'tailwind-merge',
-      // Fix ESM/CJS interop issues
+      // Fix ESM/CJS interop issues for wallet libraries
       'eventemitter3',
       'bech32',
-      'bitcoinjs-lib',
     ],
-    // Exclude heavy dependencies that are code-split
-    exclude: ['@lifi/sdk'],
+    // Exclude problematic dependencies - let Vite handle them at runtime
+    exclude: ['@lifi/sdk', 'bitcoinjs-lib', '@bitcoinerlab/secp256k1'],
+    // Force ESM conversion for CJS modules
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
   },
   build: {
     // Target modern browsers for smaller bundles
