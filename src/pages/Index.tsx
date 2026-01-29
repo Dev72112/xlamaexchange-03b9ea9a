@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { Helmet } from "react-helmet-async";
 import { TrendingUp, Wallet, ListOrdered, Wrench, Link2, ArrowRight, ChevronDown, Search, HelpCircle } from "lucide-react";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
@@ -230,7 +231,10 @@ const Index = () => {
             {/* Exchange Widget - Main Focus */}
             <div id="exchange-widget" ref={widgetRef} className="max-w-2xl mx-auto mb-6 sm:mb-12 relative">
               <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-transparent to-transparent rounded-3xl blur-2xl" />
-              <ExchangeWidget />
+              <div className="rounded-2xl overflow-hidden border border-border/50 glass">
+                <GlowBar variant="premium" />
+                <ExchangeWidget />
+              </div>
             </div>
 
             {/* Quick Actions - Below widget */}
