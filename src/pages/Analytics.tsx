@@ -69,7 +69,7 @@ const Analytics = memo(function Analytics() {
         <meta name="description" content="View your trading analytics, volume history, and performance metrics." />
       </Helmet>
 
-      <div className="container px-4 pb-8 max-w-4xl mx-auto relative">
+      <div className="container px-4 pb-8 max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl 3xl:max-w-[1600px] mx-auto relative">
         {/* Animated background accent */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
@@ -113,7 +113,7 @@ const Analytics = memo(function Analytics() {
 
                 <div className="mt-8 pt-8 border-t border-border/50">
                   <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {analyticsFeatures.map((feature, index) => (
                       <motion.div 
                         key={feature.title} 

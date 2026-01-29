@@ -39,7 +39,7 @@ export const PortfolioSkeleton = memo(function PortfolioSkeleton() {
       </Card>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
         {[1, 2, 3].map((i) => (
           <Card key={i} className="glass border-border/50">
             <CardContent className="p-3 flex flex-col items-center gap-2">
@@ -50,6 +50,8 @@ export const PortfolioSkeleton = memo(function PortfolioSkeleton() {
         ))}
       </div>
 
+      {/* Two-column layout for desktop */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {/* Holdings list */}
       <Card className="glass border-border/50">
         <div className="flex items-center justify-between p-4 border-b border-border/50">
@@ -73,9 +75,28 @@ export const PortfolioSkeleton = memo(function PortfolioSkeleton() {
         </CardContent>
       </Card>
 
-      {/* Collapsible sections */}
-      <Skeleton className="h-12 w-full rounded-lg skeleton-shimmer" />
-      <Skeleton className="h-12 w-full rounded-lg skeleton-shimmer" />
+      {/* Charts column - desktop only */}
+      <div className="hidden xl:block space-y-4">
+        <Card className="glass border-border/50">
+          <CardContent className="p-4">
+            <Skeleton className="h-5 w-32 mb-4 skeleton-shimmer" />
+            <Skeleton className="h-[220px] w-full rounded-lg skeleton-shimmer" />
+          </CardContent>
+        </Card>
+        <Card className="glass border-border/50">
+          <CardContent className="p-4">
+            <Skeleton className="h-5 w-28 mb-4 skeleton-shimmer" />
+            <Skeleton className="h-48 w-full rounded-lg skeleton-shimmer" />
+          </CardContent>
+        </Card>
+      </div>
+      </div>
+
+      {/* Collapsible sections - mobile only */}
+      <div className="xl:hidden space-y-2">
+        <Skeleton className="h-12 w-full rounded-lg skeleton-shimmer" />
+        <Skeleton className="h-12 w-full rounded-lg skeleton-shimmer" />
+      </div>
     </div>
   );
 });

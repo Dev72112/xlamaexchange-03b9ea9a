@@ -31,7 +31,7 @@ export const AppLayout = memo(function AppLayout({
       
       <main 
         id="main-content" 
-        className="flex-1 overflow-x-hidden min-w-0 pb-20 md:pb-0 app-content"
+        className="flex-1 overflow-x-hidden min-w-0 pb-20 md:pb-0 app-content 3xl:max-w-[2400px] 3xl:mx-auto"
         role="main" 
         tabIndex={-1}
       >

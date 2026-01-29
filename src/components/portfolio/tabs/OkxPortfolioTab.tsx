@@ -303,7 +303,7 @@ export const OkxPortfolioTab = memo(function OkxPortfolioTab() {
       />
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
         <Button variant="outline" className="h-12 flex-col gap-1 glass-subtle hover-lift" onClick={() => navigate('/swap')}>
           <ArrowRightLeft className="w-4 h-4 text-primary" />
           <span className="text-xs">Swap</span>
@@ -318,6 +318,9 @@ export const OkxPortfolioTab = memo(function OkxPortfolioTab() {
         </Button>
       </div>
 
+      {/* Two-column layout for desktop */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
       {/* Holdings List */}
       <Card className="glass border-border/50">
         <CardContent className="p-0">
@@ -331,7 +334,7 @@ export const OkxPortfolioTab = memo(function OkxPortfolioTab() {
               {balances.length} tokens
             </Badge>
           </div>
-          <ScrollArea className="h-[280px]">
+          <ScrollArea className="h-[280px] sm:h-[320px] lg:h-[400px] xl:h-[480px]">
             <PortfolioHoldingsTable 
               balances={balances} 
               isLoading={isLoading}
@@ -341,43 +344,62 @@ export const OkxPortfolioTab = memo(function OkxPortfolioTab() {
         </CardContent>
       </Card>
 
-      {/* Allocation Chart - Collapsible */}
-      <Collapsible open={showChart} onOpenChange={setShowChart}>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
-            <span className="flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-primary" />
-              Chain Distribution
-            </span>
-            <ChevronDown className={cn("w-4 h-4 transition-transform", showChart && "rotate-180")} />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2">
-          <PortfolioAllocationChart chainBalances={chainBalancesForChart} totalValue={totalValue} />
-        </CollapsibleContent>
-      </Collapsible>
+      {/* Charts column for desktop - visible only on xl+ */}
+      <div className="hidden xl:block space-y-4">
+        {/* Allocation Chart - Always visible on desktop */}
+        <PortfolioAllocationChart chainBalances={chainBalancesForChart} totalValue={totalValue} />
+        
+        {/* Performance Chart */}
+        <Card className="glass border-border/50">
+          <CardContent className="pt-4">
+            <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+              <PortfolioPnLChart />
+            </Suspense>
+          </CardContent>
+        </Card>
+      </div>
+      </div>
 
-      {/* Performance Chart - Collapsible */}
-      <Collapsible>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
-            <span className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              Performance History
-            </span>
-            <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2">
-          <Card className="glass border-border/50">
-            <CardContent className="pt-4">
-              <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                <PortfolioPnLChart />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </CollapsibleContent>
-      </Collapsible>
+      {/* Mobile/Tablet: Collapsible Charts */}
+      <div className="xl:hidden space-y-2">
+        {/* Allocation Chart - Collapsible */}
+        <Collapsible open={showChart} onOpenChange={setShowChart}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
+              <span className="flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-primary" />
+                Chain Distribution
+              </span>
+              <ChevronDown className={cn("w-4 h-4 transition-transform", showChart && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <PortfolioAllocationChart chainBalances={chainBalancesForChart} totalValue={totalValue} />
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Performance Chart - Collapsible */}
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between h-12 glass-subtle">
+              <span className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                Performance History
+              </span>
+              <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <Card className="glass border-border/50">
+              <CardContent className="pt-4">
+                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                  <PortfolioPnLChart />
+                </Suspense>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
       {/* NFTs - Collapsible */}
       <Collapsible open={showNFTs} onOpenChange={setShowNFTs}>
@@ -415,5 +437,6 @@ export const OkxPortfolioTab = memo(function OkxPortfolioTab() {
     </div>
   );
 });
+
 
 export default OkxPortfolioTab;

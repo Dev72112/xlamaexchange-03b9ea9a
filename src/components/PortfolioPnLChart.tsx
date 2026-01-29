@@ -149,7 +149,7 @@ export function PortfolioPnLChart({ className }: PortfolioPnLChartProps) {
         )}
       </CardHeader>
       <CardContent className="pb-2">
-        <div className="h-32">
+        <div className="h-32 sm:h-40 lg:h-48 xl:h-56">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={filteredData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <defs>

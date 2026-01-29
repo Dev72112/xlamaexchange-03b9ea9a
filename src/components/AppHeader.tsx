@@ -44,7 +44,7 @@ export const AppHeader = memo(function AppHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-md border-b border-border/30">
-      <div className="container flex h-12 items-center justify-between gap-2 max-w-full px-3">
+      <div className="container flex h-12 items-center justify-between gap-2 max-w-full 3xl:max-w-[2000px] 3xl:mx-auto px-3 lg:px-6">
         {/* Logo - Compact */}
         <Link 
           to="/" 

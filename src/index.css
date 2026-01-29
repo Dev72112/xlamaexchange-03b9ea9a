@@ -53,6 +53,58 @@ body {
   }
 }
 
+/* Ultra-wide display support (4K+) */
+@media (min-width: 2560px) {
+  .container {
+    max-width: 1800px;
+  }
+  
+  html {
+    font-size: 17px;
+  }
+}
+
+/* 5K / Ultra-wide displays */
+@media (min-width: 3200px) {
+  .container {
+    max-width: 2000px;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+  
+  html {
+    font-size: 18px;
+  }
+}
+
+/* Responsive chart container utility */
+.chart-responsive {
+  height: 12rem;
+}
+@media (min-width: 1024px) {
+  .chart-responsive {
+    height: 16rem;
+  }
+}
+@media (min-width: 1280px) {
+  .chart-responsive {
+    height: 20rem;
+  }
+}
+@media (min-width: 1920px) {
+  .chart-responsive {
+    height: 24rem;
+  }
+}
+
+/* iPad Pro landscape specific adjustments */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
 /* Reduce tab glow on mobile to prevent bleeding */
 @media (max-width: 640px) {
   [data-state="active"] {

@@ -204,93 +204,96 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
         />
       </div>
 
-      {/* Most Traded Pairs */}
-      {analytics.mostTradedPairs.length > 0 && (
-        <Card className="glass border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              Most Traded Pairs
-              <Badge variant="outline" className="text-[10px] py-0 bg-primary/10 text-primary border-primary/20">
-                <LineChart className="w-2.5 h-2.5 mr-1" />
-                xLama
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics.mostTradedPairs} layout="vertical">
-                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis 
-                    dataKey="pair" 
-                    type="category" 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
-                    width={100} 
-                  />
-                  <Tooltip 
-                    formatter={(value: number, name: string) => [
-                      name === 'trade_count' ? value : formatUsd(value),
-                      name === 'trade_count' ? 'Trades' : 'Volume'
-                    ]}
-                  />
-                  <Bar dataKey="trade_count" name="Trades" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Chain Distribution */}
-      {chainData.length > 0 && (
-        <Card className="glass border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Layers className="w-4 h-4 text-primary" />
-              Chain Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-6">
-              <div className="w-48 h-48">
+      {/* Charts - Two column on desktop */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Most Traded Pairs */}
+        {analytics.mostTradedPairs.length > 0 && (
+          <Card className="glass border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Most Traded Pairs
+                <Badge variant="outline" className="text-[10px] py-0 bg-primary/10 text-primary border-primary/20">
+                  <LineChart className="w-2.5 h-2.5 mr-1" />
+                  xLama
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48 lg:h-56 xl:h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPie>
-                    <Pie
-                      data={chainData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={70}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {chainData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </RechartsPie>
+                  <BarChart data={analytics.mostTradedPairs} layout="vertical">
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis 
+                      dataKey="pair" 
+                      type="category" 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                      width={100} 
+                    />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [
+                        name === 'trade_count' ? value : formatUsd(value),
+                        name === 'trade_count' ? 'Trades' : 'Volume'
+                      ]}
+                    />
+                    <Bar dataKey="trade_count" name="Trades" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex-1 space-y-2">
-                {chainData.slice(0, 5).map((item, index) => (
-                  <div key={item.name} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }} 
-                      />
-                      <span>{item.name}</span>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Chain Distribution */}
+        {chainData.length > 0 && (
+          <Card className="glass border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary" />
+                Chain Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6">
+                <div className="w-48 h-48 lg:w-56 lg:h-56 xl:w-64 xl:h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={chainData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {chainData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-2">
+                  {chainData.slice(0, 5).map((item, index) => (
+                    <div key={item.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }} 
+                        />
+                        <span>{item.name}</span>
+                      </div>
+                      <span className="font-mono">{item.value} trades</span>
                     </div>
-                    <span className="font-mono">{item.value} trades</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Trade Frequency */}
       {analytics.tradeFrequency && (
