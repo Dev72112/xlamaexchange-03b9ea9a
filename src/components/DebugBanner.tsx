@@ -2,20 +2,43 @@
  * DebugBanner - Shows when debug mode is active
  * Indicates simulated wallet connection for testing
  */
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { Bug, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useSearchParams } from 'react-router-dom';
+
+// Helper to detect debug mode from URL (works outside Router context)
+function getDebugModeFromUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('debug') === 'wallet';
+}
 
 export const DebugBanner = memo(function DebugBanner() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const isDebugMode = searchParams.get('debug') === 'wallet';
+  const [isDebugMode, setIsDebugMode] = useState(() => getDebugModeFromUrl());
+  
+  // Listen for URL changes
+  useEffect(() => {
+    const handleLocationChange = () => setIsDebugMode(getDebugModeFromUrl());
+    window.addEventListener('popstate', handleLocationChange);
+    // Also check on navigation (for pushState)
+    const interval = setInterval(() => {
+      const current = getDebugModeFromUrl();
+      if (current !== isDebugMode) setIsDebugMode(current);
+    }, 500);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      clearInterval(interval);
+    };
+  }, [isDebugMode]);
   
   if (!isDebugMode) return null;
   
   const handleClose = () => {
-    searchParams.delete('debug');
-    setSearchParams(searchParams);
+    // Remove debug param from URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('debug');
+    window.history.replaceState({}, '', url.toString());
+    setIsDebugMode(false);
   };
 
   return (
