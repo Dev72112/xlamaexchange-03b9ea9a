@@ -29,6 +29,21 @@ export default defineConfig(({ mode }) => ({
       "@/shared": path.resolve(__dirname, "./src/shared"),
     },
   },
+  // Optimize dependency pre-bundling
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      'framer-motion',
+      'lucide-react',
+      'clsx',
+      'tailwind-merge',
+    ],
+    // Exclude heavy dependencies that are code-split
+    exclude: ['@lifi/sdk'],
+  },
   build: {
     // Target modern browsers for smaller bundles
     target: 'esnext',
@@ -38,6 +53,10 @@ export default defineConfig(({ mode }) => ({
     sourcemap: 'hidden',
     // Chunk size warning threshold
     chunkSizeWarningLimit: 1000,
+    // CSS code splitting
+    cssCodeSplit: true,
+    // Reduce inline limit for smaller main bundle
+    assetsInlineLimit: 2048,
     rollupOptions: {
       output: {
         // Optimize chunk splitting for better caching
@@ -53,12 +72,14 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-tooltip',
             '@radix-ui/react-dropdown-menu',
           ],
+          // Animation library
+          'vendor-motion': ['framer-motion'],
           // Wallet connection
           'vendor-wallet': ['@reown/appkit', 'wagmi', 'viem'],
-          // Bridge/DEX aggregator
+          // Bridge/DEX aggregator - lazy loaded
           'vendor-lifi': ['@lifi/sdk'],
           // Charts
-          'vendor-charts': ['recharts'],
+          'vendor-charts': ['recharts', 'lightweight-charts'],
           // React Query
           'vendor-query': ['@tanstack/react-query'],
           // Forms
@@ -66,10 +87,11 @@ export default defineConfig(({ mode }) => ({
           // Solana (always loaded with AppKit)
           'vendor-solana': ['@solana/web3.js', '@solana/wallet-adapter-base'],
           // Sui - lazy loaded, separate chunk for dynamic import
-          // Note: Only include dapp-kit, not @mysten/sui directly (causes Rollup export resolution errors)
           'vendor-sui': ['@mysten/dapp-kit'],
           // TON - lazy loaded, separate chunk for dynamic import
           'vendor-ton': ['@tonconnect/ui-react'],
+          // Date utilities
+          'vendor-date': ['date-fns'],
         },
       },
     },

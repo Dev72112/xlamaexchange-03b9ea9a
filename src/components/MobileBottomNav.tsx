@@ -77,10 +77,13 @@ const moreItems = [
   { path: "/feedback", icon: MessageSquare, label: "Feedback" },
 ];
 
-// Smooth animation config
-const springTransition = { type: "spring" as const, damping: 30, stiffness: 400 };
-const fadeTransition = { type: "spring" as const, damping: 25, stiffness: 300 };
-const easeTransition = { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const };
+// Smooth animation config - optimized for 60fps
+const springTransition = { type: "spring" as const, damping: 30, stiffness: 400, mass: 0.8 };
+const fadeTransition = { type: "spring" as const, damping: 25, stiffness: 300, mass: 0.7 };
+const easeTransition = { duration: 0.15, ease: [0.4, 0, 0.2, 1] as const };
+
+// Touch-optimized minimum sizes
+const TOUCH_TARGET_SIZE = 44; // Apple HIG recommendation
 
 export const MobileBottomNav = memo(function MobileBottomNav() {
   const location = useLocation();
@@ -297,8 +300,8 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                       )}
                     </AnimatePresence>
 
-                    {/* Primary nav */}
-                    <div className="flex items-center justify-around px-2 py-2">
+                    {/* Primary nav - optimized touch targets */}
+                    <div className="flex items-center justify-around px-1 py-1">
                       {navItems.map((item, index) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
@@ -308,14 +311,18 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                             to={item.path}
                             onClick={handleNavClick}
                             className={cn(
-                              "flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg min-w-[56px] transition-all",
-                              isActive ? "text-primary" : "text-muted-foreground active:text-foreground"
+                              "flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl min-w-[52px] min-h-[52px] transition-colors active:scale-95",
+                              isActive 
+                                ? "text-primary bg-primary/5" 
+                                : "text-muted-foreground active:text-foreground active:bg-muted/50"
                             )}
+                            style={{ minHeight: TOUCH_TARGET_SIZE }}
                           >
                             <div className="relative">
                               <motion.div
-                                animate={{ scale: isActive ? 1.1 : 1 }}
-                                transition={springTransition}
+                                animate={{ scale: isActive ? 1.05 : 1 }}
+                                transition={{ duration: 0.15 }}
+                                className="gpu-accelerated"
                               >
                                 <Icon className="w-5 h-5" />
                               </motion.div>
@@ -323,7 +330,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                                 <motion.div
                                   layoutId="nav-indicator-mobile"
                                   className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
-                                  transition={springTransition}
+                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
                                 />
                               )}
                             </div>
@@ -339,13 +346,18 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                           setShowMore((prev) => !prev);
                         }}
                         className={cn(
-                          "flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg min-w-[56px] transition-all",
+                          "flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl min-w-[52px] min-h-[52px] transition-colors active:scale-95",
                           showMore || isMoreActive
-                            ? "text-primary"
-                            : "text-muted-foreground active:text-foreground"
+                            ? "text-primary bg-primary/5"
+                            : "text-muted-foreground active:text-foreground active:bg-muted/50"
                         )}
+                        style={{ minHeight: TOUCH_TARGET_SIZE }}
                       >
-                        <motion.div animate={{ rotate: showMore ? 180 : 0 }} transition={springTransition}>
+                        <motion.div 
+                          animate={{ rotate: showMore ? 180 : 0 }} 
+                          transition={{ duration: 0.15 }}
+                          className="gpu-accelerated"
+                        >
                           <MoreHorizontal className="w-5 h-5" />
                         </motion.div>
                         <span className="text-[10px] font-medium">More</span>

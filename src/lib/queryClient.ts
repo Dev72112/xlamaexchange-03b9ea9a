@@ -2,9 +2,27 @@
  * Optimized React Query Client Configuration
  * Provides consistent caching, retry logic, and performance settings
  */
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
+
+// Deduplicate in-flight requests
+const queryCache = new QueryCache({
+  onError: (error, query) => {
+    // Only log errors that are unexpected (not user cancellations)
+    if (error.name !== 'AbortError') {
+      console.warn('[QueryCache] Query failed:', query.queryKey, error.message);
+    }
+  },
+});
+
+const mutationCache = new MutationCache({
+  onError: (error, _variables, _context, mutation) => {
+    console.warn('[MutationCache] Mutation failed:', mutation.options.mutationKey, error.message);
+  },
+});
 
 export const queryClient = new QueryClient({
+  queryCache,
+  mutationCache,
   defaultOptions: {
     queries: {
       // Data freshness - 30 seconds before refetch
@@ -20,6 +38,8 @@ export const queryClient = new QueryClient({
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       // Network mode - fetch when online
       networkMode: 'offlineFirst',
+      // Structural sharing for better memoization
+      structuralSharing: true,
     },
     mutations: {
       // Retry mutations once on failure
