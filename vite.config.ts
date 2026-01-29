@@ -42,6 +42,8 @@ export default defineConfig(({ mode }) => ({
       'tailwind-merge',
       // Fix ESM/CJS interop issues
       'eventemitter3',
+      'bech32',
+      'bitcoinjs-lib',
     ],
     // Exclude heavy dependencies that are code-split
     exclude: ['@lifi/sdk'],
