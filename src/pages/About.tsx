@@ -113,7 +113,7 @@ const About = () => {
         <meta name="twitter:description" content="The community-fueled crypto exchange built from the trenches. No VCs, no funding, just pure community energy." />
       </Helmet>
 
-      <main className="container pb-12 sm:pb-16 lg:pb-20">
+      <main className="container pb-12 sm:pb-16 lg:pb-20 max-w-6xl 2xl:max-w-7xl mx-auto">
         {/* Hero Section */}
         <section className="text-center mb-16" aria-labelledby="about-heading">
           <motion.h1 

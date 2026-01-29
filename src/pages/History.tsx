@@ -9,6 +9,7 @@ import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
 import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { SwipeableTabs, TabItem } from "@/components/ui/swipeable-tabs";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Lazy load tab components
@@ -114,7 +115,8 @@ const History = memo(function History() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
+            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated overflow-hidden">
+              <GlowBar variant="multi" />
               <CardContent className="pt-8 pb-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
                   <Clock className="w-8 h-8 text-primary" />

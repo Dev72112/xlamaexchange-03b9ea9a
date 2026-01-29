@@ -18,6 +18,7 @@ import {
   ArrowDownRight, 
   ArrowDownToLine 
 } from 'lucide-react';
+import { GlowBar } from '@/components/ui/glow-bar';
 import { cn } from '@/lib/utils';
 
 interface AccountStatsRowProps {
@@ -101,19 +102,23 @@ export const AccountStatsRow = memo(function AccountStatsRow({
     );
   }
 
-  // Desktop grid layout
+  // Desktop grid layout with glow bar wrapper
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <Card className="glass border-border/50 hover-lift">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Equity</span>
-          </div>
-          <p className="text-lg font-bold">{formatUsd(totalEquity)}</p>
-        </CardContent>
+    <div className="space-y-0">
+      <Card className="glass border-border/50 overflow-hidden">
+        <GlowBar variant="multi" />
       </Card>
-      <Card className="glass border-border/50 hover-lift">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 -mt-px">
+        <Card className="glass border-border/50 hover-lift rounded-t-none border-t-0">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Equity</span>
+            </div>
+            <p className="text-lg font-bold">{formatUsd(totalEquity)}</p>
+          </CardContent>
+        </Card>
+        <Card className="glass border-border/50 hover-lift rounded-t-none border-t-0">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="w-4 h-4 text-muted-foreground" />
@@ -127,27 +132,28 @@ export const AccountStatsRow = memo(function AccountStatsRow({
           </div>
         </CardContent>
       </Card>
-      <Card className="glass border-border/50 hover-lift">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <BarChart3 className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Positions</span>
-          </div>
-          <p className="text-lg font-bold">{positionsCount}</p>
-        </CardContent>
-      </Card>
-      <Card className={cn("glass border-border/50 hover-lift", realtimePnl >= 0 ? "border-success/20" : "border-destructive/20")}>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center gap-2 mb-1">
-            {realtimePnl >= 0 ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-destructive" />}
-            <span className="text-xs text-muted-foreground">Unrealized PnL</span>
-            {!safeMode && <Badge variant="outline" className="text-[10px] px-1 py-0">LIVE</Badge>}
-          </div>
-          <p className={cn("text-lg font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
-            {realtimePnl >= 0 ? '+' : ''}{formatUsd(realtimePnl)}
-          </p>
-        </CardContent>
-      </Card>
+        <Card className="glass border-border/50 hover-lift rounded-t-none border-t-0">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Positions</span>
+            </div>
+            <p className="text-lg font-bold">{positionsCount}</p>
+          </CardContent>
+        </Card>
+        <Card className={cn("glass border-border/50 hover-lift rounded-t-none border-t-0", realtimePnl >= 0 ? "border-success/20" : "border-destructive/20")}>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 mb-1">
+              {realtimePnl >= 0 ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-destructive" />}
+              <span className="text-xs text-muted-foreground">Unrealized PnL</span>
+              {!safeMode && <Badge variant="outline" className="text-[10px] px-1 py-0">LIVE</Badge>}
+            </div>
+            <p className={cn("text-lg font-bold", realtimePnl >= 0 ? "text-success" : "text-destructive")}>
+              {realtimePnl >= 0 ? '+' : ''}{formatUsd(realtimePnl)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 });

@@ -18,6 +18,7 @@ import {
   ChevronDown 
 } from 'lucide-react';
 import { MultiWalletButton } from '@/features/wallet';
+import { GlowBar } from '@/components/ui/glow-bar';
 import { cn } from '@/lib/utils';
 
 const PerpetualsHowItWorks = lazy(() => 
@@ -29,9 +30,12 @@ export const DisconnectedState = memo(function DisconnectedState() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <Card className="glass glow-sm border-primary/10 sweep-effect">
+      <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated overflow-hidden">
+        <GlowBar variant="multi" />
         <CardContent className="pt-8 pb-8 text-center">
-          <Activity className="w-12 h-12 text-primary mx-auto mb-4" />
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
+            <Activity className="w-8 h-8 text-primary" />
+          </div>
           <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
           <p className="text-sm text-muted-foreground mb-2">
             We recommend <span className="text-primary font-medium">OKX Wallet</span> for the best multi-chain experience.
