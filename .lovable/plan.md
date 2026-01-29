@@ -1,380 +1,386 @@
 
-
-# xLama Backend Integration & Zerion Removal Plan
+# Frontend UI Improvements Plan
 
 ## Overview
 
-This plan addresses three key improvements:
-1. **Webhook Integration**: Create a webhook endpoint to notify the xLama backend when swaps complete
-2. **Fix Wallet Sync Error**: Improve error handling in `useXlamaWalletSync` to not show "Sync Error" when wallet is already registered
-3. **Remove Zerion Integration**: Completely remove Zerion from the codebase (service, edge function, hooks, components)
+This plan addresses comprehensive UI/UX improvements across Portfolio, Analytics, and History pages, with special focus on:
+- **Large screen support (3000px+)** - Content currently stretches too wide or has poor spacing
+- **Desktop polish** - Better multi-column layouts and data density
+- **Tablet refinements** - Optimized breakpoints for iPad/tablet screens
+- **Mobile improvements** - Already solid, minor refinements
 
 ---
 
-## Part 1: Webhook Integration for Swap Completion
+## Part 1: Large Screen Support (3000px+)
 
-### Current State
-When a swap completes in `useDexSwap.ts`, it:
-- Updates local transaction context
-- Sends notification via `notificationService`
-- Tracks analytics via `trackSwapCompleted`
+### Problem
+The current container system uses `max-w-2xl` (672px) for Portfolio and `max-w-4xl` (896px) for Analytics/History. On 3000px+ displays:
+- Content appears tiny and centered
+- Excessive whitespace on sides
+- Charts don't scale well
+- Poor information density
 
-**Missing**: No webhook call to notify the xLama backend for real-time sync.
+### Solution: Add Ultra-Wide Breakpoints
 
-### Solution
-Create a webhook service that POSTs to the xLama backend whenever a swap completes.
+**1. Extend Tailwind Config**
 
-### New File: `src/services/xlamaWebhook.ts`
-
-```typescript
-// Webhook service for notifying xLama backend of completed swaps
-const XLAMA_WEBHOOK_URL = 'https://ciandnwvnweoyoutaysb.supabase.co/functions/v1/webhook';
-
-interface SwapWebhookPayload {
-  event: 'swap.completed';
-  source: 'xlamaexchange';
-  data: {
-    tx_hash: string;
-    wallet_address: string;
-    chain_id: string;
-    token_in_symbol: string;
-    token_in_amount: string;
-    token_in_usd_value: number;
-    token_out_symbol: string;
-    token_out_amount: string;
-    token_out_usd_value: number;
-    gas_fee: string;
-    gas_fee_usd: number;
-    slippage: string;
-    status: 'completed';
-  };
-}
-
-export async function sendSwapWebhook(payload: SwapWebhookPayload): Promise<boolean> {
-  try {
-    const apiKey = await getApiKey(); // From edge function proxy
-    const response = await fetch(XLAMA_WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify(payload),
-    });
-    
-    return response.ok;
-  } catch (error) {
-    console.error('[xLama Webhook] Failed to send swap notification:', error);
-    return false;
-  }
-}
-```
-
-### Modify: `src/hooks/useDexSwap.ts`
-
-Add webhook call after successful swap completion (line 266-278):
+Add new breakpoints in `tailwind.config.ts`:
 
 ```typescript
-// After swap completion tracking
-await sendSwapWebhook({
-  event: 'swap.completed',
-  source: 'xlamaexchange',
-  data: {
-    tx_hash: hash,
-    wallet_address: address,
-    chain_id: chain.chainIndex,
-    token_in_symbol: fromToken.tokenSymbol,
-    token_in_amount: amount,
-    token_in_usd_value: swapData.routerResult?.fromTokenUnitPrice * parseFloat(amount) || 0,
-    token_out_symbol: toToken.tokenSymbol,
-    token_out_amount: toAmount,
-    token_out_usd_value: toAmountUsd,
-    gas_fee: gasUsed,
-    gas_fee_usd: gasUsd,
-    slippage,
-    status: 'completed',
+screens: {
+  "2xl": "1400px",
+  "3xl": "1920px",  // Large monitors
+  "4xl": "2560px",  // 4K displays
+  "5xl": "3200px",  // Ultra-wide
+},
+container: {
+  screens: {
+    "2xl": "1400px",
+    "3xl": "1600px",
+    "4xl": "1800px",
+    "5xl": "2000px",  // Cap at 2000px for readability
   },
-});
+},
 ```
 
-### API Key Handling
+**2. Create Responsive Container Classes**
 
-The webhook call requires the `XLAMA_API_KEY`. Since this secret is already configured and available in edge functions, we have two options:
+Add to `src/index.css`:
 
-**Option A: Direct call via Edge Function Proxy** (Recommended)
-- Create a new endpoint in `xlama-api` edge function for webhook forwarding
-- The frontend calls our edge function, which injects the API key
-
-**Option B: Store API key in app context** 
-- Not recommended as it exposes the key to the frontend
-
-### New Endpoint in `supabase/functions/xlama-api/index.ts`
-
-Add a new route for webhook forwarding:
-
-```typescript
-// Handle webhook forwarding for swap.completed events
-if (endpointPath === 'webhook' && req.method === 'POST') {
-  const body = await req.json();
-  
-  // Validate payload
-  if (body.event !== 'swap.completed') {
-    return new Response(
-      JSON.stringify({ error: 'Invalid event type' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+```css
+/* Ultra-wide display support */
+@media (min-width: 3200px) {
+  .container {
+    max-width: 2000px;
+    padding-left: 2rem;
+    padding-right: 2rem;
   }
   
-  // Forward to xLama webhook endpoint
-  const webhookUrl = 'https://ciandnwvnweoyoutaysb.supabase.co/functions/v1/webhook';
-  const response = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
-    body: JSON.stringify(body),
-  });
+  /* Increase base font size for large displays */
+  html {
+    font-size: 18px;
+  }
+}
+
+/* 4K displays */
+@media (min-width: 2560px) {
+  .container {
+    max-width: 1800px;
+  }
   
-  const data = await response.text();
-  return new Response(data, {
-    status: response.status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+  html {
+    font-size: 17px;
+  }
 }
 ```
 
 ---
 
-## Part 2: Fix Wallet Sync Error Display
+## Part 2: Portfolio Page Improvements
 
-### Current Problem
-The `XlamaSyncStatus` component shows "Sync Error" even when the wallet is already registered. This happens because:
+### Current Issues
+- Single-column layout wastes space on desktop
+- Holdings list fixed height of 280px is cramped on large screens
+- Chain allocation chart hidden by default
 
-1. `statusError` from the query is set when API returns an error (even 404)
-2. The `getWalletStatus` in `xlamaApi.ts` catches the error but still may return error state
-3. The status check logic doesn't differentiate between "not registered" vs "sync failed"
+### Changes to `src/pages/Portfolio.tsx`
 
-### Root Cause in `useXlamaWalletSync.ts`
+**1. Responsive max-width container**
 
 ```typescript
-// Line 48-55 in XlamaSyncStatus.tsx
-if (syncError || registerError) {
-  return {
-    icon: AlertCircle,
-    label: 'Sync Error',
-    variant: 'destructive' as const,
-    animate: false,
-  };
+// Change from max-w-2xl to responsive widths
+<main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl lg:max-w-4xl 2xl:max-w-5xl 3xl:max-w-6xl mx-auto">
+```
+
+**2. Add responsive feature grid for disconnected state**
+
+```typescript
+// Grid columns adjust: 3 on mobile, 3 on tablet, features spread nicely
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+```
+
+### Changes to `src/components/portfolio/tabs/OkxPortfolioTab.tsx`
+
+**1. Responsive Quick Actions Grid**
+
+```typescript
+// Expand to 4 columns on desktop, add more actions
+<div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+```
+
+**2. Dynamic Holdings Height**
+
+```typescript
+// Responsive height for holdings list
+<ScrollArea className="h-[280px] sm:h-[320px] lg:h-[400px] xl:h-[480px]">
+```
+
+**3. Two-Column Layout for Desktop**
+
+```typescript
+// Side-by-side layout on large screens
+<div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+  <Card>Holdings List</Card>
+  <div className="space-y-4">
+    <PortfolioAllocationChart />
+    <PerformanceChart />
+  </div>
+</div>
+```
+
+### Changes to `src/components/portfolio/tabs/XlamaPortfolioTab.tsx`
+
+Apply same responsive patterns as OkxPortfolioTab.
+
+---
+
+## Part 3: Analytics Page Improvements
+
+### Current Issues
+- Stats grid is 2 columns on mobile, 4 on lg (good)
+- Charts don't expand on large screens
+- No responsive height for charts
+
+### Changes to `src/pages/Analytics.tsx`
+
+**1. Wider container on large screens**
+
+```typescript
+<div className="container px-4 pb-8 max-w-4xl lg:max-w-5xl 2xl:max-w-6xl mx-auto relative">
+```
+
+### Changes to `src/components/analytics/tabs/OkxAnalyticsTab.tsx`
+
+**1. Responsive Chart Heights**
+
+```typescript
+// Volume chart
+<div className="h-64 lg:h-80 xl:h-96">
+
+// Chain distribution chart  
+<div className="h-48 lg:h-56 xl:h-64">
+```
+
+**2. Two-Column Chart Layout on Desktop**
+
+```typescript
+<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+  <Card>Volume Chart</Card>
+  <Card>Chain Distribution</Card>
+</div>
+```
+
+### Changes to `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
+
+**1. Responsive Chart Sizes**
+
+```typescript
+// Pie chart container - responsive width
+<div className="w-48 h-48 lg:w-56 lg:h-56 xl:w-64 xl:h-64">
+```
+
+**2. Side-by-Side Layout for Most Traded + Chain Distribution**
+
+```typescript
+<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+```
+
+---
+
+## Part 4: History Page Improvements
+
+### Current Issues
+- Narrow max-w-4xl container
+- 3-column tab grid works well
+- Transaction cards could show more info on desktop
+
+### Changes to `src/pages/History.tsx`
+
+**1. Wider container**
+
+```typescript
+<div className="container px-4 pb-12 sm:pb-16 max-w-4xl lg:max-w-5xl 2xl:max-w-6xl">
+```
+
+### Changes to Tab Components
+
+Transaction cards already handle responsiveness well. Minor tweaks:
+
+**1. Desktop-Enhanced Transaction Cards**
+
+In XlamaHistoryTab, add more columns on large screens:
+
+```typescript
+// Show more info inline on desktop
+<div className="hidden lg:flex items-center gap-4">
+  <Badge>Chain</Badge>
+  <span className="font-mono text-xs">{tx.tx_hash?.slice(0, 10)}...</span>
+</div>
+```
+
+---
+
+## Part 5: Skeleton Improvements for Large Screens
+
+### Changes to `src/components/skeletons/PortfolioSkeleton.tsx`
+
+```typescript
+// Add responsive grid for stat cards
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+```
+
+### Changes to `src/components/skeletons/AnalyticsSkeleton.tsx`
+
+```typescript
+// Responsive chart skeletons
+<Skeleton className="h-64 lg:h-80 xl:h-96 w-full rounded-lg" />
+```
+
+---
+
+## Part 6: Component Layout Improvements
+
+### AppLayout (`src/components/AppLayout.tsx`)
+
+Add max-width cap for ultra-wide:
+
+```typescript
+<main 
+  id="main-content" 
+  className="flex-1 overflow-x-hidden min-w-0 pb-20 md:pb-0 app-content max-w-[2400px] mx-auto"
+>
+```
+
+### AppHeader (`src/components/AppHeader.tsx`)
+
+Ensure header scales properly:
+
+```typescript
+<div className="container flex h-12 items-center justify-between gap-2 max-w-full 3xl:max-w-[2000px] 3xl:mx-auto px-3 lg:px-6">
+```
+
+---
+
+## Part 7: Chart Improvements
+
+### Better Chart Responsiveness
+
+Charts use fixed heights that don't scale. Changes:
+
+**1. PortfolioPnLChart**
+
+```typescript
+<div className="h-48 sm:h-56 lg:h-64 xl:h-72">
+```
+
+**2. PortfolioAllocationChart**
+
+```typescript
+<div className="h-[180px] lg:h-[220px] xl:h-[260px]">
+```
+
+---
+
+## Part 8: Tablet-Specific Refinements
+
+Add specific iPad breakpoint handling:
+
+```css
+/* iPad Pro landscape (1024px) */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }
 ```
 
-The issue: `syncError` is checked before `isRegistered`, so even a registered wallet with a temporary sync failure shows "Sync Error".
+---
 
-### Solution
+## Implementation Files Summary
 
-Update `XlamaSyncStatus.tsx` to:
-1. Prioritize showing registered status over transient errors
-2. Only show sync error if wallet IS registered but sync actually failed
-3. Add detailed error message in tooltip
-
-```typescript
-const getSyncStatus = () => {
-  if (isSyncing || isRegistering) {
-    return {
-      icon: Loader2,
-      label: isRegistering ? 'Registering...' : 'Syncing...',
-      variant: 'default' as const,
-      animate: true,
-    };
-  }
-  
-  // Registered wallet with last sync time - show success even if sync mutation had error
-  if (isRegistered && lastSyncedAt) {
-    return {
-      icon: Check,
-      label: `Synced ${formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}`,
-      variant: 'secondary' as const,
-      animate: false,
-    };
-  }
-  
-  // Registered but never synced - show pending, not error
-  if (isRegistered && !lastSyncedAt) {
-    return {
-      icon: Clock,
-      label: 'Pending Sync',
-      variant: 'secondary' as const,
-      animate: false,
-    };
-  }
-  
-  // Registration error - this is a real error
-  if (registerError) {
-    return {
-      icon: AlertCircle,
-      label: 'Registration Failed',
-      variant: 'destructive' as const,
-      animate: false,
-    };
-  }
-  
-  // Not registered yet
-  if (!isRegistered) {
-    return {
-      icon: Clock,
-      label: 'Not Registered',
-      variant: 'secondary' as const,
-      animate: false,
-    };
-  }
-  
-  // Fallback
-  return {
-    icon: Clock,
-    label: 'Pending',
-    variant: 'secondary' as const,
-    animate: false,
-  };
-};
-```
-
-Also update `useXlamaWalletSync.ts` to not show toast errors for already-registered wallets:
-
-```typescript
-// In registerMutation.onError
-onError: (error: Error) => {
-  // Don't show error if wallet already exists - this is expected
-  if (error.message?.includes('already exists') || error.message?.includes('duplicate')) {
-    // Wallet exists, just refresh status
-    queryClient.invalidateQueries({ queryKey: ['xlama-wallet-status', activeAddress] });
-    return;
-  }
-  toast.error(`Failed to register wallet: ${error.message}`);
-},
-```
+| File | Changes |
+|------|---------|
+| `tailwind.config.ts` | Add 3xl, 4xl, 5xl breakpoints |
+| `src/index.css` | Add ultra-wide CSS rules |
+| `src/pages/Portfolio.tsx` | Responsive container width |
+| `src/pages/Analytics.tsx` | Responsive container width |
+| `src/pages/History.tsx` | Responsive container width |
+| `src/components/portfolio/tabs/OkxPortfolioTab.tsx` | Multi-column layout, responsive heights |
+| `src/components/portfolio/tabs/XlamaPortfolioTab.tsx` | Multi-column layout, responsive heights |
+| `src/components/analytics/tabs/OkxAnalyticsTab.tsx` | Responsive chart heights, 2-col grid |
+| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Responsive chart heights, 2-col grid |
+| `src/components/skeletons/PortfolioSkeleton.tsx` | Responsive grids |
+| `src/components/skeletons/AnalyticsSkeleton.tsx` | Responsive chart skeletons |
+| `src/components/AppLayout.tsx` | Ultra-wide max-width cap |
+| `src/components/AppHeader.tsx` | Ultra-wide header centering |
+| `src/components/portfolio/PortfolioAllocationChart.tsx` | Responsive height |
+| `src/components/PortfolioPnLChart.tsx` | Responsive height |
 
 ---
 
-## Part 3: Remove Zerion Integration Completely
+## Technical Details
 
-### Files to Delete
+### Breakpoint Strategy
 
-| File | Description |
-|------|-------------|
-| `supabase/functions/zerion/index.ts` | Zerion edge function |
-| `src/services/zerion.ts` | Zerion API service |
-| `src/hooks/useZerionPortfolio.ts` | Zerion portfolio hook |
-| `src/hooks/useZerionNFTs.ts` | Zerion NFT hook |
-| `src/hooks/useZerionTransactions.ts` | Zerion transactions hook |
-| `src/components/portfolio/tabs/ZerionPortfolioTab.tsx` | Zerion portfolio tab |
-| `src/components/analytics/tabs/ZerionAnalyticsTab.tsx` | Zerion analytics tab |
+| Breakpoint | Width | Target Devices |
+|------------|-------|----------------|
+| sm | 640px | Mobile landscape |
+| md | 768px | Tablets portrait |
+| lg | 1024px | Tablets landscape, small laptops |
+| xl | 1280px | Laptops, small desktops |
+| 2xl | 1400px | Standard desktops |
+| 3xl | 1920px | Full HD monitors |
+| 4xl | 2560px | 4K monitors |
+| 5xl | 3200px | Ultra-wide / 5K displays |
 
-### Files to Modify
+### Container Max-Width Progression
 
-#### 1. `src/pages/Portfolio.tsx`
-Remove Zerion tab from tabs array (lines 51-64):
+| Screen | Portfolio | Analytics | History |
+|--------|-----------|-----------|---------|
+| Mobile | 100% | 100% | 100% |
+| md | 672px | 896px | 896px |
+| lg | 896px | 1024px | 1024px |
+| xl | 1024px | 1152px | 1152px |
+| 2xl | 1152px | 1280px | 1280px |
+| 3xl+ | 1400px | 1600px | 1600px |
 
-```typescript
-// Remove this entire tab object
-{
-  value: 'zerion',
-  label: 'Zerion',
-  icon: <Layers className="w-3.5 h-3.5" />,
-  content: (/* ZerionPortfolioTab */),
-},
+### Key CSS Utilities Added
+
+```css
+/* Ultra-wide display content caps */
+.content-ultra-wide {
+  max-width: 2000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Responsive chart container */
+.chart-responsive {
+  height: 12rem;  /* 192px base */
+}
+@media (min-width: 1024px) { .chart-responsive { height: 16rem; } }
+@media (min-width: 1280px) { .chart-responsive { height: 20rem; } }
+@media (min-width: 1920px) { .chart-responsive { height: 24rem; } }
 ```
-
-Change grid from 3 to 2 columns:
-```typescript
-listClassName="grid grid-cols-2 h-10 mb-4"
-```
-
-Update `portfolioFeatures` to remove Zerion entry.
-
-#### 2. `src/pages/Analytics.tsx`
-Remove Zerion tab from tabs array (lines 51-64).
-Change grid from 3 to 2 columns.
-Update `analyticsFeatures` to remove Zerion entry.
-
-#### 3. `src/contexts/DataSourceContext.tsx`
-Remove Zerion from DataSource type and toggle logic:
-
-```typescript
-export type DataSource = 'okx' | 'xlama';  // Remove 'zerion' | 'hybrid'
-
-const value: DataSourceContextValue = {
-  dataSource,
-  setDataSource,
-  isZerionEnabled: false,  // Always false now
-  isOKXEnabled: dataSource === 'okx' || dataSource === 'xlama',
-  isXlamaEnabled: dataSource === 'xlama',
-  preferredSource: dataSource,
-  toggleDataSource,
-};
-```
-
-#### 4. `src/components/portfolio/tabs/index.ts`
-Remove ZerionPortfolioTab export:
-
-```typescript
-export { OkxPortfolioTab } from './OkxPortfolioTab';
-// export { ZerionPortfolioTab } from './ZerionPortfolioTab'; // REMOVE
-export { XlamaPortfolioTab } from './XlamaPortfolioTab';
-```
-
-#### 5. `src/components/analytics/tabs/index.ts`
-Remove ZerionAnalyticsTab export.
-
-#### 6. `src/features/portfolio/hooks/index.ts`
-Remove Zerion hook exports (lines 14-17).
-
-#### 7. `src/features/portfolio/components/index.ts`
-Remove ZerionPortfolioTab from tab exports.
-
-#### 8. `src/features/analytics/components/index.ts`
-Remove ZerionAnalyticsTab from tab exports.
-
-#### 9. `src/hooks/useHybridPortfolio.ts`
-Remove Zerion imports and usage - this hook may no longer be needed.
-
-#### 10. `src/components/portfolio/DeFiPositions.tsx`
-Remove ZerionPosition type import - use a local type or keep for other DeFi integrations.
-
-#### 11. `src/components/portfolio/NFTGallery.tsx`
-Remove UseZerionNFTsResult import - define local types.
-
-#### 12. `src/components/ui/DataSourceToggle.tsx`
-Remove Zerion option from sourceConfig.
-
-### Delete Edge Function
-Run `supabase--delete_edge_functions` for the `zerion` function.
-
----
-
-## Implementation Order
-
-| Step | Task | Files |
-|------|------|-------|
-| 1 | Fix sync error display logic | `XlamaSyncStatus.tsx`, `useXlamaWalletSync.ts` |
-| 2 | Add webhook endpoint to edge function | `xlama-api/index.ts` |
-| 3 | Create webhook service | `src/services/xlamaWebhook.ts` |
-| 4 | Integrate webhook in swap flow | `useDexSwap.ts`, `useLiFiSwapExecution.ts` |
-| 5 | Remove Zerion from pages | `Portfolio.tsx`, `Analytics.tsx` |
-| 6 | Remove Zerion hooks & service | 5 hook files, 1 service file |
-| 7 | Remove Zerion tab components | 2 tab component files |
-| 8 | Update barrel exports | 4 index.ts files |
-| 9 | Update DataSourceContext | `DataSourceContext.tsx` |
-| 10 | Delete Zerion edge function | `supabase/functions/zerion/` |
-| 11 | Cleanup dependent components | `DeFiPositions.tsx`, `NFTGallery.tsx`, `useHybridPortfolio.ts` |
 
 ---
 
 ## Benefits
 
-1. **Real-time sync**: Swaps immediately sync to xLama backend via webhook
-2. **Better UX**: No false "Sync Error" messages for registered wallets
-3. **Cleaner codebase**: Removal of Zerion reduces complexity and maintenance burden
-4. **Focused integration**: xLama backend now serves as the unified data layer (replacing hybrid mode)
-5. **Reduced dependencies**: One less external API to manage (Zerion)
+1. **3000px+ screens** - Content scales appropriately with max-width caps
+2. **Better data density** - Two-column layouts on desktop show more information
+3. **Improved charts** - Heights scale with screen size for better visualization
+4. **Consistent experience** - Same visual language across all device sizes
+5. **Performance** - No new animations, just layout adjustments
 
+---
+
+## Testing Recommendations
+
+After implementation:
+1. Test on a large external monitor (1920px+)
+2. Test on 4K display (3840x2160)
+3. Test iPad landscape (1024px)
+4. Test standard desktop (1440px)
+5. Verify mobile (375px) still looks correct
