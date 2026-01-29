@@ -373,7 +373,7 @@ const Changelog = () => {
         <link rel="canonical" href="https://xlama.exchange/changelog" />
       </Helmet>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-4xl lg:max-w-5xl 2xl:max-w-6xl">
         {/* Hero */}
         <div className="text-center mb-12" style={getStaggerStyle(0)}>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
