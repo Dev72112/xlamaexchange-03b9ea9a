@@ -1,386 +1,373 @@
 
-# Frontend UI Improvements Plan
+
+# Comprehensive UI/UX Improvements & Testing Plan
 
 ## Overview
 
-This plan addresses comprehensive UI/UX improvements across Portfolio, Analytics, and History pages, with special focus on:
-- **Large screen support (3000px+)** - Content currently stretches too wide or has poor spacing
-- **Desktop polish** - Better multi-column layouts and data density
-- **Tablet refinements** - Optimized breakpoints for iPad/tablet screens
-- **Mobile improvements** - Already solid, minor refinements
+This plan addresses three key areas:
+1. **Extend the animated glow bar** from Portfolio to all major pages for visual consistency
+2. **Fix visual inconsistencies** across all routes
+3. **Enable wallet-gated page testing** via a debug mode with mock wallet state
 
 ---
 
-## Part 1: Large Screen Support (3000px+)
+## Part 1: Animated Glow Bar Pattern
 
-### Problem
-The current container system uses `max-w-2xl` (672px) for Portfolio and `max-w-4xl` (896px) for Analytics/History. On 3000px+ displays:
-- Content appears tiny and centered
-- Excessive whitespace on sides
-- Charts don't scale well
-- Poor information density
+The Portfolio page features a distinctive animated gradient top border on the `PortfolioSummaryCard`:
 
-### Solution: Add Ultra-Wide Breakpoints
-
-**1. Extend Tailwind Config**
-
-Add new breakpoints in `tailwind.config.ts`:
-
-```typescript
-screens: {
-  "2xl": "1400px",
-  "3xl": "1920px",  // Large monitors
-  "4xl": "2560px",  // 4K displays
-  "5xl": "3200px",  // Ultra-wide
-},
-container: {
-  screens: {
-    "2xl": "1400px",
-    "3xl": "1600px",
-    "4xl": "1800px",
-    "5xl": "2000px",  // Cap at 2000px for readability
-  },
-},
+```tsx
+<motion.div 
+  className="h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-4"
+  initial={{ scaleX: 0, originX: 0 }}
+  animate={{ scaleX: 1 }}
+  transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+/>
 ```
 
-**2. Create Responsive Container Classes**
+This visual element should be extended to:
 
-Add to `src/index.css`:
+| Page | Component to Add Glow Bar |
+|------|---------------------------|
+| Bridge | `CrossChainSwap` card wrapper |
+| Orders | Connected state card section |
+| Perpetuals | Account stats row card |
+| Tools | Tool section cards (Watchlist, Gas, etc.) |
+| History | Transaction list header card |
+| Analytics | Stats grid wrapper card |
+| TokenCompare | Comparison table card |
 
-```css
-/* Ultra-wide display support */
-@media (min-width: 3200px) {
-  .container {
-    max-width: 2000px;
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-  
-  /* Increase base font size for large displays */
-  html {
-    font-size: 18px;
-  }
+### Implementation
+
+Create a reusable `GlowBar` component:
+
+```tsx
+// src/components/ui/glow-bar.tsx
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+
+interface GlowBarProps {
+  className?: string;
+  variant?: 'primary' | 'success' | 'warning' | 'multi';
+  delay?: number;
 }
 
-/* 4K displays */
-@media (min-width: 2560px) {
-  .container {
-    max-width: 1800px;
-  }
+export function GlowBar({ 
+  className, 
+  variant = 'multi', 
+  delay = 0 
+}: GlowBarProps) {
+  const gradients = {
+    primary: 'from-primary to-primary/60',
+    success: 'from-success to-success/60',
+    warning: 'from-warning to-warning/60',
+    multi: 'from-primary via-chart-2 to-chart-4',
+  };
   
-  html {
-    font-size: 17px;
-  }
+  return (
+    <motion.div 
+      className={cn(
+        "h-1 bg-gradient-to-r rounded-t-lg",
+        gradients[variant],
+        className
+      )}
+      initial={{ scaleX: 0, originX: 0 }}
+      animate={{ scaleX: 1 }}
+      transition={{ 
+        duration: 0.8, 
+        delay,
+        ease: [0.4, 0, 0.2, 1] 
+      }}
+    />
+  );
 }
 ```
 
 ---
 
-## Part 2: Portfolio Page Improvements
+## Part 2: Visual Inconsistencies to Fix
 
-### Current Issues
-- Single-column layout wastes space on desktop
-- Holdings list fixed height of 280px is cramped on large screens
-- Chain allocation chart hidden by default
+### A. Page Container Widths
 
-### Changes to `src/pages/Portfolio.tsx`
+Current inconsistencies:
 
-**1. Responsive max-width container**
+| Page | Current | Should Be |
+|------|---------|-----------|
+| Bridge | `max-w-2xl` | `max-w-2xl lg:max-w-3xl 2xl:max-w-4xl` |
+| Orders | `max-w-2xl` | `max-w-2xl lg:max-w-3xl 2xl:max-w-4xl` |
+| Tools | `max-w-4xl` | `max-w-4xl lg:max-w-5xl 2xl:max-w-6xl` |
+| TokenCompare | None | `max-w-6xl 2xl:max-w-7xl` |
+| FAQ | `max-w-3xl` | `max-w-3xl lg:max-w-4xl` |
+| Docs | `max-w-5xl` | `max-w-5xl 2xl:max-w-6xl` |
+| Favorites | `max-w-4xl` | `max-w-4xl 2xl:max-w-5xl` |
 
-```typescript
-// Change from max-w-2xl to responsive widths
-<main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl lg:max-w-4xl 2xl:max-w-5xl 3xl:max-w-6xl mx-auto">
-```
+### B. Card Styling Consistency
 
-**2. Add responsive feature grid for disconnected state**
+Some pages use different card patterns:
 
-```typescript
-// Grid columns adjust: 3 on mobile, 3 on tablet, features spread nicely
-<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-```
+| Pattern | Current Usage | Should Apply To |
+|---------|---------------|-----------------|
+| `glass glow-sm border-primary/10 sweep-effect glow-border-animated` | Portfolio, Analytics, History (disconnected) | All wallet-gated disconnected states |
+| `sweep-effect shadow-premium-hover` | Docs, TokenCompare, Favorites | All interactive cards |
+| `glass border-border/50` | Most cards | Standardize to this base |
 
-### Changes to `src/components/portfolio/tabs/OkxPortfolioTab.tsx`
+### C. Header Styles
 
-**1. Responsive Quick Actions Grid**
+Page headers should follow a consistent pattern:
 
-```typescript
-// Expand to 4 columns on desktop, add more actions
-<div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
-```
-
-**2. Dynamic Holdings Height**
-
-```typescript
-// Responsive height for holdings list
-<ScrollArea className="h-[280px] sm:h-[320px] lg:h-[400px] xl:h-[480px]">
-```
-
-**3. Two-Column Layout for Desktop**
-
-```typescript
-// Side-by-side layout on large screens
-<div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-  <Card>Holdings List</Card>
-  <div className="space-y-4">
-    <PortfolioAllocationChart />
-    <PerformanceChart />
+```tsx
+// Current patterns vary. Standardize to:
+<div className="text-center mb-6">
+  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border-primary/20 text-xs sm:text-sm text-primary mb-3">
+    <Icon className="w-3.5 h-3.5" />
+    <span>Category Label</span>
   </div>
+  <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-2 gradient-text">
+    Page Title
+  </h1>
+  <p className="text-muted-foreground text-sm sm:text-base">
+    Description text
+  </p>
 </div>
 ```
 
-### Changes to `src/components/portfolio/tabs/XlamaPortfolioTab.tsx`
+Pages needing header updates:
+- Orders (currently minimal header)
+- Favorites (currently uses Layout instead of AppLayout)
+- Tools (currently minimal)
+- TokenCompare (currently minimal)
 
-Apply same responsive patterns as OkxPortfolioTab.
+### D. Disconnected State Cards
+
+Standardize all wallet-required pages to use the same disconnected state pattern:
+
+```tsx
+<Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
+  <CardContent className="pt-8 pb-8 text-center">
+    {/* Glow Bar at top */}
+    <GlowBar />
+    
+    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
+      <Icon className="w-8 h-8 text-primary" />
+    </div>
+    <h3 className="text-lg font-semibold mb-2">Connect Wallet</h3>
+    <p className="text-sm text-muted-foreground mb-4">
+      Description of what user will access
+    </p>
+    <MultiWalletButton />
+    
+    {/* Feature preview cards */}
+    <div className="mt-8 pt-8 border-t border-border/50">
+      ...
+    </div>
+  </CardContent>
+</Card>
+```
+
+Apply to:
+- Orders page
+- Perpetuals page (already good, but add glow bar)
+
+### E. Layout Usage Consistency
+
+| Page | Current Layout | Should Use |
+|------|----------------|------------|
+| Favorites | `Layout` (full footer) | `AppLayout` (compact, like other tools) |
 
 ---
 
-## Part 3: Analytics Page Improvements
+## Part 3: Page-Specific Improvements
 
-### Current Issues
-- Stats grid is 2 columns on mobile, 4 on lg (good)
-- Charts don't expand on large screens
-- No responsive height for charts
+### Bridge Page
+- Add glow bar to main `CrossChainSwap` card
+- Improve responsive container width
+- Add feature preview badges below widget
 
-### Changes to `src/pages/Analytics.tsx`
+### Orders Page
+- Add premium header with badge
+- Add glow bar to connected state section
+- Improve disconnected state with feature preview
+- Widen container on larger screens
 
-**1. Wider container on large screens**
+### Perpetuals Page
+- Add glow bar to account stats section
+- Ensure mobile/desktop UI consistency
 
-```typescript
-<div className="container px-4 pb-8 max-w-4xl lg:max-w-5xl 2xl:max-w-6xl mx-auto relative">
-```
+### Tools Page
+- Add glow bar to each tool section card header
+- Improve visual hierarchy between sections
 
-### Changes to `src/components/analytics/tabs/OkxAnalyticsTab.tsx`
+### TokenCompare Page
+- Add page header with badge
+- Add glow bar to comparison cards
+- Improve container responsiveness
 
-**1. Responsive Chart Heights**
+### Favorites Page
+- Switch from `Layout` to `AppLayout`
+- Add glow bar to favorites list header
+- Improve responsive container width
 
-```typescript
-// Volume chart
-<div className="h-64 lg:h-80 xl:h-96">
+### FAQ Page
+- Add glow bar to accordion section wrapper
+- Improve container responsiveness
 
-// Chain distribution chart  
-<div className="h-48 lg:h-56 xl:h-64">
-```
+### Docs Page
+- Already good - minor container width adjustment
 
-**2. Two-Column Chart Layout on Desktop**
-
-```typescript
-<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-  <Card>Volume Chart</Card>
-  <Card>Chain Distribution</Card>
-</div>
-```
-
-### Changes to `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
-
-**1. Responsive Chart Sizes**
-
-```typescript
-// Pie chart container - responsive width
-<div className="w-48 h-48 lg:w-56 lg:h-56 xl:w-64 xl:h-64">
-```
-
-**2. Side-by-Side Layout for Most Traded + Chain Distribution**
-
-```typescript
-<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-```
+### Changelog Page
+- Already good - has glow-border-animated
 
 ---
 
-## Part 4: History Page Improvements
+## Part 4: Testing Wallet-Gated Pages
 
-### Current Issues
-- Narrow max-w-4xl container
-- 3-column tab grid works well
-- Transaction cards could show more info on desktop
+### Current Problem
 
-### Changes to `src/pages/History.tsx`
+The browser preview cannot connect a real wallet, so wallet-gated pages (Portfolio, Orders, Perpetuals, Analytics, History) always show "Connect Wallet" state.
 
-**1. Wider container**
+### Solution: Debug Mode with Mock Wallet State
 
-```typescript
-<div className="container px-4 pb-12 sm:pb-16 max-w-4xl lg:max-w-5xl 2xl:max-w-6xl">
+Create a debug mode that simulates a connected wallet state for testing purposes.
+
+#### Implementation
+
+**1. Add Debug Query Parameter Detection**
+
+```tsx
+// src/contexts/MultiWalletContext.tsx
+
+// Add at the top of MultiWalletProviderInner
+const [searchParams] = useSearchParams();
+const debugMode = searchParams.get('debug') === 'wallet' || 
+                  import.meta.env.DEV && searchParams.get('mock') === '1';
+
+// Create mock wallet state for debugging
+const mockWalletState = {
+  address: '0xde0b6b3a76...3662', // Sample EVM address
+  isConnected: true,
+  chainId: 196, // X Layer
+  chainType: 'evm' as const,
+};
 ```
 
-### Changes to Tab Components
+**2. Expose Debug Override**
 
-Transaction cards already handle responsiveness well. Minor tweaks:
+In the context value, when `debugMode` is true, override connection state:
 
-**1. Desktop-Enhanced Transaction Cards**
-
-In XlamaHistoryTab, add more columns on large screens:
-
-```typescript
-// Show more info inline on desktop
-<div className="hidden lg:flex items-center gap-4">
-  <Badge>Chain</Badge>
-  <span className="font-mono text-xs">{tx.tx_hash?.slice(0, 10)}...</span>
-</div>
+```tsx
+const value = useMemo(() => ({
+  // ... existing values
+  
+  // Override for debug mode
+  isConnected: debugMode ? true : isConnected,
+  activeAddress: debugMode ? mockWalletState.address : activeAddress,
+  evmAddress: debugMode ? mockWalletState.address : evmAddress,
+  hasAnyConnection: debugMode ? true : hasAnyConnection,
+  anyConnectedAddress: debugMode ? mockWalletState.address : anyConnectedAddress,
+  
+  // Flag for components to know we're in debug mode
+  isDebugMode: debugMode,
+}), [...dependencies, debugMode]);
 ```
 
----
+**3. Add Debug Banner Component**
 
-## Part 5: Skeleton Improvements for Large Screens
-
-### Changes to `src/components/skeletons/PortfolioSkeleton.tsx`
-
-```typescript
-// Add responsive grid for stat cards
-<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-```
-
-### Changes to `src/components/skeletons/AnalyticsSkeleton.tsx`
-
-```typescript
-// Responsive chart skeletons
-<Skeleton className="h-64 lg:h-80 xl:h-96 w-full rounded-lg" />
-```
-
----
-
-## Part 6: Component Layout Improvements
-
-### AppLayout (`src/components/AppLayout.tsx`)
-
-Add max-width cap for ultra-wide:
-
-```typescript
-<main 
-  id="main-content" 
-  className="flex-1 overflow-x-hidden min-w-0 pb-20 md:pb-0 app-content max-w-[2400px] mx-auto"
->
-```
-
-### AppHeader (`src/components/AppHeader.tsx`)
-
-Ensure header scales properly:
-
-```typescript
-<div className="container flex h-12 items-center justify-between gap-2 max-w-full 3xl:max-w-[2000px] 3xl:mx-auto px-3 lg:px-6">
-```
-
----
-
-## Part 7: Chart Improvements
-
-### Better Chart Responsiveness
-
-Charts use fixed heights that don't scale. Changes:
-
-**1. PortfolioPnLChart**
-
-```typescript
-<div className="h-48 sm:h-56 lg:h-64 xl:h-72">
-```
-
-**2. PortfolioAllocationChart**
-
-```typescript
-<div className="h-[180px] lg:h-[220px] xl:h-[260px]">
-```
-
----
-
-## Part 8: Tablet-Specific Refinements
-
-Add specific iPad breakpoint handling:
-
-```css
-/* iPad Pro landscape (1024px) */
-@media (min-width: 1024px) and (max-width: 1280px) {
-  .container {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
+```tsx
+// src/components/DebugBanner.tsx
+export function DebugBanner() {
+  const { isDebugMode } = useMultiWallet();
+  
+  if (!isDebugMode) return null;
+  
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 bg-warning/90 text-warning-foreground text-center py-1 text-xs font-medium">
+      Debug Mode: Simulated wallet connection - Data may not be accurate
+    </div>
+  );
 }
 ```
 
+**4. Usage**
+
+Navigate to any page with `?debug=wallet` to simulate connected state:
+- `https://preview.../portfolio?debug=wallet`
+- `https://preview.../orders?debug=wallet`
+- `https://preview.../perpetuals?debug=wallet`
+
+#### Mock Data Providers
+
+For pages that fetch real data, add mock data fallbacks in debug mode:
+
+```tsx
+// In hooks like useOkxWalletBalances, useXlamaPortfolio, etc.
+const { isDebugMode } = useMultiWallet();
+
+// If in debug mode, return mock data instead of making API calls
+if (isDebugMode) {
+  return {
+    data: MOCK_BALANCE_DATA,
+    isLoading: false,
+    error: null,
+  };
+}
+```
+
+This allows full UI testing without real wallet connection or API calls.
+
 ---
 
-## Implementation Files Summary
+## Part 5: Files to Modify
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `src/components/ui/glow-bar.tsx` | Reusable animated glow bar component |
+| `src/components/DebugBanner.tsx` | Debug mode banner indicator |
+| `src/lib/mockData.ts` | Mock wallet/portfolio data for debug mode |
+
+### Modified Files
 
 | File | Changes |
 |------|---------|
-| `tailwind.config.ts` | Add 3xl, 4xl, 5xl breakpoints |
-| `src/index.css` | Add ultra-wide CSS rules |
-| `src/pages/Portfolio.tsx` | Responsive container width |
-| `src/pages/Analytics.tsx` | Responsive container width |
-| `src/pages/History.tsx` | Responsive container width |
-| `src/components/portfolio/tabs/OkxPortfolioTab.tsx` | Multi-column layout, responsive heights |
-| `src/components/portfolio/tabs/XlamaPortfolioTab.tsx` | Multi-column layout, responsive heights |
-| `src/components/analytics/tabs/OkxAnalyticsTab.tsx` | Responsive chart heights, 2-col grid |
-| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Responsive chart heights, 2-col grid |
-| `src/components/skeletons/PortfolioSkeleton.tsx` | Responsive grids |
-| `src/components/skeletons/AnalyticsSkeleton.tsx` | Responsive chart skeletons |
-| `src/components/AppLayout.tsx` | Ultra-wide max-width cap |
-| `src/components/AppHeader.tsx` | Ultra-wide header centering |
-| `src/components/portfolio/PortfolioAllocationChart.tsx` | Responsive height |
-| `src/components/PortfolioPnLChart.tsx` | Responsive height |
+| `src/contexts/MultiWalletContext.tsx` | Add debug mode support |
+| `src/pages/Bridge.tsx` | Add glow bar, improve header |
+| `src/pages/Orders.tsx` | Add glow bar, improve styling |
+| `src/pages/Perpetuals.tsx` | Add glow bar to stats |
+| `src/pages/Tools.tsx` | Add glow bars, improve header |
+| `src/pages/TokenCompare.tsx` | Add header, glow bar, container |
+| `src/pages/Favorites.tsx` | Switch to AppLayout, add glow bar |
+| `src/pages/FAQ.tsx` | Add glow bar, improve container |
+| `src/pages/Docs.tsx` | Minor container adjustments |
+| `src/pages/Changelog.tsx` | Already good, minor tweaks |
+| `src/components/portfolio/PortfolioSummaryCard.tsx` | Extract GlowBar to shared component |
+| `src/hooks/useXlamaPortfolio.ts` | Add mock data fallback |
+| `src/hooks/useHyperliquidAccount.ts` | Add mock data fallback |
+| `src/app/AppShell.tsx` | Include DebugBanner |
 
 ---
 
-## Technical Details
+## Part 6: Implementation Order
 
-### Breakpoint Strategy
-
-| Breakpoint | Width | Target Devices |
-|------------|-------|----------------|
-| sm | 640px | Mobile landscape |
-| md | 768px | Tablets portrait |
-| lg | 1024px | Tablets landscape, small laptops |
-| xl | 1280px | Laptops, small desktops |
-| 2xl | 1400px | Standard desktops |
-| 3xl | 1920px | Full HD monitors |
-| 4xl | 2560px | 4K monitors |
-| 5xl | 3200px | Ultra-wide / 5K displays |
-
-### Container Max-Width Progression
-
-| Screen | Portfolio | Analytics | History |
-|--------|-----------|-----------|---------|
-| Mobile | 100% | 100% | 100% |
-| md | 672px | 896px | 896px |
-| lg | 896px | 1024px | 1024px |
-| xl | 1024px | 1152px | 1152px |
-| 2xl | 1152px | 1280px | 1280px |
-| 3xl+ | 1400px | 1600px | 1600px |
-
-### Key CSS Utilities Added
-
-```css
-/* Ultra-wide display content caps */
-.content-ultra-wide {
-  max-width: 2000px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Responsive chart container */
-.chart-responsive {
-  height: 12rem;  /* 192px base */
-}
-@media (min-width: 1024px) { .chart-responsive { height: 16rem; } }
-@media (min-width: 1280px) { .chart-responsive { height: 20rem; } }
-@media (min-width: 1920px) { .chart-responsive { height: 24rem; } }
-```
+| Step | Task | Priority |
+|------|------|----------|
+| 1 | Create `GlowBar` component | High |
+| 2 | Add debug mode to MultiWalletContext | High |
+| 3 | Create DebugBanner component | High |
+| 4 | Update Bridge page with glow bar | Medium |
+| 5 | Update Orders page styling | Medium |
+| 6 | Update Tools page styling | Medium |
+| 7 | Update TokenCompare page | Medium |
+| 8 | Switch Favorites to AppLayout | Medium |
+| 9 | Standardize all container widths | Medium |
+| 10 | Add mock data providers for debug | Low |
+| 11 | Test all pages end-to-end | High |
 
 ---
 
 ## Benefits
 
-1. **3000px+ screens** - Content scales appropriately with max-width caps
-2. **Better data density** - Two-column layouts on desktop show more information
-3. **Improved charts** - Heights scale with screen size for better visualization
-4. **Consistent experience** - Same visual language across all device sizes
-5. **Performance** - No new animations, just layout adjustments
+1. **Visual Consistency** - All pages share the same premium visual language
+2. **Better Testing** - Debug mode allows full UI testing without real wallet
+3. **Improved UX** - Consistent card styling and animations
+4. **Better Responsiveness** - All pages scale properly on ultra-wide monitors
+5. **Maintainability** - Shared components reduce duplication
 
----
-
-## Testing Recommendations
-
-After implementation:
-1. Test on a large external monitor (1920px+)
-2. Test on 4K display (3840x2160)
-3. Test iPad landscape (1024px)
-4. Test standard desktop (1440px)
-5. Verify mobile (375px) still looks correct
