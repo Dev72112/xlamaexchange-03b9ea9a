@@ -32,25 +32,28 @@ export const AnalyticsSkeleton = memo(function AnalyticsSkeleton() {
         ))}
       </div>
 
-      {/* Chart card */}
-      <Card className="glass border-border/50">
-        <CardHeader className="pb-2">
-          <Skeleton className="h-5 w-32 skeleton-shimmer" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-64 w-full rounded-lg skeleton-shimmer" />
-        </CardContent>
-      </Card>
+      {/* Charts - Two column on desktop */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Chart card */}
+        <Card className="glass border-border/50">
+          <CardHeader className="pb-2">
+            <Skeleton className="h-5 w-32 skeleton-shimmer" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 lg:h-80 xl:h-72 w-full rounded-lg skeleton-shimmer" />
+          </CardContent>
+        </Card>
 
-      {/* Secondary chart */}
-      <Card className="glass border-border/50">
-        <CardHeader className="pb-2">
-          <Skeleton className="h-5 w-40 skeleton-shimmer" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-48 w-full rounded-lg skeleton-shimmer" />
-        </CardContent>
-      </Card>
+        {/* Secondary chart */}
+        <Card className="glass border-border/50">
+          <CardHeader className="pb-2">
+            <Skeleton className="h-5 w-40 skeleton-shimmer" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-48 lg:h-56 xl:h-64 w-full rounded-lg skeleton-shimmer" />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 });

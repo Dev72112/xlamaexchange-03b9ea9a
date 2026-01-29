@@ -85,7 +85,7 @@ const History = memo(function History() {
         <meta name="description" content="View your cryptocurrency exchange transaction history." />
       </Helmet>
 
-      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl">
+      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl 3xl:max-w-[1600px] mx-auto">
         {/* Header */}
         <motion.div 
           className="mb-8 flex items-start justify-between flex-wrap gap-4"

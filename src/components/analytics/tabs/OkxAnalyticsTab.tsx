@@ -236,75 +236,78 @@ export const OkxAnalyticsTab = memo(function OkxAnalyticsTab() {
         />
       </div>
 
-      {/* Volume Chart */}
-      {analytics.dailyVolume.length > 0 && (
-        <Card className="glass border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              Trading Volume
-              <Badge variant="outline" className="text-[10px] py-0">OKX</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={analytics.dailyVolume}>
-                  <defs>
-                    <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={(value) => new Date(value).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={(value) => formatUsd(value)}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="volumeUsd" 
-                    name="Volume" 
-                    stroke="hsl(var(--primary))" 
-                    fill="url(#volumeGradient)" 
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Charts - Two column on desktop */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Volume Chart */}
+        {analytics.dailyVolume.length > 0 && (
+          <Card className="glass border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Trading Volume
+                <Badge variant="outline" className="text-[10px] py-0">OKX</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 lg:h-80 xl:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics.dailyVolume}>
+                    <defs>
+                      <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => new Date(value).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => formatUsd(value)}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="volumeUsd" 
+                      name="Volume" 
+                      stroke="hsl(var(--primary))" 
+                      fill="url(#volumeGradient)" 
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Chain Distribution */}
-      {analytics.chainDistribution.length > 0 && (
-        <Card className="glass border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              Chain Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics.chainDistribution} layout="vertical">
-                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis dataKey="chain" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} width={80} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" name="Trades" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        {/* Chain Distribution */}
+        {analytics.chainDistribution.length > 0 && (
+          <Card className="glass border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                Chain Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48 lg:h-56 xl:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.chainDistribution} layout="vertical">
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis dataKey="chain" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} width={80} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="count" name="Trades" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Gas Analytics */}
       <GasBreakdown />

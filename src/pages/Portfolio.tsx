@@ -70,7 +70,7 @@ const Portfolio = memo(function Portfolio() {
         <link rel="canonical" href="https://xlama.exchange/portfolio" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl mx-auto">
+      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl mx-auto">
         {!isConnected ? (
           <motion.div 
             className="max-w-xl mx-auto"
@@ -94,7 +94,7 @@ const Portfolio = memo(function Portfolio() {
 
                 <div className="mt-8 pt-8 border-t border-border/50">
                   <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {portfolioFeatures.map((feature, index) => (
                       <motion.div 
                         key={feature.title} 
