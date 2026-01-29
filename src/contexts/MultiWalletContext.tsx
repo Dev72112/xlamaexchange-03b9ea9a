@@ -6,9 +6,15 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Chain, getChainByChainId, getPrimaryChain, SUPPORTED_CHAINS } from '@/data/chains';
 import { MOCK_WALLET_ADDRESS } from '@/lib/mockData';
+
+// Helper to detect debug mode from URL (works outside Router context)
+function getDebugModeFromUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('debug') === 'wallet';
+}
 
 // AppKit hooks (for Reown integration)
 import { useAppKit, useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/react';
@@ -137,9 +143,15 @@ interface MultiWalletProviderProps { children: ReactNode; }
  * Syncs state between legacy hooks and SessionManager
  */
 function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
-  // Debug mode detection from URL params
-  const [searchParams] = useSearchParams();
-  const isDebugMode = searchParams.get('debug') === 'wallet';
+  // Debug mode detection from URL (uses window.location directly to work outside Router context)
+  const [isDebugMode, setIsDebugMode] = useState(() => getDebugModeFromUrl());
+  
+  // Listen for URL changes to update debug mode
+  useEffect(() => {
+    const handleLocationChange = () => setIsDebugMode(getDebugModeFromUrl());
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
   
   // SessionManager subscription for modular architecture
   const [sessionState, setSessionState] = useState<SessionState>(() => sessionManager.getState());
