@@ -2,6 +2,7 @@
  * useHyperliquidAccount Hook
  * 
  * Provides account state, positions, and balances for Hyperliquid.
+ * Supports debug mode with mock data.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,6 +13,7 @@ import {
   HyperliquidAccountState, 
   HyperliquidPosition,
 } from '@/services/hyperliquid';
+import { MOCK_HYPERLIQUID_ACCOUNT, MOCK_POSITIONS } from '@/lib/mockData';
 
 export interface UseHyperliquidAccountResult {
   accountState: HyperliquidAccountState | null;
@@ -30,8 +32,45 @@ export interface UseHyperliquidAccountResult {
 }
 
 export function useHyperliquidAccount(): UseHyperliquidAccountResult {
-  const { activeAddress, activeChainType, isConnected } = useMultiWallet();
+  const { activeAddress, activeChainType, isConnected, isDebugMode } = useMultiWallet();
   const queryClient = useQueryClient();
+  
+  // Return mock data in debug mode
+  if (isDebugMode) {
+    const mockPositions: HyperliquidPosition[] = MOCK_POSITIONS.map(p => ({
+      coin: p.coin,
+      positionValue: p.size,
+      entryPx: p.entryPrice,
+      unrealizedPnl: p.unrealizedPnl,
+      leverage: parseInt(p.leverage, 10),
+      liquidationPx: p.liquidationPrice,
+      szi: p.side === 'long' ? p.size : `-${p.size}`,
+      returnOnEquity: '0.05',
+      marginUsed: '100',
+    }));
+    
+    return {
+      accountState: {
+        marginSummary: {
+          accountValue: MOCK_HYPERLIQUID_ACCOUNT.accountValue,
+          totalMarginUsed: MOCK_HYPERLIQUID_ACCOUNT.marginUsed,
+          totalNtlPos: MOCK_HYPERLIQUID_ACCOUNT.totalPositionValue,
+          totalRawUsd: MOCK_HYPERLIQUID_ACCOUNT.equity,
+        },
+        positions: mockPositions,
+      },
+      positions: mockPositions,
+      openOrders: [],
+      recentTrades: [],
+      isLoading: false,
+      error: null,
+      refetch: () => {},
+      totalEquity: parseFloat(MOCK_HYPERLIQUID_ACCOUNT.accountValue),
+      unrealizedPnl: parseFloat(MOCK_HYPERLIQUID_ACCOUNT.unrealizedPnl),
+      availableMargin: parseFloat(MOCK_HYPERLIQUID_ACCOUNT.availableMargin),
+      marginUsed: parseFloat(MOCK_HYPERLIQUID_ACCOUNT.marginUsed),
+    };
+  }
   
   // Only enable for EVM wallets
   const isEVM = activeChainType === 'evm';
