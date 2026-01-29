@@ -43,9 +43,12 @@ export default defineConfig(({ mode }) => ({
       // Fix ESM/CJS interop issues for wallet libraries
       'eventemitter3',
       'bech32',
+      // These pull in CJS deps that must be pre-bundled to avoid `require is not defined`
+      'bitcoinjs-lib',
+      '@bitcoinerlab/secp256k1',
     ],
-    // Exclude problematic dependencies - let Vite handle them at runtime
-    exclude: ['@lifi/sdk', 'bitcoinjs-lib', '@bitcoinerlab/secp256k1'],
+    // Exclude heavy dependencies that are code-split
+    exclude: ['@lifi/sdk'],
     // Force ESM conversion for CJS modules
     esbuildOptions: {
       define: {
