@@ -1,5 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
+import { FileText } from "lucide-react";
 
 const Terms = () => {
   return (
@@ -13,13 +14,20 @@ const Terms = () => {
       </Helmet>
 
       <section className="py-20">
-        <div className="container max-w-3xl">
-          <h1 className="text-4xl font-bold mb-8">Terms of Use</h1>
-          
-          <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
+        <div className="container max-w-3xl lg:max-w-4xl">
+          {/* Header */}
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4">
+              <FileText className="w-3.5 h-3.5" />
+              <span>Legal</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-3">Terms of Use</h1>
             <p className="text-muted-foreground">
               Last updated: January 24, 2026
             </p>
+          </div>
+          
+          <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
 
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">1. Acceptance of Terms</h2>

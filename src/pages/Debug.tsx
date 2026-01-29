@@ -6,6 +6,7 @@ import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Terminal, Info, Settings, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { GlowBar } from "@/components/ui/glow-bar";
 
 const BUILD_VERSION = "1.4.0";
 const BUILD_DATE = new Date().toISOString().split('T')[0];
@@ -105,7 +106,8 @@ const Debug = () => {
           <CacheControls />
           
           {/* Build Info */}
-          <Card className="sweep-effect">
+          <Card className="sweep-effect overflow-hidden">
+            <GlowBar variant="primary" delay={0.2} />
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Settings className="h-5 w-5" />
@@ -189,7 +191,8 @@ const Debug = () => {
           </Card>
 
           {/* Info Notice */}
-          <Card className="bg-primary/5 border-primary/20 sweep-effect">
+          <Card className="bg-primary/5 border-primary/20 sweep-effect overflow-hidden">
+            <GlowBar variant="success" delay={0.3} />
             <CardContent className="p-4">
               <div className="flex gap-3">
                 <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />

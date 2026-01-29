@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Bug, Lightbulb, Sparkles, MessageCircle, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { GlowBar } from "@/components/ui/glow-bar";
 
 const FEEDBACK_TYPES = [
   { value: "all", label: "All", icon: MessageSquare },
@@ -113,17 +114,23 @@ export default function Feedback() {
       </Helmet>
 
       <Layout>
-        <div className="container max-w-4xl mx-auto pb-8 px-4">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4">
-              <MessageSquare className="h-8 w-8 text-primary" />
-            </div>
-            <h1 className="text-3xl font-bold mb-2">Community Feedback</h1>
-            <p className="text-muted-foreground max-w-lg mx-auto">
-              Transparent feedback from our community. Bug reports, feature requests, and suggestions — all public.
-            </p>
-          </div>
+        <div className="container max-w-4xl lg:max-w-5xl mx-auto pb-8 px-4">
+          {/* Header Card */}
+          <Card className="overflow-hidden mb-8">
+            <GlowBar variant="multi" />
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Community</span>
+                </div>
+                <h1 className="text-3xl font-bold mb-2">Community Feedback</h1>
+                <p className="text-muted-foreground max-w-lg mx-auto">
+                  Transparent feedback from our community. Bug reports, feature requests, and suggestions — all public.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Filter Tabs */}
           <Tabs value={filter} onValueChange={setFilter} className="mb-6">

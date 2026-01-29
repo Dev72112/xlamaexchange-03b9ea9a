@@ -1,6 +1,7 @@
 /**
  * React Query hook for xLama Portfolio data
  * Falls back to OKX direct API when xLama returns empty
+ * Supports debug mode with mock data
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -8,6 +9,7 @@ import { xlamaApi, XlamaPortfolio, TokenHolding } from '@/services/xlamaApi';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useDataSource } from '@/contexts/DataSourceContext';
 import { okxDexService, WalletTokenBalance } from '@/services/okxdex';
+import { MOCK_PORTFOLIO } from '@/lib/mockData';
 
 // Default chains to query for portfolio
 const DEFAULT_CHAINS = '1,196,8453,42161,137,56,43114,10,324';
@@ -55,8 +57,23 @@ function getChainName(chainIndex: string): string {
 }
 
 export function useXlamaPortfolio(options: UseXlamaPortfolioOptions = {}) {
-  const { activeAddress } = useMultiWallet();
+  const { activeAddress, isDebugMode } = useMultiWallet();
   const { dataSource } = useDataSource();
+  
+  // Return mock data in debug mode
+  if (isDebugMode) {
+    return {
+      portfolio: MOCK_PORTFOLIO,
+      holdings: MOCK_PORTFOLIO.holdings,
+      totalValue: MOCK_PORTFOLIO.total_value_usd,
+      chainBreakdown: MOCK_PORTFOLIO.chain_breakdown,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+      refetch: () => Promise.resolve({ data: MOCK_PORTFOLIO }),
+    };
+  }
   
   const isXlamaEnabled = dataSource === 'xlama';
   const shouldFetch = !!activeAddress && isXlamaEnabled && options.enabled !== false;

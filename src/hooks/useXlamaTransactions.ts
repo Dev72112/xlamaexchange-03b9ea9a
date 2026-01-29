@@ -1,6 +1,7 @@
 /**
  * React Query hook for xLama Transaction History
  * Falls back to OKX direct API when xLama returns empty
+ * Supports debug mode with mock data
  */
 
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
@@ -8,6 +9,7 @@ import { xlamaApi, XlamaTransaction, TransactionOptions } from '@/services/xlama
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useDataSource } from '@/contexts/DataSourceContext';
 import { okxDexService, TransactionHistoryItem } from '@/services/okxdex';
+import { MOCK_TRANSACTIONS } from '@/lib/mockData';
 
 // Default chains to query for transactions
 const DEFAULT_CHAINS = '1,196,8453,42161,137,56';
@@ -111,8 +113,57 @@ function getChainName(chainIndex: string): string {
 }
 
 export function useXlamaTransactions(options: UseXlamaTransactionsOptions = {}) {
-  const { activeAddress } = useMultiWallet();
+  const { activeAddress, isDebugMode } = useMultiWallet();
   const { dataSource } = useDataSource();
+  
+  // Return mock data in debug mode
+  if (isDebugMode) {
+    const mockTxs: XlamaTransaction[] = MOCK_TRANSACTIONS.map(tx => ({
+      tx_hash: tx.tx_hash,
+      wallet_address: activeAddress || '',
+      chain_id: tx.chain_index,
+      chain_name: tx.chain_name,
+      transaction_type: tx.type as 'swap' | 'bridge' | 'transfer' | 'approval',
+      token_in: {
+        address: '',
+        symbol: tx.from_token_symbol,
+        name: tx.from_token_symbol,
+        logo: null,
+        decimals: 18,
+        amount: tx.from_amount,
+        amount_usd: parseFloat(tx.from_amount) * 1000,
+      },
+      token_out: {
+        address: '',
+        symbol: tx.to_token_symbol,
+        name: tx.to_token_symbol,
+        logo: null,
+        decimals: 18,
+        amount: tx.to_amount,
+        amount_usd: parseFloat(tx.to_amount),
+      },
+      value_usd: parseFloat(tx.to_amount),
+      gas_used: '0',
+      gas_price: '0',
+      gas_usd: 0.5,
+      timestamp: tx.created_at,
+      source: 'other' as const,
+      status: tx.status as 'success' | 'pending' | 'failed',
+    }));
+
+    return {
+      transactions: mockTxs,
+      total: mockTxs.length,
+      isLoading: false,
+      isFetching: false,
+      isFetchingNextPage: false,
+      isError: false,
+      error: null,
+      hasNextPage: false,
+      fetchNextPage: () => Promise.resolve({ data: { pages: [] }, pageParams: [] } as any),
+      refetch: () => Promise.resolve({ data: { pages: [] } } as any),
+    };
+  }
   
   const isXlamaEnabled = dataSource === 'xlama';
   const shouldFetch = !!activeAddress && isXlamaEnabled && options.enabled !== false;

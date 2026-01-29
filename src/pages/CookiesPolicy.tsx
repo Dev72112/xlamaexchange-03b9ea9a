@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, BarChart3, Megaphone, Cookie, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { showCookieConsent } from "@/components/CookieConsent";
+import { GlowBar } from "@/components/ui/glow-bar";
 
 export default function CookiesPolicy() {
   return (
@@ -13,12 +14,13 @@ export default function CookiesPolicy() {
         <meta name="description" content="Learn about how xlama uses cookies to improve your experience on our cryptocurrency exchange platform." />
       </Helmet>
 
-      <div className="container py-12 max-w-4xl">
+      <div className="container py-12 max-w-4xl lg:max-w-5xl">
         <div className="space-y-8">
           {/* Header */}
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-              <Cookie className="w-8 h-8 text-primary" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-2">
+              <Cookie className="w-3.5 h-3.5" />
+              <span>Legal</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold">Cookie Policy</h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -30,7 +32,8 @@ export default function CookiesPolicy() {
           </div>
 
           {/* What are cookies */}
-          <Card>
+          <Card className="overflow-hidden">
+            <GlowBar variant="primary" />
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cookie className="w-5 h-5 text-primary" />
@@ -52,7 +55,8 @@ export default function CookiesPolicy() {
             <h2 className="text-2xl font-semibold">Types of Cookies We Use</h2>
             
             {/* Essential Cookies */}
-            <Card>
+            <Card className="overflow-hidden">
+              <GlowBar variant="success" delay={0.1} />
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-primary" />
@@ -101,7 +105,8 @@ export default function CookiesPolicy() {
             </Card>
 
             {/* Analytics Cookies */}
-            <Card>
+            <Card className="overflow-hidden">
+              <GlowBar variant="warning" delay={0.2} />
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-primary" />
@@ -145,7 +150,8 @@ export default function CookiesPolicy() {
             </Card>
 
             {/* Marketing Cookies */}
-            <Card>
+            <Card className="overflow-hidden">
+              <GlowBar variant="multi" delay={0.3} />
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Megaphone className="w-5 h-5 text-primary" />
@@ -185,7 +191,8 @@ export default function CookiesPolicy() {
           </div>
 
           {/* Managing Cookies */}
-          <Card>
+          <Card className="overflow-hidden">
+            <GlowBar variant="premium" delay={0.4} />
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-primary" />
