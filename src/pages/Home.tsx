@@ -4,6 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { Layout } from "@/shared/components";
 import { HeroSection } from "@/components/HeroSection";
 import { Button } from "@/components/ui/button";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { 
   ArrowRight, 
   Repeat, 
@@ -78,13 +79,16 @@ const FeatureCard = memo(function FeatureCard({
   
   return (
     <div 
-      className={`group relative p-6 rounded-2xl glass border border-border/50 hover:border-primary/40 transition-all duration-300 sweep-effect shadow-premium-hover ${STAGGER_ITEM_CLASS}`}
+      className={`group relative rounded-2xl glass border border-border/50 hover:border-primary/40 transition-all duration-300 sweep-effect shadow-premium-hover overflow-hidden ${STAGGER_ITEM_CLASS}`}
       style={getStaggerStyle(index, 100)}
     >
+      {/* Animated glow bar at top */}
+      <GlowBar variant="multi" delay={index * 0.1} />
+      
       {/* Glow effect on hover */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      <div className="relative z-10">
+      <div className="relative z-10 p-6">
         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
           <Icon className="w-6 h-6 text-primary" />
         </div>
