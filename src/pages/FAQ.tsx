@@ -6,6 +6,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { GlowBar } from "@/components/ui/glow-bar";
+import { Card, CardContent } from "@/components/ui/card";
+import { HelpCircle } from "lucide-react";
 
 const faqs = [
   {
@@ -126,17 +129,24 @@ const FAQ = () => {
       </Helmet>
 
       <section className="pb-20">
-        <div className="container max-w-3xl">
+        <div className="container max-w-3xl lg:max-w-4xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">
-              Frequently Asked <span className="text-primary">Questions</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs sm:text-sm text-primary mb-3">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Help Center</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
+              Frequently Asked Questions
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm sm:text-base">
               Everything you need to know about exchanging cryptocurrency with xlama.
             </p>
           </div>
 
-          <Accordion type="single" collapsible className="w-full space-y-4">
+          <Card className="glass border-border/50 overflow-hidden">
+            <GlowBar variant="multi" />
+            <CardContent className="pt-6">
+              <Accordion type="single" collapsible className="w-full space-y-3">
             {faqs.map((faq, index) => (
               <AccordionItem
                 key={index}
@@ -152,18 +162,25 @@ const FAQ = () => {
               </AccordionItem>
             ))}
           </Accordion>
+            </CardContent>
+          </Card>
 
-          <div className="mt-12 text-center p-8 bg-secondary/30 rounded-2xl sweep-effect">
-            <h3 className="text-xl font-semibold mb-2">Still have questions?</h3>
-            <p className="text-muted-foreground mb-4">
-              Can't find the answer you're looking for? Reach out to our support team.
-            </p>
-            <a
-              href="mailto:support.xlama@defixlama.com"
-              className="text-primary hover:underline font-medium"
-            >
-              Contact Support →
-            </a>
+          <div className="mt-12 text-center">
+            <Card className="glass border-border/50 overflow-hidden inline-block">
+              <GlowBar variant="primary" />
+              <CardContent className="p-8">
+                <h3 className="text-xl font-semibold mb-2">Still have questions?</h3>
+                <p className="text-muted-foreground mb-4">
+                  Can't find the answer you're looking for? Reach out to our support team.
+                </p>
+                <a
+                  href="mailto:support.xlama@defixlama.com"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Contact Support →
+                </a>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

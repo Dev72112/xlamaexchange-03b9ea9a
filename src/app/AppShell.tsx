@@ -13,6 +13,7 @@ import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { BridgeNotificationWatcher } from '@/components/BridgeNotificationWatcher';
 import { FloatingFeedback } from '@/components/FloatingFeedback';
 import { CookieConsent } from '@/components/CookieConsent';
+import { DebugBanner } from '@/components/DebugBanner';
 import { allRoutes } from './routes';
 
 export function AppShell() {
@@ -21,6 +22,7 @@ export function AppShell() {
       <RouteLoadingProvider>
         <ScrollToTop />
         <TrackingProvider>
+          <DebugBanner />
           <Suspense fallback={<PageLoadingSkeleton />}>
             <AnimatedRoutes>
               <Routes>

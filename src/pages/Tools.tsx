@@ -10,6 +10,7 @@ import { PriceAlerts } from "@/components/PriceAlerts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight } from "lucide-react";
 import { hapticFeedback } from "@/hooks/useHapticFeedback";
 import { cn } from "@/lib/utils";
@@ -49,16 +50,19 @@ const Tools = memo(function Tools() {
         <link rel="canonical" href="https://xlama.exchange/tools" />
       </Helmet>
 
-      <main className="container px-4 pb-4 sm:pb-6 max-w-4xl mx-auto">
-        {/* Header - Compact */}
-        <div className="text-center mb-4">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-2">
+        <main className="container px-4 pb-4 sm:pb-6 max-w-4xl lg:max-w-5xl 2xl:max-w-6xl mx-auto">
+        {/* Header - Premium */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs sm:text-sm text-primary mb-3">
             <Wrench className="w-3.5 h-3.5" />
             <span>Trading Tools</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">
+          <h1 className="text-2xl sm:text-4xl font-bold mb-2 gradient-text">
             Trading Tools
           </h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            Gas estimation, price alerts, predictions & more
+          </p>
         </div>
 
         {/* Quick Jump Navigation - Horizontal Scroll */}
@@ -84,27 +88,52 @@ const Tools = memo(function Tools() {
         <div className="space-y-6">
           {/* Token Watchlist */}
           <section id="watchlist" className="scroll-mt-16">
-            <TokenWatchlist />
+            <Card className="glass border-border/50 overflow-hidden">
+              <GlowBar variant="multi" delay={0.1} />
+              <CardContent className="pt-4">
+                <TokenWatchlist />
+              </CardContent>
+            </Card>
           </section>
 
           {/* Gas & Prediction - Side by side on desktop, stacked on mobile */}
           <div className="grid sm:grid-cols-2 gap-4">
             <section id="gas" className="scroll-mt-16">
-              <GasEstimator />
+              <Card className="glass border-border/50 overflow-hidden h-full">
+                <GlowBar variant="success" delay={0.2} />
+                <CardContent className="pt-4">
+                  <GasEstimator />
+                </CardContent>
+              </Card>
             </section>
             <section id="prediction" className="scroll-mt-16">
-              <PricePrediction />
+              <Card className="glass border-border/50 overflow-hidden h-full">
+                <GlowBar variant="primary" delay={0.3} />
+                <CardContent className="pt-4">
+                  <PricePrediction />
+                </CardContent>
+              </Card>
             </section>
           </div>
 
           {/* Portfolio Rebalancer */}
           <section id="rebalancer" className="scroll-mt-16 max-w-xl mx-auto">
-            <PortfolioRebalancer />
+            <Card className="glass border-border/50 overflow-hidden">
+              <GlowBar variant="warning" delay={0.4} />
+              <CardContent className="pt-4">
+                <PortfolioRebalancer />
+              </CardContent>
+            </Card>
           </section>
 
           {/* Price Alerts */}
           <section id="alerts" className="scroll-mt-16">
-            <PriceAlerts />
+            <Card className="glass border-border/50 overflow-hidden">
+              <GlowBar variant="multi" delay={0.5} />
+              <CardContent className="pt-4">
+                <PriceAlerts />
+              </CardContent>
+            </Card>
           </section>
 
           {/* Token Compare Link */}

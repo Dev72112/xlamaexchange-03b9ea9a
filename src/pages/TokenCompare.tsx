@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { GlowBar } from '@/components/ui/glow-bar';
 import {
   Dialog,
   DialogContent,
@@ -133,21 +134,25 @@ export default function TokenCompare() {
       </Helmet>
       
       <AppLayout>
-        <div className="container px-4 sm:px-6 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <BarChart3 className="w-6 h-6" />
-                Token Comparison
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Compare up to 5 tokens side by side
-              </p>
+        <div className="container px-4 sm:px-6 py-8 max-w-6xl lg:max-w-7xl 2xl:max-w-[1600px] mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs sm:text-sm text-primary mb-3">
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Research Tool</span>
             </div>
-            
+            <h1 className="text-2xl sm:text-4xl font-bold gradient-text mb-2">
+              Token Comparison
+            </h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Compare up to 5 tokens side by side
+            </p>
+          </div>
+          
+          <div className="flex justify-center mb-6">
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
-                <Button disabled={tokens.length >= 5}>
+                <Button disabled={tokens.length >= 5} size="lg">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Token
                 </Button>
@@ -239,8 +244,9 @@ export default function TokenCompare() {
           </div>
 
           {tokens.length === 0 ? (
-            <Card className="py-16">
-              <CardContent className="text-center">
+            <Card className="glass glow-sm border-primary/10 overflow-hidden max-w-xl mx-auto">
+              <GlowBar variant="multi" />
+              <CardContent className="py-16 text-center">
                 <img src={xlamaMascot} alt="xLama mascot" className="w-16 h-16 mx-auto mb-4 opacity-60 rounded-full" />
                 <h3 className="text-lg font-medium mb-2">No tokens to compare</h3>
                 <p className="text-sm text-muted-foreground mb-4">

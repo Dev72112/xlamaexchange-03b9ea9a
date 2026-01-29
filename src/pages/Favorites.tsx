@@ -1,9 +1,10 @@
-import { Layout } from "@/components/Layout";
+import { AppLayout } from "@/components/AppLayout";
 import { Helmet } from "react-helmet-async";
 import { useFavoritePairs } from "@/hooks/useFavoritePairs";
 import { Star, ArrowRight, Trash2, Loader2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { changeNowService } from "@/services/changenow";
@@ -50,39 +51,40 @@ const Favorites = () => {
   };
 
   return (
-    <Layout>
+    <AppLayout>
       <Helmet>
         <title>Favorite Pairs - xlama</title>
         <meta name="description" content="Your saved favorite cryptocurrency trading pairs with live rates." />
       </Helmet>
 
-      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl">
-        {/* Header with glass styling */}
-        <div className="mb-10 relative">
-          <div className="absolute -inset-4 bg-gradient-to-r from-warning/5 via-transparent to-transparent rounded-2xl blur-xl" />
-          <div className="relative flex items-center gap-3 mb-4">
-            <div className="p-2.5 rounded-xl glass border border-warning/20 shadow-[0_0_15px_rgba(var(--warning),0.2)]">
-              <Star className="w-6 h-6 text-warning fill-warning" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Favorite Pairs</h1>
+      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl lg:max-w-5xl 2xl:max-w-6xl mx-auto">
+        {/* Header with premium styling */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-warning/30 text-xs sm:text-sm text-warning mb-3">
+            <Star className="w-3.5 h-3.5 fill-warning" />
+            <span>Your Collection</span>
           </div>
-          <p className="text-muted-foreground relative">
-            Your saved trading pairs with live exchange rates. Click any pair to start an exchange.
+          <h1 className="text-2xl sm:text-4xl font-bold gradient-text mb-2">Favorite Pairs</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            Your saved trading pairs with live exchange rates
           </p>
         </div>
 
         {/* Favorites List */}
         {favorites.length === 0 ? (
-          <Card className="p-12 text-center border-dashed glass">
-            <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-            <h3 className="text-lg font-semibold mb-2">No favorites yet</h3>
-            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-              Add your favorite trading pairs from the exchange widget or trending pairs section.
-            </p>
-            <Button onClick={() => navigate('/')} className="btn-ripple">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Explore Pairs
-            </Button>
+          <Card className="glass glow-sm border-primary/10 overflow-hidden">
+            <GlowBar variant="warning" />
+            <CardContent className="p-12 text-center">
+              <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
+              <h3 className="text-lg font-semibold mb-2">No favorites yet</h3>
+              <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                Add your favorite trading pairs from the exchange widget or trending pairs section.
+              </p>
+              <Button onClick={() => navigate('/')} className="btn-ripple">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Explore Pairs
+              </Button>
+            </CardContent>
           </Card>
         ) : isLoading ? (
           <FavoriteCardsSkeleton count={favorites.length || 3} />
@@ -188,15 +190,18 @@ const Favorites = () => {
 
         {/* Quick Stats */}
         {favorites.length > 0 && (
-          <div className="mt-8 p-4 rounded-xl glass border border-border glow-sm sweep-effect glow-border-animated">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Total saved pairs</span>
-              <span className="font-medium text-primary">{favorites.length}</span>
-            </div>
-          </div>
+          <Card className="glass border-border/50 overflow-hidden mt-8">
+            <GlowBar variant="warning" />
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Total saved pairs</span>
+                <span className="font-medium text-primary">{favorites.length}</span>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
-    </Layout>
+    </AppLayout>
   );
 };
 
