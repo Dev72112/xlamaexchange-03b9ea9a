@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { 
   ArrowRightLeft, 
   Wallet, 
@@ -87,7 +88,7 @@ const Bridge = memo(function Bridge() {
         <link rel="canonical" href="https://xlama.exchange/bridge" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl mx-auto relative">
+      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl lg:max-w-3xl 2xl:max-w-4xl mx-auto relative">
         {/* Background accent */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-1/3 -left-48 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
@@ -126,9 +127,12 @@ const Bridge = memo(function Bridge() {
         </div>
 
         {/* Main Bridge Widget */}
-        <div className="mb-4">
-          <CrossChainSwap />
-        </div>
+        <Card className="glass border-primary/10 overflow-hidden glow-sm mb-4">
+          <GlowBar variant="multi" />
+          <CardContent className="pt-4 pb-4">
+            <CrossChainSwap />
+          </CardContent>
+        </Card>
 
         {/* Feature Badges - Horizontal */}
         <div className="flex justify-center gap-2 mb-4">

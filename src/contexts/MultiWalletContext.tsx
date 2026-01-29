@@ -6,7 +6,9 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Chain, getChainByChainId, getPrimaryChain, SUPPORTED_CHAINS } from '@/data/chains';
+import { MOCK_WALLET_ADDRESS } from '@/lib/mockData';
 
 // AppKit hooks (for Reown integration)
 import { useAppKit, useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/react';
@@ -83,6 +85,9 @@ interface MultiWalletContextType {
   connectionStatus: ConnectionStatus;
   error: string | null;
   
+  // Debug mode for testing wallet-gated pages
+  isDebugMode: boolean;
+  
   // EVM-specific
   evmChainId: number | null;
   evmChain: Chain | null;
@@ -132,6 +137,10 @@ interface MultiWalletProviderProps { children: ReactNode; }
  * Syncs state between legacy hooks and SessionManager
  */
 function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
+  // Debug mode detection from URL params
+  const [searchParams] = useSearchParams();
+  const isDebugMode = searchParams.get('debug') === 'wallet';
+  
   // SessionManager subscription for modular architecture
   const [sessionState, setSessionState] = useState<SessionState>(() => sessionManager.getState());
   
@@ -674,26 +683,27 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     return true;
   }, [evmAddress, sessionState.ecosystem, sessionState.isConnected, switchEvmChain, setActiveChain, solanaAddress]);
 
-  // Build context value
+  // Build context value - with debug mode overrides
   const value: MultiWalletContextType = useMemo(() => ({ 
-    evmAddress, 
-    solanaAddress, 
-    tronAddress: tronAddressFinal, 
-    suiAddress: suiAddressFinal, 
-    tonAddress: tonAddressFinal, 
-    activeChainType, 
-    activeAddress, 
-    isConnected, 
-    hasAnyConnection, 
-    anyConnectedAddress, 
-    evmChainId, 
+    evmAddress: isDebugMode ? MOCK_WALLET_ADDRESS : evmAddress, 
+    solanaAddress: isDebugMode ? null : solanaAddress, 
+    tronAddress: isDebugMode ? null : tronAddressFinal, 
+    suiAddress: isDebugMode ? null : suiAddressFinal, 
+    tonAddress: isDebugMode ? null : tonAddressFinal, 
+    activeChainType: isDebugMode ? 'evm' : activeChainType, 
+    activeAddress: isDebugMode ? MOCK_WALLET_ADDRESS : activeAddress, 
+    isConnected: isDebugMode ? true : isConnected, 
+    hasAnyConnection: isDebugMode ? true : hasAnyConnection, 
+    anyConnectedAddress: isDebugMode ? MOCK_WALLET_ADDRESS : anyConnectedAddress, 
+    evmChainId: isDebugMode ? 1 : evmChainId, 
     evmChain, 
     evmWalletType, 
-    isOkxConnected: okxWallet.isConnected, 
+    isOkxConnected: isDebugMode ? false : okxWallet.isConnected, 
     isOkxAvailable: okxWallet.isOkxAvailable, 
-    isConnecting: isConnecting || okxWallet.isConnecting || sessionState.isConnecting, 
-    connectionStatus, 
+    isConnecting: isDebugMode ? false : (isConnecting || okxWallet.isConnecting || sessionState.isConnecting), 
+    connectionStatus: isDebugMode ? 'connected' : connectionStatus, 
     error: error || sessionState.error, 
+    isDebugMode,
     isWalletAvailable, 
     connectOkx, 
     openConnectModal, 
@@ -719,7 +729,7 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     evmAddress, solanaAddress, tronAddressFinal, suiAddressFinal, tonAddressFinal,
     activeChainType, activeAddress, isConnected, hasAnyConnection, anyConnectedAddress,
     evmChainId, evmChain, evmWalletType, okxWallet.isConnected, okxWallet.isOkxAvailable,
-    isConnecting, okxWallet.isConnecting, sessionState, connectionStatus, error,
+    isConnecting, okxWallet.isConnecting, sessionState, connectionStatus, error, isDebugMode,
     isWalletAvailable, connectOkx, openConnectModal, connectTron, connectSui, connectTon,
     disconnect, switchEvmChain, switchChainByIndex, openInWallet, getEvmProvider,
     getSolanaConnection, getSolanaWallet, getTronWeb, getSuiClient, getTonConnectUI,
