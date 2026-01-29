@@ -5,6 +5,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* GPU-accelerated animations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Global overflow prevention */
 html,
 body {
@@ -135,6 +158,24 @@ body {
     min-height: 32px;
     min-width: 32px;
   }
+}
+
+/* Smooth theme transitions */
+html {
+  transition: background-color 0.2s ease-out, color 0.2s ease-out;
+}
+
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 0.15s;
+  transition-timing-function: ease-out;
+}
+
+/* Exceptions: animations and transforms should not be affected */
+*[class*="animate-"],
+*[class*="transition-transform"],
+*[class*="transition-opacity"] {
+  transition-property: all;
 }
 
 @layer base {
