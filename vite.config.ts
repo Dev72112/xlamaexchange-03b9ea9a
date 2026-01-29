@@ -40,6 +40,8 @@ export default defineConfig(({ mode }) => ({
       'lucide-react',
       'clsx',
       'tailwind-merge',
+      // Fix ESM/CJS interop issues
+      'eventemitter3',
     ],
     // Exclude heavy dependencies that are code-split
     exclude: ['@lifi/sdk'],
