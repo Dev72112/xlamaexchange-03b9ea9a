@@ -1,4 +1,6 @@
 import { memo, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { headerBadge, headerTitle, headerSubtitle, cardEntrance } from "@/lib/animations";
 import { Helmet } from "react-helmet-async";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,9 +97,14 @@ const Bridge = memo(function Bridge() {
           <div className="absolute bottom-1/3 -right-48 w-[400px] h-[400px] bg-primary/3 rounded-full blur-3xl" />
         </div>
 
-        {/* Header - Compact */}
+        {/* Header - Compact with animations */}
         <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-2 mb-3">
+          <motion.div 
+            className="flex items-center justify-center gap-2 mb-3"
+            variants={headerBadge}
+            initial="initial"
+            animate="animate"
+          >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border-primary/20 text-xs sm:text-sm text-primary">
               <ArrowRightLeft className="w-3.5 h-3.5" />
               <span>Powered by Li.Fi</span>
@@ -117,22 +124,38 @@ const Bridge = memo(function Bridge() {
                 </div>
               </SheetContent>
             </Sheet>
-          </div>
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-2 gradient-text">
+          </motion.div>
+          <motion.h1 
+            className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-2 gradient-text"
+            variants={headerTitle}
+            initial="initial"
+            animate="animate"
+          >
             Cross-Chain Bridge
-          </h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
+          </motion.h1>
+          <motion.p 
+            className="text-muted-foreground text-sm sm:text-base"
+            variants={headerSubtitle}
+            initial="initial"
+            animate="animate"
+          >
             Bridge tokens across {supportedChains.length}+ chains with the best rates.
-          </p>
+          </motion.p>
         </div>
 
         {/* Main Bridge Widget */}
-        <Card className="glass border-primary/10 overflow-hidden glow-sm mb-4">
-          <GlowBar variant="multi" />
-          <CardContent className="pt-4 pb-4">
-            <CrossChainSwap />
-          </CardContent>
-        </Card>
+        <motion.div
+          variants={cardEntrance}
+          initial="initial"
+          animate="animate"
+        >
+          <Card className="glass border-primary/10 overflow-hidden glow-sm mb-4">
+            <GlowBar variant="multi" />
+            <CardContent className="pt-4 pb-4">
+              <CrossChainSwap />
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Feature Badges - Horizontal */}
         <div className="flex justify-center gap-2 mb-4">

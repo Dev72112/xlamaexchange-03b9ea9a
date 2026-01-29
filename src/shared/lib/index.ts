@@ -56,6 +56,33 @@ export {
   MAX_STAGGER_DELAY_MS,
 } from '@/lib/staggerAnimation';
 
+// Motion variants and presets
+export {
+  springs,
+  pageTransition,
+  tabContentVariants,
+  cardEntrance,
+  staggerContainer,
+  staggerItem,
+  mobileSlideUp,
+  mobileScale,
+  tapScale,
+  hoverLift,
+  pressable,
+  shimmer,
+  pulse,
+  drawerVariants,
+  modalVariants,
+  overlayVariants,
+  headerBadge,
+  headerTitle,
+  headerSubtitle,
+  listContainer,
+  listItem,
+  successPop,
+  shake,
+} from '@/lib/animations';
+
 // Trade export utilities
 export {
   exportTradesToCSV,

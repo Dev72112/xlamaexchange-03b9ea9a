@@ -2,6 +2,7 @@ import { memo, Suspense, lazy, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { Wallet, Zap, LineChart } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -70,7 +71,29 @@ const Portfolio = memo(function Portfolio() {
         <link rel="canonical" href="https://xlama.exchange/portfolio" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl mx-auto">
+      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl mx-auto relative">
+        {/* Animated background accent */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
+        </div>
+
+        {/* Consistent Header */}
+        <motion.div 
+          className="text-center mb-6 sm:mb-8"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border-primary/20 text-sm text-primary mb-3">
+            <Wallet className="w-3.5 h-3.5" />
+            <span className="text-xs sm:text-sm">Portfolio</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 gradient-text">Your Portfolio</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            Track holdings across 25+ chains
+          </p>
+        </motion.div>
         {!isConnected ? (
           <motion.div 
             className="max-w-xl mx-auto"
@@ -78,7 +101,8 @@ const Portfolio = memo(function Portfolio() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated">
+            <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated overflow-hidden">
+              <GlowBar variant="multi" />
               <CardContent className="pt-8 pb-8 text-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
                   <Wallet className="w-8 h-8 text-primary" />

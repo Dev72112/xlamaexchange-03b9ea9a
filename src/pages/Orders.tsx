@@ -1,5 +1,6 @@
 import { memo, Suspense, lazy, useState, useEffect, useCallback, useRef } from "react";
 import { Helmet } from "react-helmet-async";
+import { motion } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { OrdersFAB } from "@/components/OrdersFAB";
+import { headerBadge, headerTitle, cardEntrance, pressable } from "@/lib/animations";
 
 // Lazy load order components
 const ActiveLimitOrders = lazy(() => import("@/components/ActiveLimitOrders").then(m => ({ default: m.ActiveLimitOrders })));
@@ -148,17 +150,29 @@ const Orders = memo(function Orders() {
       </Helmet>
 
       <div className="container px-4 pb-6 max-w-2xl lg:max-w-3xl 2xl:max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-6">
+        {/* Header with animations */}
+        <motion.div 
+          className="text-center mb-6"
+          variants={headerBadge}
+          initial="initial"
+          animate="animate"
+        >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs sm:text-sm text-primary mb-3">
             <ListOrdered className="w-3.5 h-3.5" />
             <span>Order Management</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold gradient-text mb-1">Orders</h1>
+          <motion.h1 
+            className="text-2xl sm:text-3xl font-bold gradient-text mb-1"
+            variants={headerTitle}
+            initial="initial"
+            animate="animate"
+          >
+            Orders
+          </motion.h1>
           <p className="text-sm text-muted-foreground">Limit orders & DCA strategies</p>
-        </div>
+        </motion.div>
 
-        {/* Refresh & Chain Toggle Row */}
+        {/* Chain Toggle & Refresh Row */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
             <Layers className="w-4 h-4 text-muted-foreground ml-2" />
@@ -189,86 +203,61 @@ const Orders = memo(function Orders() {
             </Button>
           </div>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="h-8 w-8"
-          >
-            <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
-          </Button>
-        </div>
-
-        {/* Chain Toggle */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-            <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+          <div className="flex items-center gap-2">
+            {/* Sync indicator */}
+            {isConnected && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className={cn("w-1.5 h-1.5 rounded-full", isWalletSynced ? 'bg-success' : 'bg-warning')} />
+                {isWalletSynced ? 'Synced' : 'Switch wallet'}
+              </div>
+            )}
+            
             <Button
-              variant={chainFilter === 'evm' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => handleChainFilterChange('evm')}
-              disabled={isSwitching}
-              className={cn(
-                "h-7 px-2.5 text-xs",
-                chainFilter === 'evm' && "bg-primary text-primary-foreground"
-              )}
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="h-8 w-8"
             >
-              EVM
-            </Button>
-            <Button
-              variant={chainFilter === 'solana' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => handleChainFilterChange('solana')}
-              disabled={isSwitching}
-              className={cn(
-                "h-7 px-2.5 text-xs gap-1",
-                chainFilter === 'solana' && "bg-primary text-primary-foreground"
-              )}
-            >
-              <Zap className="w-3 h-3" />
-              SOL
+              <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
             </Button>
           </div>
-
-          {/* Sync indicator */}
-          {isConnected && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <div className={cn("w-1.5 h-1.5 rounded-full", isWalletSynced ? 'bg-success' : 'bg-warning')} />
-              {isWalletSynced ? 'Synced' : 'Switch wallet'}
-            </div>
-          )}
         </div>
 
-        {/* Not connected state */}
         {!isConnected ? (
-          <Card className="glass glow-sm border-primary/10 overflow-hidden">
-            <GlowBar variant="multi" />
-            <CardContent className="pt-8 pb-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
-                <Wallet className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Connect Wallet</h3>
-              <p className="text-sm text-muted-foreground mb-4 max-w-xs mx-auto">
-                Connect an EVM wallet to create and manage limit orders and DCA strategies.
-              </p>
-              <MultiWalletButton />
-              
-              {/* Feature preview */}
-              <div className="mt-8 pt-6 border-t border-border/50 grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg glass-subtle text-center">
-                  <Target className="w-5 h-5 text-primary mx-auto mb-1.5" />
-                  <p className="text-xs font-medium">Limit Orders</p>
-                  <p className="text-[10px] text-muted-foreground">Set target prices</p>
+          <motion.div
+            variants={cardEntrance}
+            initial="initial"
+            animate="animate"
+          >
+            <Card className="glass glow-sm border-primary/10 overflow-hidden">
+              <GlowBar variant="multi" />
+              <CardContent className="pt-8 pb-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 glow-sm">
+                  <Wallet className="w-8 h-8 text-primary" />
                 </div>
-                <div className="p-3 rounded-lg glass-subtle text-center">
-                  <CalendarClock className="w-5 h-5 text-primary mx-auto mb-1.5" />
-                  <p className="text-xs font-medium">DCA Strategies</p>
-                  <p className="text-[10px] text-muted-foreground">Automated buys</p>
+                <h3 className="text-lg font-semibold mb-2">Connect Wallet</h3>
+                <p className="text-sm text-muted-foreground mb-4 max-w-xs mx-auto">
+                  Connect an EVM wallet to create and manage limit orders and DCA strategies.
+                </p>
+                <MultiWalletButton />
+                
+                {/* Feature preview */}
+                <div className="mt-8 pt-6 border-t border-border/50 grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg glass-subtle text-center">
+                    <Target className="w-5 h-5 text-primary mx-auto mb-1.5" />
+                    <p className="text-xs font-medium">Limit Orders</p>
+                    <p className="text-[10px] text-muted-foreground">Set target prices</p>
+                  </div>
+                  <div className="p-3 rounded-lg glass-subtle text-center">
+                    <CalendarClock className="w-5 h-5 text-primary mx-auto mb-1.5" />
+                    <p className="text-xs font-medium">DCA Strategies</p>
+                    <p className="text-[10px] text-muted-foreground">Automated buys</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
         ) : chainFilter === 'solana' ? (
           // Solana orders - coming soon
           <Card className="glass border-border/50">
