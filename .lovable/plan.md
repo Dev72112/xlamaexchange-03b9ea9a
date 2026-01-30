@@ -1,350 +1,368 @@
 
 
-# Comprehensive UI Polish and Consistency Audit
+# Component Polish, Onboarding Removal, and Glass Evolution Plan
 
 ## Executive Summary
 
-After a thorough review of all 22 pages and 60+ major components, I've identified several areas for improvement across structure, layout, header consistency, GlowBar application, and mobile animations. This plan addresses inconsistencies and elevates the overall polish of the application.
+This plan addresses three major areas:
+1. **Onboarding Tour Removal** - Remove the current onboarding system that causes loading slowdown (modern DeFi apps don't use this)
+2. **Swap Confirmation Enhancement** - Improve DEX/Bridge/Instant success modals to clearly show what was swapped
+3. **Glass Evolution** - Implement signal-driven UI with depth zoning, state-based glass, and edge lighting
 
 ---
 
-## Part 1: Header Consistency Issues
+## Part 1: Remove Onboarding Tour
+
+### Problem
+- The `OnboardingTour.tsx` delays page load by 2 seconds
+- Uses heavy portal rendering with backdrop blur
+- No major DeFi hub (Uniswap, 1inch, Jupiter) uses step-by-step tours
+- First-time users can explore naturally
+
+### Solution
+Remove the component entirely and update references.
+
+### Files to Modify
+| File | Action |
+|------|--------|
+| `src/components/OnboardingTour.tsx` | Delete file |
+| `src/app/AppShell.tsx` | Remove OnboardingTour import and usage |
+| `src/pages/Debug.tsx` | Remove "Reset Tour" button if present |
+
+---
+
+## Part 2: Swap Confirmation Enhancement
 
 ### Current State Analysis
+The current success feedback varies by mode:
+- **DEX Mode**: Toast shows "Swap Complete! Successfully swapped X ETH for Y TOKEN" - decent but brief
+- **Bridge Mode**: `LiFiBridgeProgress` shows token flow but no clear "You received X" summary at completion
+- **Instant Mode**: `ExchangeForm` status step shows amounts but needs clearer completion state
 
-| Page | Header Badge | Header Animation | Header Style | Issue |
-|------|-------------|------------------|--------------|-------|
-| Privacy | Yes (Legal) | None | Basic | Missing motion animations |
-| Terms | Yes (Legal) | None | Basic | Missing motion animations |
-| CookiesPolicy | Yes (Legal) | None | Basic | Missing motion animations |
-| Feedback | Yes (Community) | None | Inside card | Inconsistent placement |
-| Debug | None | None | Inline with badge | No header badge pattern |
-| About | None | Yes (fadeInUp) | Plain h1 | Missing badge chip |
-| Changelog | Yes (Sparkles) | Yes (stagger) | Good | Consistent |
-| Docs | Yes (BookOpen) | Yes (stagger) | Good | Consistent |
-| FAQ | Yes (HelpCircle) | None | Good | Missing motion |
-| Home | None | None | Hero handles it | OK (separate pattern) |
+### Proposed Enhancement: Rich Success Summary
 
-### Recommended Standard Header Pattern
-
-```text
-+--------------------------------------------------+
-|     [ Icon + Category Badge ]  (animated in)     |
-|                                                  |
-|       Gradient Title Text (animated in)          |
-|                                                  |
-|     Muted description (animated in, delayed)     |
-+--------------------------------------------------+
+Create a unified success view that clearly states:
+```
+"1 OKB swapped for 35,000,000 XLAMA"
 ```
 
-### Files Needing Header Updates
+With:
+- From/To token icons
+- Exact amounts with proper formatting
+- Rate achieved
+- Transaction hash with explorer link
+- Optional confetti for high-value swaps
 
-1. **Privacy.tsx** - Add motion animations to existing header
-2. **Terms.tsx** - Add motion animations to existing header
-3. **CookiesPolicy.tsx** - Add motion animations to existing header
-4. **FAQ.tsx** - Add motion animations to existing header
-5. **About.tsx** - Add header badge chip before the WTF title
-6. **Debug.tsx** - Add header badge chip pattern
+### Implementation
 
----
-
-## Part 2: GlowBar Consistency
-
-### Current GlowBar Usage
-
-| Page | Has GlowBar | Cards with GlowBar | Cards Missing GlowBar |
-|------|------------|-------------------|----------------------|
-| Home | Yes | Feature cards | - |
-| Swap | Yes | Exchange widget | - |
-| Bridge | Yes | Bridge card | - |
-| Orders | Yes | All sections | - |
-| Portfolio | Yes | Summary card | Holdings table card |
-| Analytics | Yes | Connect card | - |
-| History | Yes | Connect card | - |
-| Perpetuals | Partial | Some cards | Account stats cards |
-| Tools | Yes | All sections | - |
-| TokenCompare | Yes | Empty state card | Token cards missing |
-| Favorites | Yes | Empty + stats | - |
-| FAQ | Yes | Main accordion | - |
-| CookiesPolicy | Yes | All cards | - |
-| Feedback | Yes | Header card only | Feedback item cards |
-| Debug | Yes | Build + Info cards | RPC card missing |
-| Changelog | None | - | Stats cards, roadmap cards |
-| Docs | None | - | Quick nav cards, accordion |
-| About | None | - | Feature cards, values cards |
-
-### GlowBar Addition Priority
-
-**High Priority (Core Trading Pages)**
-- Portfolio holdings table card
-- Perpetuals account stats cards
-- TokenCompare token cards
-
-**Medium Priority (Info Pages)**
-- Changelog stats cards and roadmap sections
-- Docs quick nav cards
-- About feature and values cards
-
-**Low Priority (Already Good)**
-- Feedback item cards (keep minimal for readability)
-
----
-
-## Part 3: Layout Structure Improvements
-
-### Container Width Consistency
-
-| Page | Current Container | Recommended | Notes |
-|------|------------------|-------------|-------|
-| Privacy | `max-w-3xl lg:max-w-4xl` | `max-w-4xl lg:max-w-5xl` | Match other legal pages |
-| Terms | `max-w-3xl lg:max-w-4xl` | `max-w-4xl lg:max-w-5xl` | Match other legal pages |
-| Feedback | `max-w-4xl lg:max-w-5xl` | OK | Good |
-| Debug | `max-w-2xl` | `max-w-3xl lg:max-w-4xl` | Too narrow |
-| About | `max-w-6xl 2xl:max-w-7xl` | OK | Good |
-| Changelog | `max-w-4xl lg:max-w-5xl 2xl:max-w-6xl` | OK | Good |
-
-### Background Accent Consistency
-
-Many pages benefit from subtle animated background blurs. Currently:
-- **Has accents**: Analytics, Portfolio, Orders, Bridge
-- **Missing accents**: Privacy, Terms, Debug, Changelog, About
-
-### Responsive Breakpoint Improvements
-
-Pages should use the established ultra-wide breakpoints:
-- `3xl:max-w-[1600px]` for trading pages
-- `2xl:max-w-7xl` for info pages
-
----
-
-## Part 4: Mobile Animation Enhancements
-
-### Current Mobile Animation State
-
-| Component | Has Motion | Animation Type | Quality |
-|-----------|-----------|----------------|---------|
-| MobileBottomNav | Yes | Spring, fade | Excellent |
-| SwipeableTabs | Yes | Haptic + swipe | Excellent |
-| Page headers | Partial | Some have motion.div | Inconsistent |
-| Cards on load | Partial | staggerAnimation | OK |
-| Empty states | Partial | Some have scale | Inconsistent |
-
-### Mobile Animation Improvements
-
-1. **Page entrance animations** - Apply `cardEntrance` from `animations.ts` to page wrappers
-2. **List item stagger** - Use `staggerContainer` + `staggerItem` for all lists
-3. **Empty state animations** - Add `successPop` variant to empty state icons
-4. **Pull-to-refresh indicator** - Add `pulse` animation to refresh buttons
-5. **Skeleton shimmer** - Already good via CSS, no changes needed
-
-### Files Needing Mobile Animation Updates
-
-1. **Privacy.tsx** - Add page entrance motion wrapper
-2. **Terms.tsx** - Add page entrance motion wrapper
-3. **CookiesPolicy.tsx** - Add card stagger animations
-4. **Feedback.tsx** - Add list stagger to feedback cards
-5. **Debug.tsx** - Add card entrance animations
-6. **Changelog.tsx** - Add stagger to stats and roadmap
-7. **About.tsx** - Already has fadeInUp, enhance values cards
-
----
-
-## Part 5: Component-Level Inconsistencies
-
-### Identified Issues
-
-| Component | Issue | Fix |
-|-----------|-------|-----|
-| RpcDiagnostics | Missing GlowBar | Add GlowBar to card |
-| CacheControls | Missing GlowBar | Add GlowBar to card |
-| FeatureItem (Changelog) | No card wrapper | Already has bg-muted, OK |
-| QuickNavCard (Docs) | Missing GlowBar | Add GlowBar |
-| Value cards (About) | No GlowBar, basic styling | Add GlowBar, enhance |
-| Partner cards (About) | Has glow-border-animated | OK |
-| FeedbackCard | No GlowBar | Keep clean for readability |
-
-### Skeleton Loading Consistency
-
-All data-loading pages should use consistent skeleton patterns:
-- **Already good**: Portfolio, Orders, Analytics, History, Favorites
-- **Could improve**: Changelog (roadmap loading), Docs (no loading state)
-
----
-
-## Part 6: Implementation Plan
-
-### Phase 1: Header Consistency (6 files)
-
-```text
-Files to modify:
-- src/pages/Privacy.tsx
-- src/pages/Terms.tsx  
-- src/pages/CookiesPolicy.tsx
-- src/pages/FAQ.tsx
-- src/pages/About.tsx
-- src/pages/Debug.tsx
-
-Changes per file:
-1. Import motion from framer-motion
-2. Import headerBadge, headerTitle, headerSubtitle from animations.ts
-3. Wrap header elements in motion.div with variants
-4. Ensure consistent badge + title + subtitle structure
-```
-
-### Phase 2: GlowBar Application (8 files)
-
-```text
-Files to modify:
-- src/pages/Portfolio.tsx (holdings table card)
-- src/pages/TokenCompare.tsx (token cards)
-- src/pages/Changelog.tsx (stats cards, roadmap)
-- src/pages/Docs.tsx (quick nav cards)
-- src/pages/About.tsx (feature, values, origin cards)
-- src/components/RpcDiagnostics.tsx (main card)
-- src/components/CacheControls.tsx (main card)
-- src/pages/Perpetuals.tsx (account stats cards)
-
-Changes per file:
-1. Import GlowBar if not already
-2. Add overflow-hidden to cards
-3. Add <GlowBar variant="..." delay={index * 0.1} /> at card top
-```
-
-### Phase 3: Layout Structure (4 files)
-
-```text
-Files to modify:
-- src/pages/Privacy.tsx (widen container)
-- src/pages/Terms.tsx (widen container)
-- src/pages/Debug.tsx (widen container, add background accents)
-- src/pages/Changelog.tsx (add background accents)
-
-Changes:
-1. Update container class to wider breakpoints
-2. Add animated background blur divs where missing
-```
-
-### Phase 4: Mobile Animations (7 files)
-
-```text
-Files to modify:
-- src/pages/Privacy.tsx
-- src/pages/Terms.tsx
-- src/pages/CookiesPolicy.tsx
-- src/pages/Feedback.tsx
-- src/pages/Debug.tsx
-- src/pages/Changelog.tsx
-- src/pages/About.tsx
-
-Changes per file:
-1. Wrap main section in motion.div with pageTransition variant
-2. Add staggerContainer to list wrappers
-3. Add staggerItem to individual cards/items
-```
-
-### Phase 5: NotFound Enhancement
-
-```text
-File: src/pages/NotFound.tsx
-
-Changes:
-1. Add motion wrapper for page entrance
-2. Add GlowBar effect to the CTA buttons area
-3. Enhance the mascot bounce with framer-motion
-```
-
----
-
-## Part 7: Technical Details
-
-### Animation Imports Pattern
-
-```typescript
-// Standard import for pages
-import { motion } from 'framer-motion';
-import { 
-  headerBadge, 
-  headerTitle, 
-  headerSubtitle,
-  cardEntrance,
-  staggerContainer,
-  staggerItem 
-} from '@/lib/animations';
-```
-
-### Standard Header Template
+#### A. Enhance `DexSwapProgress.tsx`
+Add a success summary section when `step === 'complete'`:
 
 ```tsx
-<motion.div className="text-center mb-8 sm:mb-10">
-  <motion.div 
-    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border-primary/20 text-xs text-primary mb-4"
-    variants={headerBadge}
-    initial="initial"
-    animate="animate"
-  >
-    <Icon className="w-3.5 h-3.5" />
-    <span>Category</span>
-  </motion.div>
-  <motion.h1 
-    className="text-3xl sm:text-4xl font-bold mb-3 gradient-text"
-    variants={headerTitle}
-    initial="initial"
-    animate="animate"
-  >
-    Page Title
-  </motion.h1>
-  <motion.p 
-    className="text-muted-foreground"
-    variants={headerSubtitle}
-    initial="initial"
-    animate="animate"
-  >
-    Description text here
-  </motion.p>
-</motion.div>
+{isComplete && (
+  <div className="space-y-4">
+    <div className="text-center">
+      <div className="flex items-center justify-center gap-3 mb-2">
+        <img src={fromToken.logo} className="w-10 h-10 rounded-full" />
+        <span className="text-2xl">→</span>
+        <img src={toToken.logo} className="w-10 h-10 rounded-full" />
+      </div>
+      <h3 className="text-xl font-bold">
+        {fromAmount} {fromSymbol} → {toAmount} {toSymbol}
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        Rate: 1 {fromSymbol} = {rate.toFixed(6)} {toSymbol}
+      </p>
+    </div>
+  </div>
+)}
 ```
 
-### GlowBar Card Pattern
+#### B. Enhance `LiFiBridgeProgress.tsx`
+Add clear completion summary with amounts:
 
 ```tsx
-<Card className="glass border-border/50 overflow-hidden">
-  <GlowBar variant="multi" delay={0.1} />
-  <CardContent className="pt-4">
-    {/* Content */}
-  </CardContent>
-</Card>
+{status === 'completed' && (
+  <div className="p-4 bg-success/10 border border-success/20 rounded-xl text-center">
+    <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
+    <p className="font-semibold">
+      Successfully bridged {fromAmount} {fromToken.symbol} → {toAmount} {toToken.symbol}
+    </p>
+    <p className="text-xs text-muted-foreground mt-1">
+      from {fromChain.name} to {toChain.name}
+    </p>
+  </div>
+)}
 ```
+
+#### C. Update `ExchangeForm.tsx` Status Step
+Make the completion state more prominent:
+
+```tsx
+{txStatus?.status === "finished" && (
+  <div className="space-y-4">
+    <div className="bg-success/10 border border-success/20 rounded-xl p-4 text-center">
+      <h3 className="text-lg font-bold text-success">
+        {fromAmount} {fromCurrency.ticker.toUpperCase()} → 
+        {txStatus.amountReceive} {toCurrency.ticker.toUpperCase()}
+      </h3>
+      <p className="text-sm text-muted-foreground">Exchange complete!</p>
+    </div>
+  </div>
+)}
+```
+
+### Files to Modify
+| File | Changes |
+|------|---------|
+| `src/components/exchange/DexSwapProgress.tsx` | Add token icons and success summary props |
+| `src/components/exchange/LiFiBridgeProgress.tsx` | Add completion summary section |
+| `src/components/exchange/ExchangeForm.tsx` | Enhance status step completion view |
+| `src/components/exchange/ExchangeWidget.tsx` | Pass token info to DexSwapProgress |
 
 ---
 
-## Part 8: Files Summary
+## Part 3: Glass Evolution - Signal-Driven UI
 
-### Total Files to Modify
+### Philosophy
+Move from "pretty translucent cards everywhere" to "surfaces that react to purpose, state, and confidence"
 
-| Category | Count | Files |
-|----------|-------|-------|
-| Pages | 12 | Privacy, Terms, CookiesPolicy, FAQ, About, Debug, Changelog, Docs, Portfolio, TokenCompare, Perpetuals, NotFound |
-| Components | 2 | RpcDiagnostics, CacheControls |
-| **Total** | **14** | |
+### A. Depth Zoning System
 
-### No Changes Needed
+Create hierarchy through blur strength and opacity:
 
-These pages are already well-polished:
-- Home.tsx (Hero section handles styling)
-- History.tsx (Consistent with pattern)
-- Analytics.tsx (Consistent with pattern)
-- Orders.tsx (Consistent with pattern)
-- Bridge.tsx (Consistent with pattern)
-- Favorites.tsx (Consistent with pattern)
-- Tools.tsx (Consistent with pattern)
+| Surface Level | Blur | Opacity | Use Case |
+|--------------|------|---------|----------|
+| `glass-elevated` | `backdrop-blur-2xl` | `bg-card/80` | Primary action cards (swap widget) |
+| `glass` (default) | `backdrop-blur-xl` | `bg-card/70` | Standard cards |
+| `glass-subtle` | `backdrop-blur-md` | `bg-card/50` | Secondary info, backgrounds |
+| `glass-matte` | `backdrop-blur-sm` | `bg-card/30` | Tertiary, disabled states |
+
+#### CSS Addition (index.css)
+```css
+.glass-elevated {
+  @apply bg-card/80 backdrop-blur-2xl border border-border/60;
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.glass-matte {
+  @apply bg-card/30 backdrop-blur-sm border border-border/20;
+}
+```
+
+### B. State-Based Glass
+
+Apply visual state encoding to cards:
+
+| State | Visual Treatment |
+|-------|-----------------|
+| Pending/Loading | Softer blur, muted text, subtle pulse on border |
+| Confirmed/Success | Crisper glass, stronger contrast, success edge glow |
+| Error | Glass darkens, destructive edge glow |
+| Disabled | Matte surface, reduced opacity |
+
+#### Implementation Pattern
+```tsx
+<Card className={cn(
+  "glass transition-all duration-300",
+  isPending && "glass-subtle opacity-80",
+  isConfirmed && "glass-elevated border-success/30",
+  isError && "bg-destructive/5 border-destructive/20"
+)}>
+```
+
+### C. Edge Lighting System
+
+Subtle 1-2px gradient edge that responds to state:
+
+```css
+.edge-glow {
+  position: relative;
+}
+.edge-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.3),
+    transparent 50%,
+    hsl(var(--primary) / 0.1)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.edge-glow:hover::before,
+.edge-glow:focus-within::before {
+  opacity: 1;
+}
+
+/* State variants */
+.edge-glow-success::before {
+  background: linear-gradient(135deg, hsl(var(--success) / 0.4), transparent 50%);
+  opacity: 1;
+}
+.edge-glow-warning::before {
+  background: linear-gradient(135deg, hsl(var(--warning) / 0.4), transparent 50%);
+  opacity: 1;
+}
+.edge-glow-error::before {
+  background: linear-gradient(135deg, hsl(var(--destructive) / 0.4), transparent 50%);
+  opacity: 1;
+}
+```
+
+### D. Background Animation Guidelines
+
+Keep only purposeful, slow animations:
+
+**Allowed:**
+- Slow gradient drift (60-120s loops) for hero sections
+- State-triggered motion (route found, price updated)
+- Subtle noise/grain overlay for depth
+
+**Remove/Avoid:**
+- Constant floating elements
+- Fast parallax
+- Particle effects (except success confetti)
+- Anything that moves faster than 30s cycle
+
+#### Update Background Accents
+Current animated blurs on pages should:
+- Reduce animation speed from current to 120s loops
+- Lower opacity further (from 0.2 to 0.1)
+- Only animate on hover/focus or state change
+
+---
+
+## Part 4: Component-Specific Polish
+
+### A. Update Card Component Variants
+
+Enhance `src/components/ui/card.tsx`:
+
+```tsx
+const cardVariants = cva(
+  "rounded-lg border text-card-foreground transition-all duration-200",
+  {
+    variants: {
+      variant: {
+        default: "bg-card shadow-sm",
+        glass: "glass",
+        "glass-elevated": "glass-elevated",
+        "glass-subtle": "glass-subtle",
+        "glass-matte": "glass-matte",
+        interactive: "glass hover:glass-elevated hover:-translate-y-0.5 cursor-pointer",
+        success: "glass-elevated border-success/30 edge-glow-success",
+        warning: "glass border-warning/30 edge-glow-warning",
+        error: "glass-subtle border-destructive/30 edge-glow-error",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+);
+```
+
+### B. Update Toast/Sonner Styling
+
+Make toasts more prominent with glass effect:
+
+```tsx
+// src/components/ui/sonner.tsx
+toastOptions={{
+  classNames: {
+    toast: "glass-elevated border-border/50 shadow-lg",
+    description: "text-muted-foreground",
+    success: "border-success/30 edge-glow-success",
+    error: "border-destructive/30 edge-glow-error",
+  },
+}}
+```
+
+### C. Enhance SuccessCelebration Component
+
+Already well-implemented but add:
+- Token icons in the modal
+- Clear "X → Y" swap summary
+- Optional share button for social proof
+
+---
+
+## Part 5: Files Summary
+
+### Files to Delete
+| File | Reason |
+|------|--------|
+| `src/components/OnboardingTour.tsx` | Remove onboarding system |
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/index.css` | Add depth zoning classes, edge-glow system, slow background animations |
+| `src/components/ui/card.tsx` | Add new glass variants and state-based styles |
+| `src/components/ui/sonner.tsx` | Enhance toast styling with glass effect |
+| `src/app/AppShell.tsx` | Remove OnboardingTour import |
+| `src/components/exchange/DexSwapProgress.tsx` | Add token props, success summary section |
+| `src/components/exchange/LiFiBridgeProgress.tsx` | Add completion summary with amounts |
+| `src/components/exchange/ExchangeForm.tsx` | Enhance status completion view |
+| `src/components/exchange/ExchangeWidget.tsx` | Pass token info to progress component |
+| `src/pages/Debug.tsx` | Remove tour reset if present |
+| `src/components/SuccessCelebration.tsx` | Add token icons and swap summary |
+
+### Files to Create
+None - all changes are enhancements to existing files
+
+---
+
+## Part 6: Technical Implementation Notes
+
+### Glass Hierarchy Application
+
+Apply depth zoning across the app:
+
+| Component | Current | Recommended |
+|-----------|---------|-------------|
+| Swap Widget | `glass` | `glass-elevated` |
+| Portfolio Summary | `glass` | `glass-elevated` |
+| Holdings Table | `glass` | `glass` (default) |
+| Quote Info | `bg-secondary/30` | `glass-subtle` |
+| Settings Panels | `bg-secondary/50` | `glass-matte` |
+| Disabled Cards | Various | `glass-matte opacity-60` |
+
+### Animation Speed Guidelines
+
+Update all animated background blurs:
+```css
+/* Slow down all background animations */
+.bg-accent-blur {
+  animation: gradient-shift 120s ease infinite; /* Was 8s */
+  opacity: 0.08; /* Was 0.2 */
+}
+```
+
+### State Transition Timing
+
+All glass state transitions should use:
+```css
+transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+```
 
 ---
 
 ## Expected Outcomes
 
-1. **Visual Consistency** - All pages share the premium animated header pattern
-2. **GlowBar Coverage** - 100% of major cards have the signature glow effect
-3. **Mobile Polish** - Smooth entrance animations on all pages
-4. **Layout Harmony** - Consistent container widths and background accents
-5. **Reduced Motion Support** - All animations respect `prefers-reduced-motion`
+1. **Faster Initial Load** - No 2s delay from onboarding tour
+2. **Clearer Success Feedback** - Users immediately know what they swapped and received
+3. **Visual Hierarchy** - Depth zoning creates natural focus on primary actions
+4. **State Communication** - Users feel what's happening through visual changes
+5. **Refined Aesthetics** - Less blur noise, more purposeful glass effects
+6. **Trust Building** - Calm, intelligent UI that doesn't distract from trading
 
