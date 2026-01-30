@@ -7,7 +7,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { MultiWalletButton } from "@/components/wallet/MultiWalletButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
-import { OnboardingTour } from "@/components/OnboardingTour";
 import { X } from "lucide-react";
 
 interface LayoutProps {
@@ -55,9 +54,6 @@ export const Layout = memo(function Layout({ children }: LayoutProps) {
       
       {/* Floating Action Button - Desktop Only */}
       <FloatingActionButton />
-
-      {/* Onboarding Tour for first-time users */}
-      <OnboardingTour />
 
       {/* Mobile Connect Wallet Bar - Shows for first-time mobile visitors */}
       {showMobileConnectBar && (

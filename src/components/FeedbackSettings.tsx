@@ -25,12 +25,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useTriggerTour } from '@/components/OnboardingTour';
 import { toast } from 'sonner';
 
 export const FeedbackSettings = memo(function FeedbackSettings() {
   const { settings, toggleSound, toggleHaptic, triggerFeedback, updateSettings, previewSound } = useFeedback();
-  const { resetTour } = useTriggerTour();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleRestartTour = () => {

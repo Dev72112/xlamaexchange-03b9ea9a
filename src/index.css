@@ -358,15 +358,121 @@ html {
     background-clip: text;
   }
 
+  /* ============ GLASS DEPTH ZONING SYSTEM ============ */
+  /* Signal-driven UI - surfaces that react to purpose, state, and confidence */
+  
+  /* Primary action surfaces - highest visual priority */
+  .glass-elevated {
+    @apply bg-card/80 backdrop-blur-2xl border border-border/60;
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+  }
+
+  /* Standard glass - default card styling */
   .glass {
     @apply bg-card/70 backdrop-blur-xl border border-border/50;
     box-shadow: var(--shadow-md);
   }
 
+  /* Secondary info - softer, less prominent */
   .glass-subtle {
     @apply bg-card/50 backdrop-blur-md border border-border/30;
   }
 
+  /* Tertiary/disabled - matte, minimal prominence */
+  .glass-matte {
+    @apply bg-card/30 backdrop-blur-sm border border-border/20;
+  }
+
+  /* ============ EDGE GLOW SYSTEM ============ */
+  /* Subtle 1-2px gradient edge that responds to state */
+  
+  .edge-glow {
+    position: relative;
+  }
+  .edge-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.3),
+      transparent 50%,
+      hsl(var(--primary) / 0.1)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .edge-glow:hover::before,
+  .edge-glow:focus-within::before {
+    opacity: 1;
+  }
+
+  /* State-based edge glows */
+  .edge-glow-success {
+    position: relative;
+  }
+  .edge-glow-success::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--success) / 0.4), transparent 50%, hsl(var(--success) / 0.15));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 1;
+  }
+
+  .edge-glow-warning {
+    position: relative;
+  }
+  .edge-glow-warning::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--warning) / 0.4), transparent 50%, hsl(var(--warning) / 0.15));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 1;
+  }
+
+  .edge-glow-error {
+    position: relative;
+  }
+  .edge-glow-error::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--destructive) / 0.4), transparent 50%, hsl(var(--destructive) / 0.15));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 1;
+  }
+
+  /* Subtle pulse animation for pending states */
+  @keyframes subtle-border-pulse {
+    0%, 100% { border-color: hsl(var(--border) / 0.5); }
+    50% { border-color: hsl(var(--primary) / 0.3); }
+  }
+  
+  .animate-pulse-subtle {
+    animation: subtle-border-pulse 2s ease-in-out infinite;
+  }
+
+  /* ============ GLOW UTILITIES ============ */
+  
   .glow {
     box-shadow: var(--shadow-glow);
   }
