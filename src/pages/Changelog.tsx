@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { GlowBar } from "@/components/ui/glow-bar";
 import { Progress } from "@/components/ui/progress";
 import {
   Sparkles,
@@ -391,28 +392,32 @@ const Changelog = () => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover overflow-hidden`}>
+            <GlowBar variant="primary" delay={0} />
             <CardContent className="pt-6 text-center">
               <Globe className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">25+</p>
               <p className="text-sm text-muted-foreground">Chains</p>
             </CardContent>
           </Card>
-          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover overflow-hidden`}>
+            <GlowBar variant="success" delay={0.1} />
             <CardContent className="pt-6 text-center">
               <ArrowLeftRight className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">400+</p>
               <p className="text-sm text-muted-foreground">DEX Sources</p>
             </CardContent>
           </Card>
-          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover overflow-hidden`}>
+            <GlowBar variant="warning" delay={0.2} />
             <CardContent className="pt-6 text-center">
               <Activity className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">50x</p>
               <p className="text-sm text-muted-foreground">Leverage</p>
             </CardContent>
           </Card>
-          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover`}>
+          <Card className={`${STAGGER_ITEM_CLASS} sweep-effect shadow-premium-hover overflow-hidden`}>
+            <GlowBar variant="multi" delay={0.3} />
             <CardContent className="pt-6 text-center">
               <TrendingUp className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">900+</p>

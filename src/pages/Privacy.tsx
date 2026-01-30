@@ -1,6 +1,8 @@
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { Shield } from "lucide-react";
+import { motion } from "framer-motion";
+import { headerBadge, headerTitle, headerSubtitle, staggerContainer, staggerItem } from "@/lib/animations";
 
 const Privacy = () => {
   return (
@@ -13,32 +15,57 @@ const Privacy = () => {
         />
       </Helmet>
 
-      <section className="py-20">
-        <div className="container max-w-3xl lg:max-w-4xl">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4">
+      <section className="py-20 relative">
+        {/* Background accents */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 -right-32 w-80 h-80 bg-primary/3 rounded-full blur-3xl" />
+        </div>
+
+        <div className="container max-w-4xl lg:max-w-5xl">
+          {/* Animated Header */}
+          <motion.div 
+            className="text-center mb-10"
+            initial="initial"
+            animate="animate"
+          >
+            <motion.div 
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4"
+              variants={headerBadge}
+            >
               <Shield className="w-3.5 h-3.5" />
               <span>Legal</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold mb-3">Privacy Policy</h1>
-            <p className="text-muted-foreground">
+            </motion.div>
+            <motion.h1 
+              className="text-3xl sm:text-4xl font-bold mb-3 gradient-text"
+              variants={headerTitle}
+            >
+              Privacy Policy
+            </motion.h1>
+            <motion.p 
+              className="text-muted-foreground"
+              variants={headerSubtitle}
+            >
               Last updated: January 24, 2026
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
           
-          <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
-
-            <section className="space-y-4">
+          <motion.div 
+            className="prose prose-neutral dark:prose-invert max-w-none space-y-6"
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">1. Introduction</h2>
               <p className="text-muted-foreground">
                 xlama ("we", "our", or "us") is committed to protecting your privacy. This Privacy 
                 Policy explains how we collect, use, and safeguard your information when you use our 
                 cryptocurrency exchange service.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">2. Information We Collect</h2>
               <p className="text-muted-foreground">
                 We collect minimal information necessary to provide our services:
@@ -65,9 +92,9 @@ const Privacy = () => {
                 <li><strong>PnL Information:</strong> Realized and unrealized profit/loss, liquidation events</li>
                 <li><strong>Account State:</strong> Equity, available margin, and margin usage from Hyperliquid</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">3. How We Use Your Information</h2>
               <p className="text-muted-foreground">We use collected information to:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
@@ -77,18 +104,18 @@ const Privacy = () => {
                 <li>Comply with legal and regulatory requirements</li>
                 <li>Improve our service and user experience</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">4. Blockchain Transparency</h2>
               <p className="text-muted-foreground">
                 Please note that blockchain transactions are publicly visible. When you use DEX Mode, 
                 your swap transactions, wallet address, and token balances are visible on the public 
                 blockchain. This is inherent to blockchain technology and not within our control.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">5. Information Sharing</h2>
               <p className="text-muted-foreground">
                 We do not sell or rent your personal information. We may share information only in the 
@@ -99,9 +126,9 @@ const Privacy = () => {
                 <li>When required by law or legal process</li>
                 <li>To protect our rights and prevent fraud</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">6. Data Security</h2>
               <p className="text-muted-foreground">
                 We implement industry-standard security measures to protect your information, including:
@@ -111,27 +138,27 @@ const Privacy = () => {
                 <li>No storage of private keys or seed phrases</li>
                 <li>Regular security monitoring and audits</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">7. Wallet Security</h2>
               <p className="text-muted-foreground">
                 When using DEX Mode, you connect your own wallet (MetaMask, Phantom, Solflare, Sui Wallet, 
                 Tonkeeper, TokenPocket, or others). We never have access to your private keys or seed phrase. 
                 You are responsible for securing your wallet credentials.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">8. Cookies and Local Storage</h2>
               <p className="text-muted-foreground">
                 We use cookies and local storage to remember your preferences (theme, wallet connection 
                 status, recent tokens) and improve your experience. You can control these through your 
                 browser settings.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">9. Your Rights</h2>
               <p className="text-muted-foreground">Depending on your location, you may have the right to:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
@@ -140,9 +167,9 @@ const Privacy = () => {
                 <li>Request deletion of your data</li>
                 <li>Object to certain processing activities</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">10. Third-Party Services</h2>
               <p className="text-muted-foreground">
                 Our service integrates with the following third-party data processors:
@@ -158,17 +185,17 @@ const Privacy = () => {
               <p className="text-muted-foreground mt-4">
                 These services have their own privacy practices. We encourage you to review their terms.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">11. Changes to This Policy</h2>
               <p className="text-muted-foreground">
                 We may update this Privacy Policy periodically. We will notify you of any material changes 
                 by posting the new policy on this page with an updated revision date.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">12. Contact Us</h2>
               <p className="text-muted-foreground">
                 For questions about this Privacy Policy or our privacy practices, please contact us at{" "}
@@ -176,8 +203,8 @@ const Privacy = () => {
                   support.xlama@defixlama.com
                 </a>
               </p>
-            </section>
-          </div>
+            </motion.section>
+          </motion.div>
         </div>
       </section>
     </Layout>

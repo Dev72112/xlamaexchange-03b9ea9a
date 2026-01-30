@@ -5,12 +5,13 @@ import { useFeedbackList, FeedbackItem } from "@/hooks/useFeedbackList";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Bug, Lightbulb, Sparkles, MessageCircle, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { GlowBar } from "@/components/ui/glow-bar";
+import { motion } from "framer-motion";
+import { headerBadge, headerTitle, headerSubtitle, staggerContainer, staggerItem } from "@/lib/animations";
 
 const FEEDBACK_TYPES = [
   { value: "all", label: "All", icon: MessageSquare },
@@ -115,22 +116,38 @@ export default function Feedback() {
 
       <Layout>
         <div className="container max-w-4xl lg:max-w-5xl mx-auto pb-8 px-4">
-          {/* Header Card */}
-          <Card className="overflow-hidden mb-8">
-            <GlowBar variant="multi" />
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Community</span>
+          {/* Animated Header Card */}
+          <motion.div
+            initial="initial"
+            animate="animate"
+          >
+            <Card className="overflow-hidden mb-8">
+              <GlowBar variant="multi" />
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <motion.div 
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4"
+                    variants={headerBadge}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Community</span>
+                  </motion.div>
+                  <motion.h1 
+                    className="text-3xl font-bold mb-2 gradient-text"
+                    variants={headerTitle}
+                  >
+                    Community Feedback
+                  </motion.h1>
+                  <motion.p 
+                    className="text-muted-foreground max-w-lg mx-auto"
+                    variants={headerSubtitle}
+                  >
+                    Transparent feedback from our community. Bug reports, feature requests, and suggestions — all public.
+                  </motion.p>
                 </div>
-                <h1 className="text-3xl font-bold mb-2">Community Feedback</h1>
-                <p className="text-muted-foreground max-w-lg mx-auto">
-                  Transparent feedback from our community. Bug reports, feature requests, and suggestions — all public.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {/* Filter Tabs */}
           <Tabs value={filter} onValueChange={setFilter} className="mb-6">
@@ -162,11 +179,18 @@ export default function Feedback() {
               </CardContent>
             </Card>
           ) : feedback && feedback.length > 0 ? (
-            <div className="grid gap-4">
+            <motion.div 
+              className="grid gap-4"
+              variants={staggerContainer}
+              initial="initial"
+              animate="animate"
+            >
               {feedback.map((item) => (
-                <FeedbackCard key={item.id} item={item} />
+                <motion.div key={item.id} variants={staggerItem}>
+                  <FeedbackCard item={item} />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
             <Card>
               <CardContent className="p-8 text-center">
