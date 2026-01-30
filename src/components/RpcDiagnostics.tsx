@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlowBar } from '@/components/ui/glow-bar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -229,7 +230,8 @@ export function RpcDiagnostics() {
   };
 
   return (
-    <Card className="border-border bg-card">
+    <Card className="border-border bg-card overflow-hidden">
+      <GlowBar variant="warning" />
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Wifi className="h-5 w-5" />

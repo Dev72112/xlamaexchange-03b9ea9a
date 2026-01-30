@@ -1,6 +1,8 @@
 import { Layout } from "@/components/Layout";
 import { Helmet } from "react-helmet-async";
 import { FileText } from "lucide-react";
+import { motion } from "framer-motion";
+import { headerBadge, headerTitle, headerSubtitle, staggerContainer, staggerItem } from "@/lib/animations";
 
 const Terms = () => {
   return (
@@ -13,31 +15,56 @@ const Terms = () => {
         />
       </Helmet>
 
-      <section className="py-20">
-        <div className="container max-w-3xl lg:max-w-4xl">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4">
+      <section className="py-20 relative">
+        {/* Background accents */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 -right-32 w-80 h-80 bg-primary/3 rounded-full blur-3xl" />
+        </div>
+
+        <div className="container max-w-4xl lg:max-w-5xl">
+          {/* Animated Header */}
+          <motion.div 
+            className="text-center mb-10"
+            initial="initial"
+            animate="animate"
+          >
+            <motion.div 
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs text-primary mb-4"
+              variants={headerBadge}
+            >
               <FileText className="w-3.5 h-3.5" />
               <span>Legal</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold mb-3">Terms of Use</h1>
-            <p className="text-muted-foreground">
+            </motion.div>
+            <motion.h1 
+              className="text-3xl sm:text-4xl font-bold mb-3 gradient-text"
+              variants={headerTitle}
+            >
+              Terms of Use
+            </motion.h1>
+            <motion.p 
+              className="text-muted-foreground"
+              variants={headerSubtitle}
+            >
               Last updated: January 24, 2026
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
           
-          <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6">
-
-            <section className="space-y-4">
+          <motion.div 
+            className="prose prose-neutral dark:prose-invert max-w-none space-y-6"
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">1. Acceptance of Terms</h2>
               <p className="text-muted-foreground">
                 By accessing and using xlama ("the Service"), you accept and agree to be bound by 
                 these Terms of Use. If you do not agree to these terms, please do not use our service.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">2. Description of Service</h2>
               <p className="text-muted-foreground">
                 xlama is a hybrid cryptocurrency exchange platform offering multiple modes:
@@ -48,17 +75,17 @@ const Terms = () => {
                 <li><strong>Bridge Mode:</strong> Cross-chain bridging powered by Li.Fi, enabling asset transfers across 20+ blockchain networks.</li>
                 <li><strong>Perpetuals Mode:</strong> Leveraged perpetual futures trading via Hyperliquid, supporting up to 50x leverage on major crypto assets. Available for EVM wallets only.</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">3. Eligibility</h2>
               <p className="text-muted-foreground">
                 You must be at least 18 years old to use this service. By using xlama, you represent 
                 and warrant that you are of legal age and have the legal capacity to enter into these Terms.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">4. User Responsibilities</h2>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li>Ensure all wallet addresses provided are correct and valid</li>
@@ -68,9 +95,9 @@ const Terms = () => {
                 <li>Not use the service for any illegal or unauthorized purpose</li>
                 <li>Comply with all applicable laws and regulations in your jurisdiction</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">5. Supported Wallets</h2>
               <p className="text-muted-foreground">
                 We support various wallets across multiple blockchains:
@@ -82,9 +109,9 @@ const Terms = () => {
                 <li><strong>TON:</strong> Tonkeeper</li>
                 <li><strong>Tron:</strong> TronLink, TokenPocket</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">6. DEX Mode Specific Terms</h2>
               <p className="text-muted-foreground">When using DEX Mode, you acknowledge and agree that:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
@@ -95,9 +122,9 @@ const Terms = () => {
                 <li>Smart contracts carry inherent risks including potential bugs or exploits</li>
                 <li>Cross-chain swaps may involve bridges with their own associated risks</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">7. Instant Mode Specific Terms</h2>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li><strong>Standard Rate:</strong> May fluctuate based on market conditions</li>
@@ -105,9 +132,9 @@ const Terms = () => {
                 <li>Send the exact amount specified for the exchange</li>
                 <li>Provide valid refund address for potential refunds</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">8. Perpetuals Mode Specific Terms</h2>
               <p className="text-muted-foreground">When using Perpetuals Mode, you acknowledge and agree that:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
@@ -120,9 +147,9 @@ const Terms = () => {
                 <li>Past performance does not guarantee future results</li>
                 <li>Perpetuals trading is only available with EVM-compatible wallets</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">9. Leveraged Trading Risk Disclosure</h2>
               <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
                 <p className="text-muted-foreground font-medium mb-2">
@@ -136,9 +163,9 @@ const Terms = () => {
                   <li>Seek independent financial advice if you do not fully understand the risks</li>
                 </ul>
               </div>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">10. Prohibited Activities</h2>
               <p className="text-muted-foreground">You agree not to:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
@@ -149,35 +176,35 @@ const Terms = () => {
                 <li>Manipulate prices or exploit smart contract vulnerabilities</li>
                 <li>Use automated bots or scripts in an unauthorized manner</li>
               </ul>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">11. Limitation of Liability</h2>
               <p className="text-muted-foreground">
                 xlama is provided "as is" without warranties of any kind. We are not liable for any 
                 losses resulting from market volatility, blockchain delays, smart contract failures, 
                 user errors, wallet compromises, bridge failures, liquidations, or circumstances beyond our control.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">12. Third-Party Services</h2>
               <p className="text-muted-foreground">
                 Our service integrates with ChangeNow, OKX DEX, Li.Fi, Jupiter, Hyperliquid, and various wallet providers. These 
                 third-party services have their own terms and conditions. We are not responsible for 
                 any issues arising from their services.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">13. Changes to Terms</h2>
               <p className="text-muted-foreground">
                 We reserve the right to modify these Terms at any time. Continued use of the service after 
                 changes constitutes acceptance of the new Terms.
               </p>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section className="space-y-4" variants={staggerItem}>
               <h2 className="text-2xl font-semibold">14. Contact</h2>
               <p className="text-muted-foreground">
                 For questions about these Terms, please contact us at{" "}
@@ -185,8 +212,8 @@ const Terms = () => {
                   support.xlama@defixlama.com
                 </a>
               </p>
-            </section>
-          </div>
+            </motion.section>
+          </motion.div>
         </div>
       </section>
     </Layout>

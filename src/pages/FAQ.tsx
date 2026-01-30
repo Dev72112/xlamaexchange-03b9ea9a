@@ -9,6 +9,8 @@ import {
 import { GlowBar } from "@/components/ui/glow-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { HelpCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { headerBadge, headerTitle, headerSubtitle } from "@/lib/animations";
 
 const faqs = [
   {
@@ -45,7 +47,7 @@ const faqs = [
   },
   {
     question: "What are the risks of leveraged trading?",
-    answer: "Leveraged trading carries significant risk: you can lose more than your initial margin. Liquidation occurs if your margin drops below maintenance requirements. Always use stop-losses, start with low leverage, and never trade more than you can afford to lose. The PnL Calculator shows your liquidation price before you trade.",
+    answer: "Leveraged trading carries significant risk: you can lose more than your initial margin. Liquidation occurs if your margin falls below maintenance requirements. Always use stop-losses, start with low leverage, and never trade more than you can afford to lose. The PnL Calculator shows your liquidation price before you trade.",
   },
   {
     question: "Which wallets support perpetuals?",
@@ -130,42 +132,67 @@ const FAQ = () => {
 
       <section className="pb-20">
         <div className="container max-w-3xl lg:max-w-4xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs sm:text-sm text-primary mb-3">
+          {/* Animated Header */}
+          <motion.div 
+            className="text-center mb-12"
+            initial="initial"
+            animate="animate"
+          >
+            <motion.div 
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-primary/20 text-xs sm:text-sm text-primary mb-3"
+              variants={headerBadge}
+            >
               <HelpCircle className="w-3.5 h-3.5" />
               <span>Help Center</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">
+            </motion.div>
+            <motion.h1 
+              className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text"
+              variants={headerTitle}
+            >
               Frequently Asked Questions
-            </h1>
-            <p className="text-muted-foreground text-sm sm:text-base">
+            </motion.h1>
+            <motion.p 
+              className="text-muted-foreground text-sm sm:text-base"
+              variants={headerSubtitle}
+            >
               Everything you need to know about exchanging cryptocurrency with xlama.
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
-          <Card className="glass border-border/50 overflow-hidden">
-            <GlowBar variant="multi" />
-            <CardContent className="pt-6">
-              <Accordion type="single" collapsible className="w-full space-y-3">
-            {faqs.map((faq, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="bg-card border border-border rounded-lg px-6 sweep-effect performance-critical"
-              >
-                <AccordionTrigger className="text-left font-medium hover:no-underline">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-            </CardContent>
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            <Card className="glass border-border/50 overflow-hidden">
+              <GlowBar variant="multi" />
+              <CardContent className="pt-6">
+                <Accordion type="single" collapsible className="w-full space-y-3">
+                  {faqs.map((faq, index) => (
+                    <AccordionItem
+                      key={index}
+                      value={`item-${index}`}
+                      className="bg-card border border-border rounded-lg px-6 sweep-effect performance-critical"
+                    >
+                      <AccordionTrigger className="text-left font-medium hover:no-underline">
+                        {faq.question}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground">
+                        {faq.answer}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-          <div className="mt-12 text-center">
+          <motion.div 
+            className="mt-12 text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+          >
             <Card className="glass border-border/50 overflow-hidden inline-block">
               <GlowBar variant="primary" />
               <CardContent className="p-8">
@@ -181,7 +208,7 @@ const FAQ = () => {
                 </a>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
         </div>
       </section>
     </Layout>

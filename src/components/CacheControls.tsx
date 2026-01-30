@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { GlowBar } from '@/components/ui/glow-bar';
 import { Trash2, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
 
 export function CacheControls() {
@@ -79,7 +80,8 @@ export function CacheControls() {
   const swStatus = getServiceWorkerStatus();
 
   return (
-    <Card className="border-border bg-card">
+    <Card className="border-border bg-card overflow-hidden">
+      <GlowBar variant="primary" delay={0.1} />
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <RefreshCw className="h-5 w-5" />
