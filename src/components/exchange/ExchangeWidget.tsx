@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, useDeferredValue } from "react";
-import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign, BarChart3, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowRightLeft, Clock, Info, Loader2, AlertTriangle, Star, RefreshCw, Lock, TrendingUp, Wallet, Fuel, DollarSign, BarChart3, ChevronUp, ChevronDown, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +35,7 @@ import { useFeedback } from "@/hooks/useFeedback";
 import { useTradePreFill } from "@/contexts/TradePreFillContext";
 import { useReferral } from "@/hooks/useReferral";
 import { usePriceOracle } from "@/contexts/PriceOracleContext";
+import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
@@ -92,9 +93,8 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
   const { recordTradeCommission } = useReferral(address);
   const { setPrice } = usePriceOracle();
   
-  // Exchange mode state
-  const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
-  const [selectedChain, setSelectedChain] = useState<Chain>(getPrimaryChain());
+  // Exchange mode synced with global context
+  const { mode: exchangeMode, setMode: setExchangeMode, selectedChain, setSelectedChain } = useExchangeMode();
   
   // Common state
   const [currencies, setCurrencies] = useState<Currency[]>(popularCurrencies);

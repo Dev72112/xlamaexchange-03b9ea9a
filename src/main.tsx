@@ -20,25 +20,6 @@ if (typeof window !== 'undefined') {
   initErrorTracking();
 }
 
-// Show minimal splash screen (CSS is in index.html for instant display)
-const showSplash = () => {
-  const root = document.getElementById("root");
-  if (root) {
-    root.innerHTML = `
-      <div class="splash-container">
-        <div class="splash-content">
-          <img src="/xlama-mascot.png" alt="xLama" class="llama-mascot" width="100" height="100" />
-          <h1 class="splash-title">xLama<span class="accent">Swap</span></h1>
-          <p class="splash-subtitle">Cross-chain made simple</p>
-          <div class="splash-loader"></div>
-        </div>
-      </div>
-    `;
-  }
-};
-
-showSplash();
-
 const renderApp = () => {
   const rootElement = document.getElementById("root");
   if (!rootElement || !wagmiConfig) {
@@ -61,7 +42,7 @@ const renderApp = () => {
   prefetchCriticalRoutes();
 };
 
-// Initialize AppKit then render
+// Initialize AppKit then render immediately
 initializeAppKit()
   .then(() => {
     renderApp();
@@ -70,12 +51,3 @@ initializeAppKit()
     console.error('[Main] AppKit init failed:', error);
     renderApp(); // Still try to render as fallback
   });
-
-// Watchdog: force render after 15s if stuck
-setTimeout(() => {
-  const root = document.getElementById("root");
-  if (root?.querySelector('.splash-container')) {
-    console.warn('[Main] Watchdog triggered - forcing render');
-    renderApp();
-  }
-}, 15000);

@@ -455,21 +455,24 @@ const Perpetuals = memo(function Perpetuals() {
         <meta name="description" content="Trade perpetual futures with up to 50x leverage on Hyperliquid." />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 relative">
-        {/* Background accents */}
+      <main className="container px-4 sm:px-6 pb-8 sm:pb-12 relative">
+        {/* Background accents - enhanced */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-destructive/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-primary/8 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-[400px] h-[400px] bg-destructive/5 rounded-full blur-3xl" />
         </div>
 
-        {/* Header - Compact on mobile */}
-        <div className={cn("text-center mb-6", !isMobile && "mb-8 sm:mb-12")}>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border-primary/20 text-sm text-primary mb-3">
-            <Activity className="w-3.5 h-3.5" />
+        {/* Header - More breathing room */}
+        <div className={cn("text-center", isMobile ? "mb-6" : "mb-10 sm:mb-14")}>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
+            <Activity className="w-4 h-4" />
             <span className="text-xs sm:text-sm">Perpetual Trading</span>
             {isTestnet && <Badge variant="secondary" className="text-[10px]">Testnet</Badge>}
           </div>
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-2 gradient-text">Trade Perpetuals</h1>
+          <h1 className={cn(
+            "font-bold gradient-text",
+            isMobile ? "text-2xl mb-2" : "text-3xl sm:text-4xl lg:text-5xl mb-4"
+          )}>Trade Perpetuals</h1>
           {!isMobile && (
             <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
               Long or short with up to 50x leverage on Hyperliquid.

@@ -71,26 +71,26 @@ const Portfolio = memo(function Portfolio() {
         <link rel="canonical" href="https://xlama.exchange/portfolio" />
       </Helmet>
 
-      <main className="container px-4 sm:px-6 pb-6 sm:pb-8 max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl mx-auto relative">
+      <main className="container px-4 sm:px-6 pb-8 sm:pb-12 max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl mx-auto relative">
         {/* Animated background accent */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-primary/8 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
         </div>
 
-        {/* Consistent Header */}
+        {/* Consistent Header - More breathing room */}
         <motion.div 
-          className="text-center mb-6 sm:mb-8"
+          className="text-center mb-8 sm:mb-12"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass border-primary/20 text-sm text-primary mb-3">
-            <Wallet className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
+            <Wallet className="w-4 h-4" />
             <span className="text-xs sm:text-sm">Portfolio</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 gradient-text">Your Portfolio</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 gradient-text">Your Portfolio</h1>
+          <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto">
             Track holdings across 25+ chains
           </p>
         </motion.div>

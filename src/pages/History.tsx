@@ -86,26 +86,28 @@ const History = memo(function History() {
         <meta name="description" content="View your cryptocurrency exchange transaction history." />
       </Helmet>
 
-      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl 3xl:max-w-[1600px] mx-auto">
-        {/* Header */}
+      <div className="container px-4 pb-12 sm:pb-16 max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl 3xl:max-w-[1600px] mx-auto relative">
+        {/* Animated background accent */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-primary/8 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
+        </div>
+
+        {/* Header - More breathing room */}
         <motion.div 
-          className="mb-8 flex items-start justify-between flex-wrap gap-4"
+          className="text-center mb-10 sm:mb-14"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="relative">
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-2xl blur-xl" />
-            <div className="relative flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-xl glass border border-primary/20 glow-sm">
-                <Clock className="w-6 h-6 text-primary" />
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Transaction History</h1>
-            </div>
-            <p className="text-muted-foreground relative">
-              Your cryptocurrency exchanges and on-chain transactions.
-            </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border-primary/20 text-sm text-primary mb-4">
+            <Clock className="w-4 h-4" />
+            <span>Transaction History</span>
           </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">Transaction History</h1>
+          <p className="text-muted-foreground max-w-md mx-auto text-sm sm:text-base">
+            Your cryptocurrency exchanges and on-chain transactions.
+          </p>
         </motion.div>
 
         {!isConnected ? (

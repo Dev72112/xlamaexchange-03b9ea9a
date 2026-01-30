@@ -33,10 +33,14 @@ export function TradeDebugPanel() {
   const [isEnabled, setIsEnabled] = useState(isTradeDebugEnabled());
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
 
+  // Check URL for debug flag (only show panel if ?debug=1)
+  const urlDebug = typeof window !== 'undefined' 
+    ? new URLSearchParams(window.location.search).get('debug') === '1' 
+    : false;
+
   // Subscribe to log updates
   useEffect(() => {
     // Auto-enable if URL has ?debug=1
-    const urlDebug = new URLSearchParams(window.location.search).get('debug') === '1';
     if (urlDebug && !isEnabled) {
       tradeDebugger.enable();
       setIsEnabled(true);
@@ -47,15 +51,21 @@ export function TradeDebugPanel() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [urlDebug]);
 
-  // Re-check enabled state periodically
+  // Re-check enabled state periodically (only if URL debug is active)
   useEffect(() => {
+    if (!urlDebug) return;
     const interval = setInterval(() => {
       setIsEnabled(isTradeDebugEnabled());
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [urlDebug]);
+
+  // Don't render anything if not enabled via URL
+  if (!urlDebug && !isEnabled) {
+    return null;
+  }
 
   const handleToggleDebug = useCallback(() => {
     if (isEnabled) {
