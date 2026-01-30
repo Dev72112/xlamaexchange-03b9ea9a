@@ -30,16 +30,20 @@ export const SwipeHint = memo(function SwipeHint({
   const storageKey = `${SWIPE_HINT_DISMISSED_PREFIX}${hintKey}`;
   const [showHint, setShowHint] = useState(false);
   
-  // Check localStorage on mount
+  // Check localStorage on mount - use session-based hint (expires after 24h)
   useEffect(() => {
     if (isMobile) {
-      const dismissed = localStorage.getItem(storageKey);
-      if (!dismissed) {
+      const dismissedAt = localStorage.getItem(storageKey);
+      const now = Date.now();
+      // Show hint if never dismissed or if dismissed more than 24 hours ago
+      const shouldShow = !dismissedAt || (now - parseInt(dismissedAt, 10)) > 24 * 60 * 60 * 1000;
+      
+      if (shouldShow) {
         setShowHint(true);
-        // Auto-dismiss after 6 seconds
+        // Auto-dismiss after 10 seconds (was 6)
         const timer = setTimeout(() => {
           dismissHint();
-        }, 6000);
+        }, 10000);
         return () => clearTimeout(timer);
       }
     }
@@ -47,7 +51,8 @@ export const SwipeHint = memo(function SwipeHint({
   
   const dismissHint = useCallback(() => {
     setShowHint(false);
-    localStorage.setItem(storageKey, 'true');
+    // Store timestamp instead of boolean for 24h expiry
+    localStorage.setItem(storageKey, Date.now().toString());
   }, [storageKey]);
   
   if (!showHint || !isMobile) return null;
@@ -55,7 +60,9 @@ export const SwipeHint = memo(function SwipeHint({
   return (
     <div 
       className={cn(
-        "flex items-center justify-center gap-2 py-2 px-4 mt-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg animate-fade-in cursor-pointer",
+        "flex items-center justify-center gap-2 py-2.5 px-4 mt-2 text-xs",
+        "text-primary bg-primary/10 border border-primary/20 rounded-lg",
+        "animate-fade-in cursor-pointer transition-all hover:bg-primary/15",
         className
       )}
       onClick={dismissHint}
@@ -63,10 +70,10 @@ export const SwipeHint = memo(function SwipeHint({
       tabIndex={0}
       aria-label="Dismiss swipe hint"
     >
-      <ChevronLeft className="w-3 h-3 animate-pulse" />
-      <span>{text}</span>
-      <ChevronRight className="w-3 h-3 animate-pulse" />
-      <X className="w-3 h-3 ml-2 opacity-50" />
+      <ChevronLeft className="w-3.5 h-3.5 animate-pulse" />
+      <span className="font-medium">{text}</span>
+      <ChevronRight className="w-3.5 h-3.5 animate-pulse" />
+      <X className="w-3.5 h-3.5 ml-2 opacity-60" />
     </div>
   );
 });

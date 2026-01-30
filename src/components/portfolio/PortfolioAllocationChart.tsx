@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart as PieChartIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AllocationData {
   name: string;
@@ -37,6 +38,8 @@ export function PortfolioAllocationChart({
   totalValue, 
   className 
 }: PortfolioAllocationChartProps) {
+  const isMobile = useIsMobile();
+  
   const chartData = useMemo((): AllocationData[] => {
     if (totalValue === 0) return [];
     
@@ -82,15 +85,16 @@ export function PortfolioAllocationChart({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[180px] lg:h-[220px] xl:h-[260px]">
+        {/* Chart container - responsive height */}
+        <div className="h-[160px] lg:h-[200px] xl:h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
-                innerRadius={45}
-                outerRadius={70}
+                innerRadius={isMobile ? 35 : 45}
+                outerRadius={isMobile ? 55 : 70}
                 paddingAngle={2}
                 dataKey="value"
               >
@@ -111,21 +115,41 @@ export function PortfolioAllocationChart({
                   );
                 }}
               />
-              <Legend
-                layout="vertical"
-                align="right"
-                verticalAlign="middle"
-                iconType="circle"
-                iconSize={8}
-                formatter={(value, entry: any) => (
-                  <span className="text-xs text-muted-foreground ml-1">
-                    {value} ({entry.payload?.percentage?.toFixed(0)}%)
-                  </span>
-                )}
-              />
+              {/* Only show legend on desktop to avoid overlap */}
+              {!isMobile && (
+                <Legend
+                  layout="vertical"
+                  align="right"
+                  verticalAlign="middle"
+                  iconType="circle"
+                  iconSize={8}
+                  formatter={(value, entry: any) => (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {value} ({entry.payload?.percentage?.toFixed(0)}%)
+                    </span>
+                  )}
+                />
+              )}
             </PieChart>
           </ResponsiveContainer>
         </div>
+        
+        {/* Mobile legend - grid layout below chart */}
+        {isMobile && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {chartData.map((item) => (
+              <div key={item.name} className="flex items-center gap-2 text-xs">
+                <div 
+                  className="w-2.5 h-2.5 rounded-full shrink-0" 
+                  style={{ backgroundColor: item.color }} 
+                />
+                <span className="truncate text-muted-foreground">
+                  {item.name} ({item.percentage.toFixed(0)}%)
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
