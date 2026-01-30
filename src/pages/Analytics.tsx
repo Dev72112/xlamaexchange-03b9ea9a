@@ -70,16 +70,16 @@ const Analytics = memo(function Analytics() {
         <meta name="description" content="View your trading analytics, volume history, and performance metrics." />
       </Helmet>
 
-      <div className="container px-4 pb-8 max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl 3xl:max-w-[1600px] mx-auto relative">
+      <div className="container px-4 pb-8 sm:pb-12 max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl 3xl:max-w-[1600px] mx-auto relative">
         {/* Animated background accent */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-primary/8 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
         </div>
 
-        {/* Header */}
+        {/* Header - More breathing room */}
         <motion.div 
-          className="text-center mb-8 sm:mb-10"
+          className="text-center mb-10 sm:mb-14"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
@@ -88,7 +88,7 @@ const Analytics = memo(function Analytics() {
             <BarChart3 className="w-4 h-4" />
             <span>Trading Analytics</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4 gradient-text">Trading Analytics</h1>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 gradient-text">Trading Analytics</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
             Track your trading performance and patterns across all chains
           </p>
