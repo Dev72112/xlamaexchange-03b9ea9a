@@ -27,7 +27,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 // Lazy load heavier sections
 const TrendingPairs = lazy(() => import("@/components/TrendingPairs").then(m => ({ default: m.TrendingPairs })));
 const DexTransactionHistory = lazy(() => import("@/components/DexTransactionHistory").then(m => ({ default: m.DexTransactionHistory })));
-const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
 const TransactionTracker = lazy(() => import("@/components/TransactionTracker").then(m => ({ default: m.TransactionTracker })));
 const HowItWorks = lazy(() => import("@/components/HowItWorks").then(m => ({ default: m.HowItWorks })));
 const DexHowItWorks = lazy(() => import("@/components/DexHowItWorks").then(m => ({ default: m.DexHowItWorks })));
@@ -141,7 +140,6 @@ const Index = () => {
   const widgetRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [showTrending, setShowTrending] = useState(false);
-  const [showNews, setShowNews] = useState(false);
   const [showTracker, setShowTracker] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const { isInstantMode } = useExchangeMode();
@@ -248,73 +246,47 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Section 2: Trading Activity */}
-        <section className="container px-4 sm:px-6 py-4 sm:py-8">
-          {isMobile ? (
-            <MobileBottomSheet
-              trigger="Trending Pairs & Activity"
-              title="Trending Pairs & Activity"
-              icon={TrendingUp}
-            >
-              <div className="space-y-6">
-                <Suspense fallback={<TrendingPairsSkeleton />}>
-                  <TrendingPairs onSelectPair={handleSelectPair} />
-                </Suspense>
-                <Suspense fallback={<TransactionTrackerSkeleton />}>
-                  <DexTransactionHistory />
-                </Suspense>
-              </div>
-            </MobileBottomSheet>
-          ) : (
-            <DesktopCollapsible
-              trigger="Trending Pairs & Activity"
-              isOpen={showTrending}
-              onOpenChange={setShowTrending}
-              icon={TrendingUp}
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
-                <div className="lg:col-span-2">
+        {/* Section 2: Trading Activity - Instant mode only */}
+        {isInstantMode && (
+          <section className="container px-4 sm:px-6 py-4 sm:py-8">
+            {isMobile ? (
+              <MobileBottomSheet
+                trigger="Trending Pairs & Activity"
+                title="Trending Pairs & Activity"
+                icon={TrendingUp}
+              >
+                <div className="space-y-6">
                   <Suspense fallback={<TrendingPairsSkeleton />}>
                     <TrendingPairs onSelectPair={handleSelectPair} />
                   </Suspense>
-                </div>
-                <div>
                   <Suspense fallback={<TransactionTrackerSkeleton />}>
                     <DexTransactionHistory />
                   </Suspense>
                 </div>
-              </div>
-            </DesktopCollapsible>
-          )}
-        </section>
-
-        {/* Section 3: Market News */}
-        <section className="container px-4 sm:px-6 py-4 sm:py-8">
-          {isMobile ? (
-            <MobileBottomSheet
-              trigger="Market News"
-              title="Market News"
-              icon={Wallet}
-            >
-              <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                <CryptoNews />
-              </Suspense>
-            </MobileBottomSheet>
-          ) : (
-            <DesktopCollapsible
-              trigger="Market News"
-              isOpen={showNews}
-              onOpenChange={setShowNews}
-              icon={Wallet}
-            >
-              <div className="pt-2">
-                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-                  <CryptoNews />
-                </Suspense>
-              </div>
-            </DesktopCollapsible>
-          )}
-        </section>
+              </MobileBottomSheet>
+            ) : (
+              <DesktopCollapsible
+                trigger="Trending Pairs & Activity"
+                isOpen={showTrending}
+                onOpenChange={setShowTrending}
+                icon={TrendingUp}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
+                  <div className="lg:col-span-2">
+                    <Suspense fallback={<TrendingPairsSkeleton />}>
+                      <TrendingPairs onSelectPair={handleSelectPair} />
+                    </Suspense>
+                  </div>
+                  <div>
+                    <Suspense fallback={<TransactionTrackerSkeleton />}>
+                      <DexTransactionHistory />
+                    </Suspense>
+                  </div>
+                </div>
+              </DesktopCollapsible>
+            )}
+          </section>
+        )}
 
         {/* Section 4: Transaction Tracker - Instant mode only */}
         {isInstantMode && (
@@ -346,8 +318,8 @@ const Index = () => {
           </section>
         )}
 
-        {/* Section 5: How It Works - Mode Aware */}
-        <section className="container px-4 sm:px-6 py-4 sm:py-8">
+        {/* Section 4: How It Works - Mode Aware (key forces re-render on mode change) */}
+        <section key={`how-it-works-${isInstantMode ? 'instant' : 'dex'}`} className="container px-4 sm:px-6 py-4 sm:py-8">
           {isMobile ? (
             <MobileBottomSheet
               trigger={`How ${isInstantMode ? 'Instant Exchange' : 'DEX Aggregator'} Works`}

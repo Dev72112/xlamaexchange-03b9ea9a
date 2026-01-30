@@ -1337,20 +1337,28 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
                 </div>
               )}
               
-              {/* DEX mode info */}
+              {/* DEX Feature Badges - matches Bridge styling */}
               {exchangeMode === 'dex' && (
-                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <img 
-                    src={selectedChain.icon} 
-                    alt={selectedChain.name}
-                    className="w-4 h-4 rounded-full" 
-                  />
-                  <span>Swapping on {selectedChain.name}</span>
-                  {selectedChain.isPrimary && (
-                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-medium rounded">
-                      Featured
-                    </span>
-                  )}
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                    <TrendingUp className="w-3 h-3" />
+                    Best Routes
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-success/10 text-success text-xs font-medium rounded-full">
+                    <DollarSign className="w-3 h-3" />
+                    Low Fees
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-secondary text-muted-foreground text-xs font-medium rounded-full">
+                    <img 
+                      src={selectedChain.icon} 
+                      alt={selectedChain.name}
+                      className="w-3 h-3 rounded-full" 
+                    />
+                    {selectedChain.name}
+                    {selectedChain.isPrimary && (
+                      <span className="ml-0.5 text-primary text-[10px]">★</span>
+                    )}
+                  </span>
                 </div>
               )}
               

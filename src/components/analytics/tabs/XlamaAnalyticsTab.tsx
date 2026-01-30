@@ -254,16 +254,18 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-6">
-                <div className="w-48 h-48 lg:w-56 lg:h-56 xl:w-64 xl:h-64">
+              {/* Stack vertically on mobile, side by side on desktop */}
+              <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-6">
+                {/* Chart - responsive sizing */}
+                <div className="w-full max-w-[180px] h-[160px] lg:w-48 lg:h-48 xl:w-56 xl:h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPie>
                       <Pie
                         data={chainData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={70}
+                        innerRadius={40}
+                        outerRadius={60}
                         paddingAngle={2}
                         dataKey="value"
                       >
@@ -275,17 +277,18 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
                     </RechartsPie>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex-1 space-y-2">
+                {/* Legend - grid on mobile, vertical list on desktop */}
+                <div className="w-full lg:flex-1 grid grid-cols-2 lg:grid-cols-1 gap-2">
                   {chainData.slice(0, 5).map((item, index) => (
                     <div key={item.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div 
-                          className="w-3 h-3 rounded-full" 
+                          className="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-full shrink-0" 
                           style={{ backgroundColor: COLORS[index % COLORS.length] }} 
                         />
-                        <span>{item.name}</span>
+                        <span className="truncate">{item.name}</span>
                       </div>
-                      <span className="font-mono">{item.value} trades</span>
+                      <span className="font-mono text-xs lg:text-sm shrink-0 ml-2">{item.value}</span>
                     </div>
                   ))}
                 </div>

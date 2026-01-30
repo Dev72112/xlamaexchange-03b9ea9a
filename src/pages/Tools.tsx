@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, Suspense, lazy } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -11,9 +11,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { GlowBar } from "@/components/ui/glow-bar";
-import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight } from "lucide-react";
+import { Wrench, Fuel, TrendingUp, PieChart, Bell, Eye, BarChart3, ArrowRight, Newspaper } from "lucide-react";
 import { hapticFeedback } from "@/hooks/useHapticFeedback";
 import { cn } from "@/lib/utils";
+
+// Lazy load CryptoNews since it's heavier
+const CryptoNews = lazy(() => import("@/components/CryptoNews").then(m => ({ default: m.CryptoNews })));
 
 const toolsConfig = [
   { id: "watchlist", title: "Watchlist", icon: Eye },
@@ -21,6 +24,7 @@ const toolsConfig = [
   { id: "prediction", title: "Prediction", icon: TrendingUp },
   { id: "rebalancer", title: "Rebalancer", icon: PieChart },
   { id: "alerts", title: "Alerts", icon: Bell },
+  { id: "news", title: "News", icon: Newspaper },
 ];
 
 const Tools = memo(function Tools() {
@@ -132,6 +136,18 @@ const Tools = memo(function Tools() {
               <GlowBar variant="multi" delay={0.5} />
               <CardContent className="pt-4">
                 <PriceAlerts />
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Market News */}
+          <section id="news" className="scroll-mt-16">
+            <Card className="glass border-border/50 overflow-hidden">
+              <GlowBar variant="primary" delay={0.6} />
+              <CardContent className="pt-4">
+                <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
+                  <CryptoNews />
+                </Suspense>
               </CardContent>
             </Card>
           </section>
