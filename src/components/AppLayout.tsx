@@ -7,7 +7,6 @@ import { AppHeader } from "./AppHeader";
 import { RouteLoadComplete } from "@/contexts/RouteLoadingContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { OnboardingTour } from "@/components/OnboardingTour";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -41,9 +40,6 @@ export const AppLayout = memo(function AppLayout({
 
       {/* Mobile Bottom Navigation */}
       {isMobile && <MobileBottomNav />}
-
-      {/* Onboarding Tour for first-time users */}
-      <OnboardingTour />
     </div>
   );
 });

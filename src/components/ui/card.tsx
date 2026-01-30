@@ -4,15 +4,25 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-lg border text-card-foreground shadow-sm transition-all duration-200",
+  "rounded-lg border text-card-foreground shadow-sm transition-all duration-300",
   {
     variants: {
       variant: {
         default: "bg-card",
-        glass: "bg-card/60 backdrop-blur-md border-border/50",
+        // Depth Zoning System - glass hierarchy
+        glass: "glass",
+        "glass-elevated": "glass-elevated",
+        "glass-subtle": "glass-subtle",
+        "glass-matte": "glass-matte",
+        // Legacy variants (kept for compatibility)
         gradient: "bg-gradient-to-br from-card to-card/80 border-primary/10 hover:border-primary/30",
-        interactive: "bg-card hover:bg-accent/5 hover:border-primary/20 cursor-pointer hover:-translate-y-0.5 hover:shadow-md",
+        interactive: "glass hover:glass-elevated hover:-translate-y-0.5 cursor-pointer",
         elevated: "bg-card shadow-lg hover:shadow-xl",
+        // State-based variants with edge glow
+        success: "glass-elevated border-success/30 edge-glow-success",
+        warning: "glass border-warning/30 edge-glow-warning",
+        error: "glass-subtle border-destructive/30 edge-glow-error",
+        pending: "glass-subtle opacity-80 animate-pulse-subtle",
       },
     },
     defaultVariants: {

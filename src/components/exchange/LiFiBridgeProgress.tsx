@@ -115,31 +115,49 @@ export function LiFiBridgeProgress({ transaction, onClose }: LiFiBridgeProgressP
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Token Flow */}
-        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
-          <div className="flex items-center gap-2">
-            {fromToken.logoURI && (
-              <img src={fromToken.logoURI} alt={fromToken.symbol} className="w-7 h-7 rounded-full ring-2 ring-border" />
+        {/* Rich Completion Summary - shows when bridge is complete */}
+        {status === 'completed' && (
+          <div className="p-4 bg-success/10 border border-success/20 rounded-xl edge-glow-success text-center">
+            <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
+            <p className="font-bold text-lg">
+              {parseFloat(fromAmount).toFixed(4)} {fromToken.symbol} → {toAmount ? parseFloat(toAmount).toFixed(4) : '...'} {toToken.symbol}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {fromChain.name} → {toChain.name}
+            </p>
+            {bridgeName && (
+              <Badge variant="secondary" className="mt-2 text-xs">via {bridgeName}</Badge>
             )}
-            <div>
-              <div className="font-mono text-sm font-medium">{parseFloat(fromAmount).toFixed(4)}</div>
-              <div className="text-xs text-muted-foreground">{fromToken.symbol} on {fromChain.name}</div>
+          </div>
+        )}
+
+        {/* Token Flow - hide when completed (shown above) */}
+        {status !== 'completed' && (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
+            <div className="flex items-center gap-2">
+              {fromToken.logoURI && (
+                <img src={fromToken.logoURI} alt={fromToken.symbol} className="w-7 h-7 rounded-full ring-2 ring-border" />
+              )}
+              <div>
+                <div className="font-mono text-sm font-medium">{parseFloat(fromAmount).toFixed(4)}</div>
+                <div className="text-xs text-muted-foreground">{fromToken.symbol} on {fromChain.name}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <div className="w-6 h-0.5 bg-border rounded" />
+              <div className="w-2 h-2 border-t-2 border-r-2 border-muted-foreground rotate-45 -ml-1" />
+            </div>
+            <div className="flex items-center gap-2">
+              {toToken.logoURI && (
+                <img src={toToken.logoURI} alt={toToken.symbol} className="w-7 h-7 rounded-full ring-2 ring-border" />
+              )}
+              <div className="text-right">
+                <div className="font-mono text-sm font-medium">{toAmount ? parseFloat(toAmount).toFixed(4) : '...'}</div>
+                <div className="text-xs text-muted-foreground">{toToken.symbol} on {toChain.name}</div>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <div className="w-6 h-0.5 bg-border rounded" />
-            <div className="w-2 h-2 border-t-2 border-r-2 border-muted-foreground rotate-45 -ml-1" />
-          </div>
-          <div className="flex items-center gap-2">
-            {toToken.logoURI && (
-              <img src={toToken.logoURI} alt={toToken.symbol} className="w-7 h-7 rounded-full ring-2 ring-border" />
-            )}
-            <div className="text-right">
-              <div className="font-mono text-sm font-medium">{toAmount ? parseFloat(toAmount).toFixed(4) : '...'}</div>
-              <div className="text-xs text-muted-foreground">{toToken.symbol} on {toChain.name}</div>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Progress Bar */}
         <div className="space-y-1">

@@ -1391,6 +1391,17 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
             error={swapError}
             chain={selectedChain}
             apiSource={!isEvmChain ? multiApiSource : null}
+            fromToken={fromDexToken ? {
+              symbol: fromDexToken.tokenSymbol,
+              logo: fromDexToken.tokenLogoUrl,
+              amount: fromAmount,
+            } : undefined}
+            toToken={toDexToken ? {
+              symbol: toDexToken.tokenSymbol,
+              logo: toDexToken.tokenLogoUrl,
+              amount: dexOutputAmount || '0',
+            } : undefined}
+            rate={dexExchangeRate || undefined}
             onClose={() => {
               setShowSwapProgress(false);
               resetSwap();

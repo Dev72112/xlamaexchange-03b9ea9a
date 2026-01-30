@@ -1,10 +1,17 @@
-import { Check, Loader2, X, ExternalLink, Clock, Sparkles } from "lucide-react";
+import { Check, Loader2, X, ExternalLink, Clock, Sparkles, ArrowRight, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chain } from "@/data/chains";
 import { cn } from "@/lib/utils";
 import { SwapStep } from "@/hooks/useDexSwap";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
+
+interface SwapTokenInfo {
+  symbol: string;
+  logo?: string;
+  amount: string;
+}
 
 interface DexSwapProgressProps {
   step: SwapStep;
@@ -14,6 +21,9 @@ interface DexSwapProgressProps {
   onClose: () => void;
   onRetry: () => void;
   apiSource?: 'jupiter' | 'okx' | null;
+  fromToken?: SwapTokenInfo;
+  toToken?: SwapTokenInfo;
+  rate?: number;
 }
 
 const STEP_CONFIG: Record<SwapStep, { label: string; description: string }> = {
@@ -72,6 +82,9 @@ export function DexSwapProgress({
   onClose,
   onRetry,
   apiSource,
+  fromToken,
+  toToken,
+  rate,
 }: DexSwapProgressProps) {
   const config = STEP_CONFIG[step];
   const isActive = step !== 'idle' && step !== 'complete' && step !== 'error';
@@ -91,6 +104,22 @@ export function DexSwapProgress({
     const interval = setInterval(() => setElapsedTime(prev => prev + 1), 1000);
     return () => clearInterval(interval);
   }, [isConfirming]);
+
+  const copyTxHash = () => {
+    if (txHash) {
+      navigator.clipboard.writeText(txHash);
+      toast.success('Transaction hash copied!');
+    }
+  };
+
+  // Format amount for display (max 8 decimals, remove trailing zeros)
+  const formatAmount = (amount: string) => {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return amount;
+    if (num >= 1000000) return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    if (num >= 1) return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    return num.toLocaleString(undefined, { maximumFractionDigits: 8 });
+  };
 
   return (
     <motion.div 
@@ -325,6 +354,84 @@ export function DexSwapProgress({
             );
           })}
         </div>
+      )}
+
+      {/* Rich Success Summary - shows token amounts swapped */}
+      {isComplete && fromToken && toToken && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          className="p-4 bg-success/10 border border-success/20 rounded-xl edge-glow-success"
+        >
+          <div className="text-center space-y-3">
+            {/* Token icons with arrow */}
+            <div className="flex items-center justify-center gap-3">
+              {fromToken.logo ? (
+                <img src={fromToken.logo} alt={fromToken.symbol} className="w-10 h-10 rounded-full ring-2 ring-success/30" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm font-bold">
+                  {fromToken.symbol.slice(0, 2)}
+                </div>
+              )}
+              <ArrowRight className="w-5 h-5 text-success" />
+              {toToken.logo ? (
+                <img src={toToken.logo} alt={toToken.symbol} className="w-10 h-10 rounded-full ring-2 ring-success/30" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm font-bold">
+                  {toToken.symbol.slice(0, 2)}
+                </div>
+              )}
+            </div>
+            
+            {/* Swap amounts */}
+            <div>
+              <p className="text-lg font-bold">
+                {formatAmount(fromToken.amount)} {fromToken.symbol} → {formatAmount(toToken.amount)} {toToken.symbol}
+              </p>
+              {rate && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Rate: 1 {fromToken.symbol} = {rate.toFixed(6)} {toToken.symbol}
+                </p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Transaction hash with explorer link and copy */}
+      {txHash && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-secondary/50 rounded-xl space-y-2 border border-border/50"
+        >
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Transaction</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copyTxHash}
+                className="p-1.5 hover:bg-secondary rounded transition-colors"
+                title="Copy transaction hash"
+              >
+                <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+              </button>
+              {explorerUrl ? (
+                <a
+                  href={explorerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-primary hover:text-primary/80 font-mono text-xs transition-colors"
+                >
+                  {txHash.slice(0, 8)}...{txHash.slice(-6)}
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              ) : (
+                <span className="font-mono text-xs">{txHash.slice(0, 8)}...{txHash.slice(-6)}</span>
+              )}
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {/* Actions */}
