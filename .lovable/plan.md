@@ -1,279 +1,267 @@
 
-# Comprehensive UI Polish and Bug Fixes Plan
+# Comprehensive UI Polish Plan: Mode Consistency, Spacing, and Layout Fixes
 
 ## Issues Identified from Screenshots and User Feedback
 
-Based on the mobile screenshots and user's detailed feedback, here are all the issues that need to be addressed:
+Based on the mobile screenshots and detailed feedback, here are all the issues to address:
 
 ---
 
-## Issue 1: DEX Mode Styling Should Match Bridge Mode
+## Issue 1: DEX Mode Header Doesn't Match Landing Page on Other Pages
 
-### Current Problem
-- DEX mode in ExchangeWidget has a different, more cluttered layout compared to the clean Bridge page
-- Bridge page has: centered header badge, compact widget, feature badges below, collapsible sections
-- DEX mode shows mode toggle + chain selector + slippage inline - feels cramped
+### Problem
+- The Index page (landing) has a premium centered header with animated badge, gradient title, and description
+- Other pages (Portfolio, Analytics, History, Perpetuals) have different header patterns that don't blend as seamlessly
+- These pages feel cramped without "room to breathe"
 
 ### Solution
-Align DEX mode styling with Bridge mode:
-1. Use the same card-based header pattern with "Powered by OKX" badge centered
-2. Move chain selector and slippage settings into a more compact layout similar to Bridge's settings sheet pattern
-3. Add feature badges below the widget (like Bridge's "Best Rates", "Secure", "Fast")
+Apply consistent header spacing and background accents to data pages:
+1. Add more vertical padding/margin to headers
+2. Use larger blur accents for depth
+3. Match the centered badge + title + subtitle pattern
 
 ### Files to Modify
-- `src/components/exchange/ExchangeWidget.tsx`
-  - Restructure DEX mode header to be centered
-  - Add compact feature badges below swap button
-  - Clean up the header controls layout
+| File | Changes |
+|------|---------|
+| `src/pages/Portfolio.tsx` | Increase header vertical spacing, enhance background blurs |
+| `src/pages/Analytics.tsx` | Add more spacing between header and content |
+| `src/pages/History.tsx` | Align header style with other pages |
+| `src/pages/Perpetuals.tsx` | Add breathing room above account stats |
 
 ---
 
-## Issue 2: Remove Trending Pairs and DexTransactionHistory from DEX Mode on Index
+## Issue 2: DEX Mode Widget Doesn't Match Bridge Mode Box
 
-### Current Problem
-- The "Trending Pairs & Activity" section and news section appear in both Instant and DEX modes
-- User wants these removed from DEX mode (only show in Instant mode)
-- News should be moved to Tools page or a dedicated News page
+### Problem
+- Bridge page has a clean, centered layout with GlowBar, feature badges below
+- DEX mode in ExchangeWidget has mode toggle + chain selector + slippage inline which feels more cluttered
+- Visual inconsistency between the two trading interfaces
 
 ### Solution
-1. Wrap "Trending Pairs & Activity" section with `isInstantMode` check (already done for Transaction Tracker)
-2. Remove "Market News" section from Index page entirely
-3. Add CryptoNews to the Tools page as a new section
+Align DEX mode styling with Bridge page:
+1. Center the header controls similar to Bridge
+2. Add feature badges below the swap button for DEX mode
+3. Use same card padding and spacing patterns
 
 ### Files to Modify
-- `src/pages/Index.tsx`
-  - Wrap Trending Pairs section with `{isInstantMode && ...}`
-  - Remove Market News section entirely
-- `src/pages/Tools.tsx`
-  - Add a new "Market News" section with CryptoNews component
+| File | Changes |
+|------|---------|
+| `src/components/exchange/ExchangeWidget.tsx` | Restructure DEX header, add feature badges below action |
 
 ---
 
-## Issue 3: "How It Works" Section Not Switching Content
+## Issue 3: TradeDebugPanel Showing for Normal Users
 
-### Current Problem
-User reports that when toggling between Instant and DEX modes, the "How It Works" collapsible doesn't update its content properly.
+### Problem
+The "Debug" button with Bug icon shows in bottom right corner for ALL users. This is developer-only functionality that shouldn't be visible to regular users.
 
-### Root Cause Investigation
-Looking at the code, the content IS conditional (`{isInstantMode ? <HowItWorks /> : <DexHowItWorks />}`), but the trigger text may not be updating, or the Suspense/lazy loading might be causing issues.
+### Root Cause
+The TradeDebugPanel always renders a floating button with "Enable Debug" text, even when debug mode is disabled. It should be completely hidden unless:
+1. URL has `?debug=1`
+2. User manually enabled it via Debug page
 
 ### Solution
-1. Force the drawer/collapsible to close and reopen when mode changes
-2. Use a key prop to force remount when mode changes
-3. Update both trigger text and content properly
+Only render the debug button when debug mode is actually enabled or explicitly requested via URL.
 
 ### Files to Modify
-- `src/pages/Index.tsx`
-  - Add key prop to the section based on `isInstantMode`
-  - Ensure drawer title and trigger both update
+| File | Changes |
+|------|---------|
+| `src/components/TradeDebugPanel.tsx` | Don't render button at all unless debug is enabled via URL or localStorage |
+| `src/components/exchange/ExchangeWidget.tsx` | Keep TradeDebugPanel lazy import but gate rendering |
 
 ---
 
-## Issue 4: Perpetuals Swipe Hint Disappears Too Quickly
+## Issue 4: Trending Pairs and Transaction History Still Showing in DEX Mode
 
-### Current Problem
-The SwipeHint component shows briefly then disappears (auto-dismisses after 6 seconds and saves to localStorage).
+### Problem
+User reports these sections still appear in DEX mode on the exchange page. The code shows `{isInstantMode && ...}` wrapping, but something may not be working correctly.
+
+### Investigation
+Looking at `Index.tsx`, the sections ARE wrapped with `isInstantMode`. Need to verify `useExchangeMode` is returning correct value. The issue might be that `isInstantMode` comes from ExchangeModeContext but the ExchangeWidget has its own internal `exchangeMode` state.
+
+### Root Cause
+The `Index.tsx` uses `useExchangeMode()` from context, but `ExchangeWidget` has its own local `useState` for `exchangeMode`. These are not synchronized!
 
 ### Solution
-1. Increase auto-dismiss timer from 6s to 10s
-2. Make the hint more prominent and visible
-3. Consider showing on each session (not persisting across sessions) OR make the dismissal more obvious
+Make ExchangeWidget sync its mode with the context, not maintain separate state.
 
 ### Files to Modify
-- `src/components/ui/swipe-hint.tsx`
-  - Increase timer to 10 seconds
-  - Make it more visually prominent
-  - Optional: Only persist for 24 hours instead of forever
+| File | Changes |
+|------|---------|
+| `src/components/exchange/ExchangeWidget.tsx` | Use `useExchangeMode()` hook instead of local state |
+| `src/pages/Index.tsx` | Already correct, will work once widget syncs |
 
 ---
 
-## Issue 5: Portfolio, Analytics, History UI Issues on Mobile
+## Issue 5: "How It Works" Section Not Switching Content
 
-### Problems Identified from Screenshots:
-1. **Portfolio**: The page looks okay but pie chart legend text overlaps on mobile
-2. **Analytics**: Pie chart and bar chart layouts need responsive fixes
-3. **History**: Transaction cards are fine but header needs consistency check
+### Problem
+When toggling between Instant and DEX modes, the "How It Works" collapsible/drawer doesn't update content properly.
+
+### Root Cause
+Same as Issue 4 - the ExchangeWidget's mode isn't synced with context. The Index page reads from context, but widget has separate state. When user toggles in widget, context doesn't update.
 
 ### Solution
-1. For pie charts: Use vertical legend on mobile, horizontal on desktop
-2. Improve responsive breakpoints for chart containers
-3. Ensure charts don't overflow their containers
-
-### Files to Modify
-- `src/components/portfolio/PortfolioAllocationChart.tsx`
-  - Add mobile-first responsive legend positioning
-- `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
-  - Fix pie chart layout on mobile (stack chart and legend vertically)
-- `src/pages/Portfolio.tsx`, `src/pages/Analytics.tsx`, `src/pages/History.tsx`
-  - Minor header consistency fixes
+Same fix as Issue 4 - sync ExchangeWidget with context.
 
 ---
 
-## Issue 6: Transaction Tracker Only in Instant Mode
+## Issue 6: "Check Transactions" Still Shows in DEX Mode
 
-### Current Status
-Already implemented correctly in the code - the Transaction Tracker section is wrapped with `{isInstantMode && ...}`.
+### Problem
+Transaction tracker section appears regardless of mode.
 
-No changes needed - this is already working.
+### Solution
+Already wrapped with `{isInstantMode && ...}` in code. Will be fixed when Issue 4/5 are resolved.
+
+---
+
+## Issue 7: Remove Loading Splash Screen
+
+### Problem
+The loading splash screen with spinning loader adds perceived delay and isn't needed with modern bundle splitting.
+
+### Solution
+Remove the `showSplash()` function from `main.tsx` and just render the app immediately. The Suspense boundaries and skeleton loaders handle loading states.
+
+### Files to Modify
+| File | Changes |
+|------|---------|
+| `src/main.tsx` | Remove showSplash function and call |
+| `index.html` | Keep the splash CSS for potential fallback, but it won't be used |
+
+---
+
+## Issue 8: Not All Page Cards Have Edge Lighting
+
+### Problem
+Exchange and Bridge widgets have edge lighting (glow effects), but other pages' cards lack this premium treatment.
+
+### Solution
+Apply the `edge-glow` and `glow-sm` classes to major cards across data pages.
+
+### Files to Modify
+| File | Changes |
+|------|---------|
+| `src/pages/Portfolio.tsx` | Add edge-glow to holdings card |
+| `src/pages/Analytics.tsx` | Add edge-glow to stat cards |
+| `src/pages/History.tsx` | Add edge-glow to transaction cards container |
+| `src/pages/Perpetuals.tsx` | Add edge-glow to account stats and chart cards |
 
 ---
 
 ## Implementation Details
 
-### Phase 1: Index Page Mode-Awareness Fixes
-
-**File: `src/pages/Index.tsx`**
-
-Changes:
-1. Wrap Section 2 (Trending Pairs) with `{isInstantMode && ...}`
-2. Remove Section 3 (Market News) entirely
-3. Add key prop to How It Works section for proper re-render on mode change
-
-```tsx
-// Section 2: Trading Activity - Instant mode only
-{isInstantMode && (
-  <section className="container px-4 sm:px-6 py-4 sm:py-8">
-    {/* Trending Pairs & DexTransactionHistory */}
-  </section>
-)}
-
-// Section 3: Market News - REMOVE ENTIRELY
-
-// Section 5: How It Works - Add key for proper re-render
-<section key={`how-it-works-${exchangeMode}`} className="...">
-```
-
-### Phase 2: Add News to Tools Page
-
-**File: `src/pages/Tools.tsx`**
-
-Add a new "Market News" section:
-```tsx
-// Add to toolsConfig array
-{ id: "news", title: "News", icon: Newspaper },
-
-// Add section
-<section id="news" className="scroll-mt-16">
-  <Card className="glass border-border/50 overflow-hidden">
-    <GlowBar variant="multi" delay={0.6} />
-    <CardContent className="pt-4">
-      <CryptoNews />
-    </CardContent>
-  </Card>
-</section>
-```
-
-### Phase 3: DEX Mode Widget Refinement
+### Phase 1: Fix Exchange Mode Sync (Critical - Fixes Issues 4, 5, 6)
 
 **File: `src/components/exchange/ExchangeWidget.tsx`**
 
-Restructure the DEX mode header to be cleaner:
-1. Center the chain selector + slippage controls
-2. Add feature badges below the swap button (similar to Bridge)
-3. Use same glass-subtle styling patterns
+Replace local state with context hook:
 
-Key changes in the header section (~lines 820-840):
 ```tsx
-// DEX Mode: Compact header with centered controls
-{exchangeMode === 'dex' && (
-  <div className="flex items-center justify-center gap-2 px-4 pt-2">
-    <ChainSelector selectedChain={selectedChain} onChainSelect={setSelectedChain} />
-    <SlippageSettings slippage={slippage} onSlippageChange={setSlippage} />
-  </div>
-)}
+// BEFORE (line ~96)
+const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
 
-// After swap button, add feature badges for DEX mode
-{exchangeMode === 'dex' && (
-  <div className="flex justify-center gap-2 mt-4 mb-2">
-    <Badge variant="secondary" className="text-xs">Best Routes</Badge>
-    <Badge variant="secondary" className="text-xs bg-success/10 text-success">0% Fee</Badge>
-  </div>
-)}
+// AFTER
+import { useExchangeMode } from '@/contexts/ExchangeModeContext';
+// ...
+const { mode: exchangeMode, setMode: setExchangeMode, selectedChain, setSelectedChain } = useExchangeMode();
 ```
 
-### Phase 4: SwipeHint Improvements
+Also sync selectedChain with context.
 
-**File: `src/components/ui/swipe-hint.tsx`**
+### Phase 2: Hide Debug Button for Normal Users
+
+**File: `src/components/TradeDebugPanel.tsx`**
+
+Change the component to not render anything unless debug is enabled:
 
 ```tsx
-// Increase timer from 6000 to 10000 ms
-const timer = setTimeout(() => {
-  dismissHint();
-}, 10000); // Was 6000
+// At component start, early return if not enabled
+const urlDebug = typeof window !== 'undefined' 
+  ? new URLSearchParams(window.location.search).get('debug') === '1' 
+  : false;
 
-// Make more prominent with animation
-<div 
-  className={cn(
-    "flex items-center justify-center gap-2 py-2.5 px-4 mt-2 text-xs",
-    "text-primary bg-primary/10 border border-primary/20 rounded-lg",
-    "animate-fade-in cursor-pointer transition-all hover:bg-primary/15",
-    className
-  )}
->
+// If not enabled via URL and not enabled in state, render nothing
+if (!isEnabled && !urlDebug) {
+  return null;
+}
 ```
 
-### Phase 5: Portfolio/Analytics Chart Responsive Fixes
+### Phase 3: Remove Loading Splash
 
-**File: `src/components/portfolio/PortfolioAllocationChart.tsx`**
+**File: `src/main.tsx`**
 
-Fix legend layout for mobile:
 ```tsx
-<Legend
-  layout="vertical"
-  align="right"
-  verticalAlign="middle"
-  iconType="circle"
-  iconSize={8}
-  // On mobile, hide legend and show below
-  wrapperStyle={{ display: 'none' }}
-/>
+// Remove these lines:
+const showSplash = () => { ... };
+showSplash();
 
-// Add manual legend for mobile below chart
-<div className="mt-4 grid grid-cols-2 gap-2 lg:hidden">
-  {chartData.map((item, index) => (
-    <div key={item.name} className="flex items-center gap-2 text-xs">
-      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-      <span className="truncate">{item.name} ({item.percentage.toFixed(0)}%)</span>
+// Also remove watchdog related to splash:
+// The setTimeout watchdog checking for '.splash-container'
+```
+
+### Phase 4: Data Pages Spacing and Polish
+
+**Portfolio, Analytics, History, Perpetuals**
+
+Add consistent spacing patterns:
+
+```tsx
+// Header section - increase spacing
+<motion.div className="text-center mb-8 sm:mb-12"> {/* Was mb-6 sm:mb-8 */}
+  ...
+</motion.div>
+
+// Background blur - increase opacity for more depth
+<div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/8 rounded-full blur-3xl" /> {/* Was /5 */}
+
+// Add edge-glow to main cards
+<Card className="glass glow-sm border-primary/10 edge-glow overflow-hidden">
+```
+
+### Phase 5: DEX Widget Visual Match to Bridge
+
+**File: `src/components/exchange/ExchangeWidget.tsx`**
+
+After the swap button, add feature badges for DEX mode:
+
+```tsx
+{exchangeMode === 'dex' && (
+  <div className="flex justify-center gap-2 mt-4">
+    <div className="flex items-center gap-1.5 px-3 py-1.5 glass rounded-full text-xs">
+      <Zap className="w-3.5 h-3.5 text-primary" />
+      <span className="font-medium">Best Routes</span>
     </div>
-  ))}
-</div>
-```
-
-**File: `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`**
-
-Fix chain distribution layout for mobile:
-```tsx
-// Stack chart and legend vertically on mobile
-<div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-6">
-  <div className="w-full lg:w-48 h-40 lg:h-48 xl:h-56 xl:w-64">
-    {/* Chart */}
+    <div className="flex items-center gap-1.5 px-3 py-1.5 glass rounded-full text-xs">
+      <Shield className="w-3.5 h-3.5 text-success" />
+      <span className="font-medium">Low Fees</span>
+    </div>
   </div>
-  <div className="w-full lg:flex-1 grid grid-cols-2 lg:grid-cols-1 gap-2">
-    {/* Legend items */}
-  </div>
-</div>
+)}
 ```
 
 ---
 
 ## Summary of Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/pages/Index.tsx` | Wrap Trending Pairs in `isInstantMode`, remove News, add key to How It Works |
-| `src/pages/Tools.tsx` | Add Market News section |
-| `src/components/exchange/ExchangeWidget.tsx` | Clean up DEX mode header layout, add feature badges |
-| `src/components/ui/swipe-hint.tsx` | Increase timer, improve visibility |
-| `src/components/portfolio/PortfolioAllocationChart.tsx` | Mobile-friendly legend |
-| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Mobile-friendly chart layouts |
+| File | Priority | Changes |
+|------|----------|---------|
+| `src/components/exchange/ExchangeWidget.tsx` | Critical | Sync mode with context, add feature badges |
+| `src/components/TradeDebugPanel.tsx` | Critical | Hide button unless debug enabled |
+| `src/main.tsx` | High | Remove splash screen |
+| `src/pages/Portfolio.tsx` | Medium | Add spacing and edge-glow |
+| `src/pages/Analytics.tsx` | Medium | Add spacing and edge-glow |
+| `src/pages/History.tsx` | Medium | Add spacing and edge-glow |
+| `src/pages/Perpetuals.tsx` | Medium | Add spacing and edge-glow |
 
 ---
 
 ## Expected Outcomes
 
-1. **Cleaner DEX Mode** - Widget styling matches Bridge page with centered controls and feature badges
-2. **Mode-Aware Content** - Trending Pairs only in Instant mode, News moved to Tools
-3. **Working How It Works** - Content properly switches when mode changes
-4. **Better Swipe Discovery** - Perpetuals swipe hint stays visible longer and is more prominent
-5. **Mobile-Friendly Charts** - Pie charts render properly on all screen sizes with readable legends
-6. **Consistent UX** - All pages follow the same design patterns and responsive behaviors
+1. **Mode Sync Fixed** - Toggling Instant/DEX in widget updates all page sections correctly
+2. **No Debug Button for Users** - TradeDebugPanel only visible when ?debug=1 in URL
+3. **Faster Perceived Load** - No splash screen delay
+4. **Consistent Premium Feel** - All pages have matching header patterns and edge lighting
+5. **Better Spacing** - Data pages have room to breathe with larger margins
+6. **DEX Matches Bridge** - Feature badges and centered layout for visual consistency
