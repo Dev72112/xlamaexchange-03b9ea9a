@@ -14,9 +14,8 @@ import "./index.css";
 // Import Sui dapp-kit styles
 import '@mysten/dapp-kit/dist/index.css';
 
-// Initialize monitoring in idle time
-if (typeof window !== 'undefined') {
-  // Defer non-critical monitoring to idle callback
+// Initialize monitoring in idle time (after render)
+const initMonitoringDeferred = () => {
   const initMonitoring = () => {
     initWebVitals();
     initErrorTracking();
@@ -27,7 +26,7 @@ if (typeof window !== 'undefined') {
   } else {
     setTimeout(initMonitoring, 100);
   }
-}
+};
 
 const renderApp = () => {
   const rootElement = document.getElementById("root");
@@ -46,6 +45,11 @@ const renderApp = () => {
     </React.StrictMode>
   );
   
+  // Initialize monitoring after first render
+  if (typeof window !== 'undefined') {
+    initMonitoringDeferred();
+  }
+  
   // Defer prefetching to idle callback for better FCP/LCP
   const startPrefetching = () => {
     startTokenPrefetch();
@@ -59,10 +63,13 @@ const renderApp = () => {
   }
 };
 
-// Render app immediately, don't block on AppKit
-renderApp();
-
-// Initialize AppKit in background (non-blocking)
-initializeAppKit().catch((error) => {
-  console.error('[Main] AppKit init failed:', error);
-});
+// Initialize AppKit first (required for wagmiConfig), then render
+initializeAppKit()
+  .then(() => {
+    renderApp();
+  })
+  .catch((error) => {
+    console.error('[Main] AppKit init failed:', error);
+    // Still try to render - wagmiConfig might be available
+    renderApp();
+  });
