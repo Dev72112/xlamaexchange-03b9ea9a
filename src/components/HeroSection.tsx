@@ -133,8 +133,8 @@ export const HeroSection = memo(function HeroSection() {
             </span>
           </h1>
 
-          {/* Description with subtle animation */}
-          <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-2 animate-fade-in font-light" style={{ animationDelay: '0.2s' }}>
+          {/* Description - LCP element, no animation delay for faster paint */}
+          <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-2 font-light">
             Swap 900+ cryptocurrencies instantly, trade on-chain across 400+ DEXs, or bridge assets across 20+ chains. 
             <span className="text-foreground font-medium"> Best rates, no registration.</span>
           </p>

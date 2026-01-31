@@ -198,9 +198,9 @@ const Index = () => {
                 <span className="font-medium">Live on 25+ Chains</span>
               </div>
               
+              {/* LCP optimization: Remove animation delays from critical text */}
               <h1 
                 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 tracking-tight animate-fade-in"
-                style={{ animationDelay: '100ms' }}
                 id="exchange-heading"
               >
                 <span className="bg-gradient-to-r from-foreground via-foreground/90 to-muted-foreground bg-clip-text text-transparent">
@@ -209,10 +209,7 @@ const Index = () => {
                 <br className="sm:hidden" />
                 <span className="bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent"> DEX Aggregator</span>
               </h1>
-              <p 
-                className="text-muted-foreground text-sm sm:text-lg max-w-xl mx-auto animate-fade-in"
-                style={{ animationDelay: '200ms' }}
-              >
+              <p className="text-muted-foreground text-sm sm:text-lg max-w-xl mx-auto">
                 Best rates from 400+ DEXs. Swap, Bridge, and Trade Perps.{" "}
                 <span className="text-foreground font-medium">No registration required.</span>
               </p>

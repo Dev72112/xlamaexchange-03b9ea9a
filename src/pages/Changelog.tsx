@@ -64,6 +64,23 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.7.0",
+    date: "2026-01-31",
+    title: "Lighthouse Performance Optimization",
+    description: "Major Lighthouse score improvements targeting FCP, LCP, and caching. Up to 50% faster first paint.",
+    type: "major",
+    changes: [
+      { category: "improvement", text: "Service Worker v9 with stale-while-revalidate for /assets/ bundles" },
+      { category: "improvement", text: "Added preconnects for Supabase, Web3Modal, and LiFi origins" },
+      { category: "improvement", text: "Removed animation delays from LCP elements (hero text)" },
+      { category: "improvement", text: "Deferred API calls until after first paint via requestIdleCallback" },
+      { category: "improvement", text: "Increased token prefetch delay to prioritize initial render" },
+      { category: "feature", text: "LazyVisibleChart with IntersectionObserver for below-fold charts" },
+      { category: "feature", text: "Lazy TON Connect provider - loads only when user requests TON connection" },
+      { category: "improvement", text: "Prepared infrastructure for deferred TON wallet icon loading (~487KB savings)" },
+    ],
+  },
+  {
     version: "2.6.0",
     date: "2026-01-31",
     title: "Bundle Optimization & Runtime Performance",

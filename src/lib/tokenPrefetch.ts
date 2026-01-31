@@ -34,16 +34,19 @@ export async function startTokenPrefetch(): Promise<void> {
   if (prefetchStarted) return;
   prefetchStarted = true;
 
-  // Prefetch priority chains immediately
-  await prefetchChains(PRIORITY_CHAINS);
-  
-  // Prefetch secondary chains with slight delay to not overwhelm
-  setTimeout(() => {
-    prefetchChains(SECONDARY_CHAINS).then(() => {
-      prefetchComplete = true;
-      console.debug('[TokenPrefetch] All chains prefetched');
-    });
-  }, 2000);
+  // Defer prefetch to not block initial render (P1 optimization)
+  // Priority chains after 500ms to ensure FCP/LCP are not impacted
+  setTimeout(async () => {
+    await prefetchChains(PRIORITY_CHAINS);
+    
+    // Prefetch secondary chains with additional delay
+    setTimeout(() => {
+      prefetchChains(SECONDARY_CHAINS).then(() => {
+        prefetchComplete = true;
+        console.debug('[TokenPrefetch] All chains prefetched');
+      });
+    }, 3000);
+  }, 500);
 }
 
 /**
