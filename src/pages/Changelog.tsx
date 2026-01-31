@@ -64,6 +64,29 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.5.0",
+    date: "2026-01-31",
+    title: "Performance Optimization Suite",
+    description: "Major Lighthouse improvements with deferred initialization, app shell caching, and CSS performance tuning.",
+    type: "major",
+    changes: [
+      { category: "improvement", text: "Deferred AppKit initialization for faster FCP/LCP" },
+      { category: "improvement", text: "Service Worker v8 with app shell caching for instant repeat visits" },
+      { category: "improvement", text: "Terser minification with console log removal in production" },
+      { category: "improvement", text: "content-visibility: auto for off-screen cards (better INP)" },
+      { category: "improvement", text: "Explicit width/height on OptimizedImage and TokenImage (reduced CLS)" },
+      { category: "improvement", text: "Deferred token prefetching and route preloading via requestIdleCallback" },
+      { category: "improvement", text: "Reduced animation complexity for shimmer and gradient-shift" },
+      { category: "improvement", text: "Inline critical skeleton CSS in index.html for instant feedback" },
+      { category: "feature", text: "Tabbed data source architecture for Portfolio, Analytics, History pages" },
+      { category: "feature", text: "Swipe-to-navigate tabs with haptic feedback on mobile" },
+      { category: "feature", text: "EnhancedStatCard component with shimmer loading and trend indicators" },
+      { category: "improvement", text: "Standardized page header pattern across all informational pages" },
+      { category: "improvement", text: "Increased breathing room on data pages (mb-10 sm:mb-14 headers)" },
+      { category: "fix", text: "Responsive chart legends for mobile to prevent UI overlap" },
+    ],
+  },
+  {
     version: "2.4.0",
     date: "2026-01-24",
     title: "Mobile UX & Data Isolation Fixes",
