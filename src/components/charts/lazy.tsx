@@ -1,9 +1,11 @@
 /**
  * Lazy Chart Components
  * Recharts is ~200KB - lazy load to reduce initial bundle
+ * 
+ * Includes LazyVisibleChart with IntersectionObserver for below-fold charts
  */
 
-import { lazy, Suspense, ComponentType, memo } from 'react';
+import { lazy, Suspense, ComponentType, memo, useState, useEffect, useRef, ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Chart skeleton placeholder
@@ -21,6 +23,54 @@ export const ChartSkeleton = memo(function ChartSkeleton({
       className={className} 
       style={{ height, width: '100%', borderRadius: '0.5rem' }} 
     />
+  );
+});
+
+/**
+ * LazyVisibleChart - Only renders children when visible in viewport
+ * Uses IntersectionObserver to delay chart loading until scrolled into view
+ * This prevents loading vendor-charts bundle for below-fold content
+ */
+interface LazyVisibleChartProps {
+  children: ReactNode;
+  height?: number;
+  className?: string;
+  /** Root margin for triggering load before element is visible */
+  rootMargin?: string;
+}
+
+export const LazyVisibleChart = memo(function LazyVisibleChart({
+  children,
+  height = 200,
+  className,
+  rootMargin = '100px',
+}: LazyVisibleChartProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect(); // Only need to observe once
+        }
+      },
+      { rootMargin }
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [rootMargin]);
+
+  return (
+    <div ref={ref} className={className} style={{ minHeight: height }}>
+      {isVisible ? children : <ChartSkeleton height={height} />}
+    </div>
   );
 });
 

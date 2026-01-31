@@ -35,10 +35,22 @@ export function useDexTokens(chain: Chain | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevChainRef = useRef<string | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Defer initial fetch until after first paint (P1 optimization)
+  useEffect(() => {
+    // Use requestIdleCallback for better FCP/LCP
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => setHasMounted(true), { timeout: 1000 });
+    } else {
+      // Fallback for Safari
+      setTimeout(() => setHasMounted(true), 100);
+    }
+  }, []);
 
   const fetchTokens = useCallback(async () => {
-    if (!chain) {
-      setRawTokens([]);
+    if (!chain || !hasMounted) {
+      if (!chain) setRawTokens([]);
       return;
     }
 
@@ -75,7 +87,7 @@ export function useDexTokens(chain: Chain | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [chain?.chainIndex]);
+  }, [chain?.chainIndex, hasMounted]);
 
   // Clear tokens immediately when chain changes to prevent stale data
   useEffect(() => {
@@ -86,8 +98,10 @@ export function useDexTokens(chain: Chain | null) {
       setError(null);
     }
     prevChainRef.current = currentChain;
-    fetchTokens();
-  }, [chain?.chainIndex, fetchTokens]);
+    if (hasMounted) {
+      fetchTokens();
+    }
+  }, [chain?.chainIndex, fetchTokens, hasMounted]);
 
   // Deduplicate tokens - keep ones with valid logos and proper names
   const tokens = useMemo(() => {

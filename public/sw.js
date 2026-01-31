@@ -1,11 +1,12 @@
-// xlama Service Worker v8 - App Shell Caching + Performance Optimized
-const CACHE_VERSION = 'v8';
+// xlama Service Worker v9 - Enhanced Asset Caching + Stale-While-Revalidate
+const CACHE_VERSION = 'v9';
 const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `xlama-fonts-${CACHE_VERSION}`;
 const IMAGE_CACHE = `xlama-images-${CACHE_VERSION}`;
 const PRICE_CACHE = `xlama-prices-${CACHE_VERSION}`;
 const APP_SHELL_CACHE = `xlama-shell-${CACHE_VERSION}`;
+const ASSET_CACHE = `xlama-assets-${CACHE_VERSION}`;
 
 // Static assets to precache (app shell for instant repeat visits)
 const STATIC_ASSETS = [
@@ -40,7 +41,7 @@ const PRICE_API_PATTERNS = [
 
 // Install event - cache static assets and app shell
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v8...');
+  console.log('[SW] Installing service worker v9...');
   event.waitUntil(
     Promise.all([
       // Cache static assets
@@ -68,7 +69,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches and enable navigation preload
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v8...');
+  console.log('[SW] Activating service worker v9...');
   event.waitUntil(
     Promise.all([
       // Enable navigation preload if supported
@@ -110,6 +111,12 @@ self.addEventListener('fetch', (event) => {
   // Cache-first for token/chain images from external hosts
   if (isTokenImage(url)) {
     event.respondWith(cacheFirst(request, IMAGE_CACHE));
+    return;
+  }
+
+  // CRITICAL: Stale-while-revalidate for /assets/ JS/CSS bundles (solves "no cache" issue)
+  if (url.pathname.startsWith('/assets/') && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
+    event.respondWith(staleWhileRevalidateAssets(request));
     return;
   }
 
@@ -251,6 +258,36 @@ async function staleWhileRevalidate(request) {
   return cached || fetchPromise;
 }
 
+// Stale-while-revalidate for /assets/ bundles with long cache TTL
+// This is the KEY optimization for Lighthouse "serve static assets with efficient cache policy"
+async function staleWhileRevalidateAssets(request) {
+  const cache = await caches.open(ASSET_CACHE);
+  const cached = await cache.match(request);
+  
+  // Always try to fetch fresh in background
+  const fetchPromise = fetch(request).then((response) => {
+    if (response.ok) {
+      // Clone and cache with modified headers
+      const clonedResponse = response.clone();
+      cache.put(request, clonedResponse);
+    }
+    return response;
+  }).catch((err) => {
+    console.warn('[SW] Asset fetch failed, using cache:', err.message);
+    return cached;
+  });
+  
+  // Return cached immediately if available (stale), fetch updates in background
+  if (cached) {
+    // Fire and forget the background revalidation
+    fetchPromise.catch(() => {});
+    return cached;
+  }
+  
+  // No cache - wait for network
+  return fetchPromise;
+}
+
 // Push event - handle incoming push notifications
 self.addEventListener('push', (event) => {
   console.log('[SW] Push received:', event);
@@ -381,6 +418,7 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'CLEAR_CACHE') {
     caches.delete(RUNTIME_CACHE);
     caches.delete(PRICE_CACHE);
+    caches.delete(ASSET_CACHE);
   }
   
   // Trigger price sync
