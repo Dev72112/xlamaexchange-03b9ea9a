@@ -12,11 +12,11 @@
   }
 }
 
-/* GPU-accelerated animations */
+/* GPU-accelerated animations - use sparingly */
 .gpu-accelerated {
   transform: translateZ(0);
   backface-visibility: hidden;
-  will-change: transform;
+  /* Removed will-change - apply only when animating */
 }
 
 /* Reduce motion for accessibility */
@@ -693,7 +693,7 @@ html {
   }
 }
 
-/* Shimmer effect for skeletons - optimized with will-change */
+/* Shimmer effect for skeletons - optimized without will-change */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -711,8 +711,33 @@ html {
     hsl(var(--muted)) 100%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  will-change: background-position;
+  animation: shimmer 2s ease-in-out infinite;
+  /* Removed will-change to reduce GPU memory usage */
+}
+
+/* ============ CONTENT VISIBILITY FOR OFF-SCREEN OPTIMIZATION ============ */
+/* Auto-hide off-screen content for better scroll performance */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 200px; /* Estimated height to prevent layout shifts */
+}
+
+/* Card with auto content-visibility for list items */
+.card-offscreen {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 120px;
+}
+
+/* Transaction list items */
+.transaction-item-offscreen {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 80px;
+}
+
+/* Token list items in selectors */
+.token-list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 56px;
 }
 
 /* ============ DEX WIDGET OVERFLOW PROTECTION ============ */

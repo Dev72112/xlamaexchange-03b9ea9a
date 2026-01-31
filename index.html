@@ -66,8 +66,25 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Splash screen styles (inlined for instant display) -->
+    <!-- Splash screen + critical skeleton styles (inlined for instant display) -->
     <style>
+      /* Critical above-the-fold skeleton styles */
+      .skeleton-inline {
+        background: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+        background-size: 200% 100%;
+        animation: shimmer-inline 2s linear infinite;
+        border-radius: 8px;
+      }
+      @keyframes shimmer-inline {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      
+      /* Prevent layout shift - reserve space for common elements */
+      .skeleton-button { height: 44px; width: 100%; }
+      .skeleton-input { height: 56px; width: 100%; }
+      .skeleton-card { min-height: 200px; }
+      
       .splash-container {
         min-height: 100vh;
         display: flex;

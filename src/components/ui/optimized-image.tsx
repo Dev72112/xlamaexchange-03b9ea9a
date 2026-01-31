@@ -82,18 +82,24 @@ export function OptimizedImage({
         className
       )}
     >
-      {/* Loading placeholder */}
+      {/* Loading placeholder with explicit dimensions */}
       {!isLoaded && (
-        <div className="absolute inset-0 animate-pulse bg-muted" />
+        <div 
+          className="absolute inset-0 animate-pulse bg-muted" 
+          style={{ width: props.width || '100%', height: props.height || '100%' }}
+        />
       )}
       
-      {/* Actual image */}
+      {/* Actual image with explicit dimensions for CLS prevention */}
       {isInView && (
         <img
           src={currentSrc}
           alt={alt}
+          width={props.width}
+          height={props.height}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
+          fetchPriority={priority ? 'high' : 'auto'}
           onLoad={handleLoad}
           onError={handleError}
           className={cn(

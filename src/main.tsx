@@ -14,10 +14,19 @@ import "./index.css";
 // Import Sui dapp-kit styles
 import '@mysten/dapp-kit/dist/index.css';
 
-// Initialize monitoring
+// Initialize monitoring in idle time
 if (typeof window !== 'undefined') {
-  initWebVitals();
-  initErrorTracking();
+  // Defer non-critical monitoring to idle callback
+  const initMonitoring = () => {
+    initWebVitals();
+    initErrorTracking();
+  };
+  
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(initMonitoring, { timeout: 2000 });
+  } else {
+    setTimeout(initMonitoring, 100);
+  }
 }
 
 const renderApp = () => {
@@ -37,17 +46,23 @@ const renderApp = () => {
     </React.StrictMode>
   );
   
-  // Start prefetching (non-blocking)
-  startTokenPrefetch();
-  prefetchCriticalRoutes();
+  // Defer prefetching to idle callback for better FCP/LCP
+  const startPrefetching = () => {
+    startTokenPrefetch();
+    prefetchCriticalRoutes();
+  };
+  
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(startPrefetching, { timeout: 3000 });
+  } else {
+    setTimeout(startPrefetching, 1000);
+  }
 };
 
-// Initialize AppKit then render immediately
-initializeAppKit()
-  .then(() => {
-    renderApp();
-  })
-  .catch((error) => {
-    console.error('[Main] AppKit init failed:', error);
-    renderApp(); // Still try to render as fallback
-  });
+// Render app immediately, don't block on AppKit
+renderApp();
+
+// Initialize AppKit in background (non-blocking)
+initializeAppKit().catch((error) => {
+  console.error('[Main] AppKit init failed:', error);
+});
