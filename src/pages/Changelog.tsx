@@ -64,6 +64,24 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.6.0",
+    date: "2026-01-31",
+    title: "Bundle Optimization & Runtime Performance",
+    description: "Major bundle size reduction through lazy loading and CSS animation migration. ~33% smaller initial JS bundle.",
+    type: "major",
+    changes: [
+      { category: "improvement", text: "Lazy load framer-motion - removed from initial bundle (~100KB savings)" },
+      { category: "improvement", text: "Lazy load Recharts components - charts load on demand (~200KB savings)" },
+      { category: "improvement", text: "CSS-based page transitions replacing framer-motion AnimatePresence" },
+      { category: "improvement", text: "Simple fade animations migrated to CSS (6 components)" },
+      { category: "improvement", text: "New CSS keyframes: animate-glow-bar-expand, animate-scale-in, animate-fade-in" },
+      { category: "feature", text: "LazyChart wrapper components with Suspense fallbacks" },
+      { category: "feature", text: "LazyMotion utilities for CSS-first animations" },
+      { category: "improvement", text: "Separated vendor-motion and vendor-charts into lazy-loaded chunks" },
+      { category: "improvement", text: "Removed framer-motion from optimizeDeps.include for better tree-shaking" },
+    ],
+  },
+  {
     version: "2.5.0",
     date: "2026-01-31",
     title: "Performance Optimization Suite",

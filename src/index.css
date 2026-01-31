@@ -825,15 +825,61 @@ html {
 
 /* Fade-in animation for dynamic content */
 .animate-fade-in {
-  animation: fadeIn 0.2s ease-out;
+  animation: fadeIn 0.3s ease-out both;
+}
+
+.animate-fade-in-simple {
+  animation: fadeInSimple 0.2s ease-out both;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInSimple {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Scale-in animation */
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out both;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Glow bar expand animation (replaces framer-motion) */
+.animate-glow-bar-expand {
+  animation: glowBarExpand 0.8s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: left;
+}
+
+@keyframes glowBarExpand {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 

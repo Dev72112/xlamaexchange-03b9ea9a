@@ -1,11 +1,11 @@
 /**
  * Enhanced Stat Card Component
+ * CSS-based animations - no framer-motion required
  * Reusable metric card with smooth animations, shimmer loading, and variant styles
  */
 
-import { memo } from 'react';
+import { memo, CSSProperties } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ArrowUpRight, ArrowDownRight, LucideIcon } from 'lucide-react';
 
@@ -75,6 +75,11 @@ export const EnhancedStatCard = memo(function EnhancedStatCard({
   
   const styles = variantStyles[resolvedVariant];
   
+  // Stagger delay for CSS animation
+  const staggerStyle: CSSProperties = {
+    animationDelay: `${index * 50}ms`,
+  };
+  
   if (loading) {
     return (
       <Card className={cn("bg-card/50 border-border/50", className)}>
@@ -93,14 +98,9 @@ export const EnhancedStatCard = memo(function EnhancedStatCard({
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ 
-        duration: 0.3, 
-        delay: index * 0.05,
-        ease: [0.25, 0.46, 0.45, 0.94]
-      }}
+    <div
+      className="animate-fade-in"
+      style={staggerStyle}
     >
       <Card className={cn(
         "bg-card/50 border-border/50 transition-all duration-200 group cursor-default",
@@ -113,31 +113,26 @@ export const EnhancedStatCard = memo(function EnhancedStatCard({
             <div className="space-y-1 min-w-0 flex-1">
               <p className="text-xs text-muted-foreground truncate">{label}</p>
               <div className="flex items-center gap-2 flex-wrap">
-                <motion.p 
+                <p 
                   className={cn(
                     "text-2xl font-semibold font-mono truncate",
                     variant === 'pnl' && trend === 'up' && 'text-green-500',
                     variant === 'pnl' && trend === 'down' && 'text-red-500'
                   )}
-                  initial={{ scale: 0.95 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.2, delay: index * 0.05 + 0.1 }}
                 >
                   {value}
-                </motion.p>
+                </p>
                 {trend && trend !== 'neutral' && (
-                  <motion.span 
+                  <span 
                     className={cn(
-                      "flex items-center text-xs font-medium whitespace-nowrap",
+                      "flex items-center text-xs font-medium whitespace-nowrap animate-fade-in",
                       trend === 'up' ? "text-green-500" : "text-red-500"
                     )}
-                    initial={{ opacity: 0, x: -4 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 + 0.15 }}
+                    style={{ animationDelay: `${index * 50 + 150}ms` }}
                   >
                     {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                     {trendValue}
-                  </motion.span>
+                  </span>
                 )}
               </div>
               {subValue && (
@@ -153,7 +148,7 @@ export const EnhancedStatCard = memo(function EnhancedStatCard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 });
 
