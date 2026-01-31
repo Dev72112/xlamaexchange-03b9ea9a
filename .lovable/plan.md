@@ -1,267 +1,406 @@
 
-# Comprehensive UI Polish Plan: Mode Consistency, Spacing, and Layout Fixes
+# Performance Optimization Plan: Lighthouse & PageSpeed Improvements
 
-## Issues Identified from Screenshots and User Feedback
+## Current State Analysis
 
-Based on the mobile screenshots and detailed feedback, here are all the issues to address:
+Based on codebase exploration, here are the key performance areas identified:
 
----
+### Strengths Already in Place
+- Lazy loading for all page routes via `React.lazy()`
+- Code splitting with manual chunks in Vite config
+- Web Vitals tracking via `src/lib/performance.ts`
+- Token prefetching system for DEX chains
+- Route prefetching for critical navigation paths
+- Optimized React Query caching (30s stale, 5min GC)
+- CSS code splitting enabled
+- Font preloading with `display=swap`
+- Preconnect/DNS-prefetch for API partners
+- Skeleton loaders throughout the app
 
-## Issue 1: DEX Mode Header Doesn't Match Landing Page on Other Pages
+### Performance Issues Identified
 
-### Problem
-- The Index page (landing) has a premium centered header with animated badge, gradient title, and description
-- Other pages (Portfolio, Analytics, History, Perpetuals) have different header patterns that don't blend as seamlessly
-- These pages feel cramped without "room to breathe"
-
-### Solution
-Apply consistent header spacing and background accents to data pages:
-1. Add more vertical padding/margin to headers
-2. Use larger blur accents for depth
-3. Match the centered badge + title + subtitle pattern
-
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `src/pages/Portfolio.tsx` | Increase header vertical spacing, enhance background blurs |
-| `src/pages/Analytics.tsx` | Add more spacing between header and content |
-| `src/pages/History.tsx` | Align header style with other pages |
-| `src/pages/Perpetuals.tsx` | Add breathing room above account stats |
-
----
-
-## Issue 2: DEX Mode Widget Doesn't Match Bridge Mode Box
-
-### Problem
-- Bridge page has a clean, centered layout with GlowBar, feature badges below
-- DEX mode in ExchangeWidget has mode toggle + chain selector + slippage inline which feels more cluttered
-- Visual inconsistency between the two trading interfaces
-
-### Solution
-Align DEX mode styling with Bridge page:
-1. Center the header controls similar to Bridge
-2. Add feature badges below the swap button for DEX mode
-3. Use same card padding and spacing patterns
-
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `src/components/exchange/ExchangeWidget.tsx` | Restructure DEX header, add feature badges below action |
+| Issue | Impact | Lighthouse Metric Affected |
+|-------|--------|---------------------------|
+| Framer Motion imported in 28+ components | Large bundle, render blocking | LCP, FCP, TBT |
+| Recharts imported synchronously in charts | Heavy bundle (~200KB) | LCP, TBT |
+| AppKit initialization blocks first render | Main thread blocking | FCP, TBT |
+| No image dimension hints in HTML | Layout shifts | CLS |
+| Unused CSS animations defined globally | CSS bloat | FCP |
+| No resource hints for dynamic imports | Slower route transitions | LCP |
+| `will-change` overuse in CSS | Memory overhead | INP |
+| Service worker not caching app shell | Repeat visit performance | TTFB |
 
 ---
 
-## Issue 3: TradeDebugPanel Showing for Normal Users
+## Phase 1: Critical Path Optimization (High Impact)
 
-### Problem
-The "Debug" button with Bug icon shows in bottom right corner for ALL users. This is developer-only functionality that shouldn't be visible to regular users.
+### 1.1 Defer AppKit Initialization
 
-### Root Cause
-The TradeDebugPanel always renders a floating button with "Enable Debug" text, even when debug mode is disabled. It should be completely hidden unless:
-1. URL has `?debug=1`
-2. User manually enabled it via Debug page
+**Current Problem**: AppKit initializes before first render, blocking the main thread.
 
-### Solution
-Only render the debug button when debug mode is actually enabled or explicitly requested via URL.
+**Solution**: Render the app immediately, initialize AppKit in parallel.
 
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `src/components/TradeDebugPanel.tsx` | Don't render button at all unless debug is enabled via URL or localStorage |
-| `src/components/exchange/ExchangeWidget.tsx` | Keep TradeDebugPanel lazy import but gate rendering |
-
----
-
-## Issue 4: Trending Pairs and Transaction History Still Showing in DEX Mode
-
-### Problem
-User reports these sections still appear in DEX mode on the exchange page. The code shows `{isInstantMode && ...}` wrapping, but something may not be working correctly.
-
-### Investigation
-Looking at `Index.tsx`, the sections ARE wrapped with `isInstantMode`. Need to verify `useExchangeMode` is returning correct value. The issue might be that `isInstantMode` comes from ExchangeModeContext but the ExchangeWidget has its own internal `exchangeMode` state.
-
-### Root Cause
-The `Index.tsx` uses `useExchangeMode()` from context, but `ExchangeWidget` has its own local `useState` for `exchangeMode`. These are not synchronized!
-
-### Solution
-Make ExchangeWidget sync its mode with the context, not maintain separate state.
-
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `src/components/exchange/ExchangeWidget.tsx` | Use `useExchangeMode()` hook instead of local state |
-| `src/pages/Index.tsx` | Already correct, will work once widget syncs |
-
----
-
-## Issue 5: "How It Works" Section Not Switching Content
-
-### Problem
-When toggling between Instant and DEX modes, the "How It Works" collapsible/drawer doesn't update content properly.
-
-### Root Cause
-Same as Issue 4 - the ExchangeWidget's mode isn't synced with context. The Index page reads from context, but widget has separate state. When user toggles in widget, context doesn't update.
-
-### Solution
-Same fix as Issue 4 - sync ExchangeWidget with context.
-
----
-
-## Issue 6: "Check Transactions" Still Shows in DEX Mode
-
-### Problem
-Transaction tracker section appears regardless of mode.
-
-### Solution
-Already wrapped with `{isInstantMode && ...}` in code. Will be fixed when Issue 4/5 are resolved.
-
----
-
-## Issue 7: Remove Loading Splash Screen
-
-### Problem
-The loading splash screen with spinning loader adds perceived delay and isn't needed with modern bundle splitting.
-
-### Solution
-Remove the `showSplash()` function from `main.tsx` and just render the app immediately. The Suspense boundaries and skeleton loaders handle loading states.
-
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `src/main.tsx` | Remove showSplash function and call |
-| `index.html` | Keep the splash CSS for potential fallback, but it won't be used |
-
----
-
-## Issue 8: Not All Page Cards Have Edge Lighting
-
-### Problem
-Exchange and Bridge widgets have edge lighting (glow effects), but other pages' cards lack this premium treatment.
-
-### Solution
-Apply the `edge-glow` and `glow-sm` classes to major cards across data pages.
-
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `src/pages/Portfolio.tsx` | Add edge-glow to holdings card |
-| `src/pages/Analytics.tsx` | Add edge-glow to stat cards |
-| `src/pages/History.tsx` | Add edge-glow to transaction cards container |
-| `src/pages/Perpetuals.tsx` | Add edge-glow to account stats and chart cards |
-
----
-
-## Implementation Details
-
-### Phase 1: Fix Exchange Mode Sync (Critical - Fixes Issues 4, 5, 6)
-
-**File: `src/components/exchange/ExchangeWidget.tsx`**
-
-Replace local state with context hook:
-
+**File: `src/main.tsx`**
 ```tsx
-// BEFORE (line ~96)
-const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('instant');
+// BEFORE: Blocking initialization
+initializeAppKit().then(() => renderApp());
 
-// AFTER
-import { useExchangeMode } from '@/contexts/ExchangeModeContext';
-// ...
-const { mode: exchangeMode, setMode: setExchangeMode, selectedChain, setSelectedChain } = useExchangeMode();
+// AFTER: Non-blocking with Promise.race pattern
+renderApp(); // Render immediately with skeleton states
+initializeAppKit().catch(console.error); // Initialize in background
 ```
 
-Also sync selectedChain with context.
+### 1.2 Lazy Load Framer Motion
 
-### Phase 2: Hide Debug Button for Normal Users
+**Current Problem**: `framer-motion` (~100KB gzipped) is imported in 28 components and loaded on first page.
 
-**File: `src/components/TradeDebugPanel.tsx`**
+**Solution**: Create lazy motion wrapper and use CSS animations for simple effects.
 
-Change the component to not render anything unless debug is enabled:
-
+**File: `src/lib/motion.tsx` (new)**
 ```tsx
-// At component start, early return if not enabled
-const urlDebug = typeof window !== 'undefined' 
-  ? new URLSearchParams(window.location.search).get('debug') === '1' 
-  : false;
+// Re-export motion components with lazy loading
+import { lazy } from 'react';
 
-// If not enabled via URL and not enabled in state, render nothing
-if (!isEnabled && !urlDebug) {
-  return null;
+export const LazyMotion = lazy(() => 
+  import('framer-motion').then(m => ({ 
+    default: ({ children }) => <m.LazyMotion features={m.domAnimation}>{children}</m.LazyMotion> 
+  }))
+);
+
+// For components that need motion, wrap in Suspense
+export const motion = {
+  div: lazy(() => import('framer-motion').then(m => ({ default: m.motion.div }))),
+  // ... etc
+};
+```
+
+**Alternative Quick Win**: Move motion imports to only components that need complex animations, use CSS for simple fade-ins.
+
+### 1.3 Lazy Load Recharts
+
+**Current Problem**: Chart components import Recharts synchronously.
+
+**Solution**: Lazy load chart components that use Recharts.
+
+**File: `src/components/portfolio/PortfolioAllocationChart.tsx`**
+```tsx
+// Wrap entire component in lazy load
+const PortfolioAllocationChart = lazy(() => import('./PortfolioAllocationChartImpl'));
+```
+
+---
+
+## Phase 2: Resource Loading Optimization
+
+### 2.1 Add Modulepreload Hints for Critical Chunks
+
+**File: `index.html`**
+```html
+<!-- Preload critical vendor chunks -->
+<link rel="modulepreload" href="/assets/vendor-react-[hash].js" />
+<link rel="modulepreload" href="/assets/vendor-ui-[hash].js" />
+```
+
+**Note**: This requires a build-time plugin or manual update after each build. Consider adding a Vite plugin.
+
+### 2.2 Optimize Font Loading
+
+**Current**: Font loaded via Google Fonts with preload.
+
+**Improvement**: Consider self-hosting Inter font subset for faster TTFB.
+
+**File: `index.html`**
+```html
+<!-- Add font-display: swap explicitly if self-hosting -->
+<link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
+```
+
+### 2.3 Add Critical CSS Inline
+
+The current inline splash CSS is good. Extend with minimal above-the-fold styles.
+
+**File: `index.html`** - Add skeleton styles inline:
+```html
+<style>
+  /* Existing splash styles... */
+  
+  /* Critical skeleton styles for instant feedback */
+  .skeleton-inline {
+    background: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+</style>
+```
+
+---
+
+## Phase 3: Image & Asset Optimization
+
+### 3.1 Add Explicit Dimensions to Images
+
+**Problem**: Images without dimensions cause layout shifts (CLS).
+
+**Solution**: Update OptimizedImage component and token images.
+
+**File: `src/components/ui/optimized-image.tsx`**
+```tsx
+// Add width/height props to prevent layout shift
+<img
+  src={currentSrc}
+  alt={alt}
+  width={props.width || 'auto'}
+  height={props.height || 'auto'}
+  loading={priority ? 'eager' : 'lazy'}
+  decoding="async"
+  // ... rest
+/>
+```
+
+### 3.2 Use AVIF/WebP with Fallbacks
+
+Update image loading to prefer modern formats:
+
+**File: `src/components/ui/token-image.tsx`**
+```tsx
+// Add srcset for modern formats
+<picture>
+  <source srcSet={src.replace('.png', '.avif')} type="image/avif" />
+  <source srcSet={src.replace('.png', '.webp')} type="image/webp" />
+  <img src={src} alt={symbol} loading="lazy" />
+</picture>
+```
+
+---
+
+## Phase 4: CSS Performance
+
+### 4.1 Remove Excessive `will-change` Usage
+
+**Problem**: Current CSS has `will-change` in multiple places which increases GPU memory.
+
+**File: `src/index.css`**
+```css
+/* Remove or limit will-change usage */
+/* BEFORE */
+.skeleton-shimmer {
+  will-change: background-position; /* Remove */
+}
+
+.page-transition {
+  will-change: opacity, transform; /* Keep only for actual animations */
 }
 ```
 
-### Phase 3: Remove Loading Splash
+### 4.2 Use CSS `content-visibility` for Off-Screen Content
+
+**File: `src/index.css`**
+```css
+/* Add for list items and cards */
+.card-offscreen {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 200px; /* Estimated height */
+}
+```
+
+### 4.3 Reduce Animation Complexity
+
+Slow down or simplify animations for better INP:
+
+**File: `tailwind.config.ts`**
+```ts
+animation: {
+  // Reduce shimmer complexity
+  "shimmer": "shimmer 2.5s linear infinite", // Was 2s
+  // Simplify gradient shift
+  "gradient-shift": "gradient-shift 120s ease infinite", // Was 8s
+}
+```
+
+---
+
+## Phase 5: JavaScript Optimization
+
+### 5.1 Defer Non-Critical Initialization
 
 **File: `src/main.tsx`**
-
 ```tsx
-// Remove these lines:
-const showSplash = () => { ... };
-showSplash();
-
-// Also remove watchdog related to splash:
-// The setTimeout watchdog checking for '.splash-container'
+const renderApp = () => {
+  // ... render logic
+  
+  // Defer non-critical tasks
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => {
+      startTokenPrefetch();
+      prefetchCriticalRoutes();
+    }, { timeout: 3000 });
+  } else {
+    setTimeout(() => {
+      startTokenPrefetch();
+      prefetchCriticalRoutes();
+    }, 1000);
+  }
+};
 ```
 
-### Phase 4: Data Pages Spacing and Polish
+### 5.2 Reduce React Re-renders
 
-**Portfolio, Analytics, History, Perpetuals**
+Add missing `useMemo` and `useCallback` in heavy components:
 
-Add consistent spacing patterns:
+**File: `src/components/exchange/ExchangeWidget.tsx`** (~1400 lines)
+- Memoize computed values that trigger re-renders
+- Split into smaller sub-components with `React.memo`
 
+### 5.3 Use `startTransition` for Non-Urgent Updates
+
+**File: Various components with mode switches**
 ```tsx
-// Header section - increase spacing
-<motion.div className="text-center mb-8 sm:mb-12"> {/* Was mb-6 sm:mb-8 */}
-  ...
-</motion.div>
+import { startTransition } from 'react';
 
-// Background blur - increase opacity for more depth
-<div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/8 rounded-full blur-3xl" /> {/* Was /5 */}
-
-// Add edge-glow to main cards
-<Card className="glass glow-sm border-primary/10 edge-glow overflow-hidden">
-```
-
-### Phase 5: DEX Widget Visual Match to Bridge
-
-**File: `src/components/exchange/ExchangeWidget.tsx`**
-
-After the swap button, add feature badges for DEX mode:
-
-```tsx
-{exchangeMode === 'dex' && (
-  <div className="flex justify-center gap-2 mt-4">
-    <div className="flex items-center gap-1.5 px-3 py-1.5 glass rounded-full text-xs">
-      <Zap className="w-3.5 h-3.5 text-primary" />
-      <span className="font-medium">Best Routes</span>
-    </div>
-    <div className="flex items-center gap-1.5 px-3 py-1.5 glass rounded-full text-xs">
-      <Shield className="w-3.5 h-3.5 text-success" />
-      <span className="font-medium">Low Fees</span>
-    </div>
-  </div>
-)}
+const handleModeChange = (newMode) => {
+  startTransition(() => {
+    setExchangeMode(newMode);
+  });
+};
 ```
 
 ---
 
-## Summary of Files to Modify
+## Phase 6: Service Worker & Caching
 
-| File | Priority | Changes |
-|------|----------|---------|
-| `src/components/exchange/ExchangeWidget.tsx` | Critical | Sync mode with context, add feature badges |
-| `src/components/TradeDebugPanel.tsx` | Critical | Hide button unless debug enabled |
-| `src/main.tsx` | High | Remove splash screen |
-| `src/pages/Portfolio.tsx` | Medium | Add spacing and edge-glow |
-| `src/pages/Analytics.tsx` | Medium | Add spacing and edge-glow |
-| `src/pages/History.tsx` | Medium | Add spacing and edge-glow |
-| `src/pages/Perpetuals.tsx` | Medium | Add spacing and edge-glow |
+### 6.1 Implement App Shell Caching
+
+**File: `public/sw.js`** - Enhance existing SW:
+```javascript
+const CACHE_NAME = 'xlama-v1';
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/assets/vendor-react-*.js',
+  '/assets/vendor-ui-*.js',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(APP_SHELL);
+    })
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  // Stale-while-revalidate for app shell
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/index.html').then((cached) => {
+        const networkFetch = fetch(event.request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          return response;
+        });
+        return cached || networkFetch;
+      })
+    );
+  }
+});
+```
 
 ---
 
-## Expected Outcomes
+## Phase 7: Build Configuration Improvements
 
-1. **Mode Sync Fixed** - Toggling Instant/DEX in widget updates all page sections correctly
-2. **No Debug Button for Users** - TradeDebugPanel only visible when ?debug=1 in URL
-3. **Faster Perceived Load** - No splash screen delay
-4. **Consistent Premium Feel** - All pages have matching header patterns and edge lighting
-5. **Better Spacing** - Data pages have room to breathe with larger margins
-6. **DEX Matches Bridge** - Feature badges and centered layout for visual consistency
+### 7.1 Enable Terser for Better Minification
+
+**File: `vite.config.ts`**
+```ts
+build: {
+  // Switch to terser for better compression (slightly slower build)
+  minify: 'terser',
+  terserOptions: {
+    compress: {
+      drop_console: true, // Remove console.logs in production
+      drop_debugger: true,
+    },
+  },
+}
+```
+
+### 7.2 Add Compression Plugin
+
+**File: `vite.config.ts`**
+```ts
+import compression from 'vite-plugin-compression';
+
+plugins: [
+  // ... existing plugins
+  compression({ algorithm: 'gzip' }),
+  compression({ algorithm: 'brotliCompress', ext: '.br' }),
+]
+```
+
+---
+
+## Implementation Priority
+
+| Phase | Task | Effort | Impact | Priority |
+|-------|------|--------|--------|----------|
+| 1.1 | Defer AppKit init | Low | High | P0 |
+| 1.2 | Lazy load Framer Motion | Medium | High | P0 |
+| 5.1 | Defer token prefetch | Low | Medium | P1 |
+| 4.3 | Reduce animation complexity | Low | Medium | P1 |
+| 1.3 | Lazy load Recharts | Low | Medium | P1 |
+| 3.1 | Add image dimensions | Medium | Medium | P2 |
+| 4.1 | Remove excess will-change | Low | Low | P2 |
+| 6.1 | App shell caching | Medium | High | P2 |
+| 7.1 | Enable Terser | Low | Medium | P3 |
+| 7.2 | Add compression | Low | Medium | P3 |
+
+---
+
+## Expected Lighthouse Score Improvements
+
+| Metric | Current (Est.) | Target |
+|--------|---------------|--------|
+| Performance | 60-70 | 85+ |
+| First Contentful Paint | 2.5s | < 1.8s |
+| Largest Contentful Paint | 4.0s | < 2.5s |
+| Total Blocking Time | 800ms | < 300ms |
+| Cumulative Layout Shift | 0.15 | < 0.1 |
+| Time to Interactive | 5.0s | < 3.5s |
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/main.tsx` | Defer AppKit, use requestIdleCallback for prefetch |
+| `src/lib/motion.tsx` | New file for lazy motion components |
+| `vite.config.ts` | Enable terser, add compression plugin |
+| `src/index.css` | Remove will-change, add content-visibility, slow animations |
+| `tailwind.config.ts` | Slow animation durations |
+| `index.html` | Add modulepreload hints, inline critical skeleton CSS |
+| `public/sw.js` | Implement app shell caching |
+| `src/components/ui/optimized-image.tsx` | Add width/height props |
+| `src/components/portfolio/PortfolioAllocationChart.tsx` | Lazy load Recharts |
+| `src/pages/*.tsx` | Replace motion imports with CSS or lazy motion |
+
+---
+
+## Technical Notes
+
+### Why Lazy Load Framer Motion?
+- Framer Motion is ~100KB gzipped
+- Most animations in the app are simple fades/scales that CSS can handle
+- Complex animations (success celebration, drawers) can lazy load the full library
+
+### Why Defer AppKit?
+- AppKit fetches WalletConnect config from backend
+- This network request blocks initial render
+- Users see content before needing wallet functionality
+
+### Why Service Worker Caching?
+- Repeat visits currently refetch all assets
+- App shell caching gives instant load on return visits
+- Critical for mobile users on flaky connections
