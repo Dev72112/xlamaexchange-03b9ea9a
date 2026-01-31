@@ -1,8 +1,8 @@
 /**
  * GlowBar - Animated gradient top border for cards
+ * CSS-based animation - no framer-motion required
  * Provides consistent visual polish across the application
  */
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 export interface GlowBarProps {
@@ -27,18 +27,15 @@ export function GlowBar({
   duration = 0.8,
 }: GlowBarProps) {
   return (
-    <motion.div 
+    <div 
       className={cn(
-        "h-1 bg-gradient-to-r rounded-t-lg",
+        "h-1 bg-gradient-to-r rounded-t-lg animate-glow-bar-expand",
         gradients[variant],
         className
       )}
-      initial={{ scaleX: 0, originX: 0 }}
-      animate={{ scaleX: 1 }}
-      transition={{ 
-        duration,
-        delay,
-        ease: [0.4, 0, 0.2, 1] 
+      style={{
+        animationDelay: `${delay}s`,
+        animationDuration: `${duration}s`,
       }}
     />
   );

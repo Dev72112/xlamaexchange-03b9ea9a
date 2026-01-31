@@ -1,6 +1,5 @@
 import { useRef, useCallback, Suspense, lazy, memo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import { ExchangeWidget } from "@/components/exchange/ExchangeWidget";
 import { Helmet } from "react-helmet-async";
@@ -186,44 +185,37 @@ const Index = () => {
           </div>
 
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            {/* Premium Title Section - Compact on mobile */}
+            {/* Premium Title Section - Compact on mobile - CSS animations */}
             <div className="text-center mb-6 sm:mb-10">
               {/* Badge */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-                className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full glass border border-primary/30 text-xs sm:text-sm text-primary mb-4 sm:mb-6"
+              <div 
+                className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full glass border border-primary/30 text-xs sm:text-sm text-primary mb-4 sm:mb-6 animate-fade-in"
               >
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-full w-full bg-green-500"></span>
                 </span>
                 <span className="font-medium">Live on 25+ Chains</span>
-              </motion.div>
+              </div>
               
-              <motion.h1 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1, ease: [0.4, 0, 0.2, 1] }}
-                id="exchange-heading" 
-                className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 tracking-tight"
+              <h1 
+                className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 tracking-tight animate-fade-in"
+                style={{ animationDelay: '100ms' }}
+                id="exchange-heading"
               >
                 <span className="bg-gradient-to-r from-foreground via-foreground/90 to-muted-foreground bg-clip-text text-transparent">
                   Multi-Chain
                 </span>
                 <br className="sm:hidden" />
                 <span className="bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent"> DEX Aggregator</span>
-              </motion.h1>
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                className="text-muted-foreground text-sm sm:text-lg max-w-xl mx-auto"
+              </h1>
+              <p 
+                className="text-muted-foreground text-sm sm:text-lg max-w-xl mx-auto animate-fade-in"
+                style={{ animationDelay: '200ms' }}
               >
                 Best rates from 400+ DEXs. Swap, Bridge, and Trade Perps.{" "}
                 <span className="text-foreground font-medium">No registration required.</span>
-              </motion.p>
+              </p>
             </div>
 
             {/* Exchange Widget - Main Focus */}

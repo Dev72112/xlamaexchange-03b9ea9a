@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => ({
       'react-dom',
       'react-router-dom',
       '@tanstack/react-query',
-      'framer-motion',
+      // Removed 'framer-motion' - lazy loaded for smaller initial bundle
       'lucide-react',
       'clsx',
       'tailwind-merge',
@@ -97,13 +97,13 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-tooltip',
             '@radix-ui/react-dropdown-menu',
           ],
-          // Animation library
+          // Animation library - separate chunk for lazy loading
           'vendor-motion': ['framer-motion'],
           // Wallet connection
           'vendor-wallet': ['@reown/appkit', 'wagmi', 'viem'],
           // Bridge/DEX aggregator - lazy loaded
           'vendor-lifi': ['@lifi/sdk'],
-          // Charts
+          // Charts - lazy loaded
           'vendor-charts': ['recharts', 'lightweight-charts'],
           // React Query
           'vendor-query': ['@tanstack/react-query'],

@@ -1,23 +1,20 @@
 /**
  * AccountSummaryCard - OKX-style account summary
+ * CSS-based animations - no framer-motion required
  * Prominent display of portfolio value, 24h change, chain, and address
  */
 
 import { memo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
-  TrendingUp, 
-  TrendingDown, 
   Copy, 
   Check,
   Wallet,
   ArrowUpRight,
   ArrowDownRight,
-  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,12 +85,9 @@ export const AccountSummaryCard = memo(function AccountSummaryCard({
       "glass glow-sm border-primary/10 overflow-hidden relative",
       className
     )}>
-      {/* Gradient top border */}
-      <motion.div 
-        className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-chart-2 to-primary"
-        initial={{ scaleX: 0, originX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+      {/* Gradient top border - CSS animation */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-chart-2 to-primary animate-glow-bar-expand"
       />
       
       <CardContent className="p-6">
@@ -127,12 +121,9 @@ export const AccountSummaryCard = memo(function AccountSummaryCard({
           </Button>
         </div>
 
-        {/* Main value with animation */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="mb-3"
+        {/* Main value with CSS animation */}
+        <div
+          className="mb-3 animate-fade-in"
         >
           <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
             <Wallet className="w-3 h-3" />
@@ -141,17 +132,15 @@ export const AccountSummaryCard = memo(function AccountSummaryCard({
           <p className="text-4xl sm:text-5xl font-bold tracking-tight">
             {formatValue(totalValue)}
           </p>
-        </motion.div>
+        </div>
 
         {/* 24h Change */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
+        <div
           className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg",
+            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg animate-fade-in",
             isPositive ? "bg-success/10" : "bg-destructive/10"
           )}
+          style={{ animationDelay: '200ms' }}
         >
           {isPositive ? (
             <ArrowUpRight className="w-4 h-4 text-success" />
@@ -171,7 +160,7 @@ export const AccountSummaryCard = memo(function AccountSummaryCard({
             ({isPositive ? '+' : ''}{changePercent24h.toFixed(2)}%)
           </span>
           <span className="text-xs text-muted-foreground ml-1">24h</span>
-        </motion.div>
+        </div>
       </CardContent>
     </Card>
   );

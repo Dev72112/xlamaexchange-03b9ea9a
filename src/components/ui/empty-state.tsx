@@ -1,5 +1,6 @@
 /**
  * EmptyState Component
+ * CSS-based animations - no framer-motion required
  * Consistent empty/placeholder states across the app
  */
 
@@ -7,7 +8,6 @@ import { memo, ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
-import { motion } from 'framer-motion';
 
 export interface EmptyStateProps {
   icon?: LucideIcon;
@@ -38,31 +38,26 @@ export const EmptyState = memo(function EmptyState({
   compact = false,
 }: EmptyStateProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+    <div
       className={cn(
-        "flex flex-col items-center justify-center text-center",
+        "flex flex-col items-center justify-center text-center animate-fade-in",
         compact ? "py-6 px-4" : "py-12 px-6",
         className
       )}
     >
       {Icon && (
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+        <div
           className={cn(
-            "flex items-center justify-center rounded-full bg-muted mb-4",
+            "flex items-center justify-center rounded-full bg-muted mb-4 animate-scale-in",
             compact ? "w-10 h-10" : "w-14 h-14"
           )}
+          style={{ animationDelay: '100ms' }}
         >
           <Icon className={cn(
             "text-muted-foreground",
             compact ? "w-5 h-5" : "w-7 h-7"
           )} />
-        </motion.div>
+        </div>
       )}
       
       <h3 className={cn(
@@ -108,7 +103,7 @@ export const EmptyState = memo(function EmptyState({
           )}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 });
 
