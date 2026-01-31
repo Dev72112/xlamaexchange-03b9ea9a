@@ -1,264 +1,213 @@
 
-# Performance Optimization Plan: Lighthouse & PageSpeed Improvements
+# Performance Optimization Phase 2: Advanced Bundle & Runtime Optimizations
 
-## Current State Analysis
+## Current State Assessment
 
-Based on codebase exploration, here are the key performance areas identified:
+### Completed Optimizations (v2.5.0)
+- Deferred AppKit initialization with fallback rendering
+- Service Worker v8 with app shell caching
+- Terser minification with console removal
+- `content-visibility: auto` for off-screen elements
+- Explicit image dimensions on TokenImage/OptimizedImage
+- Deferred prefetching via `requestIdleCallback`
+- Reduced animation durations (shimmer 2.5s, gradient-shift 60s)
+- Inline critical skeleton CSS in index.html
+- Manual chunk splitting for all major vendors
 
-### Strengths Already in Place
-- Lazy loading for all page routes via `React.lazy()`
-- Code splitting with manual chunks in Vite config
-- Web Vitals tracking via `src/lib/performance.ts`
-- Token prefetching system for DEX chains
-- Route prefetching for critical navigation paths
-- Optimized React Query caching (30s stale, 5min GC)
-- CSS code splitting enabled
-- Font preloading with `display=swap`
-- Preconnect/DNS-prefetch for API partners
-- Skeleton loaders throughout the app
+### Remaining Opportunities Identified
 
-### Performance Issues Identified
-
-| Issue | Impact | Lighthouse Metric Affected |
-|-------|--------|---------------------------|
-| Framer Motion imported in 28+ components | Large bundle, render blocking | LCP, FCP, TBT |
-| Recharts imported synchronously in charts | Heavy bundle (~200KB) | LCP, TBT |
-| AppKit initialization blocks first render | Main thread blocking | FCP, TBT |
-| No image dimension hints in HTML | Layout shifts | CLS |
-| Unused CSS animations defined globally | CSS bloat | FCP |
-| No resource hints for dynamic imports | Slower route transitions | LCP |
-| `will-change` overuse in CSS | Memory overhead | INP |
-| Service worker not caching app shell | Repeat visit performance | TTFB |
+| Area | Issue | Impact |
+|------|-------|--------|
+| Framer Motion | Imported in 12+ components, loaded on first paint | High - ~100KB gzipped |
+| Recharts | Imported synchronously in 12 chart components | High - ~200KB gzipped |
+| Motion on Index page | `motion` wrapper on main layout elements | Medium - blocks FCP |
+| Chart components | Not lazy loaded, pulled into main bundle | Medium |
+| React re-renders | ExchangeWidget (1400 lines) lacks memoization | Medium - INP |
+| AnimatedRoutes | Full framer-motion AnimatePresence on every route | Medium |
+| Background animations | gradient-shift still running at 60s | Low |
 
 ---
 
-## Phase 1: Critical Path Optimization (High Impact)
+## Phase 2A: Lazy Load Heavy Libraries (High Impact)
 
-### 1.1 Defer AppKit Initialization
+### 2A.1 Create Lazy Motion Wrapper
 
-**Current Problem**: AppKit initializes before first render, blocking the main thread.
+Create a lightweight motion shim that lazy loads framer-motion only when needed.
 
-**Solution**: Render the app immediately, initialize AppKit in parallel.
-
-**File: `src/main.tsx`**
+**New File: `src/lib/lazyMotion.tsx`**
 ```tsx
-// BEFORE: Blocking initialization
-initializeAppKit().then(() => renderApp());
+import { lazy, Suspense, ComponentProps, forwardRef } from 'react';
+import { cn } from '@/lib/utils';
 
-// AFTER: Non-blocking with Promise.race pattern
-renderApp(); // Render immediately with skeleton states
-initializeAppKit().catch(console.error); // Initialize in background
+// CSS-based animations for simple cases
+export function FadeIn({ children, className, delay = 0 }: { 
+  children: React.ReactNode; 
+  className?: string; 
+  delay?: number;
+}) {
+  return (
+    <div 
+      className={cn("animate-fade-in", className)}
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Lazy load full framer-motion for complex animations
+const FramerMotion = lazy(() => import('framer-motion'));
+
+export const LazyMotionDiv = forwardRef<HTMLDivElement, any>((props, ref) => (
+  <Suspense fallback={<div ref={ref} {...props} />}>
+    <FramerMotion>
+      {({ motion }) => <motion.div ref={ref} {...props} />}
+    </FramerMotion>
+  </Suspense>
+));
 ```
 
-### 1.2 Lazy Load Framer Motion
+### 2A.2 Migrate Simple Animations to CSS
 
-**Current Problem**: `framer-motion` (~100KB gzipped) is imported in 28 components and loaded on first page.
+Many components use framer-motion for simple fade-in effects that CSS can handle.
 
-**Solution**: Create lazy motion wrapper and use CSS animations for simple effects.
+**Components to migrate (use CSS `animate-fade-in` instead):**
+- `src/components/portfolio/AccountSummaryCard.tsx` - simple fade
+- `src/components/portfolio/PortfolioSummaryCard.tsx` - simple fade
+- `src/components/ui/enhanced-stat-card.tsx` - simple fade
+- `src/components/ui/empty-state.tsx` - simple fade
+- `src/components/ui/glow-bar.tsx` - simple animation
 
-**File: `src/lib/motion.tsx` (new)**
+**Implementation pattern:**
 ```tsx
-// Re-export motion components with lazy loading
-import { lazy } from 'react';
+// BEFORE
+import { motion } from 'framer-motion';
+<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
 
-export const LazyMotion = lazy(() => 
-  import('framer-motion').then(m => ({ 
-    default: ({ children }) => <m.LazyMotion features={m.domAnimation}>{children}</m.LazyMotion> 
-  }))
+// AFTER
+<div className="animate-fade-in">
+```
+
+### 2A.3 Lazy Load Chart Components
+
+Wrap all Recharts-dependent components with React.lazy at the import site.
+
+**Files to create wrapper components:**
+
+| Component | Wrapper Pattern |
+|-----------|-----------------|
+| `PortfolioAllocationChart` | Already a component, wrap with lazy |
+| `TokenPnLChart` | Create lazy wrapper |
+| `PortfolioPnLChart` | Create lazy wrapper |
+| `DCAHistoryChart` | Create lazy wrapper |
+| `FundingRateChart` | Create lazy wrapper |
+| `GasBreakdown` | Create lazy wrapper |
+
+**New File: `src/components/charts/lazy.tsx`**
+```tsx
+import { lazy, Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const ChartSkeleton = ({ height = 200 }: { height?: number }) => (
+  <Skeleton className="w-full rounded-lg" style={{ height }} />
 );
 
-// For components that need motion, wrap in Suspense
-export const motion = {
-  div: lazy(() => import('framer-motion').then(m => ({ default: m.motion.div }))),
-  // ... etc
-};
-```
+// Lazy chart exports
+export const LazyPortfolioAllocationChart = lazy(() => 
+  import('@/components/portfolio/PortfolioAllocationChart')
+    .then(m => ({ default: m.PortfolioAllocationChart }))
+);
 
-**Alternative Quick Win**: Move motion imports to only components that need complex animations, use CSS for simple fade-ins.
+export const LazyTokenPnLChart = lazy(() => 
+  import('@/components/analytics/TokenPnLChart')
+    .then(m => ({ default: m.TokenPnLChart }))
+);
 
-### 1.3 Lazy Load Recharts
-
-**Current Problem**: Chart components import Recharts synchronously.
-
-**Solution**: Lazy load chart components that use Recharts.
-
-**File: `src/components/portfolio/PortfolioAllocationChart.tsx`**
-```tsx
-// Wrap entire component in lazy load
-const PortfolioAllocationChart = lazy(() => import('./PortfolioAllocationChartImpl'));
+// Wrapper with fallback
+export function LazyChart({ 
+  component: Component, 
+  height = 200,
+  ...props 
+}: { component: React.ComponentType<any>; height?: number; [key: string]: any }) {
+  return (
+    <Suspense fallback={<ChartSkeleton height={height} />}>
+      <Component {...props} />
+    </Suspense>
+  );
+}
 ```
 
 ---
 
-## Phase 2: Resource Loading Optimization
+## Phase 2B: Simplify Route Animations (Medium Impact)
 
-### 2.1 Add Modulepreload Hints for Critical Chunks
+### 2B.1 Replace AnimatedRoutes with CSS Transitions
 
-**File: `index.html`**
-```html
-<!-- Preload critical vendor chunks -->
-<link rel="modulepreload" href="/assets/vendor-react-[hash].js" />
-<link rel="modulepreload" href="/assets/vendor-ui-[hash].js" />
-```
+The current `AnimatedRoutes` uses full framer-motion AnimatePresence which loads ~100KB.
 
-**Note**: This requires a build-time plugin or manual update after each build. Consider adding a Vite plugin.
+**File: `src/components/AnimatedRoutes.tsx`**
 
-### 2.2 Optimize Font Loading
+Replace with lightweight CSS-based page transitions:
+```tsx
+// Use the existing PageTransition component with CSS animations
+// instead of framer-motion AnimatePresence
 
-**Current**: Font loaded via Google Fonts with preload.
-
-**Improvement**: Consider self-hosting Inter font subset for faster TTFB.
-
-**File: `index.html`**
-```html
-<!-- Add font-display: swap explicitly if self-hosting -->
-<link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
-```
-
-### 2.3 Add Critical CSS Inline
-
-The current inline splash CSS is good. Extend with minimal above-the-fold styles.
-
-**File: `index.html`** - Add skeleton styles inline:
-```html
-<style>
-  /* Existing splash styles... */
+export function AnimatedRoutes({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
   
-  /* Critical skeleton styles for instant feedback */
-  .skeleton-inline {
-    background: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 8px;
-  }
-</style>
+  return (
+    <div key={location.pathname} className="page-enter">
+      {children}
+    </div>
+  );
+}
 ```
 
----
-
-## Phase 3: Image & Asset Optimization
-
-### 3.1 Add Explicit Dimensions to Images
-
-**Problem**: Images without dimensions cause layout shifts (CLS).
-
-**Solution**: Update OptimizedImage component and token images.
-
-**File: `src/components/ui/optimized-image.tsx`**
-```tsx
-// Add width/height props to prevent layout shift
-<img
-  src={currentSrc}
-  alt={alt}
-  width={props.width || 'auto'}
-  height={props.height || 'auto'}
-  loading={priority ? 'eager' : 'lazy'}
-  decoding="async"
-  // ... rest
-/>
-```
-
-### 3.2 Use AVIF/WebP with Fallbacks
-
-Update image loading to prefer modern formats:
-
-**File: `src/components/ui/token-image.tsx`**
-```tsx
-// Add srcset for modern formats
-<picture>
-  <source srcSet={src.replace('.png', '.avif')} type="image/avif" />
-  <source srcSet={src.replace('.png', '.webp')} type="image/webp" />
-  <img src={src} alt={symbol} loading="lazy" />
-</picture>
-```
-
----
-
-## Phase 4: CSS Performance
-
-### 4.1 Remove Excessive `will-change` Usage
-
-**Problem**: Current CSS has `will-change` in multiple places which increases GPU memory.
-
-**File: `src/index.css`**
+**Add to `src/index.css`:**
 ```css
-/* Remove or limit will-change usage */
-/* BEFORE */
-.skeleton-shimmer {
-  will-change: background-position; /* Remove */
+.page-enter {
+  animation: page-enter 0.2s ease-out;
 }
 
-.page-transition {
-  will-change: opacity, transform; /* Keep only for actual animations */
-}
-```
-
-### 4.2 Use CSS `content-visibility` for Off-Screen Content
-
-**File: `src/index.css`**
-```css
-/* Add for list items and cards */
-.card-offscreen {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 200px; /* Estimated height */
-}
-```
-
-### 4.3 Reduce Animation Complexity
-
-Slow down or simplify animations for better INP:
-
-**File: `tailwind.config.ts`**
-```ts
-animation: {
-  // Reduce shimmer complexity
-  "shimmer": "shimmer 2.5s linear infinite", // Was 2s
-  // Simplify gradient shift
-  "gradient-shift": "gradient-shift 120s ease infinite", // Was 8s
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 ```
 
 ---
 
-## Phase 5: JavaScript Optimization
+## Phase 2C: React Performance Optimizations (Medium Impact)
 
-### 5.1 Defer Non-Critical Initialization
+### 2C.1 Memoize Heavy Components
 
-**File: `src/main.tsx`**
+**File: `src/components/exchange/ExchangeWidget.tsx`**
+
+Add memoization to prevent unnecessary re-renders:
 ```tsx
-const renderApp = () => {
-  // ... render logic
-  
-  // Defer non-critical tasks
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => {
-      startTokenPrefetch();
-      prefetchCriticalRoutes();
-    }, { timeout: 3000 });
-  } else {
-    setTimeout(() => {
-      startTokenPrefetch();
-      prefetchCriticalRoutes();
-    }, 1000);
-  }
-};
+// Add useMemo for computed values
+const computedQuoteInfo = useMemo(() => ({
+  rate: quote?.toAmount / quote?.fromAmount,
+  priceImpact: quote?.priceImpact,
+  // ... other derived values
+}), [quote?.toAmount, quote?.fromAmount, quote?.priceImpact]);
+
+// Add useCallback for handlers
+const handleSwapTokens = useCallback(() => {
+  // swap logic
+}, [fromToken, toToken]);
+
+// Wrap sub-components with React.memo
+const TokenInputSection = memo(function TokenInputSection({ ... }) { ... });
 ```
 
-### 5.2 Reduce React Re-renders
+### 2C.2 Add startTransition for Mode Switches
 
-Add missing `useMemo` and `useCallback` in heavy components:
-
-**File: `src/components/exchange/ExchangeWidget.tsx`** (~1400 lines)
-- Memoize computed values that trigger re-renders
-- Split into smaller sub-components with `React.memo`
-
-### 5.3 Use `startTransition` for Non-Urgent Updates
-
-**File: Various components with mode switches**
+When switching between Instant/DEX modes, use startTransition:
 ```tsx
 import { startTransition } from 'react';
 
-const handleModeChange = (newMode) => {
+const handleModeChange = (newMode: ExchangeMode) => {
   startTransition(() => {
     setExchangeMode(newMode);
   });
@@ -267,107 +216,111 @@ const handleModeChange = (newMode) => {
 
 ---
 
-## Phase 6: Service Worker & Caching
+## Phase 2D: Build & Loading Optimizations (Medium Impact)
 
-### 6.1 Implement App Shell Caching
-
-**File: `public/sw.js`** - Enhance existing SW:
-```javascript
-const CACHE_NAME = 'xlama-v1';
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/assets/vendor-react-*.js',
-  '/assets/vendor-ui-*.js',
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL);
-    })
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  // Stale-while-revalidate for app shell
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      caches.match('/index.html').then((cached) => {
-        const networkFetch = fetch(event.request).then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
-          return response;
-        });
-        return cached || networkFetch;
-      })
-    );
-  }
-});
-```
-
----
-
-## Phase 7: Build Configuration Improvements
-
-### 7.1 Enable Terser for Better Minification
+### 2D.1 Add Dynamic Import for framer-motion in Vite Config
 
 **File: `vite.config.ts`**
+
+Move framer-motion out of optimizeDeps.include and into a separate lazy chunk:
 ```ts
+optimizeDeps: {
+  include: [
+    'react',
+    'react-dom',
+    'react-router-dom',
+    '@tanstack/react-query',
+    // REMOVE 'framer-motion' from here
+    'lucide-react',
+    // ...
+  ],
+},
 build: {
-  // Switch to terser for better compression (slightly slower build)
-  minify: 'terser',
-  terserOptions: {
-    compress: {
-      drop_console: true, // Remove console.logs in production
-      drop_debugger: true,
-    },
-  },
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        // Keep motion as separate chunk for lazy loading
+        'vendor-motion': ['framer-motion'],
+        // Add recharts to separate chunk
+        'vendor-charts': ['recharts', 'lightweight-charts'],
+      }
+    }
+  }
 }
 ```
 
-### 7.2 Add Compression Plugin
+### 2D.2 Add Resource Hints for Common Navigation
 
-**File: `vite.config.ts`**
-```ts
-import compression from 'vite-plugin-compression';
+**File: `index.html`**
 
-plugins: [
-  // ... existing plugins
-  compression({ algorithm: 'gzip' }),
-  compression({ algorithm: 'brotliCompress', ext: '.br' }),
-]
+Add prefetch hints for likely navigation targets:
+```html
+<!-- Prefetch likely navigation chunks -->
+<link rel="prefetch" href="/assets/vendor-charts-[hash].js" as="script" />
+```
+
+**Better approach - Build-time plugin:**
+
+Create a Vite plugin to auto-inject modulepreload hints after build.
+
+---
+
+## Phase 2E: Runtime Performance (Low-Medium Impact)
+
+### 2E.1 Reduce Background Animation Load
+
+**File: `src/index.css`**
+
+Use `@media (prefers-reduced-motion)` more aggressively:
+```css
+@media (prefers-reduced-motion: reduce), (max-width: 768px) {
+  .animate-gradient-shift {
+    animation: none;
+    background-position: 0% 50%;
+  }
+}
+```
+
+### 2E.2 Add Intersection Observer for Off-Screen Charts
+
+Charts that are below the fold should not render until visible:
+```tsx
+function LazyVisibleChart({ children }: { children: React.ReactNode }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => entry.isIntersecting && setIsVisible(true),
+      { rootMargin: '100px' }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref}>
+      {isVisible ? children : <ChartSkeleton />}
+    </div>
+  );
+}
 ```
 
 ---
 
 ## Implementation Priority
 
-| Phase | Task | Effort | Impact | Priority |
-|-------|------|--------|--------|----------|
-| 1.1 | Defer AppKit init | Low | High | P0 |
-| 1.2 | Lazy load Framer Motion | Medium | High | P0 |
-| 5.1 | Defer token prefetch | Low | Medium | P1 |
-| 4.3 | Reduce animation complexity | Low | Medium | P1 |
-| 1.3 | Lazy load Recharts | Low | Medium | P1 |
-| 3.1 | Add image dimensions | Medium | Medium | P2 |
-| 4.1 | Remove excess will-change | Low | Low | P2 |
-| 6.1 | App shell caching | Medium | High | P2 |
-| 7.1 | Enable Terser | Low | Medium | P3 |
-| 7.2 | Add compression | Low | Medium | P3 |
-
----
-
-## Expected Lighthouse Score Improvements
-
-| Metric | Current (Est.) | Target |
-|--------|---------------|--------|
-| Performance | 60-70 | 85+ |
-| First Contentful Paint | 2.5s | < 1.8s |
-| Largest Contentful Paint | 4.0s | < 2.5s |
-| Total Blocking Time | 800ms | < 300ms |
-| Cumulative Layout Shift | 0.15 | < 0.1 |
-| Time to Interactive | 5.0s | < 3.5s |
+| Task | Effort | Impact | Priority |
+|------|--------|--------|----------|
+| 2A.2 Migrate simple motion to CSS | Low | High | P0 |
+| 2B.1 Replace AnimatedRoutes with CSS | Low | High | P0 |
+| 2A.3 Lazy load chart components | Medium | High | P0 |
+| 2D.1 Separate framer-motion chunk | Low | Medium | P1 |
+| 2C.1 Memoize ExchangeWidget | Medium | Medium | P1 |
+| 2A.1 Create lazy motion wrapper | Medium | Medium | P1 |
+| 2C.2 Add startTransition | Low | Low | P2 |
+| 2E.1 Reduce mobile animations | Low | Low | P2 |
+| 2E.2 Intersection observer charts | Medium | Medium | P2 |
 
 ---
 
@@ -375,32 +328,53 @@ plugins: [
 
 | File | Changes |
 |------|---------|
-| `src/main.tsx` | Defer AppKit, use requestIdleCallback for prefetch |
-| `src/lib/motion.tsx` | New file for lazy motion components |
-| `vite.config.ts` | Enable terser, add compression plugin |
-| `src/index.css` | Remove will-change, add content-visibility, slow animations |
-| `tailwind.config.ts` | Slow animation durations |
-| `index.html` | Add modulepreload hints, inline critical skeleton CSS |
-| `public/sw.js` | Implement app shell caching |
-| `src/components/ui/optimized-image.tsx` | Add width/height props |
-| `src/components/portfolio/PortfolioAllocationChart.tsx` | Lazy load Recharts |
-| `src/pages/*.tsx` | Replace motion imports with CSS or lazy motion |
+| `src/components/AnimatedRoutes.tsx` | Replace framer-motion with CSS transitions |
+| `src/components/portfolio/AccountSummaryCard.tsx` | Remove motion, use CSS animate-fade-in |
+| `src/components/portfolio/PortfolioSummaryCard.tsx` | Remove motion, use CSS animate-fade-in |
+| `src/components/ui/enhanced-stat-card.tsx` | Remove motion, use CSS animate-fade-in |
+| `src/components/ui/empty-state.tsx` | Remove motion, use CSS animate-fade-in |
+| `src/components/ui/glow-bar.tsx` | Remove motion, use CSS animations |
+| `src/pages/Index.tsx` | Remove motion wrapper, use CSS |
+| `src/pages/Analytics.tsx` | Lazy load chart components |
+| `src/pages/Portfolio.tsx` | Lazy load PortfolioAllocationChart |
+| `src/lib/lazyMotion.tsx` | New - lazy motion wrapper utilities |
+| `src/components/charts/lazy.tsx` | New - lazy chart component wrappers |
+| `vite.config.ts` | Remove framer-motion from optimizeDeps.include |
+| `src/index.css` | Add page-enter animation, reduce mobile animations |
 
 ---
 
-## Technical Notes
+## Expected Outcomes
 
-### Why Lazy Load Framer Motion?
-- Framer Motion is ~100KB gzipped
-- Most animations in the app are simple fades/scales that CSS can handle
-- Complex animations (success celebration, drawers) can lazy load the full library
+| Metric | Current (Est.) | After Phase 2 |
+|--------|---------------|---------------|
+| Initial JS Bundle | ~450KB | ~300KB (-33%) |
+| Time to Interactive | 3.5s | < 2.5s |
+| First Contentful Paint | 1.8s | < 1.4s |
+| Largest Contentful Paint | 2.5s | < 2.0s |
+| Lighthouse Performance | 75-80 | 90+ |
 
-### Why Defer AppKit?
-- AppKit fetches WalletConnect config from backend
-- This network request blocks initial render
-- Users see content before needing wallet functionality
+---
 
-### Why Service Worker Caching?
-- Repeat visits currently refetch all assets
-- App shell caching gives instant load on return visits
-- Critical for mobile users on flaky connections
+## Changelog Entry for v2.6.0
+
+```tsx
+{
+  version: "2.6.0",
+  date: "2026-02-XX",
+  title: "Bundle Optimization & Runtime Performance",
+  description: "Major bundle size reduction through lazy loading and CSS animation migration.",
+  type: "major",
+  changes: [
+    { category: "improvement", text: "Lazy load framer-motion - removed from initial bundle" },
+    { category: "improvement", text: "Lazy load Recharts - charts load on demand" },
+    { category: "improvement", text: "CSS-based page transitions replacing AnimatePresence" },
+    { category: "improvement", text: "Simple fade animations migrated to CSS (6 components)" },
+    { category: "improvement", text: "Memoized ExchangeWidget computed values" },
+    { category: "improvement", text: "startTransition for mode switches" },
+    { category: "improvement", text: "Reduced mobile background animations" },
+    { category: "improvement", text: "Intersection observer for below-fold charts" },
+  ],
+}
+```
+
