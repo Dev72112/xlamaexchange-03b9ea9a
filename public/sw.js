@@ -1,16 +1,22 @@
-// xlama Service Worker v7 - Optimized Caching + Background Price Sync + RPC Failover
-const CACHE_VERSION = 'v7';
+// xlama Service Worker v8 - App Shell Caching + Performance Optimized
+const CACHE_VERSION = 'v8';
 const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `xlama-fonts-${CACHE_VERSION}`;
 const IMAGE_CACHE = `xlama-images-${CACHE_VERSION}`;
 const PRICE_CACHE = `xlama-prices-${CACHE_VERSION}`;
+const APP_SHELL_CACHE = `xlama-shell-${CACHE_VERSION}`;
 
-// Static assets to precache (excluding / to ensure fresh HTML)
+// Static assets to precache (app shell for instant repeat visits)
 const STATIC_ASSETS = [
   '/manifest.json',
   '/xlama-mascot.png',
   '/placeholder.svg',
+];
+
+// App shell - cache index.html for faster navigation
+const APP_SHELL = [
+  '/',
 ];
 
 // API domains to cache with stale-while-revalidate
@@ -32,22 +38,37 @@ const PRICE_API_PATTERNS = [
   /min-api\.cryptocompare\.com\/data\/price/,
 ];
 
-// Install event - cache static assets
+// Install event - cache static assets and app shell
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v7...');
+  console.log('[SW] Installing service worker v8...');
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Failed to cache some static assets:', err);
-      });
-    })
+    Promise.all([
+      // Cache static assets
+      caches.open(STATIC_CACHE).then((cache) => {
+        return cache.addAll(STATIC_ASSETS).catch((err) => {
+          console.warn('[SW] Failed to cache some static assets:', err);
+        });
+      }),
+      // Cache app shell (index.html) for instant repeat visits
+      caches.open(APP_SHELL_CACHE).then((cache) => {
+        return Promise.all(
+          APP_SHELL.map(url => 
+            fetch(url).then(response => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+            }).catch(() => {})
+          )
+        );
+      }),
+    ])
   );
   self.skipWaiting();
 });
 
 // Activate event - clean up old caches and enable navigation preload
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v7...');
+  console.log('[SW] Activating service worker v8...');
   event.waitUntil(
     Promise.all([
       // Enable navigation preload if supported
@@ -182,15 +203,35 @@ async function networkFirst(request) {
   }
 }
 
-// Network-first with navigation preload
+// Network-first with navigation preload + stale-while-revalidate for app shell
 async function networkFirstWithPreload(event) {
+  const cache = await caches.open(APP_SHELL_CACHE);
+  
   try {
+    // Try navigation preload first
     const preloadResponse = await event.preloadResponse;
-    if (preloadResponse) return preloadResponse;
-    return await fetch(event.request);
+    if (preloadResponse) {
+      // Update cache in background
+      cache.put(event.request, preloadResponse.clone());
+      return preloadResponse;
+    }
+    
+    // Fall back to network
+    const networkResponse = await fetch(event.request);
+    if (networkResponse.ok) {
+      // Update cache for next visit
+      cache.put(event.request, networkResponse.clone());
+    }
+    return networkResponse;
   } catch (error) {
-    const cached = await caches.match(event.request);
+    // Serve from app shell cache for offline/slow networks
+    const cached = await cache.match('/');
     if (cached) return cached;
+    
+    // Last resort - check any matching cached response
+    const anyCached = await caches.match(event.request);
+    if (anyCached) return anyCached;
+    
     return new Response('Offline', { status: 503 });
   }
 }

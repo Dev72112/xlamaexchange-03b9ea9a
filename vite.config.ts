@@ -59,8 +59,21 @@ export default defineConfig(({ mode }) => ({
   build: {
     // Target modern browsers for smaller bundles
     target: 'esnext',
-    // Use Vite's default esbuild minification (faster and more reliable than terser)
-    minify: 'esbuild',
+    // Use terser for better compression in production
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.logs in production
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.debug'], // Remove specific function calls
+      },
+      mangle: {
+        safari10: true, // Work around Safari 10 bugs
+      },
+      format: {
+        comments: false, // Remove comments
+      },
+    },
     // Generate source maps but don't link to them publicly
     sourcemap: 'hidden',
     // Chunk size warning threshold
