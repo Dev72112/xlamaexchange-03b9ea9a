@@ -38,13 +38,14 @@ export function useDexTokens(chain: Chain | null) {
   const [hasMounted, setHasMounted] = useState(false);
 
   // Defer initial fetch until after first paint (P1 optimization)
+  // Increased timeout to 2000ms to ensure API calls don't block LCP
   useEffect(() => {
     // Use requestIdleCallback for better FCP/LCP
     if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => setHasMounted(true), { timeout: 1000 });
+      requestIdleCallback(() => setHasMounted(true), { timeout: 2000 });
     } else {
-      // Fallback for Safari
-      setTimeout(() => setHasMounted(true), 100);
+      // Fallback for Safari - longer delay to prioritize initial render
+      setTimeout(() => setHasMounted(true), 1500);
     }
   }, []);
 
