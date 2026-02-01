@@ -66,15 +66,36 @@ const renderApp = () => {
 // Register service worker for asset caching (P1 - fixes Cache TTL: None issue)
 const registerServiceWorker = () => {
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    // If a new SW takes control, refresh once to ensure we load the latest HTML/chunks.
+    // This prevents rare "white screen after publish" cases caused by stale cached assets.
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(registration => {
           console.log('[Main] SW registered:', registration.scope);
+
+          // If there's already an updated worker waiting, activate it now.
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
           // Check for updates
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
+                // When a new SW is installed while an older one is controlling the page,
+                // tell it to skip waiting so it can take over immediately.
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+
                 if (newWorker.state === 'activated') {
                   console.log('[Main] New SW activated');
                 }
