@@ -9,7 +9,7 @@ import {
   createSignedDCAActionRequest 
 } from '@/lib/requestSigning';
 import { useSignPersonalMessage } from '@mysten/dapp-kit';
-import { useTonConnectUI } from '@tonconnect/ui-react';
+import { useTonHooksBridged } from '@/contexts/TonProviderLazy';
 import { trackOrderCreated } from '@/lib/tracking';
 
 export interface DCAOrder {
@@ -43,7 +43,7 @@ export interface DCAOrder {
 export function useDCAOrders() {
   const { activeAddress, isConnected, activeChainType, getSolanaWallet, getTronWeb, getTonConnectUI: getContextTonConnectUI, activeChain } = useMultiWallet();
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
-  const [tonConnectUI] = useTonConnectUI();
+  const { tonConnectUI } = useTonHooksBridged();
   const { toast } = useToast();
   const { playAlert, settings } = useFeedback();
   const [orders, setOrders] = useState<DCAOrder[]>([]);

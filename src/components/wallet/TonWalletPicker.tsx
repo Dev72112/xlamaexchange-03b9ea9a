@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
+import { useTonHooksBridged, useTonLazy } from '@/contexts/TonProviderLazy';
 import {
   Dialog,
   DialogContent,
@@ -25,18 +25,27 @@ export function TonWalletPicker({
   onConnectionSuccess,
   onConnectionError 
 }: TonWalletPickerProps) {
-  const [tonConnectUI] = useTonConnectUI();
-  const tonAddress = useTonAddress();
+  // Use bridged hooks instead of direct TON imports
+  const { tonConnectUI, tonAddress } = useTonHooksBridged();
+  const { isTonLoaded, loadTonProvider } = useTonLazy();
+  
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStarted, setConnectionStarted] = useState(false);
   
   const isMobile = isMobileBrowser();
 
+  // Load TON provider when dialog opens
+  useEffect(() => {
+    if (open && !isTonLoaded) {
+      loadTonProvider();
+    }
+  }, [open, isTonLoaded, loadTonProvider]);
+
   // Track connection status changes
   useEffect(() => {
     if (!tonConnectUI) return;
 
-    const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
+    const unsubscribe = tonConnectUI.onStatusChange((wallet: any) => {
       if (wallet && connectionStarted) {
         setIsConnecting(false);
         setConnectionStarted(false);
@@ -61,7 +70,11 @@ export function TonWalletPicker({
   }, [tonAddress, connectionStarted, onConnectionSuccess, onOpenChange]);
 
   const handleConnectTonkeeper = useCallback(async () => {
-    if (!tonConnectUI) return;
+    if (!tonConnectUI) {
+      // TON not loaded yet, trigger load
+      loadTonProvider();
+      return;
+    }
     
     setIsConnecting(true);
     setConnectionStarted(true);
@@ -72,7 +85,7 @@ export function TonWalletPicker({
       
       // Find Tonkeeper specifically
       const tonkeeper = wallets.find(
-        (w) => w.name.toLowerCase().includes('tonkeeper')
+        (w: any) => w.name.toLowerCase().includes('tonkeeper')
       );
 
       if (tonkeeper) {
@@ -88,7 +101,7 @@ export function TonWalletPicker({
       setConnectionStarted(false);
       onConnectionError(error.message || 'Failed to connect to Tonkeeper');
     }
-  }, [tonConnectUI, onConnectionError]);
+  }, [tonConnectUI, loadTonProvider, onConnectionError]);
 
   const handleOpenTonkeeperDeeplink = () => {
     const dappUrl = encodeURIComponent(window.location.href);
@@ -99,6 +112,9 @@ export function TonWalletPicker({
   const handleInstallTonkeeper = () => {
     window.open('https://tonkeeper.com/', '_blank');
   };
+
+  // Show loading state while TON provider is loading
+  const isLoading = open && !isTonLoaded;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,60 +127,69 @@ export function TonWalletPicker({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Tonkeeper Option */}
-          <button
-            onClick={handleConnectTonkeeper}
-            disabled={isConnecting}
-            className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left w-full group disabled:opacity-50"
-          >
-            <img 
-              src={tonkeeperLogo} 
-              alt="Tonkeeper" 
-              className="w-12 h-12 rounded-xl object-cover"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">Tonkeeper</span>
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded">
-                  Recommended
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Premier wallet for the TON network
-              </p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Loading TON Connect...</span>
             </div>
-            {isConnecting && (
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            )}
-          </button>
+          ) : (
+            <>
+              {/* Tonkeeper Option */}
+              <button
+                onClick={handleConnectTonkeeper}
+                disabled={isConnecting}
+                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-accent transition-colors text-left w-full group disabled:opacity-50"
+              >
+                <img 
+                  src={tonkeeperLogo} 
+                  alt="Tonkeeper" 
+                  className="w-12 h-12 rounded-xl object-cover"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Tonkeeper</span>
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded">
+                      Recommended
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Premier wallet for the TON network
+                  </p>
+                </div>
+                {isConnecting && (
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                )}
+              </button>
 
-          {/* Mobile: Open in Tonkeeper option */}
-          {isMobile && (
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={handleOpenTonkeeperDeeplink}
-            >
-              <Smartphone className="w-4 h-4" />
-              Open in Tonkeeper App
-            </Button>
+              {/* Mobile: Open in Tonkeeper option */}
+              {isMobile && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={handleOpenTonkeeperDeeplink}
+                >
+                  <Smartphone className="w-4 h-4" />
+                  Open in Tonkeeper App
+                </Button>
+              )}
+
+              {/* Install link */}
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <span className="text-sm text-muted-foreground">
+                  Don't have Tonkeeper?
+                </span>
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="p-0 h-auto gap-1"
+                  onClick={handleInstallTonkeeper}
+                >
+                  Download
+                  <ExternalLink className="w-3 h-3" />
+                </Button>
+              </div>
+            </>
           )}
-
-          {/* Install link */}
-          <div className="flex items-center justify-center gap-2 pt-2">
-            <span className="text-sm text-muted-foreground">
-              Don't have Tonkeeper?
-            </span>
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="p-0 h-auto gap-1"
-              onClick={handleInstallTonkeeper}
-            >
-              Download
-              <ExternalLink className="w-3 h-3" />
-            </Button>
-          </div>
         </div>
 
         <div className="text-xs text-muted-foreground text-center border-t pt-4">

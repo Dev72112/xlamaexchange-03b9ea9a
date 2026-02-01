@@ -7,7 +7,7 @@ import { createWalletClient } from '@/lib/supabaseWithWallet';
 import { supabase } from '@/integrations/supabase/client';
 import { createSignedOrderRequest, createSignedCancelRequest } from '@/lib/requestSigning';
 import { useSignPersonalMessage } from '@mysten/dapp-kit';
-import { useTonConnectUI } from '@tonconnect/ui-react';
+import { useTonHooksBridged } from '@/contexts/TonProviderLazy';
 import { trackOrderCreated } from '@/lib/tracking';
 import { notificationService } from '@/services/notificationService';
 
@@ -39,7 +39,7 @@ export interface LimitOrder {
 export function useLimitOrders() {
   const { activeAddress, isConnected, activeChainType, getSolanaWallet, getTronWeb, getTonConnectUI: getContextTonConnectUI } = useMultiWallet();
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
-  const [tonConnectUI] = useTonConnectUI();
+  const { tonConnectUI } = useTonHooksBridged();
   const { toast } = useToast();
   const { playAlert, settings } = useFeedback();
   const [orders, setOrders] = useState<LimitOrder[]>([]);
