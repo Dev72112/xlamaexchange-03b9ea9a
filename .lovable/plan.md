@@ -1,119 +1,161 @@
 
-# Performance Optimization Phase 4: COMPLETED ✅
+# Fix: Production White Screen After Deploy
 
-## Implementation Summary (v2.8.0)
+## Problem Summary
 
-Phase 4 has been successfully implemented with all planned optimizations:
+The production site shows a white blank screen while preview works. This is caused by:
 
-### Completed Tasks
-
-| Task | Status | Files Modified |
-|------|--------|----------------|
-| Service Worker update handling | ✅ Done | `src/main.tsx` |
-| Vite micro-chunk consolidation | ✅ Done | `vite.config.ts` |
-| TON Provider lazy loading with bridge | ✅ Done | `src/contexts/TonProviderLazy.tsx`, `src/contexts/MultiWalletContext.tsx`, `src/app/providers/WalletProviders.tsx` |
-| Changelog v2.8.0 entry | ✅ Done | `src/pages/Changelog.tsx` |
+1. **Service Worker serving stale `/assets/` JS chunks** that don't match the new `index.html`
+2. **Aggressive force-reload on SW activation** causing potential loops
+3. **Potential race condition** where `wagmiConfig` is undefined if backend fetch fails
 
 ---
 
-## Technical Implementation Details
+## Solution: Three-Part Fix
 
-### 1. Service Worker Update Handling (`src/main.tsx`)
+### Part 1: Disable Stale-While-Revalidate for JS/CSS Bundles
 
-Added proper SW registration with `controllerchange` listener that triggers page reload when a new SW activates, ensuring users always get fresh assets after deployments.
+The `staleWhileRevalidateAssets` strategy is the primary cause. Hashed bundles (e.g., `index-abc123.js`) are **immutable by design** - if the hash changes, it's a new file. Serving a stale version from cache causes chunk mismatch errors.
 
-```tsx
-navigator.serviceWorker.addEventListener('controllerchange', () => {
-  window.location.reload();
-});
-```
+**Change**: Use **network-first** for `/assets/` bundles, with cache as fallback only for offline scenarios.
 
-### 2. Vite Micro-Chunk Consolidation (`vite.config.ts`)
+```js
+// BEFORE: stale-while-revalidate (causes mismatch)
+if (url.pathname.startsWith('/assets/') && ...) {
+  event.respondWith(staleWhileRevalidateAssets(request));
+}
 
-Added `experimentalMinChunkSize: 10000` to reduce connection overhead from many tiny JS chunks on mobile:
-
-```ts
-rollupOptions: {
-  output: {
-    experimentalMinChunkSize: 10000, // 10KB minimum chunk size
-  }
+// AFTER: network-first (always fresh in production)
+if (url.pathname.startsWith('/assets/') && ...) {
+  event.respondWith(networkFirstAssets(request));
 }
 ```
 
-### 3. TON Provider Lazy Loading (`TonProviderLazy.tsx`)
+### Part 2: Remove Aggressive Force-Reload on SW Activation
 
-Implemented the TonHooksBridge pattern to safely provide TON hook values (or null stubs) without violating React's Rules of Hooks:
+The `client.navigate(client.url)` in the activate handler can cause reload loops and isn't necessary if we're using network-first for assets.
 
-**Architecture:**
-```
-WalletProviders
-  └── TonProviderLazy (controls loading state)
-        └── TonHooksContext.Provider (null stubs when not loaded)
-              └── MultiWalletProvider
-                    └── SuiClientProvider
-                          └── SuiWalletProvider
-                                └── MultiWalletProviderInner (uses bridged hooks)
-```
+**Change**: Remove the force-refresh logic from `activate` event. The `controllerchange` listener in `main.tsx` is sufficient.
 
-**Key exports:**
-- `useTonLazy()` - Returns `{ isTonLoaded, loadTonProvider }`
-- `useTonHooksBridged()` - Returns `{ tonConnectUI, tonWallet, tonAddress }` (null when not loaded)
+### Part 3: Add Fallback Rendering if wagmiConfig Fails
 
-### 4. MultiWalletContext Updates
+If `initializeAppKit()` fails (network error, edge function timeout), the app should still render with a basic error state rather than showing nothing.
 
-- Removed direct `@tonconnect/ui-react` hook imports
-- Added `useTonHooksBridged()` and `useTonLazy()` imports
-- Updated `connectTon()` to call `loadTonProvider()` first
-- Removed `TonConnectUIProvider` wrapper (now in `TonProviderLazy`)
+**Change**: Add error boundary and fallback UI in `main.tsx`.
 
 ---
 
-## Expected Performance Gains
+## Files to Modify
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Initial JS (mobile) | ~1.8MB | ~1.3MB | -28% |
-| TON vendor chunk | Eager load | On-demand | -500KB initial |
-| FCP | 9.0s | ~6s | -33% |
-| LCP | 14.6s | ~9s | -38% |
-| Network requests | Many micro-chunks | Consolidated | Fewer connections |
+| File | Changes |
+|------|---------|
+| `public/sw.js` | 1. Change `/assets/` strategy from stale-while-revalidate to network-first<br>2. Remove force-reload logic in activate<br>3. Bump version to v11 |
+| `src/main.tsx` | Add fallback rendering if wagmiConfig initialization fails |
+
+---
+
+## Detailed Changes
+
+### public/sw.js
+
+```js
+// Version bump
+const CACHE_VERSION = 'v11';
+
+// In fetch handler, change assets strategy:
+if (url.pathname.startsWith('/assets/') && ...) {
+  // Network-first for hashed bundles - prevents stale chunk errors
+  event.respondWith(networkFirstAssets(request));
+  return;
+}
+
+// New function (replaces staleWhileRevalidateAssets):
+async function networkFirstAssets(request) {
+  const cache = await caches.open(ASSET_CACHE);
+  
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      // Cache for offline use
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    // Only use cache when offline
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw error;
+  }
+}
+
+// In activate handler - REMOVE the force-reload logic:
+// DELETE lines 79-96 (the client.navigate loop)
+```
+
+### src/main.tsx
+
+```tsx
+// Add error handling for when AppKit fails
+const renderFallbackError = (error: Error) => {
+  const rootElement = document.getElementById("root");
+  if (!rootElement) return;
+  
+  rootElement.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;text-align:center;background:#0a0a0a;color:#fff;">
+      <h1 style="margin-bottom:16px;">Failed to Load</h1>
+      <p style="color:#888;margin-bottom:24px;">Please try refreshing the page or clearing your browser cache.</p>
+      <button onclick="localStorage.clear();location.reload();" style="padding:12px 24px;background:#22c55e;color:#000;border:none;border-radius:8px;cursor:pointer;">
+        Clear Cache & Reload
+      </button>
+    </div>
+  `;
+};
+
+// Modify initialization:
+initializeAppKit()
+  .then(() => {
+    if (!wagmiConfig) {
+      throw new Error('wagmiConfig not initialized');
+    }
+    renderApp();
+    registerServiceWorker();
+  })
+  .catch((error) => {
+    console.error('[Main] AppKit init failed:', error);
+    // Show user-friendly error instead of white screen
+    renderFallbackError(error);
+  });
+```
+
+---
+
+## Why This Fixes the Issue
+
+1. **Network-first for assets** ensures fresh JS/CSS on every page load - no stale chunk mismatch
+2. **Removing force-reload** prevents infinite reload loops
+3. **Fallback UI** ensures users never see a blank white screen
+4. **Cache still works offline** - assets are cached but only served when network fails
 
 ---
 
 ## Testing Checklist
 
-After deployment, verify:
-- [ ] Site loads without white screen
-- [ ] EVM wallet connection works
-- [ ] Solana wallet connection works
-- [ ] TON wallet connection works (triggers lazy load)
-- [ ] TON icons appear after clicking Connect TON
-- [ ] No console errors about hooks
-- [ ] Service Worker updates properly after deploy
+After implementation:
+- [ ] Publish the changes
+- [ ] Open production site in incognito window
+- [ ] Verify no white screen
+- [ ] Check DevTools Console for errors
+- [ ] Test with "Offline" mode in DevTools Network tab
+- [ ] Test TON wallet connection (verify lazy loading still works)
+- [ ] Test EVM wallet connection
 
 ---
 
-## Files Modified
+## Expected Outcome
 
-1. `src/main.tsx` - Added SW registration with update handling
-2. `vite.config.ts` - Added `experimentalMinChunkSize: 10000`
-3. `src/contexts/TonProviderLazy.tsx` - Complete rewrite with TonHooksBridge pattern
-4. `src/contexts/MultiWalletContext.tsx` - Use bridged TON hooks, trigger lazy load
-5. `src/app/providers/WalletProviders.tsx` - Wrap with TonProviderLazy
-6. `src/pages/Changelog.tsx` - Added v2.8.0 entry
-
----
-
-## Rollback Instructions
-
-If TON lazy loading causes issues:
-
-1. In `MultiWalletContext.tsx`:
-   - Restore direct imports: `import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } from '@tonconnect/ui-react'`
-   - Restore direct hook usage in `MultiWalletProviderInner`
-   - Restore `TonConnectUIProvider` wrapper in `MultiWalletProvider`
-
-2. In `WalletProviders.tsx`:
-   - Remove `TonProviderLazy` wrapper
-
-3. Keep SW improvements (safe, no dependencies on TON changes)
+| Before | After |
+|--------|-------|
+| White screen on production after deploy | App loads correctly |
+| Stale JS chunks cause ChunkLoadError | Fresh JS always served |
+| No user feedback on init failure | Clear error with "Clear Cache" button |
+| Potential reload loops | Clean SW update handling |
