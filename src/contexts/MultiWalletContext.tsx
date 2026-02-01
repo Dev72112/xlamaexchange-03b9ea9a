@@ -36,8 +36,8 @@ import {
 } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
 
-// TON - now uses lazy loading bridge
-import { useTonHooksBridged, useTonLazy } from '@/contexts/TonProviderLazy';
+// TON
+import { TonConnectUIProvider, useTonConnectUI, useTonWallet, useTonAddress } from '@tonconnect/ui-react';
 
 // OKX Universal Provider
 import { useOkxWallet } from '@/hooks/useOkxWallet';
@@ -201,9 +201,10 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   const suiSignAndExecute = useSignAndExecuteTransaction();
   const suiAddress = suiAccount?.address || null;
   
-  // TON hooks via lazy bridge (provides null when TON not loaded)
-  const { tonConnectUI, tonWallet, tonAddress: tonAddressRaw } = useTonHooksBridged();
-  const { loadTonProvider } = useTonLazy();
+  // TON hooks
+  const [tonConnectUI] = useTonConnectUI();
+  const tonWallet = useTonWallet();
+  const tonAddressRaw = useTonAddress();
   const tonAddress = tonAddressRaw || null;
 
   // Derive addresses from multiple sources
@@ -546,14 +547,8 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
     }
   }, [suiConnect, suiWallets]);
 
-  // Connect TON wallet - triggers lazy load first
+  // Connect TON wallet
   const connectTon = useCallback(async (): Promise<boolean> => {
-    // Trigger lazy loading of TON provider
-    loadTonProvider();
-    
-    // Wait a moment for the provider to load
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
     if (tonConnectUI) {
       try {
         await tonConnectUI.openModal();
@@ -562,12 +557,8 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
         return false;
       }
     }
-    
-    // If tonConnectUI isn't ready yet, the user will need to click again
-    // after the lazy load completes
-    console.log('[MultiWallet] TON provider loading, please try again');
     return false;
-  }, [tonConnectUI, loadTonProvider]);
+  }, [tonConnectUI]);
 
   // TON proof handling
   useEffect(() => {
@@ -762,13 +753,30 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
 
 /**
  * MultiWalletProvider - Wraps children with all wallet SDK providers
- * Note: TON provider is now handled by TonProviderLazy in WalletProviders.tsx
  */
 export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
   return (
     <SuiClientProvider networks={suiNetworks} defaultNetwork="mainnet">
       <SuiWalletProvider autoConnect>
-        <MultiWalletProviderInner>{children}</MultiWalletProviderInner>
+        <TonConnectUIProvider 
+          manifestUrl={`${window.location.origin}/tonconnect-manifest.json`} 
+          actionsConfiguration={{ 
+            twaReturnUrl: window.location.origin as `${string}://${string}` 
+          }} 
+          walletsListConfiguration={{ 
+            includeWallets: [{ 
+              appName: 'tonkeeper', 
+              name: 'Tonkeeper', 
+              imageUrl: 'https://tonkeeper.com/assets/tonconnect-icon.png', 
+              aboutUrl: 'https://tonkeeper.com', 
+              universalLink: 'https://app.tonkeeper.com/ton-connect', 
+              bridgeUrl: 'https://bridge.tonapi.io/bridge', 
+              platforms: ['ios', 'android', 'chrome', 'firefox', 'safari'] 
+            }] 
+          }}
+        >
+          <MultiWalletProviderInner>{children}</MultiWalletProviderInner>
+        </TonConnectUIProvider>
       </SuiWalletProvider>
     </SuiClientProvider>
   );

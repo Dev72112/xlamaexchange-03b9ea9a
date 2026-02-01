@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useTonHooksBridged } from '@/contexts/TonProviderLazy';
+import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 
 // Store the latest proof for use in signing operations
 let storedTonProof: TonProofData | null = null;
@@ -82,7 +82,8 @@ function clearProofFromStorage(): void {
  * This captures the tonProof during wallet connection and stores it for later use
  */
 export function useTonProof() {
-  const { tonConnectUI, tonWallet } = useTonHooksBridged();
+  const [tonConnectUI] = useTonConnectUI();
+  const wallet = useTonWallet();
   const payloadRef = useRef<string | null>(null);
   const proofRef = useRef<TonProofData | null>(null);
 
@@ -133,7 +134,7 @@ export function useTonProof() {
     // Request proof payload on mount
     requestProofPayload();
 
-    const unsubscribe = tonConnectUI.onStatusChange((currentWallet: any) => {
+    const unsubscribe = tonConnectUI.onStatusChange((currentWallet) => {
       if (currentWallet && currentWallet.connectItems?.tonProof) {
         const tonProof = currentWallet.connectItems.tonProof;
         
@@ -193,7 +194,7 @@ export function useTonProof() {
 
   // Request a fresh proof by reconnecting
   const requestFreshProof = useCallback(async () => {
-    if (!tonConnectUI || !tonWallet) return false;
+    if (!tonConnectUI || !wallet) return false;
     
     try {
       // Disconnect and reconnect to get a fresh proof
@@ -205,7 +206,7 @@ export function useTonProof() {
       console.error('[TonProof] Failed to request fresh proof:', error);
       return false;
     }
-  }, [tonConnectUI, tonWallet, requestProofPayload]);
+  }, [tonConnectUI, wallet, requestProofPayload]);
 
   return {
     proof: proofRef.current,

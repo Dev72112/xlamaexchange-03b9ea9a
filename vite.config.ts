@@ -84,8 +84,6 @@ export default defineConfig(({ mode }) => ({
     assetsInlineLimit: 2048,
     rollupOptions: {
       output: {
-        // Consolidate micro-chunks to reduce connection overhead
-        experimentalMinChunkSize: 10000, // 10KB minimum chunk size
         // Optimize chunk splitting for better caching
         manualChunks: {
           // Core React runtime
