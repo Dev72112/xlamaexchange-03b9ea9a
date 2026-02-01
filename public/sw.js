@@ -1,5 +1,5 @@
-// xlama Service Worker v9 - Enhanced Asset Caching + Stale-While-Revalidate
-const CACHE_VERSION = 'v9';
+// xlama Service Worker v11 - Network-first for assets (prevents stale chunk errors)
+const CACHE_VERSION = 'v11';
 const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `xlama-fonts-${CACHE_VERSION}`;
@@ -114,9 +114,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // CRITICAL: Stale-while-revalidate for /assets/ JS/CSS bundles (solves "no cache" issue)
+// Network-first for /assets/ JS/CSS bundles - prevents stale chunk errors after deploy
   if (url.pathname.startsWith('/assets/') && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
-    event.respondWith(staleWhileRevalidateAssets(request));
+    event.respondWith(networkFirstAssets(request));
     return;
   }
 
@@ -258,34 +258,28 @@ async function staleWhileRevalidate(request) {
   return cached || fetchPromise;
 }
 
-// Stale-while-revalidate for /assets/ bundles with long cache TTL
-// This is the KEY optimization for Lighthouse "serve static assets with efficient cache policy"
-async function staleWhileRevalidateAssets(request) {
+// Network-first for /assets/ bundles - always fetch fresh, cache for offline only
+// This prevents stale chunk errors after deploys (hashed files are immutable)
+async function networkFirstAssets(request) {
   const cache = await caches.open(ASSET_CACHE);
-  const cached = await cache.match(request);
   
-  // Always try to fetch fresh in background
-  const fetchPromise = fetch(request).then((response) => {
-    if (response.ok) {
-      // Clone and cache with modified headers
-      const clonedResponse = response.clone();
-      cache.put(request, clonedResponse);
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      // Cache for offline use
+      cache.put(request, networkResponse.clone());
     }
-    return response;
-  }).catch((err) => {
-    console.warn('[SW] Asset fetch failed, using cache:', err.message);
-    return cached;
-  });
-  
-  // Return cached immediately if available (stale), fetch updates in background
-  if (cached) {
-    // Fire and forget the background revalidation
-    fetchPromise.catch(() => {});
-    return cached;
+    return networkResponse;
+  } catch (error) {
+    // Only use cache when offline
+    const cached = await cache.match(request);
+    if (cached) {
+      console.log('[SW] Serving cached asset (offline):', request.url.slice(-40));
+      return cached;
+    }
+    console.warn('[SW] Asset fetch failed, no cache:', error.message);
+    return new Response('Network error', { status: 503 });
   }
-  
-  // No cache - wait for network
-  return fetchPromise;
 }
 
 // Push event - handle incoming push notifications
