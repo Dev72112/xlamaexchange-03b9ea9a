@@ -63,13 +63,39 @@ const renderApp = () => {
   }
 };
 
+// Register service worker for asset caching (P1 - fixes Cache TTL: None issue)
+const registerServiceWorker = () => {
+  if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(registration => {
+          console.log('[Main] SW registered:', registration.scope);
+          // Check for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated') {
+                  console.log('[Main] New SW activated');
+                }
+              });
+            }
+          });
+        })
+        .catch(err => console.error('[Main] SW registration failed:', err));
+    });
+  }
+};
+
 // Initialize AppKit first (required for wagmiConfig), then render
 initializeAppKit()
   .then(() => {
     renderApp();
+    registerServiceWorker();
   })
   .catch((error) => {
     console.error('[Main] AppKit init failed:', error);
     // Still try to render - wagmiConfig might be available
     renderApp();
+    registerServiceWorker();
   });
