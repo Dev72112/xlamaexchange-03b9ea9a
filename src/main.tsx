@@ -63,13 +63,39 @@ const renderApp = () => {
   }
 };
 
+// Register Service Worker with update handling
+const registerServiceWorker = () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker?.addEventListener('statechange', () => {
+          if (newWorker.state === 'activated') {
+            console.log('[SW] New version available');
+          }
+        });
+      });
+    }).catch((err) => {
+      console.warn('[SW] Registration failed:', err);
+    });
+    
+    // Handle controller change (new SW took over) - reload for fresh assets
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+  }
+};
+
 // Initialize AppKit first (required for wagmiConfig), then render
 initializeAppKit()
   .then(() => {
     renderApp();
+    // Register SW after app renders (non-blocking)
+    registerServiceWorker();
   })
   .catch((error) => {
     console.error('[Main] AppKit init failed:', error);
     // Still try to render - wagmiConfig might be available
     renderApp();
+    registerServiceWorker();
   });
