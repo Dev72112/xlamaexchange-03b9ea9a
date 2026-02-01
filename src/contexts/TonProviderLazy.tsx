@@ -5,9 +5,9 @@
  * This wrapper defers loading until the user explicitly requests TON connection
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, Suspense, lazy, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, Suspense, lazy } from 'react';
 
-// Context to control lazy TON provider loading
+// Context to control lazy TON provider loading and share hook values
 interface TonLazyContextType {
   isTonLoaded: boolean;
   loadTonProvider: () => void;
@@ -28,51 +28,11 @@ export function useTonLazy() {
   return useContext(TonLazyContext);
 }
 
-// Lazy load the actual TON provider
-const LazyTonConnectUIProvider = lazy(() => 
-  import('@tonconnect/ui-react').then(m => ({ 
-    default: m.TonConnectUIProvider 
-  }))
-);
+// Lazy load the TON hooks bridge component (contains actual hook calls)
+const LazyTonHooksBridge = lazy(() => import('./TonHooksBridge'));
 
 interface TonProviderLazyProps {
   children: ReactNode;
-}
-
-// Inner component that uses TON hooks once provider is loaded
-function TonHooksProvider({ children, onHooksReady }: { children: ReactNode; onHooksReady: (hooks: { tonConnectUI: any; tonWallet: any; tonAddress: string | null }) => void }) {
-  // Dynamically import and use hooks
-  const [hooks, setHooks] = useState<{ useTonConnectUI: any; useTonWallet: any; useTonAddress: any } | null>(null);
-  
-  useEffect(() => {
-    import('@tonconnect/ui-react').then(m => {
-      setHooks({
-        useTonConnectUI: m.useTonConnectUI,
-        useTonWallet: m.useTonWallet,
-        useTonAddress: m.useTonAddress,
-      });
-    });
-  }, []);
-  
-  // Use hooks when available
-  const tonConnectUIResult = hooks?.useTonConnectUI?.();
-  const tonWallet = hooks?.useTonWallet?.();
-  const tonAddress = hooks?.useTonAddress?.();
-  
-  const tonConnectUI = tonConnectUIResult?.[0] ?? null;
-  
-  // Report hooks to parent
-  useEffect(() => {
-    if (hooks) {
-      onHooksReady({
-        tonConnectUI,
-        tonWallet: tonWallet ?? null,
-        tonAddress: tonAddress ?? null,
-      });
-    }
-  }, [hooks, tonConnectUI, tonWallet, tonAddress, onHooksReady]);
-  
-  return <>{children}</>;
 }
 
 /**
@@ -110,31 +70,13 @@ export function TonProviderLazy({ children }: TonProviderLazyProps) {
   };
 
   if (isTonLoaded) {
-    // Once loaded, wrap with actual TON provider
+    // Once loaded, render the lazy bridge that will load TON provider + hooks
     return (
       <TonLazyContext.Provider value={contextValue}>
         <Suspense fallback={children}>
-          <LazyTonConnectUIProvider 
-            manifestUrl={`${window.location.origin}/tonconnect-manifest.json`}
-            actionsConfiguration={{ 
-              twaReturnUrl: window.location.origin as `${string}://${string}` 
-            }}
-            walletsListConfiguration={{ 
-              includeWallets: [{ 
-                appName: 'tonkeeper', 
-                name: 'Tonkeeper', 
-                imageUrl: 'https://tonkeeper.com/assets/tonconnect-icon.png', 
-                aboutUrl: 'https://tonkeeper.com', 
-                universalLink: 'https://app.tonkeeper.com/ton-connect', 
-                bridgeUrl: 'https://bridge.tonapi.io/bridge', 
-                platforms: ['ios', 'android', 'chrome', 'firefox', 'safari'] 
-              }] 
-            }}
-          >
-            <TonHooksProvider onHooksReady={handleHooksReady}>
-              {children}
-            </TonHooksProvider>
-          </LazyTonConnectUIProvider>
+          <LazyTonHooksBridge onHooksReady={handleHooksReady}>
+            {children}
+          </LazyTonHooksBridge>
         </Suspense>
       </TonLazyContext.Provider>
     );
