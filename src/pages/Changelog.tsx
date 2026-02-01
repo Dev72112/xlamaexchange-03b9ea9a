@@ -64,6 +64,21 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.8.0",
+    date: "2026-02-01",
+    title: "Critical FCP/LCP Optimization",
+    description: "Deferred TON wallet loading and build optimizations for faster mobile performance. Up to 28% smaller initial bundle.",
+    type: "major",
+    changes: [
+      { category: "improvement", text: "Lazy load TON Connect provider - saves ~500KB on initial load" },
+      { category: "improvement", text: "TON wallet icons load only when user requests TON connection" },
+      { category: "improvement", text: "TonHooksBridge pattern for safe conditional hook usage" },
+      { category: "improvement", text: "Service Worker update handling for fresh deployments" },
+      { category: "improvement", text: "Consolidated micro-chunks (10KB min) for fewer network requests" },
+      { category: "improvement", text: "Auto-reload on Service Worker activation for latest assets" },
+    ],
+  },
+  {
     version: "2.7.0",
     date: "2026-01-31",
     title: "Lighthouse Performance Optimization",
