@@ -118,9 +118,6 @@ export default defineConfig(({ mode }) => ({
           // Date utilities
           'vendor-date': ['date-fns'],
         },
-        // Consolidate micro-chunks to reduce HTTP requests (P1 optimization)
-        // PageSpeed shows 60+ tiny chunks causing connection contention on mobile
-        experimentalMinChunkSize: 10000, // 10KB minimum chunk size
       },
     },
   },

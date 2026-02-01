@@ -751,22 +751,17 @@ function MultiWalletProviderInner({ children }: MultiWalletProviderProps) {
   return <MultiWalletContext.Provider value={value}>{children}</MultiWalletContext.Provider>;
 }
 
-// Safe origin getter for SSR/build compatibility
-const getOrigin = () => typeof window !== 'undefined' ? window.location.origin : 'https://xlama.app';
-
 /**
  * MultiWalletProvider - Wraps children with all wallet SDK providers
  */
 export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
-  const origin = getOrigin();
-  
   return (
     <SuiClientProvider networks={suiNetworks} defaultNetwork="mainnet">
       <SuiWalletProvider autoConnect>
         <TonConnectUIProvider 
-          manifestUrl={`${origin}/tonconnect-manifest.json`} 
+          manifestUrl={`${window.location.origin}/tonconnect-manifest.json`} 
           actionsConfiguration={{ 
-            twaReturnUrl: origin as `${string}://${string}` 
+            twaReturnUrl: window.location.origin as `${string}://${string}` 
           }} 
           walletsListConfiguration={{ 
             includeWallets: [{ 

@@ -47,25 +47,20 @@
       usb=()
     " />
 
-    <!-- Critical preconnects for initial page load (P0 - Lighthouse flagged) -->
-    <!-- These origins are accessed immediately on page load - preconnect saves ~320ms each -->
-    <link rel="preconnect" href="https://li.quest" crossorigin />
-    <link rel="preconnect" href="https://api.web3modal.org" crossorigin />
-    <link rel="preconnect" href="https://mnziekrimlmvnrcwgmbk.supabase.co" crossorigin />
+    <!-- Preconnect to API partners for faster initial requests (P0 - Lighthouse flagged) -->
     <link rel="preconnect" href="https://www.okx.com" crossorigin />
-    
-    <!-- DNS prefetch for secondary origins (lower priority, accessed later) -->
-    <link rel="dns-prefetch" href="https://li.quest" />
-    <link rel="dns-prefetch" href="https://api.web3modal.org" />
-    <link rel="dns-prefetch" href="https://mnziekrimlmvnrcwgmbk.supabase.co" />
     <link rel="dns-prefetch" href="https://www.okx.com" />
+    <link rel="preconnect" href="https://li.quest" crossorigin />
+    <link rel="dns-prefetch" href="https://li.quest" />
+    <link rel="preconnect" href="https://mnziekrimlmvnrcwgmbk.supabase.co" crossorigin />
+    <link rel="dns-prefetch" href="https://mnziekrimlmvnrcwgmbk.supabase.co" />
+    <link rel="preconnect" href="https://api.web3modal.org" crossorigin />
+    <link rel="dns-prefetch" href="https://api.web3modal.org" />
     <link rel="dns-prefetch" href="https://api.changenow.io" />
     <link rel="dns-prefetch" href="https://cloud.reown.com" />
     <link rel="dns-prefetch" href="https://verify.walletconnect.com" />
     <link rel="dns-prefetch" href="https://rpc.walletconnect.com" />
-    <link rel="dns-prefetch" href="https://static.okx.com" />
-    <link rel="dns-prefetch" href="https://assets.coingecko.com" />
-    <!-- TON preconnect deferred - only needed when TON wallet connect is triggered (saves 487KB) -->
+    <!-- TON preconnect deferred - only needed when TON wallet connect is triggered -->
 
     <!-- Preload critical fonts - non-blocking with swap -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

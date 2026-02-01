@@ -1,259 +1,241 @@
 
 
-# Performance Optimization Phase 4: Critical FCP/LCP Improvements
+# Performance Optimization Phase 3: Lighthouse Score Improvement Plan
 
-## Current State Analysis (Feb 1, 2026 PageSpeed Report)
+## Current State Analysis (from PageSpeed Insights)
 
 ### Current Scores (Mobile)
 | Metric | Score | Value |
 |--------|-------|-------|
 | Performance | 56 | Poor |
-| FCP | 9.1s | Very slow |
-| LCP | 14.2s | Very slow |
-| TBT | 30ms | Excellent |
+| FCP | 9.0s | Very slow |
+| LCP | 14.6s | Very slow |
+| TBT | 40ms | Good |
 | CLS | 0 | Excellent |
-| SI | 9.1s | Very slow |
+| SI | 9.0s | Very slow |
 
-### Root Cause Analysis
+### Key Issues Identified
 
-**Critical Finding #1: TON Connect Provider Not Lazy**
-Despite creating `TonProviderLazy.tsx`, the `MultiWalletContext.tsx` still eagerly wraps children with `TonConnectUIProvider` (lines 761-779). This causes:
-- vendor-ton-DiI-g-sl.js (108 KiB) loaded immediately
-- wallets-v2.json fetched from config.ton.org (1,825ms latency)
-- 30+ wallet icon images (487 KiB) loaded from config.ton.org
+| Issue | Impact | Estimated Savings |
+|-------|--------|-------------------|
+| No cache headers on assets | High | 2,112 KiB repeat visits |
+| Unused JavaScript | High | 919 KiB |
+| xlama-mascot.png (122KB PNG, 500x500 for 84x84 display) | High | 120 KiB |
+| Missing preconnects (li.fi, supabase, ton.org) | Medium | 320ms each |
+| CSS render-blocking | Medium | 170ms |
+| Non-composited animations | Medium | CLS impact |
+| vendor-charts loaded on homepage | Medium | 153 KiB |
+| vendor-ton loaded eagerly | Medium | 108 KiB |
+| TON Connect fetches 30+ wallet icons on load | High | 487 KiB |
 
-**Critical Finding #2: Preconnects Not Effective**
-PageSpeed reports "no origins were preconnected" despite having preconnects in index.html. The issue is that some preconnects are missing or malformed. Required origins:
-- https://li.quest (320ms savings)
-- https://api.web3modal.org (320ms savings)  
-- https://mnziekrimlmvnrcwgmbk.supabase.co (320ms savings)
-- https://config.ton.org (310ms savings) - but should be REMOVED after lazy loading TON
-
-**Critical Finding #3: Hero Image Not Optimized**
-The mascot image is 500x500 PNG (122KB) displayed at 64x64px:
-- Current: `/assets/xlama-mascot-BW6DPCYS.png` (122 KiB)
-- Recommendation: Convert to WebP, create responsive srcset (est. savings 120KB)
-
-**Critical Finding #4: Critical Path Blocking**
-The network waterfall shows:
-1. Initial nav: 315ms
-2. CSS blocks: 470ms  
-3. index.js: 898ms (445KB)
-4. vendor-wallet: 620ms (357KB)
-5. okx-dex API calls: 3,753ms blocking LCP
-
-**Critical Finding #5: Excessive Chunk Fragmentation**
-PageSpeed shows 60+ tiny JS chunks (1KB each) loaded in parallel, causing connection contention on mobile.
+### Critical Path Analysis
+The **LCP element** is the hero description text with a 3,420ms element render delay. The critical path is blocked by:
+1. Initial navigation (378ms)
+2. CSS load (721ms) 
+3. Main index.js (819ms)
+4. Vendor wallet (884ms)
+5. okx-dex API calls (5.4s each)
 
 ---
 
-## Phase 4A: Integrate Lazy TON Provider (P0 - Highest Impact)
+## Phase 3A: Critical Resource Optimization (High Impact)
 
-### 4A.1 Replace Eager TonConnectUIProvider in MultiWalletContext
+### 3A.1 Optimize Hero Image (xlama-mascot.png)
 
-The `TonProviderLazy.tsx` was created but never integrated. The `MultiWalletProvider` still wraps children directly with the eager `TonConnectUIProvider`.
+**Current Problem**: 122KB PNG at 500x500 served for 84x84 display.
 
-**File: `src/contexts/MultiWalletContext.tsx`**
+**Solution**: 
+- Convert to WebP/AVIF with responsive srcset
+- Create optimized sizes: 64px, 128px, 256px
+- Reduce file size from 122KB to ~5-10KB
 
-Replace lines 757-783 with lazy provider:
+**Files to modify**:
+- Create optimized image assets in `public/` 
+- Update `src/components/HeroSection.tsx` to use `<picture>` with responsive sources
+- Add `loading="eager"` and proper dimensions
 
-```tsx
-import { TonProviderLazy, useTonLazy } from '@/contexts/TonProviderLazy';
+### 3A.2 Lazy Load TON Connect Provider
 
-export function MultiWalletProvider({ children }: MultiWalletProviderProps) {
-  return (
-    <SuiClientProvider networks={suiNetworks} defaultNetwork="mainnet">
-      <SuiWalletProvider autoConnect>
-        <TonProviderLazy>
-          <MultiWalletProviderInner>{children}</MultiWalletProviderInner>
-        </TonProviderLazy>
-      </SuiWalletProvider>
-    </SuiClientProvider>
-  );
-}
-```
+**Current Problem**: TON Connect loads immediately and fetches 30+ wallet icons (487 KiB from ton.org).
 
-### 4A.2 Update MultiWalletProviderInner for Conditional TON Hooks
+**Solution**: 
+- Defer TON provider initialization until needed
+- Load TON only when user clicks "Connect Wallet" and selects TON
+- Move `@tonconnect/ui-react` to dynamic import
 
-The inner component uses `useTonConnectUI`, `useTonWallet`, `useTonAddress` directly. These will error when TON provider isn't loaded yet.
+**Files to modify**:
+- `src/app/providers/WalletProviders.tsx` - Conditionally load TON provider
+- `src/contexts/MultiWalletContext.tsx` - Lazy initialize TON adapter
+- `vite.config.ts` - Ensure vendor-ton is fully tree-shaken from initial load
 
-**Changes needed:**
-- Conditionally call TON hooks only when `isTonLoaded` is true
-- Use stub values when TON not loaded
-- Trigger `loadTonProvider()` in `connectTon()` function
+### 3A.3 Add Missing Preconnects
 
-**Impact**: Saves 108KB vendor-ton + 487KB wallet icons = ~595KB on initial load
+**Current Problem**: PageSpeed shows "no origins were preconnected" despite having some.
 
----
+**Solution**: Add preconnects for high-priority third-party origins identified by PageSpeed.
 
-## Phase 4B: Fix Preconnect Headers (P0)
-
-### 4B.1 Update index.html Preconnects
-
-PageSpeed specifically flagged these origins as needing preconnects. The current preconnects may be formatted incorrectly or missing.
-
-**File: `index.html`**
-
-Replace/add preconnects section:
-
+**File to modify**: `index.html`
 ```html
-<!-- Critical preconnects for initial page load -->
-<link rel="preconnect" href="https://li.quest" crossorigin />
-<link rel="preconnect" href="https://api.web3modal.org" crossorigin />
+<!-- Add missing critical preconnects -->
 <link rel="preconnect" href="https://mnziekrimlmvnrcwgmbk.supabase.co" crossorigin />
-<!-- Note: config.ton.org removed - TON is now lazy loaded -->
-
-<!-- DNS prefetch for secondary origins -->
-<link rel="dns-prefetch" href="https://static.okx.com" />
-<link rel="dns-prefetch" href="https://assets.coingecko.com" />
+<link rel="preconnect" href="https://config.ton.org" crossorigin />
+<link rel="preconnect" href="https://li.fi" crossorigin />
+<link rel="preconnect" href="https://api.web3modal.org" crossorigin />
 ```
-
-**Impact**: ~960ms combined connection savings (320ms x 3)
 
 ---
 
-## Phase 4C: Optimize Hero Mascot Image (P0)
+## Phase 3B: Bundle Optimization (High Impact)
 
-### 4C.1 Create WebP Version of Mascot
+### 3B.1 Tree-Shake Unused Code from Main Bundle
 
-The current PNG is 500x500 (122KB) but displayed at 64x64. Create optimized versions:
-- 64x64 WebP (~3KB)
-- 128x128 WebP for 2x displays (~8KB)
+**Current Problem**: 261KB unused in index.js, 247KB unused in vendor-wallet.
 
-**File: `src/components/HeroSection.tsx`**
+**Solution**:
+- Audit main bundle imports for dead code
+- Move non-critical components to lazy chunks
+- Split ExchangeWidget into smaller sub-components
 
-Update image to use `<picture>` with WebP srcset:
+**Files to modify**:
+- `src/components/exchange/ExchangeWidget.tsx` - Split into separate files:
+  - `ExchangeWidgetCore.tsx` (essential)
+  - `ExchangeWidgetDex.tsx` (lazy for DEX mode)
+  - `ExchangeWidgetInstant.tsx` (lazy for Instant mode)
 
-```tsx
-<picture>
-  <source 
-    srcSet="/xlama-mascot-64.webp 1x, /xlama-mascot-128.webp 2x" 
-    type="image/webp" 
-  />
-  <img 
-    src={xlamaMascot} 
-    alt="xLama mascot" 
-    width={64}
-    height={64}
-    fetchPriority="high"
-    decoding="async"
-    className="relative w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full ring-2 ring-primary/40 shrink-0 hover-lift transition-transform duration-300"
-  />
-</picture>
-```
+### 3B.2 Defer vendor-charts Chunk
 
-**Note**: Since we cannot add binary image files directly, we'll use a build-time optimization approach or reference externally hosted optimized images.
+**Current Problem**: 153KB vendor-charts loads on homepage even though no charts are visible.
 
-**Alternative approach**: Use the existing PNG but add explicit width/height to prevent reflow, and ensure it's served with proper cache headers.
+**Solution**:
+- Ensure charts are only loaded when collapsible sections open
+- Add intersection observer to delay chart bundle until visible
 
-**Impact**: 120KB → ~10KB = 110KB savings
+**Files to modify**:
+- `src/components/charts/lazy.tsx` - Add `LazyVisibleChart` wrapper
+- Verify `TrendingPairs` doesn't pull in chart dependencies
 
----
+### 3B.3 Code-Split Wallet Adapters by Chain
 
-## Phase 4D: Consolidate Micro-Chunks (P1)
+**Current Problem**: All wallet adapters (EVM, Solana, Sui, TON, Tron) load at once.
 
-### 4D.1 Update Vite Chunk Strategy
+**Solution**:
+- Create adapter factory with lazy loading per chain type
+- Only load Sui/Tron adapters when those chains are selected
 
-PageSpeed shows 60+ tiny chunks (1KB each) causing connection contention. Consolidate small chunks:
-
-**File: `vite.config.ts`**
-
-Add minimum chunk size threshold:
-
-```ts
-build: {
-  rollupOptions: {
-    output: {
-      manualChunks: {
-        // ... existing chunks ...
-      },
-      // Ensure minimum chunk size to avoid micro-chunks
-      experimentalMinChunkSize: 10000, // 10KB minimum
-    },
-  },
-},
-```
-
-**Impact**: Fewer HTTP requests, better parallel loading
+**Files to modify**:
+- `src/features/wallet/adapters/factory.ts` - Dynamic imports per chain
+- `src/contexts/MultiWalletContext.tsx` - Lazy adapter initialization
 
 ---
 
-## Phase 4E: Defer OKX-DEX API Calls Further (P1)
+## Phase 3C: Server & Caching (High Impact)
 
-### 4E.1 Increase Initial Defer Time
+### 3C.1 Configure Cache Headers
 
-The okx-dex API calls (3,753ms) are still in the critical path. Increase defer timeout significantly.
+**Current Problem**: All assets have "Cache TTL: None" - repeat visits refetch everything.
 
-**File: `src/hooks/useDexTokens.ts`**
+**Solution**: 
+- Add `Cache-Control` headers via Service Worker for assets
+- Implement stale-while-revalidate for static assets
 
-Update requestIdleCallback timeout:
+**File to modify**: `public/sw.js`
+```javascript
+// Cache static assets with long TTL
+const STATIC_CACHE = 'xlama-static-v9';
+const STATIC_ASSETS = [
+  '/assets/',
+  '/manifest.json',
+  '/xlama-mascot.png'
+];
 
-```tsx
-useEffect(() => {
-  // Defer even further - wait 2 seconds after first paint
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => setHasMounted(true), { timeout: 2000 });
-  } else {
-    setTimeout(() => setHasMounted(true), 2000);
+// Stale-while-revalidate for JS/CSS bundles
+addEventListener('fetch', (event) => {
+  if (event.request.url.includes('/assets/')) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(cache =>
+        cache.match(event.request).then(cached => {
+          const fetching = fetch(event.request).then(response => {
+            cache.put(event.request, response.clone());
+            return response;
+          });
+          return cached || fetching;
+        })
+      )
+    );
   }
-}, []);
+});
 ```
 
-### 4E.2 Add Loading Skeleton for Token Selector
+### 3C.2 Defer Non-Critical API Calls
 
-Ensure users see immediate feedback while tokens load.
+**Current Problem**: 9 okx-dex API calls (~3-5s each) block initial render.
 
-**Impact**: FCP/LCP improvement by keeping API calls out of critical path
+**Solution**:
+- Defer token list and quote fetching until after first paint
+- Use `requestIdleCallback` for initial token prefetch
+- Show skeleton UI immediately
+
+**Files to modify**:
+- `src/hooks/useDexTokens.ts` - Add `enabled: false` initially, trigger after mount
+- `src/lib/tokenPrefetch.ts` - Increase defer timeout
 
 ---
 
-## Phase 4F: Fix Service Worker Cache Detection (P1)
+## Phase 3D: CSS & Animation Optimization (Medium Impact)
 
-### 4F.1 Ensure Service Worker Activates Properly
+### 3D.1 Remove Non-Composited Animations
 
-PageSpeed still shows "Cache TTL: None" for assets. The Service Worker may not be registering correctly.
+**Current Problem**: 99 non-composited animations affecting CLS/performance.
 
-**File: `src/main.tsx`**
+**Solution**:
+- Replace `color`, `border-color` transitions with `opacity` where possible
+- Use `transform` and `opacity` only for animations
+- Add `will-change` only during active animations
 
-Add explicit SW registration with logging:
+**Files to modify**:
+- `src/index.css` - Update transition properties
+- `tailwind.config.ts` - Simplify color transitions
 
-```tsx
-// Register service worker with explicit scope and update handling
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then(registration => {
-        console.log('[Main] SW registered:', registration.scope);
-        // Check for updates
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'activated') {
-                console.log('[Main] New SW activated');
-              }
-            });
-          }
-        });
-      })
-      .catch(err => console.error('[Main] SW registration failed:', err));
-  });
-}
-```
+### 3D.2 Critical CSS Inlining
+
+**Current Problem**: 25KB CSS blocks render for 660ms.
+
+**Solution**:
+- Extract above-the-fold critical CSS
+- Inline in `<head>` for instant first paint
+- Load full CSS async
+
+**File to modify**: `index.html` - Expand inline styles with:
+- Header/nav styles
+- Exchange widget container styles
+- Button/input base styles
 
 ---
 
-## Phase 4G: Reduce LCP Element Render Delay (P1)
+## Phase 3E: LCP Optimization (High Impact)
 
-### 4G.1 Simplify Hero Section Rendering
+### 3E.1 Prioritize LCP Element
 
-The LCP element (hero description) has 3,350ms render delay. Simplify the hero section to render immediately.
+**Current Problem**: LCP (hero description text) has 3,420ms render delay.
 
-**File: `src/pages/Index.tsx`**
+**Solution**:
+- Ensure hero text renders before any JS executes
+- Add skeleton placeholder in HTML
+- Use `content-visibility: auto` for below-fold
 
-- Remove all animation classes from LCP-critical elements
-- Ensure hero text is in the initial HTML before hydration
-- Move non-critical animations to `requestIdleCallback`
+**Files to modify**:
+- `src/pages/Index.tsx` - Simplify hero section, remove animation delays
+- `src/components/HeroSection.tsx` - Remove `animationDelay` on critical text
+
+### 3E.2 Preload Critical Resources
+
+**Solution**: Add resource hints for critical JS chunks.
+
+**File to modify**: `index.html`
+```html
+<!-- Preload critical chunks -->
+<link rel="modulepreload" href="/src/main.tsx" />
+```
 
 ---
 
@@ -261,13 +243,17 @@ The LCP element (hero description) has 3,350ms render delay. Simplify the hero s
 
 | Task | Effort | Impact | Priority |
 |------|--------|--------|----------|
-| 4A: Integrate Lazy TON Provider | Medium | Very High (~600KB) | P0 |
-| 4B: Fix Preconnects | Low | High (~960ms) | P0 |
-| 4C: Optimize Hero Image | Low | High (~110KB) | P0 |
-| 4D: Consolidate Micro-Chunks | Low | Medium | P1 |
-| 4E: Defer API Calls Further | Low | Medium | P1 |
-| 4F: Fix SW Cache Detection | Low | High | P1 |
-| 4G: Reduce LCP Delay | Medium | High | P1 |
+| 3A.1 Optimize hero image | Low | High | P0 |
+| 3A.2 Lazy load TON provider | Medium | High | P0 |
+| 3A.3 Add missing preconnects | Low | Medium | P0 |
+| 3C.1 Configure cache headers | Low | High | P0 |
+| 3C.2 Defer API calls | Medium | High | P1 |
+| 3B.1 Tree-shake main bundle | High | High | P1 |
+| 3E.1 Prioritize LCP element | Low | High | P1 |
+| 3D.1 Remove non-composited animations | Medium | Medium | P2 |
+| 3B.2 Defer vendor-charts | Low | Medium | P2 |
+| 3B.3 Code-split wallet adapters | High | Medium | P2 |
+| 3D.2 Critical CSS inlining | Medium | Medium | P3 |
 
 ---
 
@@ -275,15 +261,17 @@ The LCP element (hero description) has 3,350ms render delay. Simplify the hero s
 
 | File | Changes |
 |------|---------|
-| `src/contexts/MultiWalletContext.tsx` | Replace TonConnectUIProvider with TonProviderLazy, conditional TON hooks |
-| `src/contexts/TonProviderLazy.tsx` | Export stub hooks for pre-load state |
-| `index.html` | Fix preconnects - add li.quest, ensure proper crossorigin |
-| `src/components/HeroSection.tsx` | Use optimized WebP image with srcset |
-| `vite.config.ts` | Add experimentalMinChunkSize to consolidate micro-chunks |
-| `src/hooks/useDexTokens.ts` | Increase defer timeout to 2000ms |
-| `src/main.tsx` | Add explicit SW registration with logging |
-| `src/pages/Index.tsx` | Remove animation delays from LCP elements |
-| `src/pages/Changelog.tsx` | Add v2.8.0 entry |
+| `index.html` | Add preconnects for supabase, ton.org, li.fi, web3modal; expand inline critical CSS |
+| `public/sw.js` | Upgrade to v9 with stale-while-revalidate for /assets/ |
+| `public/xlama-mascot-*.webp` | New optimized image assets (64px, 128px) |
+| `src/components/HeroSection.tsx` | Use `<picture>` with WebP, remove animation delay on LCP |
+| `src/pages/Index.tsx` | Remove motion wrappers from hero text |
+| `src/contexts/MultiWalletContext.tsx` | Lazy load TON/Sui/Tron adapters |
+| `src/app/providers/WalletProviders.tsx` | Conditional TON provider |
+| `src/hooks/useDexTokens.ts` | Defer initial fetch until after paint |
+| `src/index.css` | Fix non-composited animation properties |
+| `src/components/charts/lazy.tsx` | Add `LazyVisibleChart` with IntersectionObserver |
+| `vite.config.ts` | Ensure TON/Sui fully tree-shaken from main bundle |
 
 ---
 
@@ -291,32 +279,33 @@ The LCP element (hero description) has 3,350ms render delay. Simplify the hero s
 
 | Metric | Current | Target | Improvement |
 |--------|---------|--------|-------------|
-| Performance Score | 56 | 70+ | +14 points |
-| First Contentful Paint | 9.1s | < 5s | -45% |
-| Largest Contentful Paint | 14.2s | < 8s | -45% |
-| Initial Transfer Size | ~2.1MB | ~1.5MB | -30% |
-| TON-related Transfer | 595KB | 0KB initial | -100% |
-| Connection Setup Savings | 0 | 960ms | New |
+| Performance Score | 56 | 75+ | +19 points |
+| First Contentful Paint | 9.0s | < 4s | -55% |
+| Largest Contentful Paint | 14.6s | < 6s | -60% |
+| Speed Index | 9.0s | < 5s | -45% |
+| Initial Bundle | ~1.8MB | ~1.2MB | -33% |
+| Repeat Visit Load | Full refetch | Cached | Instant |
 
 ---
 
-## Changelog Entry for v2.8.0
+## Changelog Entry for v2.7.0
 
 ```tsx
 {
-  version: "2.8.0",
+  version: "2.7.0",
   date: "2026-02-XX",
-  title: "Critical Performance Optimization",
-  description: "Major FCP/LCP improvements through lazy TON loading, preconnect fixes, and image optimization.",
+  title: "Lighthouse Performance Optimization",
+  description: "Major Lighthouse score improvements targeting FCP, LCP, and caching.",
   type: "major",
   changes: [
-    { category: "improvement", text: "Lazy load TON Connect provider - saves 600KB on initial load" },
-    { category: "improvement", text: "Fixed preconnect headers for 960ms connection savings" },
     { category: "improvement", text: "Optimized hero mascot image (122KB → 10KB WebP)" },
-    { category: "improvement", text: "Consolidated micro-chunks for fewer HTTP requests" },
-    { category: "improvement", text: "Deferred API calls further from critical path" },
-    { category: "improvement", text: "Fixed Service Worker cache header detection" },
-    { category: "improvement", text: "Simplified hero rendering for faster LCP" },
+    { category: "improvement", text: "Lazy load TON Connect provider (saves 487KB on initial load)" },
+    { category: "improvement", text: "Added preconnects for critical third-party origins" },
+    { category: "improvement", text: "Service Worker v9 with asset caching" },
+    { category: "improvement", text: "Deferred API calls until after first paint" },
+    { category: "improvement", text: "Fixed 99 non-composited animations" },
+    { category: "improvement", text: "Removed animation delays from LCP element" },
+    { category: "improvement", text: "IntersectionObserver for below-fold charts" },
   ],
 }
 ```
@@ -325,21 +314,18 @@ The LCP element (hero description) has 3,350ms render delay. Simplify the hero s
 
 ## Technical Notes
 
-### Why TON Lazy Loading is Critical
-- TON Connect immediately fetches `wallets-v2.json` from config.ton.org
-- This triggers 30+ image requests for wallet icons (487KB total)
-- Combined with vendor-ton.js (108KB), this is ~600KB blocking initial load
-- Most users never use TON - defer until they request connection
+### Why Lazy Load TON Connect?
+- TON wallet list fetches 30+ wallet icons from config.ton.org
+- Total 487KB of third-party requests just for wallet icons
+- Most users don't use TON - defer until explicitly needed
 
-### Why Preconnects Aren't Working
-The current index.html has preconnects but PageSpeed says "no origins were preconnected". Possible causes:
-- Missing `crossorigin` attribute on some links
-- Preconnects after render-blocking resources
-- Origins not matching exactly (www vs non-www, trailing slashes)
+### Why Preconnects Matter?
+- Each preconnect saves 310-320ms of connection setup
+- PageSpeed specifically flagged these origins as needing hints
+- Critical for mobile where connection latency is higher
 
-### Service Worker Cache Issue
-Despite having stale-while-revalidate in SW v9, PageSpeed shows "Cache TTL: None". This suggests:
-- SW may not be activating before first paint
-- Headers not being set correctly
-- Need to verify SW registration happens early
+### Why Cache Headers?
+- Current setup has "Cache TTL: None" on all assets
+- Every page load re-downloads 1.8MB of JavaScript
+- Service Worker caching gives instant repeat visits
 

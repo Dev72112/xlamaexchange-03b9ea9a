@@ -64,21 +64,6 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
-    version: "2.8.0",
-    date: "2026-02-01",
-    title: "Critical Performance Optimization",
-    description: "Major FCP/LCP improvements through lazy TON loading, preconnect fixes, chunk consolidation, and extended API deferral.",
-    type: "major",
-    changes: [
-      { category: "improvement", text: "Lazy load TON Connect provider with hook forwarding - saves ~600KB on initial load" },
-      { category: "improvement", text: "Fixed and optimized preconnect headers for li.quest, web3modal, supabase (~960ms savings)" },
-      { category: "improvement", text: "Consolidated micro-chunks with 10KB minimum size - reduces HTTP request contention" },
-      { category: "improvement", text: "Extended API call deferral to 2000ms for better LCP" },
-      { category: "improvement", text: "Added explicit Service Worker registration with update handling" },
-      { category: "improvement", text: "Added dns-prefetch for OKX static assets and CoinGecko" },
-    ],
-  },
-  {
     version: "2.7.0",
     date: "2026-01-31",
     title: "Lighthouse Performance Optimization",

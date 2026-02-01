@@ -1,9 +1,5 @@
-// xlama Service Worker v10 - Enhanced Asset Caching + Safer Navigation Handling
-// v10 fixes rare "white screen after publish" cases by:
-// - Treating navigations via request.mode === 'navigate' (destination is often empty)
-// - Avoiding precaching '/' during install (which can pin stale HTML)
-// - Caching the latest HTML on successful navigations for offline fallback
-const CACHE_VERSION = 'v10';
+// xlama Service Worker v9 - Enhanced Asset Caching + Stale-While-Revalidate
+const CACHE_VERSION = 'v9';
 const STATIC_CACHE = `xlama-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `xlama-runtime-${CACHE_VERSION}`;
 const FONT_CACHE = `xlama-fonts-${CACHE_VERSION}`;
@@ -19,8 +15,10 @@ const STATIC_ASSETS = [
   '/placeholder.svg',
 ];
 
-// Note: we intentionally do NOT precache '/' during install.
-// We'll cache the latest HTML on successful navigations instead.
+// App shell - cache index.html for faster navigation
+const APP_SHELL = [
+  '/',
+];
 
 // API domains to cache with stale-while-revalidate
 const CACHEABLE_API_HOSTS = [
@@ -43,7 +41,7 @@ const PRICE_API_PATTERNS = [
 
 // Install event - cache static assets and app shell
 self.addEventListener('install', (event) => {
-  console.log(`[SW] Installing service worker ${CACHE_VERSION}...`);
+  console.log('[SW] Installing service worker v9...');
   event.waitUntil(
     Promise.all([
       // Cache static assets
@@ -52,6 +50,18 @@ self.addEventListener('install', (event) => {
           console.warn('[SW] Failed to cache some static assets:', err);
         });
       }),
+      // Cache app shell (index.html) for instant repeat visits
+      caches.open(APP_SHELL_CACHE).then((cache) => {
+        return Promise.all(
+          APP_SHELL.map(url => 
+            fetch(url).then(response => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+            }).catch(() => {})
+          )
+        );
+      }),
     ])
   );
   self.skipWaiting();
@@ -59,7 +69,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches and enable navigation preload
 self.addEventListener('activate', (event) => {
-  console.log(`[SW] Activating service worker ${CACHE_VERSION}...`);
+  console.log('[SW] Activating service worker v9...');
   event.waitUntil(
     Promise.all([
       // Enable navigation preload if supported
@@ -123,10 +133,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Network-first with preload for HTML pages
-  // IMPORTANT: For navigations, request.destination is often "" (empty) on mobile.
-  // request.mode === 'navigate' is the most reliable signal.
-  if (request.mode === 'navigate' || request.destination === 'document') {
-    event.respondWith(networkFirstNavigation(event));
+  if (request.destination === 'document') {
+    event.respondWith(networkFirstWithPreload(event));
     return;
   }
 
@@ -202,26 +210,24 @@ async function networkFirst(request) {
   }
 }
 
-// Network-first for navigations (HTML): always prefer fresh HTML,
-// but keep a cached fallback for offline/spotty connections.
-async function networkFirstNavigation(event) {
+// Network-first with navigation preload + stale-while-revalidate for app shell
+async function networkFirstWithPreload(event) {
   const cache = await caches.open(APP_SHELL_CACHE);
   
   try {
     // Try navigation preload first
     const preloadResponse = await event.preloadResponse;
     if (preloadResponse) {
-      // Cache under '/' so we have a single reliable fallback entry.
-      cache.put('/', preloadResponse.clone());
+      // Update cache in background
+      cache.put(event.request, preloadResponse.clone());
       return preloadResponse;
     }
     
     // Fall back to network
-    // Use cache: 'no-store' to avoid the browser HTTP cache pinning old HTML.
-    const networkResponse = await fetch(event.request, { cache: 'no-store' });
+    const networkResponse = await fetch(event.request);
     if (networkResponse.ok) {
-      // Cache latest HTML for next offline fallback.
-      cache.put('/', networkResponse.clone());
+      // Update cache for next visit
+      cache.put(event.request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
