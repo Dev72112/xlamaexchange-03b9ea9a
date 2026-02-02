@@ -1,6 +1,7 @@
 /**
  * Volume Over Time Chart
- * Displays trading volume aggregated by day/week from local dex_transactions
+ * Displays trading volume or trade count aggregated by day/week from local dex_transactions
+ * Falls back to trade counts when USD data is unavailable
  */
 
 import { memo, useMemo, useState } from 'react';
@@ -8,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, TrendingUp } from 'lucide-react';
+import { BarChart3, TrendingUp, Activity } from 'lucide-react';
 import { useLocalDexHistory } from '@/hooks/useLocalDexHistory';
 import { 
   AreaChart, 
@@ -29,12 +30,18 @@ const formatUsd = (value: number) => {
   return `$${value.toFixed(0)}`;
 };
 
+const formatCount = (value: number) => {
+  return value.toFixed(0);
+};
+
 export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const { data: transactions, isLoading } = useLocalDexHistory({ limit: 1000, enabled: true });
 
-  const chartData = useMemo(() => {
-    if (!transactions?.length) return [];
+  const { chartData, totalVolume, totalCount, hasUsdData } = useMemo(() => {
+    if (!transactions?.length) {
+      return { chartData: [], totalVolume: 0, totalCount: 0, hasUsdData: false };
+    }
 
     const now = new Date();
     const startDate = subDays(now, granularity === 'daily' ? 30 : 90);
@@ -44,12 +51,12 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
       ? eachDayOfInterval({ start: startDate, end: now })
       : eachWeekOfInterval({ start: startDate, end: now });
 
-    // Aggregate volume by period
-    const volumeByPeriod = new Map<string, number>();
+    // Aggregate volume AND count by period
+    const dataByPeriod = new Map<string, { volume: number; count: number }>();
     
     intervals.forEach(date => {
       const key = format(date, 'yyyy-MM-dd');
-      volumeByPeriod.set(key, 0);
+      dataByPeriod.set(key, { volume: 0, count: 0 });
     });
 
     transactions.forEach(tx => {
@@ -62,26 +69,36 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
       // Use from_amount_usd or to_amount_usd
       const volume = tx.from_amount_usd || tx.to_amount_usd || 0;
       
-      if (volumeByPeriod.has(key)) {
-        volumeByPeriod.set(key, (volumeByPeriod.get(key) || 0) + volume);
+      if (dataByPeriod.has(key)) {
+        const current = dataByPeriod.get(key)!;
+        dataByPeriod.set(key, {
+          volume: current.volume + volume,
+          count: current.count + 1,
+        });
       }
     });
 
-    return Array.from(volumeByPeriod.entries())
-      .map(([date, volume]) => ({
+    const data = Array.from(dataByPeriod.entries())
+      .map(([date, { volume, count }]) => ({
         date,
         volume,
+        count,
         label: granularity === 'daily' 
           ? format(parseISO(date), 'MMM d')
           : `Week of ${format(parseISO(date), 'MMM d')}`,
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [transactions, granularity]);
 
-  const totalVolume = useMemo(() => 
-    chartData.reduce((sum, d) => sum + d.volume, 0),
-    [chartData]
-  );
+    const totalVol = data.reduce((sum, d) => sum + d.volume, 0);
+    const totalCnt = data.reduce((sum, d) => sum + d.count, 0);
+
+    return { 
+      chartData: data, 
+      totalVolume: totalVol, 
+      totalCount: totalCnt,
+      hasUsdData: totalVol > 0,
+    };
+  }, [transactions, granularity]);
 
   if (isLoading) {
     return (
@@ -96,20 +113,29 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
     );
   }
 
-  if (!chartData.length || totalVolume === 0) {
-    return null; // Don't show if no data
+  // Don't show if no transactions at all
+  if (!chartData.length || totalCount === 0) {
+    return null;
   }
+
+  // Determine display mode based on data
+  const chartTitle = hasUsdData ? 'Volume Over Time' : 'Trades Over Time';
+  const ChartIcon = hasUsdData ? TrendingUp : Activity;
+  const dataKey = hasUsdData ? 'volume' : 'count';
+  const formatter = hasUsdData ? formatUsd : formatCount;
+  const tooltipLabel = hasUsdData ? 'Volume' : 'Trades';
+  const totalDisplay = hasUsdData ? formatUsd(totalVolume) : `${totalCount} trades`;
 
   return (
     <Card className="glass border-border/50">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            Volume Over Time
+            <ChartIcon className="w-4 h-4 text-primary" />
+            {chartTitle}
             <Badge variant="outline" className="text-[10px] py-0 bg-primary/10 text-primary border-primary/20">
               <BarChart3 className="w-2.5 h-2.5 mr-1" />
-              {formatUsd(totalVolume)} total
+              {totalDisplay}
             </Badge>
           </CardTitle>
           <div className="flex gap-1">
@@ -152,7 +178,7 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
               />
               <YAxis 
                 tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                tickFormatter={formatUsd}
+                tickFormatter={formatter}
                 tickLine={false}
                 axisLine={false}
                 width={50}
@@ -164,12 +190,12 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
                   borderRadius: '8px',
                   fontSize: '12px',
                 }}
-                formatter={(value: number) => [formatUsd(value), 'Volume']}
+                formatter={(value: number) => [formatter(value), tooltipLabel]}
                 labelFormatter={(label) => label}
               />
               <Area
                 type="monotone"
-                dataKey="volume"
+                dataKey={dataKey}
                 stroke="hsl(var(--primary))"
                 strokeWidth={2}
                 fill="url(#volumeGradient)"
@@ -177,6 +203,11 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        {!hasUsdData && (
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            USD volume data unavailable • Showing trade counts
+          </p>
+        )}
       </CardContent>
     </Card>
   );
