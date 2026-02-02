@@ -1,259 +1,186 @@
 
 
-# Performance Optimization Phase 3: Lighthouse Score Improvement Plan
+# Backend Integration Polish Plan (v2.8.0)
 
-## Current State Analysis (from PageSpeed Insights)
+## Problem Summary
 
-### Current Scores (Mobile)
-| Metric | Score | Value |
-|--------|-------|-------|
-| Performance | 56 | Poor |
-| FCP | 9.0s | Very slow |
-| LCP | 14.6s | Very slow |
-| TBT | 40ms | Good |
-| CLS | 0 | Excellent |
-| SI | 9.0s | Very slow |
+Based on API testing and code review, three main issues are causing the "0 -> 0" and "Unknown" token displays:
 
-### Key Issues Identified
+| Issue | Root Cause | Impact |
+|-------|-----------|--------|
+| Registration Status Wrong | `/wallets/{address}` returns ALL wallets, not filtered | Shows "Not Registered" incorrectly |
+| Transaction History Empty | `fetch-transactions` API times out | Falls back to OKX with broken conversion |
+| OKX Fallback Broken | Conversion logic sets only one token (in OR out), not both | "0 -> 0" and "??" symbols |
 
-| Issue | Impact | Estimated Savings |
-|-------|--------|-------------------|
-| No cache headers on assets | High | 2,112 KiB repeat visits |
-| Unused JavaScript | High | 919 KiB |
-| xlama-mascot.png (122KB PNG, 500x500 for 84x84 display) | High | 120 KiB |
-| Missing preconnects (li.fi, supabase, ton.org) | Medium | 320ms each |
-| CSS render-blocking | Medium | 170ms |
-| Non-composited animations | Medium | CLS impact |
-| vendor-charts loaded on homepage | Medium | 153 KiB |
-| vendor-ton loaded eagerly | Medium | 108 KiB |
-| TON Connect fetches 30+ wallet icons on load | High | 487 KiB |
+## Solution Overview
 
-### Critical Path Analysis
-The **LCP element** is the hero description text with a 3,420ms element render delay. The critical path is blocked by:
-1. Initial navigation (378ms)
-2. CSS load (721ms) 
-3. Main index.js (819ms)
-4. Vendor wallet (884ms)
-5. okx-dex API calls (5.4s each)
+Replace the unreliable external API calls with local Supabase database queries for transaction history, while keeping the working analytics API.
 
----
+```text
+Current Flow (Broken):
+  XlamaHistoryTab -> useXlamaTransactions -> xLama API (timeout) -> OKX fallback (broken)
 
-## Phase 3A: Critical Resource Optimization (High Impact)
-
-### 3A.1 Optimize Hero Image (xlama-mascot.png)
-
-**Current Problem**: 122KB PNG at 500x500 served for 84x84 display.
-
-**Solution**: 
-- Convert to WebP/AVIF with responsive srcset
-- Create optimized sizes: 64px, 128px, 256px
-- Reduce file size from 122KB to ~5-10KB
-
-**Files to modify**:
-- Create optimized image assets in `public/` 
-- Update `src/components/HeroSection.tsx` to use `<picture>` with responsive sources
-- Add `loading="eager"` and proper dimensions
-
-### 3A.2 Lazy Load TON Connect Provider
-
-**Current Problem**: TON Connect loads immediately and fetches 30+ wallet icons (487 KiB from ton.org).
-
-**Solution**: 
-- Defer TON provider initialization until needed
-- Load TON only when user clicks "Connect Wallet" and selects TON
-- Move `@tonconnect/ui-react` to dynamic import
-
-**Files to modify**:
-- `src/app/providers/WalletProviders.tsx` - Conditionally load TON provider
-- `src/contexts/MultiWalletContext.tsx` - Lazy initialize TON adapter
-- `vite.config.ts` - Ensure vendor-ton is fully tree-shaken from initial load
-
-### 3A.3 Add Missing Preconnects
-
-**Current Problem**: PageSpeed shows "no origins were preconnected" despite having some.
-
-**Solution**: Add preconnects for high-priority third-party origins identified by PageSpeed.
-
-**File to modify**: `index.html`
-```html
-<!-- Add missing critical preconnects -->
-<link rel="preconnect" href="https://mnziekrimlmvnrcwgmbk.supabase.co" crossorigin />
-<link rel="preconnect" href="https://config.ton.org" crossorigin />
-<link rel="preconnect" href="https://li.fi" crossorigin />
-<link rel="preconnect" href="https://api.web3modal.org" crossorigin />
+Fixed Flow:
+  XlamaHistoryTab -> useLocalDexTransactions -> Local Supabase (fast, accurate)
 ```
 
 ---
 
-## Phase 3B: Bundle Optimization (High Impact)
+## Phase 1: Fix Registration Status Detection
 
-### 3B.1 Tree-Shake Unused Code from Main Bundle
+### File: `src/hooks/useXlamaWalletSync.ts`
 
-**Current Problem**: 261KB unused in index.js, 247KB unused in vendor-wallet.
+**Problem**: `getWalletStatus(address)` returns all wallets, not filtered by address.
 
-**Solution**:
-- Audit main bundle imports for dead code
-- Move non-critical components to lazy chunks
-- Split ExchangeWidget into smaller sub-components
+**Fix**: Filter the response to find the specific wallet.
 
-**Files to modify**:
-- `src/components/exchange/ExchangeWidget.tsx` - Split into separate files:
-  - `ExchangeWidgetCore.tsx` (essential)
-  - `ExchangeWidgetDex.tsx` (lazy for DEX mode)
-  - `ExchangeWidgetInstant.tsx` (lazy for Instant mode)
+```tsx
+// Current broken implementation
+getWalletStatus: async (wallet: string) => {
+  const response = await fetchFromProxy(`wallets/${wallet}`);
+  return { success: true, wallet: response.wallet };
+}
 
-### 3B.2 Defer vendor-charts Chunk
-
-**Current Problem**: 153KB vendor-charts loads on homepage even though no charts are visible.
-
-**Solution**:
-- Ensure charts are only loaded when collapsible sections open
-- Add intersection observer to delay chart bundle until visible
-
-**Files to modify**:
-- `src/components/charts/lazy.tsx` - Add `LazyVisibleChart` wrapper
-- Verify `TrendingPairs` doesn't pull in chart dependencies
-
-### 3B.3 Code-Split Wallet Adapters by Chain
-
-**Current Problem**: All wallet adapters (EVM, Solana, Sui, TON, Tron) load at once.
-
-**Solution**:
-- Create adapter factory with lazy loading per chain type
-- Only load Sui/Tron adapters when those chains are selected
-
-**Files to modify**:
-- `src/features/wallet/adapters/factory.ts` - Dynamic imports per chain
-- `src/contexts/MultiWalletContext.tsx` - Lazy adapter initialization
-
----
-
-## Phase 3C: Server & Caching (High Impact)
-
-### 3C.1 Configure Cache Headers
-
-**Current Problem**: All assets have "Cache TTL: None" - repeat visits refetch everything.
-
-**Solution**: 
-- Add `Cache-Control` headers via Service Worker for assets
-- Implement stale-while-revalidate for static assets
-
-**File to modify**: `public/sw.js`
-```javascript
-// Cache static assets with long TTL
-const STATIC_CACHE = 'xlama-static-v9';
-const STATIC_ASSETS = [
-  '/assets/',
-  '/manifest.json',
-  '/xlama-mascot.png'
-];
-
-// Stale-while-revalidate for JS/CSS bundles
-addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/assets/')) {
-    event.respondWith(
-      caches.open(STATIC_CACHE).then(cache =>
-        cache.match(event.request).then(cached => {
-          const fetching = fetch(event.request).then(response => {
-            cache.put(event.request, response.clone());
-            return response;
-          });
-          return cached || fetching;
-        })
-      )
-    );
-  }
-});
+// Fixed implementation
+getWalletStatus: async (wallet: string) => {
+  const response = await fetchFromProxy('wallets');
+  const found = response.wallets?.find(
+    w => w.wallet_address.toLowerCase() === wallet.toLowerCase()
+  );
+  return { 
+    success: !!found, 
+    wallet: found || null 
+  };
+}
 ```
 
-### 3C.2 Defer Non-Critical API Calls
-
-**Current Problem**: 9 okx-dex API calls (~3-5s each) block initial render.
-
-**Solution**:
-- Defer token list and quote fetching until after first paint
-- Use `requestIdleCallback` for initial token prefetch
-- Show skeleton UI immediately
-
-**Files to modify**:
-- `src/hooks/useDexTokens.ts` - Add `enabled: false` initially, trigger after mount
-- `src/lib/tokenPrefetch.ts` - Increase defer timeout
+Also handle 409 conflict as successful registration in the mutation error handler.
 
 ---
 
-## Phase 3D: CSS & Animation Optimization (Medium Impact)
+## Phase 2: Use Local Database for Transaction History
 
-### 3D.1 Remove Non-Composited Animations
+### New Hook: `src/hooks/useLocalDexHistory.ts`
 
-**Current Problem**: 99 non-composited animations affecting CLS/performance.
+Create a new hook that queries the local `dex_transactions` table directly:
 
-**Solution**:
-- Replace `color`, `border-color` transitions with `opacity` where possible
-- Use `transform` and `opacity` only for animations
-- Add `will-change` only during active animations
+```tsx
+export function useLocalDexHistory(options: { enabled?: boolean; limit?: number } = {}) {
+  const { activeAddress } = useMultiWallet();
+  
+  return useQuery({
+    queryKey: ['local-dex-history', activeAddress],
+    queryFn: async () => {
+      const client = createWalletClient(activeAddress!);
+      const { data } = await client
+        .from('dex_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(options.limit ?? 100);
+      return data ?? [];
+    },
+    enabled: !!activeAddress && options.enabled !== false,
+  });
+}
+```
 
-**Files to modify**:
-- `src/index.css` - Update transition properties
-- `tailwind.config.ts` - Simplify color transitions
+### File: `src/components/history/tabs/XlamaHistoryTab.tsx`
 
-### 3D.2 Critical CSS Inlining
+**Change**: Replace `useXlamaTransactions` with `useLocalDexHistory`.
 
-**Current Problem**: 25KB CSS blocks render for 660ms.
-
-**Solution**:
-- Extract above-the-fold critical CSS
-- Inline in `<head>` for instant first paint
-- Load full CSS async
-
-**File to modify**: `index.html` - Expand inline styles with:
-- Header/nav styles
-- Exchange widget container styles
-- Button/input base styles
+Benefits:
+- Instant response (local database)
+- Accurate token symbols, amounts, logos
+- Already has chain info and explorer URLs
+- No external API dependencies
 
 ---
 
-## Phase 3E: LCP Optimization (High Impact)
+## Phase 3: Fix OKX Fallback (For Portfolio/Other Uses)
 
-### 3E.1 Prioritize LCP Element
+### File: `src/hooks/useXlamaTransactions.ts`
 
-**Current Problem**: LCP (hero description text) has 3,420ms render delay.
+Fix `convertOkxToXlamaTransaction` to properly handle swap transactions:
 
-**Solution**:
-- Ensure hero text renders before any JS executes
-- Add skeleton placeholder in HTML
-- Use `content-visibility: auto` for below-fold
-
-**Files to modify**:
-- `src/pages/Index.tsx` - Simplify hero section, remove animation delays
-- `src/components/HeroSection.tsx` - Remove `animationDelay` on critical text
-
-### 3E.2 Preload Critical Resources
-
-**Solution**: Add resource hints for critical JS chunks.
-
-**File to modify**: `index.html`
-```html
-<!-- Preload critical chunks -->
-<link rel="modulepreload" href="/src/main.tsx" />
+```tsx
+function convertOkxToXlamaTransaction(tx: TransactionHistoryItem, wallet: string): XlamaTransaction {
+  // For contract interactions (swaps), we need both token_in and token_out
+  // OKX tx history only gives us one side per record
+  // Mark these as incomplete for UI to handle
+  
+  const isContract = tx.methodId && tx.methodId !== '0x';
+  const isOutgoing = tx.from[0]?.address?.toLowerCase() === wallet.toLowerCase();
+  
+  return {
+    tx_hash: tx.txHash,
+    wallet_address: wallet,
+    chain_id: tx.chainIndex,
+    chain_name: getChainName(tx.chainIndex),
+    transaction_type: isContract ? 'swap' : 'transfer',
+    token_in: {
+      address: tx.tokenContractAddress || '',
+      symbol: tx.symbol || 'Unknown',
+      name: tx.symbol || 'Unknown',
+      logo: null,
+      decimals: 18,
+      amount: isOutgoing ? tx.amount : '0',
+      amount_usd: 0,
+    },
+    token_out: {
+      address: '',
+      symbol: isContract ? 'Swap' : (isOutgoing ? '' : tx.symbol || ''),
+      name: '',
+      logo: null,
+      decimals: 18,
+      amount: isOutgoing ? '0' : tx.amount,
+      amount_usd: 0,
+    },
+    // ... rest
+  };
+}
 ```
 
 ---
 
-## Implementation Priority
+## Phase 4: Improve XlamaSyncStatus Display
 
-| Task | Effort | Impact | Priority |
-|------|--------|--------|----------|
-| 3A.1 Optimize hero image | Low | High | P0 |
-| 3A.2 Lazy load TON provider | Medium | High | P0 |
-| 3A.3 Add missing preconnects | Low | Medium | P0 |
-| 3C.1 Configure cache headers | Low | High | P0 |
-| 3C.2 Defer API calls | Medium | High | P1 |
-| 3B.1 Tree-shake main bundle | High | High | P1 |
-| 3E.1 Prioritize LCP element | Low | High | P1 |
-| 3D.1 Remove non-composited animations | Medium | Medium | P2 |
-| 3B.2 Defer vendor-charts | Low | Medium | P2 |
-| 3B.3 Code-split wallet adapters | High | Medium | P2 |
-| 3D.2 Critical CSS inlining | Medium | Medium | P3 |
+### File: `src/components/XlamaSyncStatus.tsx`
+
+Update to properly detect registration from the wallet list:
+
+```tsx
+// The hook already handles this, but improve the loading state
+if (isStatusLoading) {
+  return {
+    icon: Loader2,
+    label: 'Checking...',
+    variant: 'secondary',
+    animate: true,
+  };
+}
+```
+
+---
+
+## Phase 5: Add Missing Analytics Features
+
+### File: `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
+
+The admin dashboard shows metrics that aren't displayed in the frontend. Add:
+
+1. **Unrealized PnL Card** (currently shows $0)
+2. **Total Fees Card** (already in data, add dedicated card)
+3. **Data Quality Indicator** (show confidence percentage)
+
+```tsx
+<StatCard
+  icon={Info}
+  label="Data Quality"
+  value={`${analytics.dataQuality?.confidence_pct ?? 100}%`}
+  subValue={`${analytics.dataQuality?.priced_trades ?? 0} priced trades`}
+  variant="default"
+/>
+```
 
 ---
 
@@ -261,51 +188,68 @@ addEventListener('fetch', (event) => {
 
 | File | Changes |
 |------|---------|
-| `index.html` | Add preconnects for supabase, ton.org, li.fi, web3modal; expand inline critical CSS |
-| `public/sw.js` | Upgrade to v9 with stale-while-revalidate for /assets/ |
-| `public/xlama-mascot-*.webp` | New optimized image assets (64px, 128px) |
-| `src/components/HeroSection.tsx` | Use `<picture>` with WebP, remove animation delay on LCP |
-| `src/pages/Index.tsx` | Remove motion wrappers from hero text |
-| `src/contexts/MultiWalletContext.tsx` | Lazy load TON/Sui/Tron adapters |
-| `src/app/providers/WalletProviders.tsx` | Conditional TON provider |
-| `src/hooks/useDexTokens.ts` | Defer initial fetch until after paint |
-| `src/index.css` | Fix non-composited animation properties |
-| `src/components/charts/lazy.tsx` | Add `LazyVisibleChart` with IntersectionObserver |
-| `vite.config.ts` | Ensure TON/Sui fully tree-shaken from main bundle |
+| `src/services/xlamaApi.ts` | Fix `getWalletStatus` to filter wallet list |
+| `src/hooks/useXlamaWalletSync.ts` | Handle 409 as success, improve status detection |
+| `src/hooks/useLocalDexHistory.ts` | New - query local dex_transactions table |
+| `src/components/history/tabs/XlamaHistoryTab.tsx` | Use local DB instead of xLama API |
+| `src/hooks/useXlamaTransactions.ts` | Fix OKX fallback conversion logic |
+| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Add data quality indicator |
+| `src/pages/Changelog.tsx` | Add v2.8.0 entry |
+
+---
+
+## Data Flow After Fix
+
+```text
+Analytics Tab (Working):
+  XlamaAnalyticsTab 
+    -> useXlamaAnalytics 
+    -> xlama-api/trading-analytics (works great!)
+    -> Display rich metrics
+
+History Tab (Fixed):
+  XlamaHistoryTab 
+    -> useLocalDexHistory 
+    -> Supabase dex_transactions table
+    -> Display with proper symbols, amounts, logos
+
+Sync Status (Fixed):
+  XlamaSyncStatus
+    -> useXlamaWalletSync
+    -> xlama-api/wallets (filter by address)
+    -> Show correct registration status
+```
 
 ---
 
 ## Expected Outcomes
 
-| Metric | Current | Target | Improvement |
-|--------|---------|--------|-------------|
-| Performance Score | 56 | 75+ | +19 points |
-| First Contentful Paint | 9.0s | < 4s | -55% |
-| Largest Contentful Paint | 14.6s | < 6s | -60% |
-| Speed Index | 9.0s | < 5s | -45% |
-| Initial Bundle | ~1.8MB | ~1.2MB | -33% |
-| Repeat Visit Load | Full refetch | Cached | Instant |
+| Issue | Before | After |
+|-------|--------|-------|
+| Registration badge | "Registration Failed" | "Synced 2 hours ago" |
+| Transaction amounts | "0 -> 0" | "0.000666 OKB -> 100.55 NIUMA" |
+| Token symbols | "Unknown" | Correct symbols (OKB, NIUMA, USDG) |
+| Token logos | "??" fallback | Proper logos from local DB |
+| History load time | Timeout/slow | Instant (local query) |
 
 ---
 
-## Changelog Entry for v2.7.0
+## Changelog Entry
 
 ```tsx
 {
-  version: "2.7.0",
+  version: "2.8.0",
   date: "2026-02-XX",
-  title: "Lighthouse Performance Optimization",
-  description: "Major Lighthouse score improvements targeting FCP, LCP, and caching.",
-  type: "major",
+  title: "Backend Integration Polish",
+  description: "Fixed xLama History tab data display and registration status detection.",
+  type: "minor",
   changes: [
-    { category: "improvement", text: "Optimized hero mascot image (122KB → 10KB WebP)" },
-    { category: "improvement", text: "Lazy load TON Connect provider (saves 487KB on initial load)" },
-    { category: "improvement", text: "Added preconnects for critical third-party origins" },
-    { category: "improvement", text: "Service Worker v9 with asset caching" },
-    { category: "improvement", text: "Deferred API calls until after first paint" },
-    { category: "improvement", text: "Fixed 99 non-composited animations" },
-    { category: "improvement", text: "Removed animation delays from LCP element" },
-    { category: "improvement", text: "IntersectionObserver for below-fold charts" },
+    { category: "fix", text: "Fixed wallet registration status showing 'Registration Failed'" },
+    { category: "fix", text: "Fixed transaction history showing '0 -> 0' amounts" },
+    { category: "fix", text: "Fixed 'Unknown' token symbols in history" },
+    { category: "improvement", text: "History now loads from local database (instant)" },
+    { category: "improvement", text: "Added data quality indicator to Analytics" },
+    { category: "improvement", text: "Improved sync status detection for registered wallets" },
   ],
 }
 ```
@@ -314,18 +258,16 @@ addEventListener('fetch', (event) => {
 
 ## Technical Notes
 
-### Why Lazy Load TON Connect?
-- TON wallet list fetches 30+ wallet icons from config.ton.org
-- Total 487KB of third-party requests just for wallet icons
-- Most users don't use TON - defer until explicitly needed
+### Why Use Local DB for History?
 
-### Why Preconnects Matter?
-- Each preconnect saves 310-320ms of connection setup
-- PageSpeed specifically flagged these origins as needing hints
-- Critical for mobile where connection latency is higher
+1. **Reliability**: External API times out frequently
+2. **Speed**: Local query is instant vs 5+ second timeout
+3. **Data Quality**: Local DB has correct symbols, logos, amounts
+4. **Already Available**: We're already saving swaps to `dex_transactions`
 
-### Why Cache Headers?
-- Current setup has "Cache TTL: None" on all assets
-- Every page load re-downloads 1.8MB of JavaScript
-- Service Worker caching gives instant repeat visits
+### Why Keep xLama API for Analytics?
+
+1. **Works Perfectly**: `trading-analytics` endpoint is fast and reliable
+2. **Rich Data**: Provides PnL, pair analysis, chain distribution
+3. **Aggregated Metrics**: Backend does the heavy computation
 
