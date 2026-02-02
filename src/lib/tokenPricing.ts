@@ -1,13 +1,30 @@
 /**
- * Token pricing utilities with fallback strategies
- * Used to ensure USD values are captured even when primary price APIs fail
+ * Token pricing utilities with multi-source fallback strategies
+ * 
+ * Resolution chain:
+ * 1. OKX Market API (primary - fastest)
+ * 2. Aggregator Router Result (from swap quote)
+ * 3. DexScreener API (supports many DEX pairs)
+ * 4. CoinGecko/DefiLlama (major tokens)
+ * 5. X Layer Token Mappings (wrapped tokens like XBTC, XETH, XSOL)
+ * 6. Stablecoin Fallback ($1.00)
  */
+
+import { dexScreenerService } from '@/services/dexscreener';
+import { defiLlamaService } from '@/services/defillama';
+import {
+  isXLayerStablecoin,
+  isXLayerWrappedToken,
+  getXLayerUnderlyingAsset,
+  isXLayerChain,
+  XLAYER_CHAIN_INDEX,
+} from './xlayerTokens';
 
 // Stablecoins that should always be priced at ~$1.00
 const STABLECOINS = new Set([
   'USDT', 'USDC', 'USDG', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'LUSD', 
   'USDD', 'USDN', 'MIM', 'GUSD', 'USDP', 'SUSD', 'CUSD', 'EURS',
-  'EUROC', 'EURT', 'PYUSD', 'FDUSD'
+  'EUROC', 'EURT', 'PYUSD', 'FDUSD', 'USD₮0'
 ]);
 
 /**
@@ -101,4 +118,119 @@ function parseFloatSafe(value: any): number | null {
   }
   const num = parseFloat(String(value));
   return isNaN(num) || !isFinite(num) ? null : num;
+}
+
+/**
+ * Get price for X Layer wrapped tokens by looking up underlying asset price
+ * Uses CoinGecko/DefiLlama for underlying asset prices (BTC, ETH, SOL, etc.)
+ */
+export async function getXLayerWrappedTokenPrice(tokenAddress: string): Promise<number | null> {
+  const underlying = getXLayerUnderlyingAsset(tokenAddress);
+  if (!underlying) return null;
+
+  // Get price from DefiLlama (uses CoinGecko IDs)
+  const price = await defiLlamaService.getPrice(underlying);
+  return price;
+}
+
+/**
+ * Get price from DexScreener (for chains it supports)
+ * Note: X Layer is NOT supported by DexScreener
+ */
+export async function getDexScreenerPrice(chainIndex: string, tokenAddress: string): Promise<number | null> {
+  // Skip if chain not supported
+  if (!dexScreenerService.isChainSupported(chainIndex)) {
+    return null;
+  }
+  
+  return await dexScreenerService.getPrice(chainIndex, tokenAddress);
+}
+
+/**
+ * Enhanced price resolution with multiple fallback sources
+ * 
+ * Order of resolution:
+ * 1. API price (passed in, from OKX Market API)
+ * 2. Router price (from aggregator quote)
+ * 3. DexScreener (for supported chains)
+ * 4. DefiLlama/CoinGecko (for major tokens by symbol)
+ * 5. X Layer wrapped token mapping (for XBTC, XETH, XSOL)
+ * 6. Stablecoin fallback ($1.00)
+ */
+export async function getEnhancedPrice(
+  chainIndex: string,
+  tokenAddress: string,
+  tokenSymbol: string,
+  apiPrice?: number | null,
+  routerPrice?: number | null
+): Promise<number | null> {
+  // 1. Use API price if valid
+  if (apiPrice && apiPrice > 0) {
+    return apiPrice;
+  }
+
+  // 2. Fall back to router price
+  if (routerPrice && routerPrice > 0) {
+    return routerPrice;
+  }
+
+  // 3. Check X Layer stablecoins first (before DexScreener)
+  if (isXLayerChain(chainIndex) && isXLayerStablecoin(tokenAddress)) {
+    return 1.0;
+  }
+
+  // 4. Try DexScreener (for supported chains - NOT X Layer)
+  if (dexScreenerService.isChainSupported(chainIndex)) {
+    const dexPrice = await dexScreenerService.getPrice(chainIndex, tokenAddress);
+    if (dexPrice && dexPrice > 0) {
+      return dexPrice;
+    }
+  }
+
+  // 5. Try DefiLlama by symbol (for major tokens)
+  const defiLlamaPrice = await defiLlamaService.getPrice(tokenSymbol);
+  if (defiLlamaPrice && defiLlamaPrice > 0) {
+    return defiLlamaPrice;
+  }
+
+  // 6. For X Layer wrapped tokens, get underlying asset price
+  if (isXLayerChain(chainIndex) && isXLayerWrappedToken(tokenAddress)) {
+    const wrappedPrice = await getXLayerWrappedTokenPrice(tokenAddress);
+    if (wrappedPrice && wrappedPrice > 0) {
+      return wrappedPrice;
+    }
+  }
+
+  // 7. Stablecoin fallback
+  return getStablecoinFallbackPrice(tokenSymbol);
+}
+
+/**
+ * Synchronous version of enhanced price resolution (without async fallbacks)
+ * Uses only pre-fetched prices and stablecoin fallbacks
+ */
+export function getEnhancedPriceSync(
+  chainIndex: string,
+  tokenAddress: string,
+  tokenSymbol: string,
+  apiPrice?: number | null,
+  routerPrice?: number | null
+): number | null {
+  // 1. Use API price if valid
+  if (apiPrice && apiPrice > 0) {
+    return apiPrice;
+  }
+
+  // 2. Fall back to router price
+  if (routerPrice && routerPrice > 0) {
+    return routerPrice;
+  }
+
+  // 3. Check X Layer stablecoins
+  if (isXLayerChain(chainIndex) && isXLayerStablecoin(tokenAddress)) {
+    return 1.0;
+  }
+
+  // 4. Stablecoin fallback by symbol
+  return getStablecoinFallbackPrice(tokenSymbol);
 }
