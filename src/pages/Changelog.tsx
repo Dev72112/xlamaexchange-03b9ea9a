@@ -64,6 +64,22 @@ interface RoadmapQuarter {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "2.8.0",
+    date: "2026-02-02",
+    title: "Backend Integration Polish",
+    description: "Fixed xLama History tab data display and registration status detection. History now loads instantly from local database.",
+    type: "minor",
+    changes: [
+      { category: "fix", text: "Fixed wallet registration status showing 'Registration Failed' for already-registered wallets" },
+      { category: "fix", text: "Fixed transaction history showing '0 -> 0' amounts and 'Unknown' tokens" },
+      { category: "improvement", text: "History tab now loads from local database for instant, reliable data" },
+      { category: "improvement", text: "Added data quality indicator to Analytics showing sync health" },
+      { category: "improvement", text: "Added Unrealized PnL card to Analytics tab" },
+      { category: "improvement", text: "Registration now handles 409 conflict gracefully and triggers sync" },
+      { category: "improvement", text: "Transaction cards now show USD values and explorer links" },
+    ],
+  },
+  {
     version: "2.7.0",
     date: "2026-01-31",
     title: "Lighthouse Performance Optimization",

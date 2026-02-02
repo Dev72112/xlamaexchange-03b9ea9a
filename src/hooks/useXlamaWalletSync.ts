@@ -47,12 +47,22 @@ export function useXlamaWalletSync() {
         }
       }
     },
-    onError: (error: Error) => {
+    onError: (error: Error & { status?: number }) => {
       // Don't show error if wallet already exists - this is expected behavior
+      // HTTP 409 Conflict means wallet already registered - treat as success
       const message = error.message?.toLowerCase() || '';
-      if (message.includes('already exists') || message.includes('duplicate') || message.includes('conflict')) {
-        // Wallet exists, just refresh status silently
+      const isConflict = message.includes('already exists') || 
+                         message.includes('duplicate') || 
+                         message.includes('conflict') ||
+                         message.includes('409');
+      
+      if (isConflict) {
+        // Wallet exists, refresh status and trigger sync silently
         queryClient.invalidateQueries({ queryKey: ['xlama-wallet-status', activeAddress] });
+        // Still trigger sync since wallet is registered
+        if (activeAddress) {
+          syncMutation.mutate(activeAddress);
+        }
         return;
       }
       toast.error(`Failed to register wallet: ${error.message}`);

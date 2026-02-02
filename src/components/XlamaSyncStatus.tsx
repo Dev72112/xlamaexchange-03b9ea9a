@@ -37,12 +37,14 @@ export const XlamaSyncStatus: React.FC<XlamaSyncStatusProps> = ({
 
   // Status display - prioritize registered state over transient errors
   const getSyncStatus = () => {
-    // Loading states first
+    // Loading states first - check if we're actively registering, syncing, or waiting for initial check
+    const isInitialLoading = !isRegistered && !registerError && !isSyncing && !isRegistering;
+    
     if (isSyncing || isRegistering) {
       return {
         icon: Loader2,
         label: isRegistering ? 'Registering...' : 'Syncing...',
-        variant: 'default' as const,
+        variant: 'secondary' as const,
         animate: true,
       };
     }

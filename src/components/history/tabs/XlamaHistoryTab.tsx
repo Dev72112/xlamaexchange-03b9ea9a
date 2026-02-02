@@ -1,6 +1,6 @@
 /**
  * xLama History Tab
- * Unified transaction history from xLama API with OKX fallback
+ * Uses local Supabase dex_transactions for reliable, fast history display
  */
 
 import { memo, useState, useCallback } from 'react';
@@ -21,9 +21,10 @@ import {
   LineChart,
   ChevronLeft,
   ChevronRight,
+  Database,
 } from 'lucide-react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
-import { useXlamaTransactions } from '@/hooks/useXlamaTransactions';
+import { useLocalDexHistory, convertLocalToXlamaFormat } from '@/hooks/useLocalDexHistory';
 import { XlamaSyncStatus } from '@/components/XlamaSyncStatus';
 import { getChainByIndex } from '@/data/chains';
 import { formatDistanceToNow } from 'date-fns';
@@ -48,7 +49,15 @@ const formatAmount = (amount: string | number | undefined) => {
 
 export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
   const { isConnected, activeAddress } = useMultiWallet();
-  const { transactions, isLoading, isError, refetch } = useXlamaTransactions({ enabled: true });
+  
+  // Use local DB for reliable, fast data
+  const { data: localTxs, isLoading, isError, refetch } = useLocalDexHistory({ 
+    enabled: true,
+    limit: 200,
+  });
+
+  // Convert local transactions to xLama format for UI compatibility
+  const transactions = (localTxs ?? []).map(convertLocalToXlamaFormat);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -124,7 +133,13 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
     <div className="space-y-4">
       {/* Sync Status & Controls */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <XlamaSyncStatus />
+        <div className="flex items-center gap-2">
+          <XlamaSyncStatus />
+          <Badge variant="outline" className="text-[10px] py-0.5 bg-muted/50 text-muted-foreground border-border/50">
+            <Database className="w-2.5 h-2.5 mr-1" />
+            Local Data
+          </Badge>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading} className="h-8 gap-1.5">
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
@@ -195,7 +210,7 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
             <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No Transactions</h3>
             <p className="text-sm text-muted-foreground">
-              {searchQuery ? 'No transactions match your search.' : 'Your unified transaction history will appear here.'}
+              {searchQuery ? 'No transactions match your search.' : 'Your transaction history will appear here after you make swaps.'}
             </p>
           </CardContent>
         </Card>
@@ -274,8 +289,28 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
                         <span>{timeAgo}</span>
                         <span>•</span>
                         <span className="capitalize">{tx.transaction_type}</span>
+                        {tx.value_usd > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="text-green-500">${tx.value_usd.toFixed(2)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
+
+                    {/* Explorer link */}
+                    {tx.explorer_url && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        asChild
+                      >
+                        <a href={tx.explorer_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </Button>
+                    )}
                   </div>
 
                   {/* Hash */}
@@ -312,6 +347,13 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
+      )}
+
+      {/* Transaction count */}
+      {transactions.length > 0 && (
+        <p className="text-center text-xs text-muted-foreground">
+          Showing {paginatedTransactions.length} of {filteredTransactions.length} transactions
+        </p>
       )}
     </div>
   );

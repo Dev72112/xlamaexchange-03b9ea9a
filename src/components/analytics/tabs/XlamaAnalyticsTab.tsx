@@ -21,10 +21,14 @@ import {
   ArrowDownRight,
   LineChart,
   Layers,
+  Info,
+  Coins,
+  CheckCircle2,
 } from 'lucide-react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useXlamaAnalytics, type AnalyticsPeriod } from '@/hooks/useXlamaAnalytics';
 import { XlamaSyncStatus } from '@/components/XlamaSyncStatus';
+import { useLocalDexHistory } from '@/hooks/useLocalDexHistory';
 import { 
   BarChart, 
   Bar, 
@@ -132,12 +136,17 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const analytics = useXlamaAnalytics({ period, enabled: true });
+  
+  // Local DB transaction count for data quality indicator
+  const { data: localTxs } = useLocalDexHistory({ limit: 1000, enabled: true });
+  const localTxCount = localTxs?.length ?? 0;
 
   const pnlTrend = analytics.realizedPnl > 0 ? 'up' : analytics.realizedPnl < 0 ? 'down' : 'neutral';
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ['xlama-analytics'] });
+    await queryClient.invalidateQueries({ queryKey: ['local-dex-history'] });
     await analytics.refetch();
     await new Promise(resolve => setTimeout(resolve, 500));
     setIsRefreshing(false);
@@ -150,6 +159,19 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
       value: c.count,
     }));
   }, [analytics.mostUsedChains]);
+  
+  // Calculate data quality percentage - compare API trades vs local DB trades
+  const dataQuality = useMemo(() => {
+    const apiTrades = analytics.totalTrades;
+    const localTrades = localTxCount;
+    // If we have local trades and API matches or exceeds, quality is good
+    if (localTrades === 0) return { pct: 100, label: 'No data yet' };
+    const matchRate = Math.min(100, Math.round((apiTrades / localTrades) * 100));
+    return { 
+      pct: matchRate, 
+      label: matchRate >= 90 ? 'Excellent' : matchRate >= 70 ? 'Good' : matchRate >= 50 ? 'Fair' : 'Syncing...'
+    };
+  }, [analytics.totalTrades, localTxCount]);
 
   return (
     <div className="space-y-6">
@@ -172,7 +194,7 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard
           icon={Activity}
           label="Total Trades"
@@ -196,10 +218,26 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
           loading={analytics.isLoading}
         />
         <StatCard
+          icon={Coins}
+          label="Unrealized PnL"
+          value={formatUsd(analytics.unrealizedPnl ?? 0)}
+          trend={(analytics.unrealizedPnl ?? 0) > 0 ? 'up' : (analytics.unrealizedPnl ?? 0) < 0 ? 'down' : 'neutral'}
+          variant="pnl"
+          loading={analytics.isLoading}
+        />
+        <StatCard
           icon={Target}
           label="Success Rate"
           value={`${analytics.successRate.toFixed(1)}%`}
           variant={analytics.successRate >= 90 ? 'success' : analytics.successRate >= 70 ? 'warning' : 'danger'}
+          loading={analytics.isLoading}
+        />
+        <StatCard
+          icon={dataQuality.pct >= 90 ? CheckCircle2 : Info}
+          label="Data Quality"
+          value={`${dataQuality.pct}%`}
+          subValue={dataQuality.label}
+          variant={dataQuality.pct >= 90 ? 'success' : dataQuality.pct >= 70 ? 'default' : 'warning'}
           loading={analytics.isLoading}
         />
       </div>
