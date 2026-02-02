@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle } from 'lucide-react';
+import { Target, X, Clock, Check, AlertCircle, ChevronDown, ChevronUp, ExternalLink, Download, Bell, BellOff, XCircle, TrendingUp, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -216,6 +216,23 @@ export function ActiveLimitOrders({ className }: ActiveLimitOrdersProps) {
                               <p className="truncate">
                                 {order.condition === 'above' ? '↑' : '↓'} ${formatAmount(order.target_price, 6)}
                               </p>
+                              {/* Show TP/SL levels if set */}
+                              {((order as any).take_profit_price || (order as any).stop_loss_price) && (
+                                <div className="flex gap-2 flex-wrap">
+                                  {(order as any).take_profit_price && (
+                                    <span className="text-success flex items-center gap-0.5">
+                                      <TrendingUp className="w-2.5 h-2.5" />
+                                      TP: ${formatAmount((order as any).take_profit_price, 6)}
+                                    </span>
+                                  )}
+                                  {(order as any).stop_loss_price && (
+                                    <span className="text-destructive flex items-center gap-0.5">
+                                      <ShieldAlert className="w-2.5 h-2.5" />
+                                      SL: ${formatAmount((order as any).stop_loss_price, 6)}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               <p className="truncate">Amount: {formatAmount(order.amount)} {order.from_token_symbol}</p>
                               {order.status === 'triggered' && order.trigger_expires_at && (
                                 <div className="flex items-center gap-1">

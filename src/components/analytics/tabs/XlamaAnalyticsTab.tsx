@@ -3,7 +3,7 @@
  * Unified trading metrics from xLama API with OKX fallback
  */
 
-import { memo, useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,9 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
+
+// Lazy load the volume chart
+const VolumeOverTimeChart = lazy(() => import('@/components/VolumeOverTimeChart'));
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -335,6 +338,20 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
           </Card>
         )}
       </div>
+
+      {/* Volume Over Time Chart */}
+      <Suspense fallback={
+        <Card className="glass border-border/50">
+          <CardHeader className="pb-2">
+            <Skeleton className="h-5 w-40" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-48 w-full" />
+          </CardContent>
+        </Card>
+      }>
+        <VolumeOverTimeChart />
+      </Suspense>
 
       {/* Trade Frequency */}
       {analytics.tradeFrequency && (

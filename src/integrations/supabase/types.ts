@@ -399,11 +399,15 @@ export type Database = {
           from_token_address: string
           from_token_symbol: string
           id: string
+          sl_triggered_at: string | null
           slippage: string | null
           status: string
+          stop_loss_price: number | null
+          take_profit_price: number | null
           target_price: number
           to_token_address: string
           to_token_symbol: string
+          tp_triggered_at: string | null
           trigger_expires_at: string | null
           triggered_at: string | null
           user_address: string
@@ -421,11 +425,15 @@ export type Database = {
           from_token_address: string
           from_token_symbol: string
           id?: string
+          sl_triggered_at?: string | null
           slippage?: string | null
           status?: string
+          stop_loss_price?: number | null
+          take_profit_price?: number | null
           target_price: number
           to_token_address: string
           to_token_symbol: string
+          tp_triggered_at?: string | null
           trigger_expires_at?: string | null
           triggered_at?: string | null
           user_address: string
@@ -443,11 +451,15 @@ export type Database = {
           from_token_address?: string
           from_token_symbol?: string
           id?: string
+          sl_triggered_at?: string | null
           slippage?: string | null
           status?: string
+          stop_loss_price?: number | null
+          take_profit_price?: number | null
           target_price?: number
           to_token_address?: string
           to_token_symbol?: string
+          tp_triggered_at?: string | null
           trigger_expires_at?: string | null
           triggered_at?: string | null
           user_address?: string

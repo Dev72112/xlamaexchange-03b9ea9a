@@ -123,6 +123,9 @@ export function useOkxLimitOrders(): UseOkxLimitOrdersResult {
             condition: params.condition,
             slippage: params.slippage || '0.5',
             expires_at: params.expiresAt,
+            // TP/SL fields
+            take_profit_price: params.takeProfitPrice ?? null,
+            stop_loss_price: params.stopLossPrice ?? null,
           },
         },
       });

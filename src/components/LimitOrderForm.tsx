@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Target, Clock, AlertTriangle, Loader2, Shield, Info, HelpCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Target, Clock, AlertTriangle, Loader2, Shield, Info, HelpCircle, TrendingUp, TrendingDown, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,8 @@ import { Chain } from '@/data/chains';
 import { cn } from '@/shared/lib';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface LimitOrderFormProps {
   fromToken?: OkxToken | null;
@@ -69,6 +71,11 @@ export function LimitOrderForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [liveRate, setLiveRate] = useState<number | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
+  
+  // TP/SL state
+  const [showTpSl, setShowTpSl] = useState(false);
+  const [takeProfitPrice, setTakeProfitPrice] = useState('');
+  const [stopLossPrice, setStopLossPrice] = useState('');
 
   // Use active chain from wallet if not provided
   const effectiveChain = chain || activeChain;
@@ -133,12 +140,18 @@ export function LimitOrderForm({
         condition,
         slippage: '0.5',
         expiresAt,
+        // TP/SL fields
+        takeProfitPrice: takeProfitPrice ? parseFloat(takeProfitPrice) : undefined,
+        stopLossPrice: stopLossPrice ? parseFloat(stopLossPrice) : undefined,
       });
 
       if (order) {
         setOpen(false);
         setAmount('');
         setTargetPrice('');
+        setTakeProfitPrice('');
+        setStopLossPrice('');
+        setShowTpSl(false);
       }
     } finally {
       setIsSubmitting(false);
@@ -397,6 +410,101 @@ export function LimitOrderForm({
             </div>
           </div>
 
+          {/* TP/SL Section */}
+          <Collapsible open={showTpSl} onOpenChange={setShowTpSl}>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 cursor-pointer hover:bg-secondary/70 transition-colors">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium">Take Profit / Stop Loss</span>
+                  <Badge variant="secondary" className="text-[10px]">Optional</Badge>
+                </div>
+                <Switch checked={showTpSl} />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 pt-3">
+              {/* Take Profit */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1 text-success">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  Take Profit Price
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[220px]">
+                      <p className="text-xs">Auto-trigger when price rises to this level to lock in profits.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Input
+                  type="number"
+                  placeholder={liveRate ? (liveRate * 1.1).toFixed(8) : '0.00'}
+                  value={takeProfitPrice}
+                  onChange={(e) => setTakeProfitPrice(e.target.value)}
+                  className="font-mono border-success/30 focus:border-success"
+                />
+                <div className="flex gap-1">
+                  {[5, 10, 20].map((pct) => (
+                    <Button
+                      key={pct}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-6 text-[10px] text-success border-success/30"
+                      onClick={() => {
+                        const base = liveRate || currentPrice;
+                        if (base) setTakeProfitPrice((base * (1 + pct / 100)).toFixed(8));
+                      }}
+                      disabled={!liveRate && !currentPrice}
+                    >
+                      +{pct}%
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Stop Loss */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1 text-destructive">
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  Stop Loss Price
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[220px]">
+                      <p className="text-xs">Auto-trigger when price falls to this level to limit losses.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Input
+                  type="number"
+                  placeholder={liveRate ? (liveRate * 0.9).toFixed(8) : '0.00'}
+                  value={stopLossPrice}
+                  onChange={(e) => setStopLossPrice(e.target.value)}
+                  className="font-mono border-destructive/30 focus:border-destructive"
+                />
+                <div className="flex gap-1">
+                  {[5, 10, 20].map((pct) => (
+                    <Button
+                      key={pct}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-6 text-[10px] text-destructive border-destructive/30"
+                      onClick={() => {
+                        const base = liveRate || currentPrice;
+                        if (base) setStopLossPrice((base * (1 - pct / 100)).toFixed(8));
+                      }}
+                      disabled={!liveRate && !currentPrice}
+                    >
+                      -{pct}%
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
           {/* Expiration Selector */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1">
@@ -425,7 +533,7 @@ export function LimitOrderForm({
             <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground">
               Your order will be signed with your wallet and monitored automatically. 
-              You'll be notified when the target price is reached.
+              {showTpSl && ' TP/SL orders will trigger independently when their price levels are reached.'}
             </p>
           </div>
 

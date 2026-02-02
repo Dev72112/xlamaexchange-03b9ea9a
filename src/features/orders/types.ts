@@ -23,6 +23,11 @@ export interface LimitOrder {
   executionError?: string;
   createdAt: string;
   userAddress: string;
+  // TP/SL fields
+  takeProfitPrice?: number | null;
+  stopLossPrice?: number | null;
+  tpTriggeredAt?: string | null;
+  slTriggeredAt?: string | null;
 }
 
 export interface DCAOrder {
