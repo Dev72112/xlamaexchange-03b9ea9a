@@ -114,7 +114,9 @@ serve(async (req) => {
 
           const targetPrice = parseFloat(order.target_price);
           let isTriggered = false;
+          let triggerType = 'target';
 
+          // Check main target price condition
           if (order.condition === 'above' && currentPrice >= targetPrice) {
             isTriggered = true;
             console.log(`[limit-order] ${order.id} TRIGGERED (above): current ${currentPrice} >= target ${targetPrice}`);
@@ -123,22 +125,45 @@ serve(async (req) => {
             console.log(`[limit-order] ${order.id} TRIGGERED (below): current ${currentPrice} <= target ${targetPrice}`);
           }
 
+          // Check Take Profit price (if set and not already triggered)
+          const tpPrice = order.take_profit_price ? parseFloat(order.take_profit_price) : null;
+          if (!isTriggered && tpPrice && currentPrice >= tpPrice) {
+            isTriggered = true;
+            triggerType = 'take_profit';
+            console.log(`[limit-order] ${order.id} TP TRIGGERED: current ${currentPrice} >= TP ${tpPrice}`);
+          }
+
+          // Check Stop Loss price (if set and not already triggered)
+          const slPrice = order.stop_loss_price ? parseFloat(order.stop_loss_price) : null;
+          if (!isTriggered && slPrice && currentPrice <= slPrice) {
+            isTriggered = true;
+            triggerType = 'stop_loss';
+            console.log(`[limit-order] ${order.id} SL TRIGGERED: current ${currentPrice} <= SL ${slPrice}`);
+          }
+
           if (isTriggered) {
             // Update order status to triggered with 24-hour expiration window
-            // Note: Actual swap execution requires user's wallet signature
-            // This marks the order as ready for manual execution by the user
-            const triggerExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from trigger
+            const triggerExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
             
+            const updateData: any = {
+              status: 'triggered',
+              triggered_at: now.toISOString(),
+              trigger_expires_at: triggerExpiresAt.toISOString(),
+            };
+
+            // Track which condition triggered
+            if (triggerType === 'take_profit') {
+              updateData.tp_triggered_at = now.toISOString();
+            } else if (triggerType === 'stop_loss') {
+              updateData.sl_triggered_at = now.toISOString();
+            }
+
             await supabase
               .from('limit_orders')
-              .update({
-                status: 'triggered',
-                triggered_at: now.toISOString(),
-                trigger_expires_at: triggerExpiresAt.toISOString(),
-              })
+              .update(updateData)
               .eq('id', order.id);
 
-            console.log(`[limit-order] Order ${order.id} marked as triggered for ${order.from_token_symbol} -> ${order.to_token_symbol}, expires: ${triggerExpiresAt.toISOString()}`);
+            console.log(`[limit-order] Order ${order.id} marked as triggered (${triggerType}) for ${order.from_token_symbol} -> ${order.to_token_symbol}`);
           }
         } catch (error) {
           console.error(`[limit-order] Error processing order ${order.id}:`, error);

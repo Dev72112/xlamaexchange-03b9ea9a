@@ -18,6 +18,9 @@ export interface OkxLimitOrderParams {
   condition: 'above' | 'below';
   slippage?: string;
   expiresAt?: string | null;
+  // TP/SL fields
+  takeProfitPrice?: number;
+  stopLossPrice?: number;
 }
 
 export interface OkxLimitOrder {
@@ -39,6 +42,11 @@ export interface OkxLimitOrder {
   execution_tx_hash?: string;
   executed_at?: string;
   execution_error?: string;
+  // TP/SL fields
+  take_profit_price?: number | null;
+  stop_loss_price?: number | null;
+  tp_triggered_at?: string | null;
+  sl_triggered_at?: string | null;
 }
 
 export interface TokenPrice {

@@ -2,7 +2,7 @@
  * App Shell - Core application structure with routing
  * Separates routing logic from provider configuration
  */
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { RouteLoadingProvider } from '@/contexts/RouteLoadingContext';
 import { ScrollToTop } from '@/components/ScrollToTop';
@@ -14,6 +14,7 @@ import { BridgeNotificationWatcher } from '@/components/BridgeNotificationWatche
 import { FloatingFeedback } from '@/components/FloatingFeedback';
 import { CookieConsent } from '@/components/CookieConsent';
 import { DebugBanner } from '@/components/DebugBanner';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { allRoutes } from './routes';
 
 export function AppShell() {
@@ -40,6 +41,7 @@ export function AppShell() {
           <BridgeNotificationWatcher />
           <FloatingFeedback />
           <CookieConsent />
+          <PWAInstallPrompt />
         </TrackingProvider>
       </RouteLoadingProvider>
     </BrowserRouter>

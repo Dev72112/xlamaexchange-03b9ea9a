@@ -618,6 +618,9 @@ serve(async (req) => {
             condition: order.condition,
             slippage: order.slippage || '0.5',
             expires_at: order.expires_at || null,
+            // TP/SL fields
+            take_profit_price: order.take_profit_price || null,
+            stop_loss_price: order.stop_loss_price || null,
           })
           .select()
           .single();
