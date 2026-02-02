@@ -1,273 +1,162 @@
 
+# xLama Exchange - What's Next Plan
 
-# Backend Integration Polish Plan (v2.8.0)
+## Current State Summary
 
-## Problem Summary
+After reviewing the codebase, here's what's been accomplished:
 
-Based on API testing and code review, three main issues are causing the "0 -> 0" and "Unknown" token displays:
+### Completed Features (v1.0 - v2.8)
+| Feature | Status | Version |
+|---------|--------|---------|
+| DEX Aggregation (OKX) | Complete | 1.0 |
+| Cross-Chain Bridge (Li.Fi) | Complete | 1.0 |
+| Instant Swaps (ChangeNOW) | Complete | 1.0 |
+| 25+ Chains Support | Complete | 1.0 |
+| Multi-Wallet Support | Complete | 1.0 |
+| Limit Orders (EVM) | Complete | 2.0 |
+| DCA Strategies (EVM) | Complete | 2.0 |
+| Portfolio Tracking | Complete | 2.0 |
+| Perpetuals Trading (Hyperliquid) | Complete | 2.3 |
+| Performance Optimization | Complete | 2.5-2.7 |
+| Backend Integration (xLama API) | Complete | 2.8 |
+| Local History Data | Complete | 2.8 |
 
-| Issue | Root Cause | Impact |
-|-------|-----------|--------|
-| Registration Status Wrong | `/wallets/{address}` returns ALL wallets, not filtered | Shows "Not Registered" incorrectly |
-| Transaction History Empty | `fetch-transactions` API times out | Falls back to OKX with broken conversion |
-| OKX Fallback Broken | Conversion logic sets only one token (in OR out), not both | "0 -> 0" and "??" symbols |
-
-## Solution Overview
-
-Replace the unreliable external API calls with local Supabase database queries for transaction history, while keeping the working analytics API.
-
-```text
-Current Flow (Broken):
-  XlamaHistoryTab -> useXlamaTransactions -> xLama API (timeout) -> OKX fallback (broken)
-
-Fixed Flow:
-  XlamaHistoryTab -> useLocalDexTransactions -> Local Supabase (fast, accurate)
-```
-
----
-
-## Phase 1: Fix Registration Status Detection
-
-### File: `src/hooks/useXlamaWalletSync.ts`
-
-**Problem**: `getWalletStatus(address)` returns all wallets, not filtered by address.
-
-**Fix**: Filter the response to find the specific wallet.
-
-```tsx
-// Current broken implementation
-getWalletStatus: async (wallet: string) => {
-  const response = await fetchFromProxy(`wallets/${wallet}`);
-  return { success: true, wallet: response.wallet };
-}
-
-// Fixed implementation
-getWalletStatus: async (wallet: string) => {
-  const response = await fetchFromProxy('wallets');
-  const found = response.wallets?.find(
-    w => w.wallet_address.toLowerCase() === wallet.toLowerCase()
-  );
-  return { 
-    success: !!found, 
-    wallet: found || null 
-  };
-}
-```
-
-Also handle 409 conflict as successful registration in the mutation error handler.
+### Roadmap Progress (from Changelog)
+| Roadmap Item | Progress |
+|--------------|----------|
+| Perpetuals Trading | 100% |
+| Mobile App (PWA) | 70% |
+| Advanced Analytics | 55% |
+| Take Profit / Stop Loss | 85% |
+| More Chains (Aptos, Sei, Injective) | 15% |
 
 ---
 
-## Phase 2: Use Local Database for Transaction History
+## Recommended Next Steps
 
-### New Hook: `src/hooks/useLocalDexHistory.ts`
+Based on the roadmap and current implementation, here are the top priority improvements:
 
-Create a new hook that queries the local `dex_transactions` table directly:
+### Option A: Complete TP/SL for Limit Orders (85% → 100%)
 
-```tsx
-export function useLocalDexHistory(options: { enabled?: boolean; limit?: number } = {}) {
-  const { activeAddress } = useMultiWallet();
-  
-  return useQuery({
-    queryKey: ['local-dex-history', activeAddress],
-    queryFn: async () => {
-      const client = createWalletClient(activeAddress!);
-      const { data } = await client
-        .from('dex_transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(options.limit ?? 100);
-      return data ?? [];
-    },
-    enabled: !!activeAddress && options.enabled !== false,
-  });
-}
-```
+**What's Missing**: Limit orders support target prices, but true Take Profit and Stop Loss functionality where orders automatically execute on price movement isn't fully implemented.
 
-### File: `src/components/history/tabs/XlamaHistoryTab.tsx`
+**Benefit**: Makes the Orders page much more powerful - users can set protective exits.
 
-**Change**: Replace `useXlamaTransactions` with `useLocalDexHistory`.
-
-Benefits:
-- Instant response (local database)
-- Accurate token symbols, amounts, logos
-- Already has chain info and explorer URLs
-- No external API dependencies
+**Work Required**:
+- Add SL/TP fields to `LimitOrderForm`
+- Create price monitoring in `execute-orders` edge function
+- Add visual indicators for TP/SL levels in order cards
 
 ---
 
-## Phase 3: Fix OKX Fallback (For Portfolio/Other Uses)
+### Option B: Complete Mobile PWA Experience (70% → 100%)
 
-### File: `src/hooks/useXlamaTransactions.ts`
+**What's Missing**:
+- Push notifications for order executions (infrastructure exists but not fully wired)
+- Better offline experience with cached token lists
+- PWA install prompts
+- Add to Home Screen improvements
 
-Fix `convertOkxToXlamaTransaction` to properly handle swap transactions:
+**Benefit**: Native app-like experience for mobile users without app store.
 
-```tsx
-function convertOkxToXlamaTransaction(tx: TransactionHistoryItem, wallet: string): XlamaTransaction {
-  // For contract interactions (swaps), we need both token_in and token_out
-  // OKX tx history only gives us one side per record
-  // Mark these as incomplete for UI to handle
-  
-  const isContract = tx.methodId && tx.methodId !== '0x';
-  const isOutgoing = tx.from[0]?.address?.toLowerCase() === wallet.toLowerCase();
-  
-  return {
-    tx_hash: tx.txHash,
-    wallet_address: wallet,
-    chain_id: tx.chainIndex,
-    chain_name: getChainName(tx.chainIndex),
-    transaction_type: isContract ? 'swap' : 'transfer',
-    token_in: {
-      address: tx.tokenContractAddress || '',
-      symbol: tx.symbol || 'Unknown',
-      name: tx.symbol || 'Unknown',
-      logo: null,
-      decimals: 18,
-      amount: isOutgoing ? tx.amount : '0',
-      amount_usd: 0,
-    },
-    token_out: {
-      address: '',
-      symbol: isContract ? 'Swap' : (isOutgoing ? '' : tx.symbol || ''),
-      name: '',
-      logo: null,
-      decimals: 18,
-      amount: isOutgoing ? '0' : tx.amount,
-      amount_usd: 0,
-    },
-    // ... rest
-  };
-}
-```
+**Work Required**:
+- Wire up `usePushNotifications` to order execution events
+- Add InstallPrompt component for PWA
+- Improve Service Worker caching for offline mode
+- Add splash screens and proper PWA icons
 
 ---
 
-## Phase 4: Improve XlamaSyncStatus Display
+### Option C: Volume Over Time Analytics Chart
 
-### File: `src/components/XlamaSyncStatus.tsx`
+**What's Missing**: The admin dashboard shows "Volume Over Time" charts that aren't in the frontend Analytics tab.
 
-Update to properly detect registration from the wallet list:
+**Benefit**: Users can visualize their trading activity trends.
 
-```tsx
-// The hook already handles this, but improve the loading state
-if (isStatusLoading) {
-  return {
-    icon: Loader2,
-    label: 'Checking...',
-    variant: 'secondary',
-    animate: true,
-  };
-}
-```
+**Work Required**:
+- Add time-series volume chart to `XlamaAnalyticsTab`
+- Query `dex_transactions` grouped by day/week
+- Use existing LazyChart infrastructure
 
 ---
 
-## Phase 5: Add Missing Analytics Features
+### Option D: Solana Limit Orders & DCA
 
-### File: `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
+**What's Missing**: Orders page shows "Solana Orders Coming Soon" message. Jupiter API is integrated but only for spot swaps.
 
-The admin dashboard shows metrics that aren't displayed in the frontend. Add:
+**Benefit**: Expands advanced order features to Solana ecosystem.
 
-1. **Unrealized PnL Card** (currently shows $0)
-2. **Total Fees Card** (already in data, add dedicated card)
-3. **Data Quality Indicator** (show confidence percentage)
-
-```tsx
-<StatCard
-  icon={Info}
-  label="Data Quality"
-  value={`${analytics.dataQuality?.confidence_pct ?? 100}%`}
-  subValue={`${analytics.dataQuality?.priced_trades ?? 0} priced trades`}
-  variant="default"
-/>
-```
+**Work Required**:
+- Research Jupiter limit order API capabilities
+- Create Solana-specific order hooks
+- Extend `ActiveLimitOrders` to support Solana
 
 ---
 
-## Files to Modify
+### Option E: Social Trading Features (Q2 Roadmap Preview)
 
-| File | Changes |
-|------|---------|
-| `src/services/xlamaApi.ts` | Fix `getWalletStatus` to filter wallet list |
-| `src/hooks/useXlamaWalletSync.ts` | Handle 409 as success, improve status detection |
-| `src/hooks/useLocalDexHistory.ts` | New - query local dex_transactions table |
-| `src/components/history/tabs/XlamaHistoryTab.tsx` | Use local DB instead of xLama API |
-| `src/hooks/useXlamaTransactions.ts` | Fix OKX fallback conversion logic |
-| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Add data quality indicator |
-| `src/pages/Changelog.tsx` | Add v2.8.0 entry |
+**What Could Be Started**:
+- Anonymous trade sharing (share your swap without revealing wallet)
+- Trade leaderboard (opt-in) showing top performers
+- "Copy Trade" button on shared trades
 
----
+**Benefit**: Community engagement, viral growth potential.
 
-## Data Flow After Fix
-
-```text
-Analytics Tab (Working):
-  XlamaAnalyticsTab 
-    -> useXlamaAnalytics 
-    -> xlama-api/trading-analytics (works great!)
-    -> Display rich metrics
-
-History Tab (Fixed):
-  XlamaHistoryTab 
-    -> useLocalDexHistory 
-    -> Supabase dex_transactions table
-    -> Display with proper symbols, amounts, logos
-
-Sync Status (Fixed):
-  XlamaSyncStatus
-    -> useXlamaWalletSync
-    -> xlama-api/wallets (filter by address)
-    -> Show correct registration status
-```
+**Work Required**:
+- Create `shared_trades` table
+- Build shareable trade card component
+- Add privacy controls for sharing
 
 ---
 
-## Expected Outcomes
+### Option F: UI/UX Polish & Edge Cases
 
-| Issue | Before | After |
-|-------|--------|-------|
-| Registration badge | "Registration Failed" | "Synced 2 hours ago" |
-| Transaction amounts | "0 -> 0" | "0.000666 OKB -> 100.55 NIUMA" |
-| Token symbols | "Unknown" | Correct symbols (OKB, NIUMA, USDG) |
-| Token logos | "??" fallback | Proper logos from local DB |
-| History load time | Timeout/slow | Instant (local query) |
-
----
-
-## Changelog Entry
-
-```tsx
-{
-  version: "2.8.0",
-  date: "2026-02-XX",
-  title: "Backend Integration Polish",
-  description: "Fixed xLama History tab data display and registration status detection.",
-  type: "minor",
-  changes: [
-    { category: "fix", text: "Fixed wallet registration status showing 'Registration Failed'" },
-    { category: "fix", text: "Fixed transaction history showing '0 -> 0' amounts" },
-    { category: "fix", text: "Fixed 'Unknown' token symbols in history" },
-    { category: "improvement", text: "History now loads from local database (instant)" },
-    { category: "improvement", text: "Added data quality indicator to Analytics" },
-    { category: "improvement", text: "Improved sync status detection for registered wallets" },
-  ],
-}
-```
+**Quick Wins**:
+1. Add loading states for edge cases (network errors, API timeouts)
+2. Improve error messages to be more user-friendly
+3. Add confirmation modals for destructive actions
+4. Better empty states with illustrations
+5. Keyboard shortcuts help modal improvements
 
 ---
 
-## Technical Notes
+## Recommended Priority Order
 
-### Why Use Local DB for History?
+| Priority | Feature | Effort | Impact |
+|----------|---------|--------|--------|
+| 1 | **TP/SL for Limit Orders** | Medium | High - completes 85% feature |
+| 2 | **Volume Over Time Chart** | Low | Medium - visual appeal |
+| 3 | **Mobile PWA Polish** | Medium | High - better mobile UX |
+| 4 | **Solana Orders** | High | Medium - ecosystem expansion |
+| 5 | **Social Trading** | High | High - growth potential |
 
-1. **Reliability**: External API times out frequently
-2. **Speed**: Local query is instant vs 5+ second timeout
-3. **Data Quality**: Local DB has correct symbols, logos, amounts
-4. **Already Available**: We're already saving swaps to `dex_transactions`
+---
 
-### Why Keep xLama API for Analytics?
+## Technical Considerations
 
-1. **Works Perfectly**: `trading-analytics` endpoint is fast and reliable
-2. **Rich Data**: Provides PnL, pair analysis, chain distribution
-3. **Aggregated Metrics**: Backend does the heavy computation
+### Database Tables Available
+- `dex_transactions` (128 records) - for analytics
+- `limit_orders` - for limit order management
+- `dca_orders` - for DCA strategy management
+- `referral_earnings` - for referral tracking
+- `push_subscriptions` - for notifications
 
+### Key Hooks to Extend
+- `useLimitOrders` - add TP/SL support
+- `usePushNotifications` - wire to order events
+- `useLocalDexHistory` - for volume charts
+
+---
+
+## Questions for You
+
+Before I build a detailed implementation plan, which direction excites you most?
+
+1. **Complete TP/SL** - Finish the 85% done feature for limit orders
+2. **Volume Analytics** - Add the trading volume chart to Analytics
+3. **Mobile PWA** - Install prompts, push notifications, offline mode
+4. **Solana Orders** - Bring limit orders to Solana users
+5. **Social Trading** - Start building community features
+6. **Other** - Something else you have in mind?
+
+Let me know and I'll create a detailed implementation plan for that direction!
