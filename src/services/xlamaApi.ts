@@ -276,11 +276,29 @@ export const xlamaApi = {
 
   /**
    * Get wallet registration status
+   * Note: The API returns all wallets, so we filter client-side
    */
   getWalletStatus: async (wallet: string): Promise<WalletStatusResponse> => {
     try {
+      // Try direct wallet lookup first
       const response = await fetchFromProxy<{ success: boolean; wallet: WalletInfo }>(`wallets/${wallet}`);
-      return { success: true, wallet: response.wallet };
+      if (response.wallet) {
+        return { success: true, wallet: response.wallet };
+      }
+    } catch {
+      // Direct lookup failed, try list and filter
+    }
+
+    try {
+      // Fallback: list all wallets and filter by address
+      const listResponse = await fetchFromProxy<{ success: boolean; wallets: WalletInfo[] }>('wallets');
+      const found = listResponse.wallets?.find(
+        w => w.wallet_address.toLowerCase() === wallet.toLowerCase()
+      );
+      return { 
+        success: !!found, 
+        wallet: found || null 
+      };
     } catch (error) {
       // Wallet not found is expected for unregistered wallets
       return { success: false, wallet: null };
