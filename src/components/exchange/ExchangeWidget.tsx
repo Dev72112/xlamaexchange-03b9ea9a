@@ -36,6 +36,7 @@ import { useTradePreFill } from "@/contexts/TradePreFillContext";
 import { useReferral } from "@/hooks/useReferral";
 import { usePriceOracle } from "@/contexts/PriceOracleContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
+import { getBestPrice, extractRouterPrices, calculateUsdValue } from "@/lib/tokenPricing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
@@ -589,11 +590,23 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
     setShowReviewModal(false);
     setShowSwapProgress(true);
     
-    // Calculate USD values using numeric prices (avoid parsing formatted strings like "< $0.01")
+    // Calculate USD values with multi-source fallback strategy:
+    // 1. Use API price (fromTokenPrice/toTokenPrice from useTokenPrices)
+    // 2. Fall back to router result prices from quote
+    // 3. Fall back to stablecoin default ($1.00)
     const fromAmountNum = parseFloat(fromAmount) || 0;
     const toAmountNum = parseFloat(dexOutputAmount || '0') || 0;
-    const fromUsdNum = fromTokenPrice ? fromAmountNum * fromTokenPrice : undefined;
-    const toUsdNum = toTokenPrice ? toAmountNum * toTokenPrice : undefined;
+    
+    // Extract router prices from quote as fallback
+    const routerPrices = extractRouterPrices(dexQuote?.routerResult);
+    
+    // Get best available prices using fallback chain
+    const bestFromPrice = getBestPrice(fromTokenPrice, routerPrices.fromTokenPrice, fromDexToken!.tokenSymbol);
+    const bestToPrice = getBestPrice(toTokenPrice, routerPrices.toTokenPrice, toDexToken!.tokenSymbol);
+    
+    // Calculate USD values with fallbacks
+    const fromUsdNum = calculateUsdValue(fromAmountNum, fromTokenPrice, routerPrices.fromTokenPrice, fromDexToken!.tokenSymbol) || undefined;
+    const toUsdNum = calculateUsdValue(toAmountNum, toTokenPrice, routerPrices.toTokenPrice, toDexToken!.tokenSymbol) || undefined;
     
     // Add to transaction history as pending with USD values and token addresses
     const pendingTx = addTransaction({
@@ -605,13 +618,13 @@ export function ExchangeWidget({ onModeChange }: ExchangeWidgetProps = {}) {
       fromTokenAmount: fromAmount,
       fromTokenLogo: fromDexToken!.tokenLogoUrl,
       fromAmountUsd: fromUsdNum,
-      fromTokenPrice: fromTokenPrice || undefined,
+      fromTokenPrice: bestFromPrice || undefined,
       toTokenSymbol: toDexToken!.tokenSymbol,
       toTokenAddress: toDexToken!.tokenContractAddress,
       toTokenAmount: dexOutputAmount || '0',
       toTokenLogo: toDexToken!.tokenLogoUrl,
       toAmountUsd: toUsdNum,
-      toTokenPrice: toTokenPrice || undefined,
+      toTokenPrice: bestToPrice || undefined,
       status: 'pending',
       type: 'swap',
       explorerUrl: '',
