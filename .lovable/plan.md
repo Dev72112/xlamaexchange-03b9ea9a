@@ -1,297 +1,247 @@
 
-# Enhanced Token Pricing with DexScreener + X Layer Token Mappings (v2.8.1) ✅ IMPLEMENTED
 
-## Overview
+# Analytics Improvements Plan
 
-Multi-source price resolution system with:
-1. ✅ **DexScreener API integration** as fallback (for supported chains)
-2. ✅ **CoinGecko/DefiLlama** for X Layer tokens (since DexScreener doesn't fully support X Layer)
-3. ✅ **Direct contract address mappings** for X Layer wrapped tokens (XBTC, XETH, XSOL)
-4. ✅ **Enhanced pricing chain** that ensures USD values are captured for all tokens
+## Issues Identified from Screenshot
 
-## Current Price Resolution Chain (IMPLEMENTED)
+### Issue 1: Volume Over Time Chart Hides on Weekly View
+**Current Behavior**: When switching to "Weekly" granularity, the chart disappears entirely if there's insufficient data to show meaningful weeks.
+
+**Root Cause (Line 117)**: 
+```tsx
+if (!chartData.length || totalCount === 0) {
+  return null;  // <- Hides the entire component
+}
+```
+
+**Fix**: Instead of returning `null`, show the chart with an empty state message like "Not enough data for weekly view. Try daily." Also, if there's at least one data point, show the chart regardless.
+
+---
+
+### Issue 2: Most Traded Pairs Chart Is Confusing
+
+**Current Issues (from screenshot)**:
+1. Bars are all similar shades of red/orange - unclear what differentiates them
+2. X-axis shows numbers (0, 2, 4, 6, 8) but no label indicating these are "Trades"
+3. No legend or value labels on the bars themselves
+4. Hard to see exact values for each pair
+
+**Current Implementation (Lines 265-282)**:
+```tsx
+<BarChart data={analytics.mostTradedPairs} layout="vertical">
+  <XAxis type="number" tick={{ fontSize: 10 }} />
+  <YAxis dataKey="pair" type="category" tick={{ fontSize: 10 }} width={100} />
+  <Tooltip formatter={(value, name) => [...]} />
+  <Bar dataKey="trade_count" name="Trades" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+</BarChart>
+```
+
+**Improvements**:
+1. Add value labels at the end of each bar showing the trade count
+2. Add X-axis label "Trades" or change to a clearer format
+3. Use gradient colors for visual distinction (darker = more trades)
+4. Show both trade count AND volume (if available) in tooltip
+5. Make bars thicker and more readable
+
+---
+
+### Issue 3: Improving xLama Backend Analytics
+
+**Current Backend Limitations**:
+- All 111+ transactions have `$0.00` USD volume in the database
+- The xLama API computes analytics but doesn't have USD price data
+- The frontend falls back to OKX transaction data which also lacks USD values
+
+**Improvement Strategy**:
 
 ```text
-1. OKX Market API (primary - fastest)
-   ↓ (fails)
-2. Aggregator Router Result (from swap quote)
-   ↓ (fails)
-3. DexScreener API (for supported chains - NOT X Layer)
-   ↓ (fails)
-4. DefiLlama/CoinGecko (major tokens by symbol)
-   ↓ (fails)
-5. X Layer Token Price Map (wrapped tokens like XBTC, XETH, XSOL)
-   ↓ (fails)
-6. Stablecoin Fallback ($1.00 for USDT, USDC, USDG, etc.)
+Current Flow:
+Frontend → xlama-api proxy → External xLama Backend → Returns analytics
+
+Problem: USD values are missing at capture time
+
+Solution:
+1. Ensure ExchangeWidget captures USD values using enhanced pricing (already implemented)
+2. Create a backfill script/migration to estimate USD for existing transactions
+3. Enhance xLama webhook to include USD data from swap execution
 ```
 
-## Files Created/Modified
-
-| File | Status | Description |
-|------|--------|-------------|
-| `src/services/dexscreener.ts` | ✅ Created | DexScreener API service with caching |
-| `src/lib/xlayerTokens.ts` | ✅ Created | X Layer contract mappings (XBTC, XETH, XSOL) |
-| `src/lib/tokenPricing.ts` | ✅ Updated | Added DexScreener + X Layer integration |
-| `src/hooks/useEnhancedTokenPrice.ts` | ✅ Created | Multi-source price resolution hook |
+**Backend Enhancements to Plan**:
+1. **Add price caching table** - Store token prices at swap time for historical lookups
+2. **Add aggregate views** - Pre-computed analytics tables for faster queries
+3. **Add volume by token/chain** - Track volume per token and per chain for richer analytics
 
 ---
 
-## Phase 1: Create DexScreener Service
+## Implementation Details
 
-### New File: `src/services/dexscreener.ts`
+### Fix 1: Weekly Chart Empty State
 
-Create a service that calls the free DexScreener API to fetch token prices by contract address.
+**File**: `src/components/VolumeOverTimeChart.tsx`
 
-**Key Features:**
-- No API key required (free tier)
-- Supports all EVM chains including X Layer (chainId: 196)
-- Returns price, 24h change, volume, and liquidity
-- Built-in caching (60 second TTL)
+**Changes**:
+- Remove the `return null` for empty data, show graceful message instead
+- Add minimum data point check for weekly (need at least 2 weeks of data)
+- Show message like "Switch to Daily for more detail" when weekly has sparse data
 
-**API Endpoint:**
-```
-GET https://api.dexscreener.com/tokens/v1/{chainId}/{tokenAddress}
-```
-
-**Example Response:**
-```json
-{
-  "pairs": [{
-    "priceUsd": "0.01234",
-    "priceChange": { "h24": 5.5 },
-    "volume": { "h24": 50000 },
-    "liquidity": { "usd": 100000 }
-  }]
+```tsx
+// Replace lines 116-119
+// Instead of returning null, show empty state card
+if (!chartData.length) {
+  return (
+    <Card className="glass border-border/50">
+      <CardHeader>...</CardHeader>
+      <CardContent>
+        <div className="h-48 flex items-center justify-center text-muted-foreground">
+          <p>No trading data available yet</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
+
+// Add check for sparse weekly data
+const hasEnoughWeeklyData = granularity === 'weekly' 
+  ? chartData.filter(d => d.count > 0).length >= 2
+  : true;
+
+// Show message if weekly data is sparse
+{granularity === 'weekly' && !hasEnoughWeeklyData && (
+  <p className="text-xs text-muted-foreground text-center mt-2">
+    Limited weekly data available • Switch to Daily for more detail
+  </p>
+)}
 ```
 
 ---
 
-## Phase 2: Add X Layer Token Contract Mappings
+### Fix 2: Most Traded Pairs Chart Improvements
 
-### Update: `src/lib/tokenPricing.ts`
+**File**: `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
 
-Add a mapping of X Layer wrapped tokens to their underlying asset prices. This allows us to derive prices for tokens like XBTC by looking up BTC price.
+**Changes**:
+1. Add `LabelList` component to show values on bars
+2. Add X-axis label
+3. Improve color scheme with gradient per-bar
+4. Increase bar size and padding
+5. Better tooltip formatting
 
-**X Layer Wrapped Token Mappings:**
-
-| Token | Contract Address | Maps To |
-|-------|-----------------|---------|
-| XBTC | `0xb7c00000bcdeef966b20b3d884b98e64d2b06b4f` | BTC |
-| XETH | `0xe7b000003a45145decf8a28fc755ad5ec5ea025a` | ETH |
-| XSOL | `0x505000008de8748dbd4422ff4687a4fc9beba15b` | SOL |
-| WETH | `0x5a77f1443d16ee5761d310e38b62f77f726bc71c` | ETH |
-| WOKB | `0xe538905cf8410324e03a5a23c1c177a474d59b2b` | OKB |
-| XDOG | `0x0cc24c51bf89c00c5affbfcf5e856c25ecbdb48e` | (DexScreener) |
-| USDG | `0x4ae46a509f6b1d9056937ba4500cb143933d2dc8` | USD (stable) |
-| USDT | `0x1e4a5963abfd975d8c9021ce480b42188849d41d` | USD (stable) |
-| USDC | `0x74b7f16337b8972027f6196a17a631ac6de26d22` | USD (stable) |
-
----
-
-## Phase 3: Create Enhanced Price Oracle Hook
-
-### New File: `src/hooks/useEnhancedTokenPrice.ts`
-
-A hook that tries multiple sources in order to get the best available price.
-
-**Fallback Chain:**
-```typescript
-async function getTokenPrice(chainId: string, tokenAddress: string, symbol: string): Promise<number | null> {
-  // 1. Try OKX Market API (via existing okxDexService)
-  let price = await tryOkxPrice(chainId, tokenAddress);
-  if (price) return price;
-  
-  // 2. Try DexScreener API (new)
-  price = await dexScreenerService.getPrice(chainId, tokenAddress);
-  if (price) return price;
-  
-  // 3. Try DefiLlama (for major tokens)
-  price = await defiLlamaService.getPrice(symbol);
-  if (price) return price;
-  
-  // 4. Try X Layer wrapped token mapping
-  price = getXLayerWrappedTokenPrice(tokenAddress);
-  if (price) return price;
-  
-  // 5. Stablecoin fallback
-  return getStablecoinFallbackPrice(symbol);
-}
+```tsx
+// Improved chart structure
+<BarChart data={analytics.mostTradedPairs} layout="vertical" barSize={20}>
+  <XAxis 
+    type="number" 
+    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+    label={{ value: 'Trades', position: 'bottom', fontSize: 10 }}
+  />
+  <YAxis 
+    dataKey="pair" 
+    type="category" 
+    tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
+    width={110}
+    tickFormatter={(value) => value.length > 12 ? `${value.slice(0, 12)}...` : value}
+  />
+  <Tooltip 
+    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+    formatter={(value: number) => [`${value} trades`, 'Count']}
+  />
+  <Bar 
+    dataKey="trade_count" 
+    name="Trades" 
+    radius={[0, 6, 6, 0]}
+  >
+    {/* Color bars differently for visual hierarchy */}
+    {analytics.mostTradedPairs.map((_, index) => (
+      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+    ))}
+    {/* Add value labels at end of bars */}
+    <LabelList 
+      dataKey="trade_count" 
+      position="right" 
+      fontSize={10}
+      fill="hsl(var(--muted-foreground))"
+    />
+  </Bar>
+</BarChart>
 ```
 
 ---
 
-## Phase 4: Update ExchangeWidget to Use Enhanced Pricing
+### Fix 3: Backend Analytics Improvements (Phase 2)
 
-### Update: `src/components/exchange/ExchangeWidget.tsx`
+**Database Schema Enhancement**:
 
-Modify the swap completion handler to use the enhanced pricing system:
+```sql
+-- Price cache table for historical lookups
+CREATE TABLE IF NOT EXISTS token_price_cache (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chain_index VARCHAR(10) NOT NULL,
+  token_address VARCHAR(66) NOT NULL,
+  token_symbol VARCHAR(20) NOT NULL,
+  price_usd NUMERIC,
+  source VARCHAR(20) NOT NULL,  -- 'okx', 'dexscreener', 'defillama'
+  timestamp TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(chain_index, token_address, DATE(timestamp))
+);
 
-```typescript
-// Before saving transaction, ensure we have USD values
-const enhancedFromPrice = await getEnhancedPrice(chainId, fromToken.address, fromToken.symbol);
-const enhancedToPrice = await getEnhancedPrice(chainId, toToken.address, toToken.symbol);
+-- Backfill existing transactions with estimated USD values
+-- For stablecoins, estimate $1.00 per token
+UPDATE dex_transactions 
+SET from_amount_usd = CAST(from_amount AS NUMERIC) * 1.0
+WHERE from_token_symbol IN ('USDT', 'USDC', 'USDG', 'DAI')
+  AND from_amount_usd IS NULL;
 
-// Calculate USD values with fallbacks
-const fromUsd = fromAmount * (enhancedFromPrice ?? 0);
-const toUsd = toAmount * (enhancedToPrice ?? 0);
+UPDATE dex_transactions 
+SET to_amount_usd = CAST(to_amount AS NUMERIC) * 1.0
+WHERE to_token_symbol IN ('USDT', 'USDC', 'USDG', 'DAI')
+  AND to_amount_usd IS NULL;
 ```
 
----
-
-## Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/services/dexscreener.ts` | Create | DexScreener API service with caching |
-| `src/lib/tokenPricing.ts` | Update | Add X Layer contract mappings + DexScreener integration |
-| `src/hooks/useEnhancedTokenPrice.ts` | Create | Multi-source price resolution hook |
-| `src/components/exchange/ExchangeWidget.tsx` | Update | Use enhanced pricing for USD values |
-| `src/contexts/PriceOracleContext.tsx` | Update | Add DexScreener as fallback source |
-| `src/pages/Changelog.tsx` | Update | Add v2.8.1 entry |
+**Webhook Enhancement**:
+The `useDexSwap` hook should already be sending USD values via webhook. Verify the payload includes:
+- `token_in_usd_value`
+- `token_out_usd_value`
+- `gas_fee_usd`
 
 ---
 
-## DexScreener Service Implementation Details
+## Files to Modify
 
-```typescript
-// src/services/dexscreener.ts
+| File | Change |
+|------|--------|
+| `src/components/VolumeOverTimeChart.tsx` | Add empty state, sparse weekly data message |
+| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Improve Most Traded Pairs chart with labels, colors |
+| Database migration | Backfill stablecoin USD values for existing transactions |
 
-const DEXSCREENER_API = 'https://api.dexscreener.com';
+---
 
-// Chain ID mapping (EVM chainId to DexScreener chainId)
-const chainIdToDexScreener: Record<string, string> = {
-  '1': 'ethereum',
-  '56': 'bsc',
-  '137': 'polygon',
-  '42161': 'arbitrum',
-  '10': 'optimism',
-  '8453': 'base',
-  '43114': 'avalanche',
-  '250': 'fantom',
-  '324': 'zksync',
-  '59144': 'linea',
-  '534352': 'scroll',
-  '196': 'xlayer',  // X Layer
-  // ... more chains
-};
+## Expected Results
 
-class DexScreenerService {
-  private cache: Map<string, { price: number; timestamp: number }>;
-  
-  async getPrice(chainId: string, tokenAddress: string): Promise<number | null> {
-    const chain = chainIdToDexScreener[chainId];
-    if (!chain) return null;
-    
-    const response = await fetch(
-      `${DEXSCREENER_API}/tokens/v1/${chain}/${tokenAddress}`
-    );
-    const data = await response.json();
-    
-    // Get price from first pair with highest liquidity
-    const pairs = data.pairs || [];
-    if (pairs.length === 0) return null;
-    
-    const bestPair = pairs.sort((a, b) => 
-      (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
-    )[0];
-    
-    return parseFloat(bestPair.priceUsd);
-  }
-}
+| Issue | Before | After |
+|-------|--------|-------|
+| Weekly chart | Disappears completely | Shows chart with "Limited data" message |
+| Most Traded Pairs | Confusing bars, no labels | Clear bars with value labels, distinct colors |
+| Analytics accuracy | $0 volume everywhere | Stablecoin transactions show accurate $1.00 volume |
+
+---
+
+## Visual Mockup for Most Traded Pairs
+
+```text
+Most Traded Pairs              [xLama]
+
+USDT/USDC    ████████████████████ 21
+xSOL/USDG    █████████████████    18
+OKB/NIUMA    ██████████████       15
+USDG/NIUMA   ████████             9
+OKB/DOG      █████                5
+             0    5   10   15   20
+                    Trades
 ```
 
----
+Key improvements:
+- Values displayed at end of each bar
+- Different colors per bar for visual hierarchy
+- X-axis labeled "Trades"
+- Cleaner, more readable layout
 
-## X Layer Token Price Map
-
-```typescript
-// In tokenPricing.ts
-
-// X Layer wrapped tokens that map to underlying assets
-const XLAYER_WRAPPED_TOKENS: Record<string, { underlying: string; chainId?: string }> = {
-  // XBTC maps to BTC price (fetch from DefiLlama)
-  '0xb7c00000bcdeef966b20b3d884b98e64d2b06b4f': { underlying: 'btc' },
-  // XETH maps to ETH price
-  '0xe7b000003a45145decf8a28fc755ad5ec5ea025a': { underlying: 'eth' },
-  // XSOL maps to SOL price
-  '0x505000008de8748dbd4422ff4687a4fc9beba15b': { underlying: 'sol' },
-  // WETH maps to ETH price
-  '0x5a77f1443d16ee5761d310e38b62f77f726bc71c': { underlying: 'eth' },
-  // WOKB - use DexScreener or OKB price
-  '0xe538905cf8410324e03a5a23c1c177a474d59b2b': { underlying: 'okb' },
-};
-
-// X Layer stablecoins (address -> $1.00)
-const XLAYER_STABLECOINS = new Set([
-  '0x4ae46a509f6b1d9056937ba4500cb143933d2dc8', // USDG
-  '0x779ded0c9e1022225f8e0630b35a9b54be713736', // USD₮0
-  '0x1e4a5963abfd975d8c9021ce480b42188849d41d', // USDT
-  '0x74b7f16337b8972027f6196a17a631ac6de26d22', // USDC
-]);
-
-export async function getXLayerTokenPrice(tokenAddress: string): Promise<number | null> {
-  const addr = tokenAddress.toLowerCase();
-  
-  // Check if it's a stablecoin
-  if (XLAYER_STABLECOINS.has(addr)) {
-    return 1.0;
-  }
-  
-  // Check wrapped token mapping
-  const mapping = XLAYER_WRAPPED_TOKENS[addr];
-  if (mapping) {
-    // Get underlying asset price from DefiLlama
-    return defiLlamaService.getPrice(mapping.underlying);
-  }
-  
-  return null;
-}
-```
-
----
-
-## Expected Outcomes
-
-| Scenario | Before | After |
-|----------|--------|-------|
-| XBTC swap on X Layer | $0.00 (no price data) | $77,600 (maps to BTC) |
-| XETH swap on X Layer | $0.00 (no price data) | $2,277 (maps to ETH) |
-| XSOL swap on X Layer | $0.00 (no price data) | $102 (maps to SOL) |
-| XDOG swap on X Layer | $0.00 (no price data) | $0.0056 (DexScreener) |
-| NIUMA swap on X Layer | $0.00 (no price data) | Price from DexScreener |
-| USDG swap | $0.00 (price API fails) | $1.00 (stablecoin) |
-| DOG swap on X Layer | $0.00 | Price from DexScreener |
-
----
-
-## Changelog Entry (v2.8.1)
-
-```typescript
-{
-  version: "2.8.1",
-  date: "2026-02-XX",
-  title: "Enhanced Token Pricing",
-  description: "Added DexScreener fallback and X Layer token mappings for better USD value tracking.",
-  type: "patch",
-  changes: [
-    { category: "new", text: "Added DexScreener API as price fallback source" },
-    { category: "new", text: "Added X Layer wrapped token price mappings (XBTC, XETH, XSOL)" },
-    { category: "improvement", text: "Better USD value capture for Analytics volume charts" },
-    { category: "fix", text: "Fixed $0 volume display for X Layer token swaps" },
-  ],
-}
-```
-
----
-
-## Next Steps After This (Future Features)
-
-Based on the roadmap discussion, after completing the pricing enhancements:
-
-| Priority | Feature | Description |
-|----------|---------|-------------|
-| 1 | **Wire Push Notifications** | Connect order execution events to push notifications |
-| 2 | **Social Trading Preview** | Anonymous trade sharing and community features |
-| 3 | **Chain Distribution Heatmap** | Visual heatmap of trading activity by chain |
-| 4 | **Performance Dashboard** | Detailed PnL breakdown with entry/exit prices |
