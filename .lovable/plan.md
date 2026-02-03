@@ -1,349 +1,237 @@
 
-# Comprehensive Improvement Plan v2.9.0
+# v2.9.1 - Fixes + Phase 2 Implementation
 
 ## Overview
 
-This plan covers four major areas of improvement:
+This update addresses three key issues and continues with Phase 2 of the improvement plan:
 
-1. **Portfolio, Analytics, History Enhancements** - Better data visualization and UX
-2. **Theme System Overhaul** - More presets, gradient themes, OLED mode
-3. **Haptic & Sound Feedback Fix** - Make vibrations actually work on mobile
-4. **Backend Analytics** - Improved data capture for xLama API
-
----
-
-## Part 1: Portfolio, Analytics & History Improvements
-
-### 1.1 Portfolio Page Enhancements
-
-| Feature | Description |
-|---------|-------------|
-| **Token PnL Sparklines** | Add mini 7-day sparkline charts next to each holding showing price trend |
-| **Quick Swap Button** | One-tap button to swap any token directly from portfolio |
-| **Chain Filter Badges** | Show how many tokens are on each chain with quick filter badges |
-| **Holdings Search** | Add search/filter for tokens in portfolio |
-| **Dust Filter Toggle** | Option to hide tokens worth less than $1 |
-
-### 1.2 Analytics Page Enhancements
-
-| Feature | Description |
-|---------|-------------|
-| **Chain Distribution Heatmap** | Visual heatmap showing trading activity per chain (already in roadmap) |
-| **Win Rate Tracker** | Show successful vs failed transactions percentage |
-| **Average Trade Size** | Display median and average trade sizes |
-| **Time-of-Day Patterns** | Chart showing when user trades most (morning/evening/weekend) |
-| **Best/Worst Trades** | Highlight top gainers and biggest losses |
-
-### 1.3 History Page Enhancements
-
-| Feature | Description |
-|---------|-------------|
-| **Transaction Filters** | Filter by chain, token, date range, status |
-| **Batch Select & Export** | Select multiple transactions for CSV export |
-| **Transaction Details Modal** | Expandable view with gas breakdown, timestamps |
-| **Repeat Trade Button** | Quick action to repeat a previous swap |
-
----
-
-## Part 2: Theme System Overhaul
-
-### 2.1 Current State Analysis
-
-The app has 12 color presets but lacks:
-- True black OLED mode for battery saving
-- Gradient themes (popular in crypto apps)
-- System theme sync improvements
-- Font size preferences
-- Reduced motion support
-
-### 2.2 New Theme Features
-
-| Feature | Description |
-|---------|-------------|
-| **OLED Dark Mode** | True black (#000) background for AMOLED screens |
-| **Gradient Themes** | 4 new gradient-based accent colors |
-| **Compact/Comfortable UI Density** | Choose between tighter or looser spacing |
-| **Font Size Control** | Small/Medium/Large text size options |
-| **Reduced Motion** | Respect `prefers-reduced-motion` for accessibility |
-| **Theme Favorites** | Star and quick-access your preferred themes |
-
-### 2.3 New Premium Theme Presets
-
-| Theme Name | Primary Color | Style |
-|------------|---------------|-------|
-| **OLED Black** | Any accent on pure black | Battery-saving |
-| **Cyber Gradient** | Cyan → Purple gradient | Futuristic |
-| **Fire Gradient** | Orange → Red gradient | Energetic |
-| **Ice Gradient** | Blue → White gradient | Clean |
-| **Aurora** | Green → Pink gradient | Northern lights |
-| **Matrix** | Bright green on black | Hacker aesthetic |
-| **Lavender** | Soft purple | Calming |
-| **Mint** | Light green/aqua | Fresh |
-
-### 2.4 Implementation
-
-**File Changes:**
-
-```text
-src/hooks/useThemeCustomization.ts
-├── Add OLED mode support
-├── Add gradient theme variants  
-├── Add UI density preference
-├── Add font size preference
-└── Add reduced motion preference
-
-src/components/ThemeCustomizer.tsx
-├── Add OLED toggle
-├── Add gradient theme section
-├── Add UI density slider
-└── Add font size selector
-
-src/index.css
-├── Add .oled-mode class for true black
-├── Add gradient theme CSS variables
-├── Add font-size CSS custom properties
-└── Add reduced-motion media query support
-```
-
----
-
-## Part 3: Haptic & Sound Feedback Fix
-
-### 3.1 Current Problem
-
-The haptic feedback currently uses the Web Vibration API with very short durations:
-- `light: 10ms` - Too short to feel on most devices
-- `medium: 25ms` - Still too subtle
-- `heavy: 50ms` - Barely noticeable
-
-**Why it doesn't work:**
-1. Duration too short (10ms is imperceptible on most Android devices)
-2. No iOS haptic engine support (Vibration API not supported)
-3. Pattern syntax may need adjustment for some browsers
-
-### 3.2 Solution
-
-**Enhanced Vibration Patterns:**
-
-```typescript
-// Current (broken)
-const patterns = {
-  light: 10,      // Too short
-  medium: 25,     // Still too short
-  heavy: 50,      // Barely noticeable
-};
-
-// Fixed (perceptible)
-const patterns = {
-  light: [15, 0],       // 15ms pulse - noticeable tap
-  medium: [30, 20, 30], // Double pulse pattern
-  heavy: [60, 30, 60, 30, 60], // Triple strong pulse
-};
-```
-
-**iOS Haptic Support:**
-
-Add native iOS haptic via the Taptic Engine if available:
-
-```typescript
-// Check for iOS Taptic Engine (via webkit API)
-if (window.webkit?.messageHandlers?.hapticFeedback) {
-  window.webkit.messageHandlers.hapticFeedback.postMessage({ style: 'light' });
-}
-```
-
-**Fallback Audio Clicks:**
-
-For devices without vibration support, generate tiny click sounds using Web Audio API:
-
-```typescript
-// Generate 20ms click sound as fallback
-function playTactileClick() {
-  const ctx = new AudioContext();
-  const oscillator = ctx.createOscillator();
-  const gainNode = ctx.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(ctx.destination);
-  
-  oscillator.frequency.value = 400;
-  gainNode.gain.value = 0.1;
-  gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.02);
-  
-  oscillator.start();
-  oscillator.stop(ctx.currentTime + 0.02);
-}
-```
-
-### 3.3 New UI Feedback Sounds
-
-Add actual perceptible sounds for key actions:
-
-| Sound Type | Trigger | Duration |
-|------------|---------|----------|
-| **Soft Click** | Tab switch, button tap | 15ms pop |
-| **Switch Toggle** | Toggle on/off | 20ms swoosh |
-| **Success Chime** | Swap completed | 200ms ding |
-| **Error Buzz** | Transaction failed | 150ms buzz |
-| **Notification** | Alert received | 300ms chime |
-
-### 3.4 Haptic Intensity Settings
-
-Add granular control in Settings:
-
-```text
-Haptic Intensity: [Off] [Light] [Medium] [Strong]
-Sound Volume: [──────●───] 70%
-```
-
----
-
-## Part 4: Implementation Order
-
-### Phase 1: Critical Fixes (Immediate)
-
-1. **Fix Haptic Feedback** - Make vibrations actually work
-   - Update `useHapticFeedback.ts` with longer durations
-   - Add fallback audio clicks
-   - Add haptic intensity setting
-
-2. **Theme OLED Mode** - High demand feature
-   - Add OLED toggle
-   - Add true black CSS mode
+### Fixes
+1. **Vibration still plays clicks** - The Web Vibration API isn't triggering actual vibration on the device
+2. **Set OLED + Matrix as defaults** - When OLED mode is enabled, auto-select Matrix theme
+3. **Theme persistence** - Ensure OLED mode and Matrix theme are remembered
 
 ### Phase 2: Analytics Improvements
+4. **Chain Distribution Heatmap** - Visual trading activity per chain
+5. **Win Rate & Trade Metrics** - Better success tracking
+6. **Time-of-Day Patterns** - When user trades most
 
-1. **Chain Distribution Heatmap** - Visual chain activity
-2. **Win Rate & Average Trade Size** - Better metrics
-3. **Time Patterns Chart** - When user trades most
+---
 
-### Phase 3: Portfolio & History
+## Part 1: Vibration Fix
 
-1. **Token Search/Filter** - Find holdings quickly
-2. **Dust Filter** - Hide low-value tokens
-3. **Transaction Filters** - Better history navigation
-4. **Repeat Trade Button** - Quick action
+### Problem Analysis
 
-### Phase 4: Premium Theme Features
+The current implementation tries vibration, but if it "fails" it falls through to audio. The issue is that `navigator.vibrate()` returns `true` even when the phone doesn't actually vibrate (e.g., vibration is disabled in OS settings, or the browser blocks it).
 
-1. **Gradient Themes** - New preset styles
-2. **UI Density Control** - Compact/comfortable
-3. **Font Size Control** - Accessibility
+**Current Code (lines 166-172):**
+```typescript
+if (isVibrationSupported) {
+  try {
+    navigator.vibrate(scaledPattern);
+    return;  // <- Returns immediately, assuming it worked
+  } catch {
+    // Fall through to audio fallback
+  }
+}
+```
+
+### Solution
+
+1. **Increase vibration durations** - The patterns are good, but mobile browsers need longer pulses
+2. **Remove unnecessary fallback to audio** - Let the device vibrate without audio interference
+3. **Add user gesture requirement check** - Vibration only works after user interaction
+4. **Test vibration on mount** - Quick test to verify it actually works
+
+**Updated Haptic Patterns (stronger):**
+```typescript
+export const HAPTIC_PATTERNS = {
+  tap: [35],           // Was 25, now 35ms
+  light: [30],         // Was 20, now 30ms
+  medium: [40, 60, 40], // Was [30,50,30], now stronger
+  select: [35, 50, 35],
+  heavy: [60, 50, 60, 50, 60],
+  success: [40, 80, 50],
+  error: [80, 60, 80],
+  warning: [60, 80],
+  swipe: [30, 40, 30],
+  refresh: [50, 40, 50],
+} as const;
+```
+
+**Key Changes:**
+- Only play audio fallback if device definitely doesn't support vibration
+- Add a visual indicator in dev mode showing if vibration actually triggered
+- Don't suppress vibration with immediate audio
+
+---
+
+## Part 2: OLED + Matrix Default
+
+### Current Behavior
+- OLED mode is a toggle (on/off)
+- Theme selection is separate
+- No connection between them
+
+### New Behavior
+When user enables OLED mode:
+1. Auto-select Matrix theme (green on black looks best on OLED)
+2. Save both preferences together
+3. Show a toast confirming "OLED Mode + Matrix theme applied"
+
+**Implementation in `useThemeCustomization.ts`:**
+
+```typescript
+const toggleOledMode = useCallback((enabled: boolean) => {
+  setOledMode(enabled);
+  localStorage.setItem(OLED_STORAGE_KEY, String(enabled));
+  document.documentElement.classList.toggle('oled-mode', enabled);
+  
+  // Auto-select Matrix theme for OLED
+  if (enabled) {
+    const matrixScheme = SPECIAL_SCHEMES.find(s => s.id === 'matrix');
+    if (matrixScheme) {
+      applyScheme(matrixScheme);
+    }
+  }
+}, [applyScheme]);
+```
+
+---
+
+## Part 3: Phase 2 - Analytics Enhancements
+
+### 3.1 New Component: Chain Activity Heatmap
+
+**File: `src/components/analytics/ChainHeatmap.tsx`**
+
+A visual heatmap showing trading activity per chain over time.
+
+**Data Structure:**
+```typescript
+interface ChainActivity {
+  chain: string;
+  chainIndex: string;
+  trades: number;
+  volume: number;
+  lastActive: Date;
+  intensity: number; // 0-1 for color mapping
+}
+```
+
+**Visual Design:**
+- Grid of chain badges
+- Color intensity based on trade count (darker = more active)
+- Tooltip showing exact counts and volume
+- Click to filter analytics by chain
+
+### 3.2 Enhanced Trade Metrics
+
+Add to existing `XlamaAnalyticsTab.tsx`:
+
+| Metric | Calculation | Display |
+|--------|-------------|---------|
+| Win Rate | Successful / Total trades | Percentage with color |
+| Avg Trade Size | Total volume / Trade count | USD formatted |
+| Best Trade | Highest profit single trade | USD + token pair |
+| Worst Trade | Biggest loss single trade | USD + token pair |
+| Streak | Current win/loss streak | Count with emoji |
+
+### 3.3 Trading Patterns Chart
+
+**File: `src/components/analytics/TradePatterns.tsx`**
+
+Shows when the user trades most:
+
+- **Hour of Day**: Bar chart (0-23 hours)
+- **Day of Week**: Bar chart (Mon-Sun)
+- **Insights**: "You trade most on Tuesdays at 3 PM"
+
+---
+
+## Part 4: Portfolio Enhancements (Phase 3 Preview)
+
+Add to `XlamaPortfolioTab.tsx`:
+
+### 4.1 Holdings Search
+
+```typescript
+const [holdingsSearch, setHoldingsSearch] = useState('');
+
+const filteredBalances = useMemo(() => {
+  if (!holdingsSearch) return balances;
+  const query = holdingsSearch.toLowerCase();
+  return balances.filter(b => 
+    b.symbol.toLowerCase().includes(query) ||
+    b.tokenContractAddress.toLowerCase().includes(query)
+  );
+}, [balances, holdingsSearch]);
+```
+
+### 4.2 Dust Filter Toggle
+
+```typescript
+const [hideDust, setHideDust] = useState(false);
+
+const visibleBalances = useMemo(() => {
+  if (!hideDust) return filteredBalances;
+  return filteredBalances.filter(b => {
+    const value = parseFloat(b.balance) * parseFloat(b.tokenPrice || '0');
+    return value >= 1; // Hide tokens worth less than $1
+  });
+}, [filteredBalances, hideDust]);
+```
 
 ---
 
 ## Files to Create/Modify
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useHapticFeedback.ts` | Fix vibration patterns, add intensity levels, add fallback |
-| `src/lib/sounds.ts` | Add tactile click sound generator |
-| `src/hooks/useFeedback.ts` | Add haptic intensity setting |
-| `src/hooks/useThemeCustomization.ts` | Add OLED mode, gradients, density, font size |
-| `src/components/ThemeCustomizer.tsx` | New UI for OLED toggle, density, fonts |
-| `src/components/FeedbackSettings.tsx` | Add haptic intensity control |
-| `src/index.css` | OLED mode CSS, gradient themes, font size variables |
-| `src/components/analytics/ChainHeatmap.tsx` | New - Chain distribution heatmap |
-| `src/components/analytics/TradePatterns.tsx` | New - Time-of-day patterns |
-| `src/components/portfolio/HoldingsFilter.tsx` | New - Search and filter for portfolio |
-| `src/components/history/TransactionFilters.tsx` | New - Filter controls for history |
+| File | Action | Description |
+|------|--------|-------------|
+| `src/hooks/useHapticFeedback.ts` | Update | Stronger patterns, fix fallback logic |
+| `src/hooks/useThemeCustomization.ts` | Update | Auto-select Matrix when OLED enabled |
+| `src/components/ThemeCustomizer.tsx` | Update | Show toast when OLED+Matrix applied |
+| `src/components/analytics/ChainHeatmap.tsx` | Create | Chain activity visualization |
+| `src/components/analytics/TradePatterns.tsx` | Create | Time-of-day trading patterns |
+| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Update | Add new metrics cards |
+| `src/components/portfolio/tabs/XlamaPortfolioTab.tsx` | Update | Add search + dust filter |
 
 ---
 
-## Technical Details
+## Implementation Order
 
-### Haptic Pattern Reference
-
-```typescript
-// useHapticFeedback.ts - Fixed patterns
-export const HAPTIC_PATTERNS = {
-  // Perceptible single taps
-  tap: [20],
-  light: [15],
-  
-  // Double-tap patterns
-  medium: [25, 40, 25],
-  select: [20, 30, 20],
-  
-  // Strong feedback
-  heavy: [40, 30, 40, 30, 40],
-  success: [20, 50, 30],
-  error: [60, 40, 60],
-  warning: [40, 60],
-  
-  // Navigation
-  swipe: [15, 20, 15],
-} as const;
-```
-
-### OLED Mode CSS
-
-```css
-/* index.css */
-.oled-mode {
-  --background: 0 0% 0%;           /* True black */
-  --card: 0 0% 3%;                 /* Near black */
-  --popover: 0 0% 3%;
-  --muted: 0 0% 8%;
-  --border: 0 0% 12%;
-}
-
-/* Reduce accent brightness for OLED */
-.oled-mode .glass {
-  background: rgba(0, 0, 0, 0.9);
-}
-```
-
-### Gradient Theme Definition
-
-```typescript
-// New gradient theme type
-interface GradientScheme extends ColorScheme {
-  gradient: {
-    start: string;  // HSL
-    end: string;    // HSL  
-    angle: number;  // degrees
-  };
-}
-
-const GRADIENT_PRESETS: GradientScheme[] = [
-  {
-    id: 'cyber',
-    name: 'Cyber',
-    primary: '180 100% 50%',  // Cyan
-    gradient: {
-      start: '180 100% 50%',  // Cyan
-      end: '280 100% 60%',    // Purple
-      angle: 135,
-    },
-    // ...
-  },
-];
-```
+1. **Fix haptic feedback** (increase durations, remove premature audio)
+2. **OLED + Matrix coupling** (auto-select Matrix when OLED enabled)
+3. **Add Chain Heatmap** to Analytics
+4. **Add Trade Metrics** (avg size, best/worst trade)
+5. **Add Portfolio search/filter** (quick wins)
 
 ---
 
 ## Expected Outcomes
 
-| Area | Before | After |
-|------|--------|-------|
-| Haptic feedback | No perceptible vibration | Clear tactile feedback on actions |
-| OLED support | Dark gray background | True black for battery saving |
-| Theme options | 12 solid color presets | 20+ including gradients |
-| Portfolio | Basic list | Search, filter, sparklines |
-| Analytics | Basic charts | Heatmaps, patterns, win rate |
-| History | Flat list | Filtered, searchable, exportable |
+| Issue | Before | After |
+|-------|--------|-------|
+| Haptic vibration | Plays audio click instead | Actual phone vibration |
+| OLED theme | Manual theme selection | Auto-selects Matrix on OLED |
+| Chain analytics | Basic pie chart | Interactive heatmap |
+| Trade insights | Basic volume/count | Win rate, avg size, patterns |
+| Portfolio UX | Scroll through all tokens | Search + hide dust |
 
 ---
 
-## Summary
+## Technical Notes
 
-This plan addresses:
+### Haptic API Requirements
+- Requires user gesture (tap, click) to trigger
+- Duration in milliseconds
+- Pattern array: [vibrate, pause, vibrate, pause, ...]
+- Some browsers require the page to be in foreground
 
-1. **Haptic feedback not working** - Fixed vibration patterns and fallback sounds
-2. **Theme expansion** - OLED mode, gradient themes, density/font controls
-3. **Portfolio improvements** - Search, filter, quick actions
-4. **Analytics improvements** - Chain heatmap, trade patterns, win rate
-5. **History improvements** - Filters, batch export, repeat trade
+### OLED Mode CSS
+The existing `.oled-mode` class in `index.css` already provides:
+- True black background (`0 0% 0%`)
+- Near-black cards (`0 0% 2%`)
+- Reduced glass opacity
 
-Priority order: Haptic fix → OLED mode → Analytics charts → Portfolio/History filters
+Matrix theme's bright green (`120 100% 40%`) creates excellent contrast on pure black.
+
