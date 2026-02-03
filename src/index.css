@@ -300,6 +300,49 @@ html {
     --shadow-glow: 0 0 50px -8px hsl(var(--primary) / 0.4);
     --shadow-glow-accent: 0 0 30px -5px hsl(var(--primary) / 0.25);
   }
+
+  /* ============ OLED MODE ============ */
+  /* True black background for AMOLED screens - battery saving */
+  .oled-mode.dark {
+    --background: 0 0% 0%;
+    --card: 0 0% 2%;
+    --popover: 0 0% 2%;
+    --secondary: 0 0% 6%;
+    --muted: 0 0% 8%;
+    --border: 0 0% 10%;
+    --input: 0 0% 10%;
+    --surface-elevated: 0 0% 5%;
+    --surface-sunken: 0 0% 0%;
+    
+    /* Reduced glow intensity for pure black */
+    --shadow-glow: 0 0 40px -10px hsl(var(--primary) / 0.3);
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 2%), hsl(0 0% 0%));
+  }
+  
+  .oled-mode .glass {
+    background: hsl(0 0% 0% / 0.95);
+  }
+  
+  .oled-mode .glass-elevated {
+    background: hsl(0 0% 2% / 0.9);
+  }
+
+  /* ============ UI DENSITY ============ */
+  .ui-compact {
+    --base-spacing: 0.75;
+  }
+  
+  .ui-compact .p-4 { padding: 0.75rem; }
+  .ui-compact .p-6 { padding: 1rem; }
+  .ui-compact .gap-4 { gap: 0.75rem; }
+  .ui-compact .gap-6 { gap: 1rem; }
+  .ui-compact .space-y-4 > * + * { margin-top: 0.75rem; }
+  .ui-compact .space-y-6 > * + * { margin-top: 1rem; }
+  
+  /* ============ FONT SIZE CUSTOMIZATION ============ */
+  :root {
+    --base-font-size: 16px;
+  }
 }
 
 @layer base {
