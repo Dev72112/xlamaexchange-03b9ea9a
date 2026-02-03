@@ -1,9 +1,10 @@
 /**
  * xLama History Tab
  * Uses local Supabase dex_transactions for reliable, fast history display
+ * Includes filters and CSV export
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,10 +27,13 @@ import {
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useLocalDexHistory, convertLocalToXlamaFormat } from '@/hooks/useLocalDexHistory';
 import { XlamaSyncStatus } from '@/components/XlamaSyncStatus';
+import { TransactionFilters, FilterState } from '@/components/history/TransactionFilters';
+import { exportTransactionsToCSV, ExportableTransaction } from '@/lib/tradeExport';
 import { getChainByIndex } from '@/data/chains';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subDays, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { TokenImage, ChainImage } from '@/components/ui/token-image';
+import { toast } from 'sonner';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -47,32 +51,108 @@ const formatAmount = (amount: string | number | undefined) => {
   return num.toFixed(6);
 };
 
+const defaultFilters: FilterState = {
+  chain: 'all',
+  token: 'all',
+  dateRange: 'all',
+  status: 'all',
+  type: 'all',
+};
+
 export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
   const { isConnected, activeAddress } = useMultiWallet();
   
   // Use local DB for reliable, fast data
   const { data: localTxs, isLoading, isError, refetch } = useLocalDexHistory({ 
     enabled: true,
-    limit: 200,
+    limit: 500,
   });
 
   // Convert local transactions to xLama format for UI compatibility
-  const transactions = (localTxs ?? []).map(convertLocalToXlamaFormat);
+  const transactions = useMemo(() => 
+    (localTxs ?? []).map(convertLocalToXlamaFormat),
+    [localTxs]
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Filter transactions
-  const filteredTransactions = transactions.filter(tx => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      tx.token_in?.symbol?.toLowerCase().includes(query) ||
-      tx.token_out?.symbol?.toLowerCase().includes(query) ||
-      tx.chain_name?.toLowerCase().includes(query) ||
-      tx.tx_hash?.toLowerCase().includes(query)
-    );
-  });
+  // Extract unique chains and tokens for filter dropdowns
+  const { chains, tokens } = useMemo(() => {
+    const chainSet = new Set<string>();
+    const tokenSet = new Set<string>();
+    
+    transactions.forEach(tx => {
+      if (tx.chain_name) chainSet.add(tx.chain_name);
+      if (tx.token_in?.symbol) tokenSet.add(tx.token_in.symbol);
+      if (tx.token_out?.symbol) tokenSet.add(tx.token_out.symbol);
+    });
+    
+    return {
+      chains: Array.from(chainSet).sort(),
+      tokens: Array.from(tokenSet).sort(),
+    };
+  }, [transactions]);
+
+  // Apply filters
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(tx => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = (
+          tx.token_in?.symbol?.toLowerCase().includes(query) ||
+          tx.token_out?.symbol?.toLowerCase().includes(query) ||
+          tx.chain_name?.toLowerCase().includes(query) ||
+          tx.tx_hash?.toLowerCase().includes(query)
+        );
+        if (!matchesSearch) return false;
+      }
+
+      // Chain filter
+      if (filters.chain !== 'all' && tx.chain_name !== filters.chain) {
+        return false;
+      }
+
+      // Token filter
+      if (filters.token !== 'all') {
+        if (tx.token_in?.symbol !== filters.token && tx.token_out?.symbol !== filters.token) {
+          return false;
+        }
+      }
+
+      // Date range filter
+      if (filters.dateRange !== 'all') {
+        const txDate = new Date(tx.timestamp);
+        const daysMap = { '7d': 7, '30d': 30, '90d': 90 };
+        const days = daysMap[filters.dateRange];
+        if (!isAfter(txDate, subDays(new Date(), days))) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (filters.status !== 'all') {
+        const status = tx.status as string;
+        const isSuccess = status === 'success' || status === 'confirmed' || status === 'completed';
+        const isFailed = status === 'failed' || status === 'fail';
+        const isPending = !isSuccess && !isFailed;
+        
+        if (filters.status === 'success' && !isSuccess) return false;
+        if (filters.status === 'failed' && !isFailed) return false;
+        if (filters.status === 'pending' && !isPending) return false;
+      }
+
+      // Type filter
+      if (filters.type !== 'all' && tx.transaction_type !== filters.type) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [transactions, searchQuery, filters]);
 
   // Pagination
   const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
@@ -86,9 +166,41 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
     setCurrentPage(1);
   }, []);
 
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
+    setFilters(newFilters);
+    setCurrentPage(1);
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     await refetch();
+    toast.success('History refreshed');
   }, [refetch]);
+
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const exportData: ExportableTransaction[] = filteredTransactions.map(tx => ({
+        timestamp: tx.timestamp,
+        type: tx.transaction_type,
+        fromAmount: String(tx.token_in?.amount || '0'),
+        fromSymbol: tx.token_in?.symbol || '',
+        toAmount: String(tx.token_out?.amount || '0'),
+        toSymbol: tx.token_out?.symbol || '',
+        chain: tx.chain_name || '',
+        status: tx.status,
+        usdValue: tx.value_usd,
+        txHash: tx.tx_hash,
+        explorerUrl: tx.explorer_url,
+      }));
+      
+      exportTransactionsToCSV(exportData);
+      toast.success(`Exported ${exportData.length} transactions`);
+    } catch (error) {
+      toast.error('Failed to export transactions');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [filteredTransactions]);
 
   const getStatusBadge = (status: string) => {
     if (status === 'success' || status === 'confirmed' || status === 'completed') {
@@ -140,12 +252,10 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
             Local Data
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading} className="h-8 gap-1.5">
-            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
-            Refresh
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading} className="h-8 gap-1.5">
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+          Refresh
+        </Button>
       </div>
 
       {/* Search */}
@@ -168,6 +278,16 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
           </Button>
         )}
       </div>
+
+      {/* Filters & Export */}
+      <TransactionFilters
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        chains={chains}
+        tokens={tokens}
+        onExport={handleExport}
+        isExporting={isExporting}
+      />
 
       {/* Error state */}
       {isError && (
@@ -210,7 +330,9 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
             <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No Transactions</h3>
             <p className="text-sm text-muted-foreground">
-              {searchQuery ? 'No transactions match your search.' : 'Your transaction history will appear here after you make swaps.'}
+              {searchQuery || filters.chain !== 'all' || filters.status !== 'all' 
+                ? 'No transactions match your filters.' 
+                : 'Your transaction history will appear here after you make swaps.'}
             </p>
           </CardContent>
         </Card>
@@ -353,6 +475,7 @@ export const XlamaHistoryTab = memo(function XlamaHistoryTab() {
       {transactions.length > 0 && (
         <p className="text-center text-xs text-muted-foreground">
           Showing {paginatedTransactions.length} of {filteredTransactions.length} transactions
+          {filteredTransactions.length !== transactions.length && ` (${transactions.length} total)`}
         </p>
       )}
     </div>

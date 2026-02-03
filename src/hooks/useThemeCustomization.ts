@@ -205,11 +205,12 @@ export function useThemeCustomization() {
   const [uiDensity, setUiDensity] = useState<UIDensity>('comfortable');
   const [fontSize, setFontSize] = useState<FontSize>('medium');
 
-  // Load saved settings on mount
+  // Load saved settings on mount - DEFAULT TO OLED + MATRIX FOR NEW USERS
   useEffect(() => {
     // Load color scheme
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
+      // Existing user - load their saved preference
       try {
         const parsed = JSON.parse(saved);
         if (parsed.id === 'custom') {
@@ -222,11 +223,34 @@ export function useThemeCustomization() {
       } catch (e) {
         console.error('Failed to parse saved color scheme');
       }
+    } else {
+      // NEW USER - Apply Matrix theme as default
+      const matrixScheme = SPECIAL_SCHEMES.find(s => s.id === 'matrix');
+      if (matrixScheme) {
+        // Apply the scheme without saving yet (will save on first interaction)
+        const root = document.documentElement;
+        root.style.setProperty('--primary', matrixScheme.primary);
+        root.style.setProperty('--ring', matrixScheme.primary);
+        const [h, s, l] = matrixScheme.primary.split(' ').map(v => parseFloat(v));
+        root.style.setProperty('--accent', `${h} 40% 95%`);
+        root.style.setProperty('--accent-foreground', `${h} ${s}% ${Math.max(l - 10, 30)}%`);
+        root.style.setProperty('--success', matrixScheme.primary);
+        matrixScheme.chartColors.forEach((color, i) => {
+          root.style.setProperty(`--chart-${i + 1}`, color);
+        });
+        setCurrentScheme(matrixScheme);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(matrixScheme));
+      }
     }
     
-    // Load OLED mode
+    // Load OLED mode - DEFAULT TO TRUE FOR NEW USERS
     const savedOled = localStorage.getItem(OLED_STORAGE_KEY);
-    if (savedOled === 'true') {
+    if (savedOled === null) {
+      // New user - enable OLED by default
+      setOledMode(true);
+      document.documentElement.classList.add('oled-mode');
+      localStorage.setItem(OLED_STORAGE_KEY, 'true');
+    } else if (savedOled === 'true') {
       setOledMode(true);
       document.documentElement.classList.add('oled-mode');
     }
@@ -341,13 +365,13 @@ export function useThemeCustomization() {
   }, []);
 
   const resetToDefault = useCallback(() => {
-    const defaultScheme = PRESET_SCHEMES[0];
-    applyScheme(defaultScheme);
+    // Reset to Matrix + OLED (the new default for all users)
+    const matrixScheme = SPECIAL_SCHEMES.find(s => s.id === 'matrix') || PRESET_SCHEMES[0];
+    applyScheme(matrixScheme);
     setCustomScheme(null);
-    toggleOledMode(false);
+    toggleOledMode(true); // OLED is now the default
     updateUIDensity('comfortable');
     updateFontSize('medium');
-    localStorage.removeItem(STORAGE_KEY);
   }, [applyScheme, toggleOledMode, updateUIDensity, updateFontSize]);
 
   return {
