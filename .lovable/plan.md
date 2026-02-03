@@ -1,247 +1,349 @@
 
+# Comprehensive Improvement Plan v2.9.0
 
-# Analytics Improvements Plan
+## Overview
 
-## Issues Identified from Screenshot
+This plan covers four major areas of improvement:
 
-### Issue 1: Volume Over Time Chart Hides on Weekly View
-**Current Behavior**: When switching to "Weekly" granularity, the chart disappears entirely if there's insufficient data to show meaningful weeks.
+1. **Portfolio, Analytics, History Enhancements** - Better data visualization and UX
+2. **Theme System Overhaul** - More presets, gradient themes, OLED mode
+3. **Haptic & Sound Feedback Fix** - Make vibrations actually work on mobile
+4. **Backend Analytics** - Improved data capture for xLama API
 
-**Root Cause (Line 117)**: 
-```tsx
-if (!chartData.length || totalCount === 0) {
-  return null;  // <- Hides the entire component
+---
+
+## Part 1: Portfolio, Analytics & History Improvements
+
+### 1.1 Portfolio Page Enhancements
+
+| Feature | Description |
+|---------|-------------|
+| **Token PnL Sparklines** | Add mini 7-day sparkline charts next to each holding showing price trend |
+| **Quick Swap Button** | One-tap button to swap any token directly from portfolio |
+| **Chain Filter Badges** | Show how many tokens are on each chain with quick filter badges |
+| **Holdings Search** | Add search/filter for tokens in portfolio |
+| **Dust Filter Toggle** | Option to hide tokens worth less than $1 |
+
+### 1.2 Analytics Page Enhancements
+
+| Feature | Description |
+|---------|-------------|
+| **Chain Distribution Heatmap** | Visual heatmap showing trading activity per chain (already in roadmap) |
+| **Win Rate Tracker** | Show successful vs failed transactions percentage |
+| **Average Trade Size** | Display median and average trade sizes |
+| **Time-of-Day Patterns** | Chart showing when user trades most (morning/evening/weekend) |
+| **Best/Worst Trades** | Highlight top gainers and biggest losses |
+
+### 1.3 History Page Enhancements
+
+| Feature | Description |
+|---------|-------------|
+| **Transaction Filters** | Filter by chain, token, date range, status |
+| **Batch Select & Export** | Select multiple transactions for CSV export |
+| **Transaction Details Modal** | Expandable view with gas breakdown, timestamps |
+| **Repeat Trade Button** | Quick action to repeat a previous swap |
+
+---
+
+## Part 2: Theme System Overhaul
+
+### 2.1 Current State Analysis
+
+The app has 12 color presets but lacks:
+- True black OLED mode for battery saving
+- Gradient themes (popular in crypto apps)
+- System theme sync improvements
+- Font size preferences
+- Reduced motion support
+
+### 2.2 New Theme Features
+
+| Feature | Description |
+|---------|-------------|
+| **OLED Dark Mode** | True black (#000) background for AMOLED screens |
+| **Gradient Themes** | 4 new gradient-based accent colors |
+| **Compact/Comfortable UI Density** | Choose between tighter or looser spacing |
+| **Font Size Control** | Small/Medium/Large text size options |
+| **Reduced Motion** | Respect `prefers-reduced-motion` for accessibility |
+| **Theme Favorites** | Star and quick-access your preferred themes |
+
+### 2.3 New Premium Theme Presets
+
+| Theme Name | Primary Color | Style |
+|------------|---------------|-------|
+| **OLED Black** | Any accent on pure black | Battery-saving |
+| **Cyber Gradient** | Cyan → Purple gradient | Futuristic |
+| **Fire Gradient** | Orange → Red gradient | Energetic |
+| **Ice Gradient** | Blue → White gradient | Clean |
+| **Aurora** | Green → Pink gradient | Northern lights |
+| **Matrix** | Bright green on black | Hacker aesthetic |
+| **Lavender** | Soft purple | Calming |
+| **Mint** | Light green/aqua | Fresh |
+
+### 2.4 Implementation
+
+**File Changes:**
+
+```text
+src/hooks/useThemeCustomization.ts
+├── Add OLED mode support
+├── Add gradient theme variants  
+├── Add UI density preference
+├── Add font size preference
+└── Add reduced motion preference
+
+src/components/ThemeCustomizer.tsx
+├── Add OLED toggle
+├── Add gradient theme section
+├── Add UI density slider
+└── Add font size selector
+
+src/index.css
+├── Add .oled-mode class for true black
+├── Add gradient theme CSS variables
+├── Add font-size CSS custom properties
+└── Add reduced-motion media query support
+```
+
+---
+
+## Part 3: Haptic & Sound Feedback Fix
+
+### 3.1 Current Problem
+
+The haptic feedback currently uses the Web Vibration API with very short durations:
+- `light: 10ms` - Too short to feel on most devices
+- `medium: 25ms` - Still too subtle
+- `heavy: 50ms` - Barely noticeable
+
+**Why it doesn't work:**
+1. Duration too short (10ms is imperceptible on most Android devices)
+2. No iOS haptic engine support (Vibration API not supported)
+3. Pattern syntax may need adjustment for some browsers
+
+### 3.2 Solution
+
+**Enhanced Vibration Patterns:**
+
+```typescript
+// Current (broken)
+const patterns = {
+  light: 10,      // Too short
+  medium: 25,     // Still too short
+  heavy: 50,      // Barely noticeable
+};
+
+// Fixed (perceptible)
+const patterns = {
+  light: [15, 0],       // 15ms pulse - noticeable tap
+  medium: [30, 20, 30], // Double pulse pattern
+  heavy: [60, 30, 60, 30, 60], // Triple strong pulse
+};
+```
+
+**iOS Haptic Support:**
+
+Add native iOS haptic via the Taptic Engine if available:
+
+```typescript
+// Check for iOS Taptic Engine (via webkit API)
+if (window.webkit?.messageHandlers?.hapticFeedback) {
+  window.webkit.messageHandlers.hapticFeedback.postMessage({ style: 'light' });
 }
 ```
 
-**Fix**: Instead of returning `null`, show the chart with an empty state message like "Not enough data for weekly view. Try daily." Also, if there's at least one data point, show the chart regardless.
+**Fallback Audio Clicks:**
 
----
+For devices without vibration support, generate tiny click sounds using Web Audio API:
 
-### Issue 2: Most Traded Pairs Chart Is Confusing
-
-**Current Issues (from screenshot)**:
-1. Bars are all similar shades of red/orange - unclear what differentiates them
-2. X-axis shows numbers (0, 2, 4, 6, 8) but no label indicating these are "Trades"
-3. No legend or value labels on the bars themselves
-4. Hard to see exact values for each pair
-
-**Current Implementation (Lines 265-282)**:
-```tsx
-<BarChart data={analytics.mostTradedPairs} layout="vertical">
-  <XAxis type="number" tick={{ fontSize: 10 }} />
-  <YAxis dataKey="pair" type="category" tick={{ fontSize: 10 }} width={100} />
-  <Tooltip formatter={(value, name) => [...]} />
-  <Bar dataKey="trade_count" name="Trades" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-</BarChart>
+```typescript
+// Generate 20ms click sound as fallback
+function playTactileClick() {
+  const ctx = new AudioContext();
+  const oscillator = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  
+  oscillator.frequency.value = 400;
+  gainNode.gain.value = 0.1;
+  gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.02);
+  
+  oscillator.start();
+  oscillator.stop(ctx.currentTime + 0.02);
+}
 ```
 
-**Improvements**:
-1. Add value labels at the end of each bar showing the trade count
-2. Add X-axis label "Trades" or change to a clearer format
-3. Use gradient colors for visual distinction (darker = more trades)
-4. Show both trade count AND volume (if available) in tooltip
-5. Make bars thicker and more readable
+### 3.3 New UI Feedback Sounds
 
----
+Add actual perceptible sounds for key actions:
 
-### Issue 3: Improving xLama Backend Analytics
+| Sound Type | Trigger | Duration |
+|------------|---------|----------|
+| **Soft Click** | Tab switch, button tap | 15ms pop |
+| **Switch Toggle** | Toggle on/off | 20ms swoosh |
+| **Success Chime** | Swap completed | 200ms ding |
+| **Error Buzz** | Transaction failed | 150ms buzz |
+| **Notification** | Alert received | 300ms chime |
 
-**Current Backend Limitations**:
-- All 111+ transactions have `$0.00` USD volume in the database
-- The xLama API computes analytics but doesn't have USD price data
-- The frontend falls back to OKX transaction data which also lacks USD values
+### 3.4 Haptic Intensity Settings
 
-**Improvement Strategy**:
+Add granular control in Settings:
 
 ```text
-Current Flow:
-Frontend → xlama-api proxy → External xLama Backend → Returns analytics
-
-Problem: USD values are missing at capture time
-
-Solution:
-1. Ensure ExchangeWidget captures USD values using enhanced pricing (already implemented)
-2. Create a backfill script/migration to estimate USD for existing transactions
-3. Enhance xLama webhook to include USD data from swap execution
+Haptic Intensity: [Off] [Light] [Medium] [Strong]
+Sound Volume: [──────●───] 70%
 ```
-
-**Backend Enhancements to Plan**:
-1. **Add price caching table** - Store token prices at swap time for historical lookups
-2. **Add aggregate views** - Pre-computed analytics tables for faster queries
-3. **Add volume by token/chain** - Track volume per token and per chain for richer analytics
 
 ---
 
-## Implementation Details
+## Part 4: Implementation Order
 
-### Fix 1: Weekly Chart Empty State
+### Phase 1: Critical Fixes (Immediate)
 
-**File**: `src/components/VolumeOverTimeChart.tsx`
+1. **Fix Haptic Feedback** - Make vibrations actually work
+   - Update `useHapticFeedback.ts` with longer durations
+   - Add fallback audio clicks
+   - Add haptic intensity setting
 
-**Changes**:
-- Remove the `return null` for empty data, show graceful message instead
-- Add minimum data point check for weekly (need at least 2 weeks of data)
-- Show message like "Switch to Daily for more detail" when weekly has sparse data
+2. **Theme OLED Mode** - High demand feature
+   - Add OLED toggle
+   - Add true black CSS mode
 
-```tsx
-// Replace lines 116-119
-// Instead of returning null, show empty state card
-if (!chartData.length) {
-  return (
-    <Card className="glass border-border/50">
-      <CardHeader>...</CardHeader>
-      <CardContent>
-        <div className="h-48 flex items-center justify-center text-muted-foreground">
-          <p>No trading data available yet</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+### Phase 2: Analytics Improvements
+
+1. **Chain Distribution Heatmap** - Visual chain activity
+2. **Win Rate & Average Trade Size** - Better metrics
+3. **Time Patterns Chart** - When user trades most
+
+### Phase 3: Portfolio & History
+
+1. **Token Search/Filter** - Find holdings quickly
+2. **Dust Filter** - Hide low-value tokens
+3. **Transaction Filters** - Better history navigation
+4. **Repeat Trade Button** - Quick action
+
+### Phase 4: Premium Theme Features
+
+1. **Gradient Themes** - New preset styles
+2. **UI Density Control** - Compact/comfortable
+3. **Font Size Control** - Accessibility
+
+---
+
+## Files to Create/Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useHapticFeedback.ts` | Fix vibration patterns, add intensity levels, add fallback |
+| `src/lib/sounds.ts` | Add tactile click sound generator |
+| `src/hooks/useFeedback.ts` | Add haptic intensity setting |
+| `src/hooks/useThemeCustomization.ts` | Add OLED mode, gradients, density, font size |
+| `src/components/ThemeCustomizer.tsx` | New UI for OLED toggle, density, fonts |
+| `src/components/FeedbackSettings.tsx` | Add haptic intensity control |
+| `src/index.css` | OLED mode CSS, gradient themes, font size variables |
+| `src/components/analytics/ChainHeatmap.tsx` | New - Chain distribution heatmap |
+| `src/components/analytics/TradePatterns.tsx` | New - Time-of-day patterns |
+| `src/components/portfolio/HoldingsFilter.tsx` | New - Search and filter for portfolio |
+| `src/components/history/TransactionFilters.tsx` | New - Filter controls for history |
+
+---
+
+## Technical Details
+
+### Haptic Pattern Reference
+
+```typescript
+// useHapticFeedback.ts - Fixed patterns
+export const HAPTIC_PATTERNS = {
+  // Perceptible single taps
+  tap: [20],
+  light: [15],
+  
+  // Double-tap patterns
+  medium: [25, 40, 25],
+  select: [20, 30, 20],
+  
+  // Strong feedback
+  heavy: [40, 30, 40, 30, 40],
+  success: [20, 50, 30],
+  error: [60, 40, 60],
+  warning: [40, 60],
+  
+  // Navigation
+  swipe: [15, 20, 15],
+} as const;
+```
+
+### OLED Mode CSS
+
+```css
+/* index.css */
+.oled-mode {
+  --background: 0 0% 0%;           /* True black */
+  --card: 0 0% 3%;                 /* Near black */
+  --popover: 0 0% 3%;
+  --muted: 0 0% 8%;
+  --border: 0 0% 12%;
 }
 
-// Add check for sparse weekly data
-const hasEnoughWeeklyData = granularity === 'weekly' 
-  ? chartData.filter(d => d.count > 0).length >= 2
-  : true;
+/* Reduce accent brightness for OLED */
+.oled-mode .glass {
+  background: rgba(0, 0, 0, 0.9);
+}
+```
 
-// Show message if weekly data is sparse
-{granularity === 'weekly' && !hasEnoughWeeklyData && (
-  <p className="text-xs text-muted-foreground text-center mt-2">
-    Limited weekly data available • Switch to Daily for more detail
-  </p>
-)}
+### Gradient Theme Definition
+
+```typescript
+// New gradient theme type
+interface GradientScheme extends ColorScheme {
+  gradient: {
+    start: string;  // HSL
+    end: string;    // HSL  
+    angle: number;  // degrees
+  };
+}
+
+const GRADIENT_PRESETS: GradientScheme[] = [
+  {
+    id: 'cyber',
+    name: 'Cyber',
+    primary: '180 100% 50%',  // Cyan
+    gradient: {
+      start: '180 100% 50%',  // Cyan
+      end: '280 100% 60%',    // Purple
+      angle: 135,
+    },
+    // ...
+  },
+];
 ```
 
 ---
 
-### Fix 2: Most Traded Pairs Chart Improvements
+## Expected Outcomes
 
-**File**: `src/components/analytics/tabs/XlamaAnalyticsTab.tsx`
-
-**Changes**:
-1. Add `LabelList` component to show values on bars
-2. Add X-axis label
-3. Improve color scheme with gradient per-bar
-4. Increase bar size and padding
-5. Better tooltip formatting
-
-```tsx
-// Improved chart structure
-<BarChart data={analytics.mostTradedPairs} layout="vertical" barSize={20}>
-  <XAxis 
-    type="number" 
-    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-    label={{ value: 'Trades', position: 'bottom', fontSize: 10 }}
-  />
-  <YAxis 
-    dataKey="pair" 
-    type="category" 
-    tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
-    width={110}
-    tickFormatter={(value) => value.length > 12 ? `${value.slice(0, 12)}...` : value}
-  />
-  <Tooltip 
-    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
-    formatter={(value: number) => [`${value} trades`, 'Count']}
-  />
-  <Bar 
-    dataKey="trade_count" 
-    name="Trades" 
-    radius={[0, 6, 6, 0]}
-  >
-    {/* Color bars differently for visual hierarchy */}
-    {analytics.mostTradedPairs.map((_, index) => (
-      <Cell key={index} fill={COLORS[index % COLORS.length]} />
-    ))}
-    {/* Add value labels at end of bars */}
-    <LabelList 
-      dataKey="trade_count" 
-      position="right" 
-      fontSize={10}
-      fill="hsl(var(--muted-foreground))"
-    />
-  </Bar>
-</BarChart>
-```
+| Area | Before | After |
+|------|--------|-------|
+| Haptic feedback | No perceptible vibration | Clear tactile feedback on actions |
+| OLED support | Dark gray background | True black for battery saving |
+| Theme options | 12 solid color presets | 20+ including gradients |
+| Portfolio | Basic list | Search, filter, sparklines |
+| Analytics | Basic charts | Heatmaps, patterns, win rate |
+| History | Flat list | Filtered, searchable, exportable |
 
 ---
 
-### Fix 3: Backend Analytics Improvements (Phase 2)
+## Summary
 
-**Database Schema Enhancement**:
+This plan addresses:
 
-```sql
--- Price cache table for historical lookups
-CREATE TABLE IF NOT EXISTS token_price_cache (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  chain_index VARCHAR(10) NOT NULL,
-  token_address VARCHAR(66) NOT NULL,
-  token_symbol VARCHAR(20) NOT NULL,
-  price_usd NUMERIC,
-  source VARCHAR(20) NOT NULL,  -- 'okx', 'dexscreener', 'defillama'
-  timestamp TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(chain_index, token_address, DATE(timestamp))
-);
+1. **Haptic feedback not working** - Fixed vibration patterns and fallback sounds
+2. **Theme expansion** - OLED mode, gradient themes, density/font controls
+3. **Portfolio improvements** - Search, filter, quick actions
+4. **Analytics improvements** - Chain heatmap, trade patterns, win rate
+5. **History improvements** - Filters, batch export, repeat trade
 
--- Backfill existing transactions with estimated USD values
--- For stablecoins, estimate $1.00 per token
-UPDATE dex_transactions 
-SET from_amount_usd = CAST(from_amount AS NUMERIC) * 1.0
-WHERE from_token_symbol IN ('USDT', 'USDC', 'USDG', 'DAI')
-  AND from_amount_usd IS NULL;
-
-UPDATE dex_transactions 
-SET to_amount_usd = CAST(to_amount AS NUMERIC) * 1.0
-WHERE to_token_symbol IN ('USDT', 'USDC', 'USDG', 'DAI')
-  AND to_amount_usd IS NULL;
-```
-
-**Webhook Enhancement**:
-The `useDexSwap` hook should already be sending USD values via webhook. Verify the payload includes:
-- `token_in_usd_value`
-- `token_out_usd_value`
-- `gas_fee_usd`
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/VolumeOverTimeChart.tsx` | Add empty state, sparse weekly data message |
-| `src/components/analytics/tabs/XlamaAnalyticsTab.tsx` | Improve Most Traded Pairs chart with labels, colors |
-| Database migration | Backfill stablecoin USD values for existing transactions |
-
----
-
-## Expected Results
-
-| Issue | Before | After |
-|-------|--------|-------|
-| Weekly chart | Disappears completely | Shows chart with "Limited data" message |
-| Most Traded Pairs | Confusing bars, no labels | Clear bars with value labels, distinct colors |
-| Analytics accuracy | $0 volume everywhere | Stablecoin transactions show accurate $1.00 volume |
-
----
-
-## Visual Mockup for Most Traded Pairs
-
-```text
-Most Traded Pairs              [xLama]
-
-USDT/USDC    ████████████████████ 21
-xSOL/USDG    █████████████████    18
-OKB/NIUMA    ██████████████       15
-USDG/NIUMA   ████████             9
-OKB/DOG      █████                5
-             0    5   10   15   20
-                    Trades
-```
-
-Key improvements:
-- Values displayed at end of each bar
-- Different colors per bar for visual hierarchy
-- X-axis labeled "Trades"
-- Cleaner, more readable layout
-
+Priority order: Haptic fix → OLED mode → Analytics charts → Portfolio/History filters
