@@ -39,8 +39,18 @@ import {
   PieChart as RechartsPie,
   Pie,
   Cell,
+  LabelList,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+
+// Distinct colors for bar chart visualization
+const BAR_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+];
 import { useQueryClient } from '@tanstack/react-query';
 
 // Lazy load the volume chart
@@ -261,23 +271,51 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-48 lg:h-56 xl:h-64">
+              <div className="h-52 lg:h-60 xl:h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics.mostTradedPairs} layout="vertical">
-                    <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <BarChart 
+                    data={analytics.mostTradedPairs} 
+                    layout="vertical" 
+                    barSize={18}
+                    margin={{ top: 5, right: 40, left: 0, bottom: 20 }}
+                  >
+                    <XAxis 
+                      type="number" 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      label={{ value: 'Trades', position: 'bottom', fontSize: 11, fill: 'hsl(var(--muted-foreground))', offset: 0 }}
+                    />
                     <YAxis 
                       dataKey="pair" 
                       type="category" 
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
-                      width={100} 
+                      tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
+                      width={110}
+                      tickFormatter={(value: string) => value.length > 14 ? `${value.slice(0, 12)}...` : value}
                     />
                     <Tooltip 
-                      formatter={(value: number, name: string) => [
-                        name === 'trade_count' ? value : formatUsd(value),
-                        name === 'trade_count' ? 'Trades' : 'Volume'
-                      ]}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                      }}
+                      formatter={(value: number) => [`${value} trades`, 'Count']}
                     />
-                    <Bar dataKey="trade_count" name="Trades" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    <Bar 
+                      dataKey="trade_count" 
+                      name="Trades" 
+                      radius={[0, 6, 6, 0]}
+                    >
+                      {analytics.mostTradedPairs.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                      ))}
+                      <LabelList 
+                        dataKey="trade_count" 
+                        position="right" 
+                        fontSize={11}
+                        fill="hsl(var(--foreground))"
+                        formatter={(value: number) => value}
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
