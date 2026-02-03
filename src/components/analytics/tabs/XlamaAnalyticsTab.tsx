@@ -53,8 +53,10 @@ const BAR_COLORS = [
 ];
 import { useQueryClient } from '@tanstack/react-query';
 
-// Lazy load the volume chart
+// Lazy load the volume chart and new components
 const VolumeOverTimeChart = lazy(() => import('@/components/VolumeOverTimeChart'));
+const ChainHeatmap = lazy(() => import('@/components/analytics/ChainHeatmap'));
+const TradePatterns = lazy(() => import('@/components/analytics/TradePatterns'));
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -170,6 +172,16 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
     return analytics.mostUsedChains.map(c => ({
       name: c.chain,
       value: c.count,
+    }));
+  }, [analytics.mostUsedChains]);
+
+  // Chain data for heatmap (enhanced format) - derive from available data
+  const chainHeatmapData = useMemo(() => {
+    return analytics.mostUsedChains.map(c => ({
+      chain: c.chain,
+      chainIndex: c.chain, // Use chain name as identifier
+      trades: c.count,
+      volume: 0, // Volume not available per-chain in current API
     }));
   }, [analytics.mostUsedChains]);
   
@@ -390,6 +402,30 @@ export const XlamaAnalyticsTab = memo(function XlamaAnalyticsTab() {
       }>
         <VolumeOverTimeChart />
       </Suspense>
+
+      {/* Chain Activity Heatmap */}
+      {chainHeatmapData.length > 0 && (
+        <Suspense fallback={
+          <Card className="glass border-border/50">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-5 w-40" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        }>
+          <ChainHeatmap 
+            chainData={chainHeatmapData} 
+            isLoading={analytics.isLoading}
+          />
+        </Suspense>
+      )}
+
 
       {/* Trade Frequency */}
       {analytics.tradeFrequency && (

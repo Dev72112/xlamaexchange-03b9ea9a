@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
@@ -22,6 +24,8 @@ import {
   Eye,
   EyeOff,
   LineChart,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { useXlamaPortfolio } from '@/hooks/useXlamaPortfolio';
@@ -43,6 +47,8 @@ export const XlamaPortfolioTab = memo(function XlamaPortfolioTab() {
   // UI state
   const [showChart, setShowChart] = useState(false);
   const [hideBalances, setHideBalances] = useState(false);
+  const [holdingsSearch, setHoldingsSearch] = useState('');
+  const [hideDust, setHideDust] = useState(false);
 
   // xLama data with automatic OKX fallback
   const { 
@@ -66,6 +72,27 @@ export const XlamaPortfolioTab = memo(function XlamaPortfolioTab() {
       isRiskToken: false,
     }));
   }, [holdings]);
+
+  // Filter by search term
+  const filteredBalances = useMemo(() => {
+    if (!holdingsSearch) return balances;
+    const query = holdingsSearch.toLowerCase();
+    return balances.filter(b => 
+      b.symbol.toLowerCase().includes(query) ||
+      b.tokenContractAddress.toLowerCase().includes(query)
+    );
+  }, [balances, holdingsSearch]);
+
+  // Filter out dust (tokens worth less than $1)
+  const visibleBalances = useMemo(() => {
+    if (!hideDust) return filteredBalances;
+    return filteredBalances.filter(b => {
+      const value = parseFloat(b.balance) * parseFloat(b.tokenPrice || '0');
+      return value >= 1;
+    });
+  }, [filteredBalances, hideDust]);
+
+  const dustCount = filteredBalances.length - visibleBalances.length;
 
   // Chain balances for allocation chart
   const chainBalancesForChart = useMemo(() => {
@@ -129,22 +156,51 @@ export const XlamaPortfolioTab = memo(function XlamaPortfolioTab() {
       {/* Holdings List */}
       <Card className="glass border-border/50">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-            <h3 className="font-medium flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-primary" />
-              Holdings
-              <Badge variant="outline" className="text-[10px] py-0 bg-primary/10 text-primary border-primary/20">
-                <LineChart className="w-2.5 h-2.5 mr-1" />
-                xLama
+          <div className="flex flex-col gap-3 px-4 py-3 border-b border-border/50">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-primary" />
+                Holdings
+                <Badge variant="outline" className="text-[10px] py-0 bg-primary/10 text-primary border-primary/20">
+                  <LineChart className="w-2.5 h-2.5 mr-1" />
+                  xLama
+                </Badge>
+              </h3>
+              <Badge variant="secondary" className="text-xs">
+                {visibleBalances.length} tokens
+                {dustCount > 0 && hideDust && (
+                  <span className="text-muted-foreground ml-1">
+                    ({dustCount} hidden)
+                  </span>
+                )}
               </Badge>
-            </h3>
-            <Badge variant="secondary" className="text-xs">
-              {balances.length} tokens
-            </Badge>
+            </div>
+            
+            {/* Search and Dust Filter */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search tokens..."
+                  value={holdingsSearch}
+                  onChange={(e) => setHoldingsSearch(e.target.value)}
+                  className="h-8 pl-8 text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground hidden sm:inline">Hide dust</span>
+                <Switch
+                  checked={hideDust}
+                  onCheckedChange={setHideDust}
+                  className="scale-90"
+                />
+              </div>
+            </div>
           </div>
           <ScrollArea className="h-[280px] sm:h-[320px] lg:h-[400px] xl:h-[480px]">
             <PortfolioHoldingsTable 
-              balances={balances} 
+              balances={visibleBalances} 
               isLoading={isLoading}
               className="border-0 shadow-none"
             />
