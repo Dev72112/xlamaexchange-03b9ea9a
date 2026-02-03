@@ -33,6 +33,7 @@ import { XlamaSyncStatus } from '@/components/XlamaSyncStatus';
 import { AccountSummaryCard } from '@/components/portfolio/AccountSummaryCard';
 import { PortfolioHoldingsTable } from '@/components/portfolio/PortfolioHoldingsTable';
 import { PortfolioAllocationChart } from '@/components/portfolio/PortfolioAllocationChart';
+import { PortfolioEmptyState } from '@/components/portfolio/PortfolioEmptyState';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { WalletTokenBalance } from '@/services/okxdex';
@@ -42,7 +43,7 @@ const PortfolioPnLChart = lazy(() => import('@/components/PortfolioPnLChart').th
 
 export const XlamaPortfolioTab = memo(function XlamaPortfolioTab() {
   const navigate = useNavigate();
-  const { activeAddress, activeChain } = useMultiWallet();
+  const { activeAddress, activeChain, isConnected } = useMultiWallet();
 
   // UI state
   const [showChart, setShowChart] = useState(false);
@@ -93,6 +94,17 @@ export const XlamaPortfolioTab = memo(function XlamaPortfolioTab() {
   }, [filteredBalances, hideDust]);
 
   const dustCount = filteredBalances.length - visibleBalances.length;
+  const hasAnyBalances = balances.length > 0;
+
+  // Determine which empty state to show
+  const showEmptyState = !isLoading && visibleBalances.length === 0;
+  const emptyStateProps = {
+    isConnected: !!isConnected,
+    hasAnyBalances,
+    searchQuery: holdingsSearch,
+    dustFilterActive: hideDust && hasAnyBalances && filteredBalances.length > 0,
+    dustCount,
+  };
 
   // Chain balances for allocation chart
   const chainBalancesForChart = useMemo(() => {
@@ -198,13 +210,19 @@ export const XlamaPortfolioTab = memo(function XlamaPortfolioTab() {
               </div>
             </div>
           </div>
-          <ScrollArea className="h-[280px] sm:h-[320px] lg:h-[400px] xl:h-[480px]">
-            <PortfolioHoldingsTable 
-              balances={visibleBalances} 
-              isLoading={isLoading}
-              className="border-0 shadow-none"
-            />
-          </ScrollArea>
+          
+          {/* Holdings content or empty state */}
+          {showEmptyState ? (
+            <PortfolioEmptyState {...emptyStateProps} />
+          ) : (
+            <ScrollArea className="h-[280px] sm:h-[320px] lg:h-[400px] xl:h-[480px]">
+              <PortfolioHoldingsTable 
+                balances={visibleBalances} 
+                isLoading={isLoading}
+                className="border-0 shadow-none"
+              />
+            </ScrollArea>
+          )}
         </CardContent>
       </Card>
 

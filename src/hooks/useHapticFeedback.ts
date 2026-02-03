@@ -4,23 +4,23 @@ import { useCallback, useEffect, useState } from 'react';
 // Stronger vibration patterns for perceptible mobile feedback
 // Pattern format: [vibrate_ms, pause_ms, vibrate_ms, ...]
 export const HAPTIC_PATTERNS = {
-  // Single taps - stronger for perceptibility
-  tap: [35],
-  light: [30],
+  // Single taps - MUCH stronger for perceptibility (50ms+ minimum)
+  tap: [50],
+  light: [45],
   
-  // Double pulse patterns - longer vibrations
-  medium: [40, 60, 40],
-  select: [35, 50, 35],
+  // Double pulse patterns - noticeable on all devices
+  medium: [55, 80, 55],
+  select: [50, 70, 50],
   
-  // Strong feedback patterns
-  heavy: [60, 50, 60, 50, 60],
-  success: [40, 80, 50],
-  error: [80, 60, 80],
-  warning: [60, 80],
+  // Heavy feedback patterns - impossible to miss
+  heavy: [80, 60, 80, 60, 80],
+  success: [60, 100, 70],
+  error: [100, 80, 100],
+  warning: [80, 100],
   
   // Navigation feedback
-  swipe: [30, 40, 30],
-  refresh: [50, 40, 50],
+  swipe: [45, 60, 45],
+  refresh: [70, 60, 70],
 } as const;
 
 export type HapticPattern = keyof typeof HAPTIC_PATTERNS;
