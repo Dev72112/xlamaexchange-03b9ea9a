@@ -318,7 +318,15 @@ export function useThemeCustomization() {
     setOledMode(enabled);
     localStorage.setItem(OLED_STORAGE_KEY, String(enabled));
     document.documentElement.classList.toggle('oled-mode', enabled);
-  }, []);
+    
+    // Auto-select Matrix theme when OLED mode is enabled
+    if (enabled) {
+      const matrixScheme = SPECIAL_SCHEMES.find(s => s.id === 'matrix');
+      if (matrixScheme) {
+        applyScheme(matrixScheme);
+      }
+    }
+  }, [applyScheme]);
 
   const updateUIDensity = useCallback((density: UIDensity) => {
     setUiDensity(density);

@@ -164,12 +164,17 @@ export function ThemeCustomizer({ className }: ThemeCustomizerProps) {
             <Smartphone className="w-4 h-4 text-muted-foreground" />
             <div>
               <span className="text-sm font-medium">OLED Mode</span>
-              <p className="text-[10px] text-muted-foreground">True black for battery saving</p>
+              <p className="text-[10px] text-muted-foreground">True black + Matrix theme</p>
             </div>
           </div>
           <Switch
             checked={oledMode}
-            onCheckedChange={toggleOledMode}
+            onCheckedChange={(enabled) => {
+              toggleOledMode(enabled);
+              if (enabled) {
+                toast.success('OLED Mode + Matrix theme applied');
+              }
+            }}
           />
         </div>
       )}

@@ -1,25 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 
 // ============ HAPTIC PATTERNS ============
-// Perceptible vibration patterns that actually work on mobile devices
+// Stronger vibration patterns for perceptible mobile feedback
+// Pattern format: [vibrate_ms, pause_ms, vibrate_ms, ...]
 export const HAPTIC_PATTERNS = {
-  // Single taps - perceptible
-  tap: [25],
-  light: [20],
+  // Single taps - stronger for perceptibility
+  tap: [35],
+  light: [30],
   
-  // Double pulse patterns
-  medium: [30, 50, 30],
-  select: [25, 40, 25],
+  // Double pulse patterns - longer vibrations
+  medium: [40, 60, 40],
+  select: [35, 50, 35],
   
   // Strong feedback patterns
-  heavy: [50, 40, 50, 40, 50],
-  success: [30, 60, 40],
-  error: [70, 50, 70],
-  warning: [50, 70],
+  heavy: [60, 50, 60, 50, 60],
+  success: [40, 80, 50],
+  error: [80, 60, 80],
+  warning: [60, 80],
   
   // Navigation feedback
-  swipe: [20, 30, 20],
-  refresh: [40, 30, 40],
+  swipe: [30, 40, 30],
+  refresh: [50, 40, 50],
 } as const;
 
 export type HapticPattern = keyof typeof HAPTIC_PATTERNS;
@@ -157,23 +158,27 @@ export function useHapticFeedback() {
       ? pattern.map((v, i) => i % 2 === 0 ? Math.round(v * multiplier) : v) // Scale vibration, not pauses
       : Math.round(pattern * multiplier);
     
-    // Try iOS Taptic Engine first
+    // Try iOS Taptic Engine first (for native iOS apps/PWAs)
     if (triggerIOSHaptic(settings.intensity === 'light' ? 'light' : settings.intensity === 'strong' ? 'heavy' : 'medium')) {
       return;
     }
     
-    // Try Web Vibration API
+    // Try Web Vibration API - priority for actual haptic feedback
     if (isVibrationSupported) {
       try {
-        navigator.vibrate(scaledPattern);
-        return;
+        const result = navigator.vibrate(scaledPattern);
+        // If vibration was triggered successfully, don't play audio
+        if (result) return;
       } catch {
-        // Fall through to audio fallback
+        // Fall through to audio fallback only if vibration truly failed
       }
     }
     
-    // Fallback: tactile audio click
-    playTactileClick(settings.intensity);
+    // Audio fallback ONLY for devices without vibration support
+    // Don't play audio on devices that support vibration (even if OS has it disabled)
+    if (!isVibrationSupported) {
+      playTactileClick(settings.intensity);
+    }
   }, [settings, isVibrationSupported]);
 
   const trigger = useCallback((pattern: HapticPattern = 'light') => {
