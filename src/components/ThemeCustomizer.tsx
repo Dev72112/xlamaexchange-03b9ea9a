@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import { Palette, Check, RotateCcw, Sun, Moon, Sparkles } from 'lucide-react';
+import { Palette, Check, RotateCcw, Sun, Moon, Sparkles, Zap, CircleDot, Type, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useThemeCustomization, ColorScheme, PRESET_SCHEMES } from '@/hooks/useThemeCustomization';
+import { 
+  useThemeCustomization, 
+  ColorScheme, 
+  SOLID_SCHEMES,
+  GRADIENT_SCHEMES,
+  SPECIAL_SCHEMES,
+} from '@/hooks/useThemeCustomization';
 import { useTheme } from '@/components/ThemeProvider';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,10 +24,15 @@ export function ThemeCustomizer({ className }: ThemeCustomizerProps) {
   const { theme, setTheme } = useTheme();
   const { 
     currentScheme, 
-    presetSchemes, 
     selectPreset, 
     setCustomPrimary, 
-    resetToDefault 
+    resetToDefault,
+    oledMode,
+    toggleOledMode,
+    uiDensity,
+    updateUIDensity,
+    fontSize,
+    updateFontSize,
   } = useThemeCustomization();
   
   const [customHue, setCustomHue] = useState(142);
@@ -47,6 +59,9 @@ export function ThemeCustomizer({ className }: ThemeCustomizerProps) {
   };
 
   const getPreviewColor = (scheme: ColorScheme) => {
+    if (scheme.gradient) {
+      return `linear-gradient(${scheme.gradient.angle}deg, hsl(${scheme.gradient.start}), hsl(${scheme.gradient.end}))`;
+    }
     return `hsl(${scheme.primary})`;
   };
 
@@ -57,6 +72,40 @@ export function ThemeCustomizer({ className }: ThemeCustomizerProps) {
   const currentTheme = theme === 'system' 
     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
     : theme;
+
+  const PresetGrid = ({ schemes, title }: { schemes: ColorScheme[]; title: string }) => (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground font-medium">{title}</p>
+      <div className="grid grid-cols-5 gap-1.5">
+        {schemes.map((scheme) => (
+          <button
+            key={scheme.id}
+            onClick={() => handlePresetSelect(scheme.id)}
+            className={cn(
+              "relative flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all",
+              currentScheme.id === scheme.id
+                ? "border-primary bg-primary/5"
+                : "border-border/50 hover:border-border hover:bg-secondary/30"
+            )}
+            title={scheme.name}
+          >
+            <div
+              className="w-7 h-7 rounded-full shadow-sm flex-shrink-0"
+              style={{ background: getPreviewColor(scheme) }}
+            />
+            <span className="text-[9px] text-muted-foreground truncate max-w-full leading-tight">
+              {scheme.name}
+            </span>
+            {currentScheme.id === scheme.id && (
+              <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
+                <Check className="w-2 h-2 text-primary-foreground" />
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -108,46 +157,43 @@ export function ThemeCustomizer({ className }: ThemeCustomizerProps) {
         </div>
       </div>
 
+      {/* OLED Mode Toggle (only in dark mode) */}
+      {currentTheme === 'dark' && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <span className="text-sm font-medium">OLED Mode</span>
+              <p className="text-[10px] text-muted-foreground">True black for battery saving</p>
+            </div>
+          </div>
+          <Switch
+            checked={oledMode}
+            onCheckedChange={toggleOledMode}
+          />
+        </div>
+      )}
+
       <Tabs defaultValue="presets" className="w-full">
-        <TabsList className="w-full grid grid-cols-2">
+        <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="presets" className="text-xs">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-            Presets
+            Colors
           </TabsTrigger>
           <TabsTrigger value="custom" className="text-xs">
             <Palette className="w-3.5 h-3.5 mr-1.5" />
             Custom
           </TabsTrigger>
+          <TabsTrigger value="display" className="text-xs">
+            <Type className="w-3.5 h-3.5 mr-1.5" />
+            Display
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="presets" className="mt-3">
-          <div className="grid grid-cols-4 gap-2">
-            {presetSchemes.map((scheme) => (
-              <button
-                key={scheme.id}
-                onClick={() => handlePresetSelect(scheme.id)}
-                className={cn(
-                  "relative flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all",
-                  currentScheme.id === scheme.id
-                    ? "border-primary bg-primary/5"
-                    : "border-border/50 hover:border-border hover:bg-secondary/30"
-                )}
-              >
-                <div
-                  className="w-8 h-8 rounded-full shadow-sm"
-                  style={{ backgroundColor: getPreviewColor(scheme) }}
-                />
-                <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                  {scheme.name}
-                </span>
-                {currentScheme.id === scheme.id && (
-                  <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="w-2.5 h-2.5 text-primary-foreground" />
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
+        <TabsContent value="presets" className="mt-3 space-y-4">
+          <PresetGrid schemes={SOLID_SCHEMES} title="Solid Colors" />
+          <PresetGrid schemes={GRADIENT_SCHEMES} title="Gradients" />
+          <PresetGrid schemes={SPECIAL_SCHEMES} title="Special" />
         </TabsContent>
 
         <TabsContent value="custom" className="mt-3 space-y-4">
@@ -221,6 +267,72 @@ export function ThemeCustomizer({ className }: ThemeCustomizerProps) {
             <Palette className="w-4 h-4 mr-2" />
             Apply Custom Color
           </Button>
+        </TabsContent>
+
+        <TabsContent value="display" className="mt-3 space-y-4">
+          {/* UI Density */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CircleDot className="w-4 h-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">UI Density</Label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={uiDensity === 'compact' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateUIDensity('compact')}
+                className="flex-1"
+              >
+                Compact
+              </Button>
+              <Button
+                variant={uiDensity === 'comfortable' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateUIDensity('comfortable')}
+                className="flex-1"
+              >
+                Comfortable
+              </Button>
+            </div>
+          </div>
+
+          {/* Font Size */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Type className="w-4 h-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Font Size</Label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={fontSize === 'small' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateFontSize('small')}
+                className="flex-1 text-xs"
+              >
+                <span className="text-xs">A</span>
+              </Button>
+              <Button
+                variant={fontSize === 'medium' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateFontSize('medium')}
+                className="flex-1"
+              >
+                <span className="text-sm">A</span>
+              </Button>
+              <Button
+                variant={fontSize === 'large' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateFontSize('large')}
+                className="flex-1"
+              >
+                <span className="text-base">A</span>
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-muted-foreground">
+            Display settings affect layout spacing and text size throughout the app.
+          </p>
         </TabsContent>
       </Tabs>
 

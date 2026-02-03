@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { SOUNDS, SoundType, NotificationSoundId, playNotificationSound } from '@/lib/sounds';
+import { SOUNDS, SoundType, NotificationSoundId, playNotificationSound, playUISound } from '@/lib/sounds';
+import { useHapticFeedback, HapticPattern } from './useHapticFeedback';
 
 // Storage key for feedback settings
 const FEEDBACK_SETTINGS_KEY = 'xlama-feedback-settings';
@@ -17,18 +18,6 @@ const defaultSettings: FeedbackSettings = {
   notificationSound: 'chime',
   notificationVolume: 0.5,
 };
-
-// Create audio elements lazily with embedded sounds
-const audioCache = new Map<SoundType, HTMLAudioElement>();
-
-function getAudio(type: SoundType): HTMLAudioElement {
-  if (!audioCache.has(type)) {
-    const audio = new Audio(SOUNDS[type]);
-    audio.volume = 0.3;
-    audioCache.set(type, audio);
-  }
-  return audioCache.get(type)!;
-}
 
 function loadSettings(): FeedbackSettings {
   try {
@@ -52,46 +41,29 @@ function saveSettings(settings: FeedbackSettings): void {
 
 export function useFeedback() {
   const [settings, setSettings] = useState<FeedbackSettings>(defaultSettings);
+  const haptic = useHapticFeedback();
 
   // Load settings on mount
   useEffect(() => {
     setSettings(loadSettings());
   }, []);
 
-  // Play sound effect
+  // Play UI sound effect using Web Audio API
   const playSound = useCallback((type: SoundType) => {
     if (!settings.soundEnabled) return;
-    
-    try {
-      const audio = getAudio(type);
-      audio.currentTime = 0;
-      audio.play().catch(() => {
-        // Ignore autoplay restrictions
-      });
-    } catch {
-      // Ignore audio errors
-    }
+    playUISound(type, 0.15);
   }, [settings.soundEnabled]);
 
-  // Trigger haptic feedback
-  const triggerHaptic = useCallback((style: 'light' | 'medium' | 'heavy' = 'light') => {
+  // Trigger haptic feedback using the enhanced hook
+  const triggerHaptic = useCallback((pattern: HapticPattern = 'light') => {
     if (!settings.hapticEnabled) return;
-    
-    // Check for Vibration API support
-    if ('vibrate' in navigator) {
-      const patterns = {
-        light: [10],
-        medium: [20],
-        heavy: [30, 10, 30],
-      };
-      navigator.vibrate(patterns[style]);
-    }
-  }, [settings.hapticEnabled]);
+    haptic.trigger(pattern);
+  }, [settings.hapticEnabled, haptic]);
 
   // Combined feedback (sound + haptic)
-  const triggerFeedback = useCallback((type: SoundType, hapticStyle: 'light' | 'medium' | 'heavy' = 'light') => {
+  const triggerFeedback = useCallback((type: SoundType, hapticPattern: HapticPattern = 'light') => {
     playSound(type);
-    triggerHaptic(hapticStyle);
+    triggerHaptic(hapticPattern);
   }, [playSound, triggerHaptic]);
 
   // Toggle sound
@@ -142,6 +114,9 @@ export function useFeedback() {
     updateSettings,
     playAlert,
     previewSound,
+    // Expose haptic controls
+    hapticSettings: haptic.settings,
+    setHapticIntensity: haptic.setIntensity,
   };
 }
 
@@ -164,6 +139,9 @@ export function useGlobalFeedback() {
 }
 
 // Non-hook access for imperative calls
-export function triggerFeedback(type: SoundType, hapticStyle: 'light' | 'medium' | 'heavy' = 'light') {
-  globalFeedbackInstance?.triggerFeedback(type, hapticStyle);
+export function triggerFeedback(type: SoundType, hapticPattern: HapticPattern = 'light') {
+  globalFeedbackInstance?.triggerFeedback(type, hapticPattern);
 }
+
+// Export types
+export type { HapticPattern };
