@@ -100,6 +100,11 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
     };
   }, [transactions, granularity]);
 
+  // Check if weekly data is sparse (less than 2 weeks with trades)
+  const hasEnoughWeeklyData = granularity === 'weekly' 
+    ? chartData.filter(d => d.count > 0).length >= 2
+    : true;
+
   if (isLoading) {
     return (
       <Card className="glass border-border/50">
@@ -113,9 +118,45 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
     );
   }
 
-  // Don't show if no transactions at all
+  // Show empty state instead of hiding entirely
   if (!chartData.length || totalCount === 0) {
-    return null;
+    return (
+      <Card className="glass border-border/50">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Trading Activity
+            </CardTitle>
+            <div className="flex gap-1">
+              <Button
+                variant={granularity === 'daily' ? 'default' : 'outline'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setGranularity('daily')}
+              >
+                Daily
+              </Button>
+              <Button
+                variant={granularity === 'weekly' ? 'default' : 'outline'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setGranularity('weekly')}
+              >
+                Weekly
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 flex flex-col items-center justify-center text-muted-foreground gap-2">
+            <Activity className="w-8 h-8 opacity-50" />
+            <p className="text-sm">No trading data available yet</p>
+            <p className="text-xs opacity-70">Complete some swaps to see your activity here</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   // Determine display mode based on data
@@ -206,6 +247,11 @@ export const VolumeOverTimeChart = memo(function VolumeOverTimeChart() {
         {!hasUsdData && (
           <p className="text-xs text-muted-foreground text-center mt-2">
             USD volume data unavailable • Showing trade counts
+          </p>
+        )}
+        {granularity === 'weekly' && !hasEnoughWeeklyData && (
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Limited weekly data • Switch to Daily for more detail
           </p>
         )}
       </CardContent>
