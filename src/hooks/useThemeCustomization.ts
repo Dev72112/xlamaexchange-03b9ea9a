@@ -191,7 +191,7 @@ export const PRESET_SCHEMES: ColorScheme[] = [
 ];
 
 const STORAGE_KEY = 'cryptoswap-color-scheme';
-const OLED_STORAGE_KEY = 'cryptoswap-oled-mode';
+const OLED_STORAGE_KEY = 'xlama-oled-mode'; // Synced with index.html inline script
 const UI_DENSITY_KEY = 'cryptoswap-ui-density';
 const FONT_SIZE_KEY = 'cryptoswap-font-size';
 
@@ -243,16 +243,26 @@ export function useThemeCustomization() {
       }
     }
     
-    // Load OLED mode - DEFAULT TO TRUE FOR NEW USERS
+    // Load OLED mode - SYNC with pre-applied class from inline script in index.html
+    const isOledPreApplied = document.documentElement.classList.contains('oled-mode');
     const savedOled = localStorage.getItem(OLED_STORAGE_KEY);
+    
     if (savedOled === null) {
       // New user - enable OLED by default
       setOledMode(true);
       document.documentElement.classList.add('oled-mode');
       localStorage.setItem(OLED_STORAGE_KEY, 'true');
     } else if (savedOled === 'true') {
+      // Sync React state with already-applied class (from inline script)
       setOledMode(true);
-      document.documentElement.classList.add('oled-mode');
+      if (!isOledPreApplied) {
+        // Backup: apply if somehow not applied by inline script
+        document.documentElement.classList.add('oled-mode');
+      }
+    } else {
+      // User has explicitly disabled OLED - ensure class is removed
+      setOledMode(false);
+      document.documentElement.classList.remove('oled-mode');
     }
     
     // Load UI density
