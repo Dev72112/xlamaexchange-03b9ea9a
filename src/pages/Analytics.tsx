@@ -2,7 +2,7 @@ import { memo, Suspense, lazy } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { BarChart3, Zap, LineChart } from 'lucide-react';
+import { BarChart3, Zap, LineChart, TrendingUp, HelpCircle } from 'lucide-react';
 import { useMultiWallet } from '@/contexts/MultiWalletContext';
 import { MultiWalletButton } from '@/features/wallet';
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from '@/lib/staggerAnimation';
@@ -10,6 +10,7 @@ import { AnalyticsSkeleton } from '@/components/skeletons';
 import { useTabPersistence } from '@/hooks/useTabPersistence';
 import { SwipeableTabs, TabItem } from '@/components/ui/swipeable-tabs';
 import { GlowBar } from '@/components/ui/glow-bar';
+import { EducationCollapsible } from '@/components/EducationCollapsible';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Lazy load tab components
@@ -20,6 +21,19 @@ const analyticsFeatures = [
   { icon: Zap, title: "OKX Analytics", description: "Trading volume and gas analytics from local transactions." },
   { icon: LineChart, title: "xLama Analytics", description: "Unified metrics: Realized PnL, Success Rate." },
   { icon: BarChart3, title: "Trading Patterns", description: "Discover when you trade the most." },
+];
+
+const analyticsSteps = [
+  { icon: BarChart3, title: "View Metrics", description: "See your trading volume, P&L, and success rate." },
+  { icon: TrendingUp, title: "Track Patterns", description: "Discover when you trade most and which chains." },
+  { icon: Zap, title: "Gas Analytics", description: "Monitor gas spending across different chains." },
+  { icon: LineChart, title: "Performance", description: "Compare your performance over time." },
+];
+
+const analyticsTips = [
+  "Data updates automatically as you trade",
+  "OKX tab shows local transaction data, xLama shows server-synced data",
+  "Use chain filters to focus on specific networks",
 ];
 
 const tabContentVariants = {
@@ -139,6 +153,7 @@ const Analytics = memo(function Analytics() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
+            className="space-y-4"
           >
             <SwipeableTabs
               tabs={tabs}
@@ -148,6 +163,14 @@ const Analytics = memo(function Analytics() {
               triggerClassName="gap-1.5 text-xs"
               showSwipeHint
               swipeHintKey="analytics"
+            />
+            
+            {/* Education collapsible for connected state */}
+            <EducationCollapsible
+              title="How Analytics Work"
+              icon={HelpCircle}
+              steps={analyticsSteps}
+              tips={analyticsTips}
             />
           </motion.div>
         )}

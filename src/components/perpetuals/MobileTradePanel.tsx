@@ -4,7 +4,7 @@
  * Swipe-friendly trading interface for quick long/short actions
  */
 
-import { memo, useState, useRef, useCallback } from 'react';
+import { memo, useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,21 @@ export const MobileTradePanel = memo(function MobileTradePanel({
   const [leverage, setLeverage] = useState(5);
   const [isExpanded, setIsExpanded] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'long' | 'short' | null>(null);
+  
+  // Delayed render to prevent flash during page load
+  const [isReady, setIsReady] = useState(false);
+  const mountedRef = useRef(false);
+  
+  useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+    
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 1500); // 1.5s delay to let page stabilize
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
@@ -103,7 +118,8 @@ export const MobileTradePanel = memo(function MobileTradePanel({
   // Ensure the panel is truly viewport-fixed even inside animated/translated parents
   const canUseDOM = typeof document !== 'undefined';
 
-  if (!canUseDOM) return null;
+  // Don't render until ready (prevents flash during page load)
+  if (!canUseDOM || !isReady) return null;
 
   return createPortal(
     <div className="md:hidden fixed bottom-[72px] left-0 right-0 z-40 px-2 safe-area-bottom">

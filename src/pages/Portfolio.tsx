@@ -1,15 +1,16 @@
-import { memo, Suspense, lazy, useCallback } from "react";
+import { memo, Suspense, lazy } from "react";
 import { Helmet } from "react-helmet-async";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { GlowBar } from "@/components/ui/glow-bar";
-import { Wallet, Zap, LineChart } from "lucide-react";
+import { Wallet, Zap, LineChart, TrendingUp, Search, ArrowRightLeft, HelpCircle } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
 import { PortfolioSkeleton } from "@/components/skeletons";
 import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { SwipeableTabs, TabItem } from "@/components/ui/swipeable-tabs";
+import { EducationCollapsible } from "@/components/EducationCollapsible";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Lazy load tab components
@@ -20,6 +21,19 @@ const portfolioFeatures = [
   { icon: Zap, title: "OKX DEX", description: "Multi-chain token balances across 25+ EVM chains." },
   { icon: LineChart, title: "xLama API", description: "Unified analytics with OKX fallback." },
   { icon: Wallet, title: "Quick Actions", description: "Swap, bridge, and manage directly." },
+];
+
+const portfolioSteps = [
+  { icon: Wallet, title: "View Holdings", description: "See all tokens across 25+ chains in one place." },
+  { icon: TrendingUp, title: "Track Value", description: "Real-time USD values and 24h changes." },
+  { icon: Search, title: "Search & Filter", description: "Find specific tokens or hide dust (<$1)." },
+  { icon: ArrowRightLeft, title: "Quick Actions", description: "Swap or bridge directly from your holdings." },
+];
+
+const portfolioTips = [
+  "Click any token to swap it directly",
+  "Use the dust filter to hide small balances",
+  "OKX tab is faster, xLama provides unified analytics",
 ];
 
 const tabContentVariants = {
@@ -152,6 +166,14 @@ const Portfolio = memo(function Portfolio() {
               triggerClassName="gap-1.5 text-xs"
               showSwipeHint
               swipeHintKey="portfolio"
+            />
+            
+            {/* Education collapsible for connected state */}
+            <EducationCollapsible
+              title="How Portfolio Works"
+              icon={HelpCircle}
+              steps={portfolioSteps}
+              tips={portfolioTips}
             />
           </motion.div>
         )}

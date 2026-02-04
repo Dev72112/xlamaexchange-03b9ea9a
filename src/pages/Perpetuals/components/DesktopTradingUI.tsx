@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EducationCollapsible } from '@/components/EducationCollapsible';
 import { 
   TrendingUp, 
   Activity, 
@@ -21,6 +22,8 @@ import {
   Calculator,
   ArrowDownToLine,
   Shield,
+  Layers,
+  HelpCircle,
 } from 'lucide-react';
 import { 
   HyperliquidTradeForm, 
@@ -36,6 +39,19 @@ import {
   MarketSelector,
 } from '@/components/perpetuals';
 import { cn } from '@/lib/utils';
+
+const perpsSteps = [
+  { icon: Activity, title: "Open Position", description: "Choose Long or Short with your desired leverage." },
+  { icon: Layers, title: "Manage", description: "Set stop loss, take profit, or add margin." },
+  { icon: TrendingUp, title: "Monitor PnL", description: "Real-time profit tracking with live prices." },
+  { icon: Wallet, title: "Deposit/Withdraw", description: "Manage your trading collateral on Hyperliquid." },
+];
+
+const perpsTips = [
+  "Start with low leverage (1-5x) until you're comfortable",
+  "Always set a stop loss to limit potential losses",
+  "Use the PnL calculator to estimate potential outcomes",
+];
 
 interface DesktopTradingUIProps {
   selectedPair: string;
@@ -332,6 +348,14 @@ export const DesktopTradingUI = memo(function DesktopTradingUI({
       {!safeMode && (
         <MobileTradePanel coin={selectedPair} currentPrice={currentPrice} availableMargin={availableMargin} onTrade={onTrade} />
       )}
+      
+      {/* Education collapsible for perpetuals */}
+      <EducationCollapsible
+        title="How Perpetuals Work"
+        icon={HelpCircle}
+        steps={perpsSteps}
+        tips={perpsTips}
+      />
     </div>
   );
 });
