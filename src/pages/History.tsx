@@ -2,7 +2,7 @@ import { memo, Suspense, lazy } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Helmet } from "react-helmet-async";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, LayoutList, Link2, LineChart } from "lucide-react";
+import { Clock, LayoutList, Link2, LineChart, Filter, Download, HelpCircle } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
@@ -10,6 +10,7 @@ import { TransactionCardsSkeleton } from "@/components/ContentSkeletons";
 import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { SwipeableTabs, TabItem } from "@/components/ui/swipeable-tabs";
 import { GlowBar } from "@/components/ui/glow-bar";
+import { EducationCollapsible } from "@/components/EducationCollapsible";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Lazy load tab components
@@ -22,6 +23,19 @@ const historyFeatures = [
   { icon: Link2, title: "On-Chain", description: "Transaction history from OKX API." },
   { icon: LineChart, title: "xLama", description: "Unified transaction feed with analytics." },
   { icon: Clock, title: "Real-time", description: "Track pending and completed transactions." },
+];
+
+const historySteps = [
+  { icon: LayoutList, title: "App History", description: "Swaps, bridges, and exchanges from this app." },
+  { icon: Link2, title: "On-Chain", description: "All wallet transactions from the blockchain." },
+  { icon: Filter, title: "Filter & Search", description: "Filter by chain, token, date, or status." },
+  { icon: Download, title: "Export Data", description: "Download your history as CSV for records." },
+];
+
+const historyTips = [
+  "App History shows only transactions made through this app",
+  "On-Chain shows all transactions from your connected wallet",
+  "Use the export button to download transaction history",
 ];
 
 const tabContentVariants = {
@@ -155,6 +169,7 @@ const History = memo(function History() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
+            className="space-y-4"
           >
             <SwipeableTabs
               tabs={tabs}
@@ -164,6 +179,14 @@ const History = memo(function History() {
               triggerClassName="gap-1.5 text-xs"
               showSwipeHint
               swipeHintKey="history"
+            />
+            
+            {/* Education collapsible for connected state */}
+            <EducationCollapsible
+              title="How History Works"
+              icon={HelpCircle}
+              steps={historySteps}
+              tips={historyTips}
             />
           </motion.div>
         )}

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { GlowBar } from "@/components/ui/glow-bar";
-import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity, ChevronDown, Target, CalendarClock, History, RefreshCw } from "lucide-react";
+import { ListOrdered, TrendingUp, Clock, ArrowRightLeft, Wallet, Layers, Zap, AlertTriangle, Activity, ChevronDown, Target, CalendarClock, History, RefreshCw, Bell, Shield, HelpCircle } from "lucide-react";
+import { EducationCollapsible } from "@/components/EducationCollapsible";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { useExchangeMode } from "@/contexts/ExchangeModeContext";
 import { MultiWalletButton } from "@/features/wallet";
@@ -27,6 +28,19 @@ const LimitOrderForm = lazy(() => import("@/components/LimitOrderForm").then(m =
 const DCAOrderForm = lazy(() => import("@/components/DCAOrderForm").then(m => ({ default: m.DCAOrderForm })));
 
 type ChainFilter = 'evm' | 'solana';
+
+const ordersSteps = [
+  { icon: Target, title: "Limit Orders", description: "Set a target price and we'll execute when reached." },
+  { icon: CalendarClock, title: "DCA Strategies", description: "Automated recurring buys at set intervals." },
+  { icon: Bell, title: "Price Alerts", description: "Get notified when your orders trigger." },
+  { icon: Shield, title: "Stop Loss / Take Profit", description: "Protect positions with automatic exits." },
+];
+
+const ordersTips = [
+  "Limit orders execute automatically when price is reached",
+  "DCA helps reduce the impact of market volatility",
+  "Set stop-loss to protect against sudden drops",
+];
 
 const Orders = memo(function Orders() {
   const navigate = useNavigate();
@@ -360,6 +374,15 @@ const Orders = memo(function Orders() {
                 </Button>
               </CardContent>
             </Card>
+            
+            {/* Education collapsible for connected state */}
+            <EducationCollapsible
+              title="How Orders Work"
+              icon={HelpCircle}
+              steps={ordersSteps}
+              tips={ordersTips}
+              className="mt-4"
+            />
           </div>
         )}
         

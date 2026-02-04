@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SwipeHint } from '@/components/ui/swipe-hint';
+import { EducationCollapsible } from '@/components/EducationCollapsible';
 import { 
   TrendingUp, 
   Wallet,
@@ -25,6 +26,7 @@ import {
   Layers,
   Activity,
   BarChart3,
+  HelpCircle,
 } from 'lucide-react';
 import { 
   HyperliquidTradeForm, 
@@ -37,6 +39,19 @@ import {
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { cn } from '@/lib/utils';
+
+const perpsSteps = [
+  { icon: Activity, title: "Open Position", description: "Choose Long or Short with your desired leverage." },
+  { icon: Layers, title: "Manage", description: "Set stop loss, take profit, or add margin." },
+  { icon: TrendingUp, title: "Monitor PnL", description: "Real-time profit tracking with live prices." },
+  { icon: Wallet, title: "Deposit/Withdraw", description: "Manage your trading collateral on Hyperliquid." },
+];
+
+const perpsTips = [
+  "Start with low leverage (1-5x) until you're comfortable",
+  "Always set a stop loss to limit potential losses",
+  "Swipe left/right on the trade panel for quick Long/Short",
+];
 
 interface MobileTradingUIProps {
   selectedPair: string;
@@ -305,6 +320,14 @@ export const MobileTradingUI = memo(function MobileTradingUI({
           </TabsContent>
         </div>
       </Tabs>
+      
+      {/* Education collapsible for perpetuals */}
+      <EducationCollapsible
+        title="How Perpetuals Work"
+        icon={HelpCircle}
+        steps={perpsSteps}
+        tips={perpsTips}
+      />
     </div>
   );
 });
