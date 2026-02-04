@@ -226,7 +226,7 @@ export function MultiWalletButton() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 min-h-[44px] touch-manipulation">
             <div className="flex items-center gap-2">
               {activeChain && (
                 <img 
@@ -284,7 +284,7 @@ export function MultiWalletButton() {
         <Button 
           onClick={handleOkxConnect} 
           disabled={isConnectingAny}
-          className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+          className="gap-2 bg-green-600 hover:bg-green-700 text-white min-h-[44px] touch-manipulation active:scale-[0.98]"
         >
           {connectingWallet === 'okx' ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -305,7 +305,7 @@ export function MultiWalletButton() {
           size="sm"
           onClick={handleOtherWallets}
           disabled={isConnectingAny}
-          className="text-xs text-muted-foreground hover:text-foreground"
+          className="text-xs text-muted-foreground hover:text-foreground min-h-[44px] touch-manipulation"
         >
           Other
         </Button>

@@ -5,7 +5,7 @@
  * haptic feedback, and optional swipe hint for first-time users.
  */
 
-import { useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { useState, useCallback, useEffect, ReactNode } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
@@ -45,6 +45,9 @@ interface SwipeableTabsProps {
 }
 
 const SWIPE_HINT_DISMISSED_PREFIX = 'xlama_swipe_hint_dismissed_';
+const PAGE_READY_DELAY_MS = 2000;
+const AUTO_DISMISS_MS = 10000;
+const DISMISS_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 export function SwipeableTabs({
   tabs,
@@ -66,28 +69,45 @@ export function SwipeableTabs({
   const [internalValue, setInternalValue] = useState(defaultValue || tabs[0]?.value || '');
   const activeValue = controlledValue !== undefined ? controlledValue : internalValue;
   
-  // Swipe hint state
+  // Swipe hint state with proper initialization tracking
   const storageKey = `${SWIPE_HINT_DISMISSED_PREFIX}${swipeHintKey}`;
   const [showHint, setShowHint] = useState(false);
+  const hasInitializedRef = React.useRef(false);
   
-  // Check localStorage for hint dismissal
+  // Check localStorage for hint dismissal - with delay to prevent flash
   useEffect(() => {
-    if (showSwipeHint && isMobile) {
-      const dismissed = localStorage.getItem(storageKey);
-      if (!dismissed) {
-        setShowHint(true);
-        // Auto-dismiss after 5 seconds
-        const timer = setTimeout(() => {
-          dismissHint();
-        }, 5000);
-        return () => clearTimeout(timer);
-      }
-    }
+    if (!showSwipeHint || !isMobile) return;
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    
+    const dismissedAt = localStorage.getItem(storageKey);
+    const now = Date.now();
+    const shouldShow = !dismissedAt || (now - parseInt(dismissedAt, 10)) > DISMISS_EXPIRY_MS;
+    
+    if (!shouldShow) return;
+    
+    // Wait for page to stabilize
+    const showTimer = setTimeout(() => {
+      setShowHint(true);
+    }, PAGE_READY_DELAY_MS);
+    
+    return () => clearTimeout(showTimer);
   }, [showSwipeHint, isMobile, storageKey]);
+  
+  // Auto-dismiss timer
+  useEffect(() => {
+    if (!showHint) return;
+    
+    const timer = setTimeout(() => {
+      dismissHint();
+    }, AUTO_DISMISS_MS);
+    
+    return () => clearTimeout(timer);
+  }, [showHint]);
   
   const dismissHint = useCallback(() => {
     setShowHint(false);
-    localStorage.setItem(storageKey, 'true');
+    localStorage.setItem(storageKey, Date.now().toString());
   }, [storageKey]);
   
   // Handle value change

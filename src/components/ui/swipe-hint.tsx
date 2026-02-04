@@ -2,15 +2,21 @@
  * SwipeHint Component
  * 
  * A dismissable tooltip that hints mobile users about swipe navigation.
- * Uses localStorage to persist dismissal state.
+ * Uses localStorage to persist dismissal state with 24h expiry.
+ * 
+ * IMPORTANT: This component has a built-in delay to prevent flash on initial render.
+ * It only shows after the page has fully stabilized (~2s after mount).
  */
 
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const SWIPE_HINT_DISMISSED_PREFIX = 'xlama_swipe_hint_dismissed_';
+const PAGE_READY_DELAY_MS = 2000; // Wait 2s for page to fully stabilize
+const AUTO_DISMISS_MS = 10000; // Auto-dismiss after 10s
+const DISMISS_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface SwipeHintProps {
   /** Unique key for localStorage persistence */
@@ -28,46 +34,59 @@ export const SwipeHint = memo(function SwipeHint({
 }: SwipeHintProps) {
   const isMobile = useIsMobile();
   const storageKey = `${SWIPE_HINT_DISMISSED_PREFIX}${hintKey}`;
+  
+  // Use refs to persist state across re-renders without triggering effects
+  const hasInitializedRef = useRef(false);
+  const hasShownRef = useRef(false);
+  const mountTimeRef = useRef(Date.now());
+  
   const [showHint, setShowHint] = useState(false);
-  const [isPageReady, setIsPageReady] = useState(false);
   
-  // Wait for page to be fully loaded before showing hint
+  // Single effect that handles the entire lifecycle
   useEffect(() => {
-    // Delay checking until React has fully hydrated and page is stable
-    const readyTimer = setTimeout(() => {
-      setIsPageReady(true);
-    }, 1500); // Wait 1.5s for page to settle
+    if (!isMobile) return;
     
-    return () => clearTimeout(readyTimer);
-  }, []);
-  
-  // Check localStorage after page is ready
-  useEffect(() => {
-    if (!isPageReady || !isMobile) return;
+    // Only run initialization once per component instance
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
     
+    // Check if already dismissed recently (within 24h)
     const dismissedAt = localStorage.getItem(storageKey);
     const now = Date.now();
-    // Show hint if never dismissed or if dismissed more than 24 hours ago
-    const shouldShow = !dismissedAt || (now - parseInt(dismissedAt, 10)) > 24 * 60 * 60 * 1000;
+    const shouldShow = !dismissedAt || (now - parseInt(dismissedAt, 10)) > DISMISS_EXPIRY_MS;
     
-    if (shouldShow) {
+    if (!shouldShow) return;
+    
+    // Wait for page to stabilize before showing
+    const showTimer = setTimeout(() => {
+      // Double-check we haven't been dismissed or already shown
+      if (hasShownRef.current) return;
+      hasShownRef.current = true;
       setShowHint(true);
-      // Auto-dismiss after 10 seconds
-      const timer = setTimeout(() => {
-        dismissHint();
-      }, 10000);
-      return () => clearTimeout(timer);
-    }
-  }, [isPageReady, isMobile, storageKey]);
+    }, PAGE_READY_DELAY_MS);
+    
+    return () => clearTimeout(showTimer);
+  }, [isMobile, storageKey]);
+  
+  // Separate effect for auto-dismiss (only runs when showHint becomes true)
+  useEffect(() => {
+    if (!showHint) return;
+    
+    const dismissTimer = setTimeout(() => {
+      setShowHint(false);
+      localStorage.setItem(storageKey, Date.now().toString());
+    }, AUTO_DISMISS_MS);
+    
+    return () => clearTimeout(dismissTimer);
+  }, [showHint, storageKey]);
   
   const dismissHint = useCallback(() => {
     setShowHint(false);
-    // Store timestamp instead of boolean for 24h expiry
     localStorage.setItem(storageKey, Date.now().toString());
   }, [storageKey]);
   
-  // Don't render until page is ready AND we should show
-  if (!showHint || !isMobile || !isPageReady) return null;
+  // Don't render until we're ready to show
+  if (!showHint || !isMobile) return null;
   
   return (
     <div 
@@ -75,6 +94,7 @@ export const SwipeHint = memo(function SwipeHint({
         "flex items-center justify-center gap-2 py-2.5 px-4 mt-2 text-xs",
         "text-primary bg-primary/10 border border-primary/20 rounded-lg",
         "animate-fade-in cursor-pointer transition-all hover:bg-primary/15",
+        "touch-manipulation min-h-[44px]",
         className
       )}
       onClick={dismissHint}
