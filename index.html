@@ -186,6 +186,19 @@
       }
     }
     </script>
+    <!-- OLED Mode + Theme Pre-hydration Script - Prevents flash of wrong theme -->
+    <script>
+      (function() {
+        try {
+          // Apply OLED mode instantly before CSS paints
+          if (localStorage.getItem('xlama-oled-mode') === 'true') {
+            document.documentElement.classList.add('oled-mode');
+          }
+          // Apply dark class for theme
+          document.documentElement.classList.add('dark');
+        } catch(e) {}
+      })();
+    </script>
   </head>
 
   <body>

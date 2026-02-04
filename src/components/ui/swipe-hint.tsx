@@ -29,25 +29,36 @@ export const SwipeHint = memo(function SwipeHint({
   const isMobile = useIsMobile();
   const storageKey = `${SWIPE_HINT_DISMISSED_PREFIX}${hintKey}`;
   const [showHint, setShowHint] = useState(false);
+  const [isPageReady, setIsPageReady] = useState(false);
   
-  // Check localStorage on mount - use session-based hint (expires after 24h)
+  // Wait for page to be fully loaded before showing hint
   useEffect(() => {
-    if (isMobile) {
-      const dismissedAt = localStorage.getItem(storageKey);
-      const now = Date.now();
-      // Show hint if never dismissed or if dismissed more than 24 hours ago
-      const shouldShow = !dismissedAt || (now - parseInt(dismissedAt, 10)) > 24 * 60 * 60 * 1000;
-      
-      if (shouldShow) {
-        setShowHint(true);
-        // Auto-dismiss after 10 seconds (was 6)
-        const timer = setTimeout(() => {
-          dismissHint();
-        }, 10000);
-        return () => clearTimeout(timer);
-      }
+    // Delay checking until React has fully hydrated and page is stable
+    const readyTimer = setTimeout(() => {
+      setIsPageReady(true);
+    }, 1500); // Wait 1.5s for page to settle
+    
+    return () => clearTimeout(readyTimer);
+  }, []);
+  
+  // Check localStorage after page is ready
+  useEffect(() => {
+    if (!isPageReady || !isMobile) return;
+    
+    const dismissedAt = localStorage.getItem(storageKey);
+    const now = Date.now();
+    // Show hint if never dismissed or if dismissed more than 24 hours ago
+    const shouldShow = !dismissedAt || (now - parseInt(dismissedAt, 10)) > 24 * 60 * 60 * 1000;
+    
+    if (shouldShow) {
+      setShowHint(true);
+      // Auto-dismiss after 10 seconds
+      const timer = setTimeout(() => {
+        dismissHint();
+      }, 10000);
+      return () => clearTimeout(timer);
     }
-  }, [isMobile, storageKey]);
+  }, [isPageReady, isMobile, storageKey]);
   
   const dismissHint = useCallback(() => {
     setShowHint(false);
@@ -55,7 +66,8 @@ export const SwipeHint = memo(function SwipeHint({
     localStorage.setItem(storageKey, Date.now().toString());
   }, [storageKey]);
   
-  if (!showHint || !isMobile) return null;
+  // Don't render until page is ready AND we should show
+  if (!showHint || !isMobile || !isPageReady) return null;
   
   return (
     <div 

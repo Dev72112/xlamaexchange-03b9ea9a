@@ -70,9 +70,9 @@ export function CookieConsent() {
   return (
     <>
       {isVisible && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed bottom-20 md:bottom-0 left-0 right-0 z-40 p-4 animate-in slide-in-from-bottom-5 duration-300">
           <div className="container max-w-4xl mx-auto">
-            <div className="bg-card border border-border rounded-xl p-4 md:p-6 shadow-lg backdrop-blur-sm">
+            <div className="bg-card/95 border border-border rounded-xl p-4 md:p-6 shadow-lg backdrop-blur-md">
               <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
                 <div className="flex items-start gap-3 flex-1">
                   <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
