@@ -351,6 +351,36 @@ html {
   :root {
     --base-font-size: 16px;
   }
+  
+  /* Apply font size scaling to html */
+  html {
+    font-size: var(--base-font-size, 16px);
+  }
+  
+  /* UI Density: Compact mode adjustments */
+  .ui-compact {
+    --card-padding-x: 0.75rem;
+    --card-padding-y: 0.5rem;
+  }
+  
+  .ui-compact .p-4 { padding: 0.75rem !important; }
+  .ui-compact .p-5 { padding: 0.875rem !important; }
+  .ui-compact .p-6 { padding: 1rem !important; }
+  .ui-compact .px-4 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  .ui-compact .px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .ui-compact .py-4 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+  .ui-compact .py-6 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+  .ui-compact .gap-4 { gap: 0.75rem !important; }
+  .ui-compact .gap-6 { gap: 1rem !important; }
+  .ui-compact .space-y-4 > * + * { margin-top: 0.75rem !important; }
+  .ui-compact .space-y-6 > * + * { margin-top: 1rem !important; }
+  .ui-compact .mb-4 { margin-bottom: 0.75rem !important; }
+  .ui-compact .mb-6 { margin-bottom: 1rem !important; }
+  .ui-compact .mt-4 { margin-top: 0.75rem !important; }
+  .ui-compact .mt-6 { margin-top: 1rem !important; }
+  .ui-compact .text-base { font-size: 0.875rem !important; }
+  .ui-compact .text-lg { font-size: 1rem !important; }
+  .ui-compact .text-xl { font-size: 1.125rem !important; }
 }
 
 @layer base {

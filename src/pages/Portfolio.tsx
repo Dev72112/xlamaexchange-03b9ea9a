@@ -130,26 +130,18 @@ const Portfolio = memo(function Portfolio() {
                 </p>
                 <MultiWalletButton />
 
-                <div className="mt-8 pt-8 border-t border-border/50">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {portfolioFeatures.map((feature, index) => (
-                      <motion.div 
-                        key={feature.title} 
-                        className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`} 
-                        style={getStaggerStyle(index, 80)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <feature.icon className="w-5 h-5 text-primary mb-2" />
-                        <p className="text-sm font-medium">{feature.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
               </CardContent>
             </Card>
+            
+            {/* Education for disconnected state */}
+            <div className="mt-4">
+              <EducationCollapsible
+                title="How Portfolio Works"
+                icon={HelpCircle}
+                steps={portfolioSteps}
+                tips={portfolioTips}
+              />
+            </div>
           </motion.div>
         ) : (
           <motion.div 

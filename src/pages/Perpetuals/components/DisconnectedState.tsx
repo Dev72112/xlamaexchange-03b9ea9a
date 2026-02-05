@@ -4,30 +4,39 @@
  * Displays connect wallet prompt and feature preview for disconnected users.
  */
 
-import { memo, useState, Suspense, lazy } from 'react';
+import { memo, Suspense, lazy } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Activity, 
   TrendingUp, 
   BarChart3, 
   Layers, 
   Calculator, 
-  HelpCircle, 
-  ChevronDown 
+  HelpCircle,
+  Wallet,
 } from 'lucide-react';
 import { MultiWalletButton } from '@/features/wallet';
 import { GlowBar } from '@/components/ui/glow-bar';
-import { cn } from '@/lib/utils';
+import { EducationCollapsible } from '@/components/EducationCollapsible';
 
 const PerpetualsHowItWorks = lazy(() => 
   import('@/components/perpetuals/PerpetualsHowItWorks').then(m => ({ default: m.PerpetualsHowItWorks }))
 );
 
-export const DisconnectedState = memo(function DisconnectedState() {
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
+const perpsSteps = [
+  { icon: Activity, title: "Open Position", description: "Choose Long or Short with your desired leverage." },
+  { icon: Layers, title: "Manage", description: "Set stop loss, take profit, or add margin." },
+  { icon: TrendingUp, title: "Monitor PnL", description: "Real-time profit tracking with live prices." },
+  { icon: Wallet, title: "Deposit/Withdraw", description: "Manage your trading collateral on Hyperliquid." },
+];
 
+const perpsTips = [
+  "Start with low leverage (1-5x) until you're comfortable",
+  "Always set a stop loss to limit potential losses",
+  "Funding rates are paid every 8 hours",
+];
+
+export const DisconnectedState = memo(function DisconnectedState() {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <Card className="glass glow-sm border-primary/10 sweep-effect glow-border-animated overflow-hidden">
@@ -83,26 +92,13 @@ export const DisconnectedState = memo(function DisconnectedState() {
         </Card>
       </div>
 
-      {/* How Perpetuals Work - Collapsible Education */}
-      <Collapsible open={showHowItWorks} onOpenChange={setShowHowItWorks}>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="w-full justify-between h-12 glass-subtle mb-2">
-            <span className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-primary" />
-              How Perpetual Trading Works
-            </span>
-            <ChevronDown className={cn(
-              "w-4 h-4 transition-transform",
-              showHowItWorks && "rotate-180"
-            )} />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2">
-          <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-            <PerpetualsHowItWorks />
-          </Suspense>
-        </CollapsibleContent>
-      </Collapsible>
+      {/* Education Collapsible */}
+      <EducationCollapsible
+        title="How Perpetuals Work"
+        icon={HelpCircle}
+        steps={perpsSteps}
+        tips={perpsTips}
+      />
     </div>
   );
 });

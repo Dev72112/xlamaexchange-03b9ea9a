@@ -35,6 +35,7 @@ import {
   PositionManager,
   CandlestickChart,
   MarketSelector,
+  MobileTradePanel,
 } from '@/components/perpetuals';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
@@ -146,7 +147,7 @@ export const MobileTradingUI = memo(function MobileTradingUI({
   }, [onAddMargin]);
 
   return (
-    <div className="space-y-3 pt-2">
+    <div className="space-y-3 pt-2 pb-48">
       {/* Market Selector */}
       <MarketSelector
         selectedPair={selectedPair}
@@ -328,6 +329,16 @@ export const MobileTradingUI = memo(function MobileTradingUI({
         steps={perpsSteps}
         tips={perpsTips}
       />
+      
+      {/* Mobile Trade Panel with swipe gestures */}
+      {!safeMode && (
+        <MobileTradePanel
+          coin={selectedPair}
+          currentPrice={currentPrice}
+          availableMargin={availableMargin}
+          onTrade={onTrade}
+        />
+      )}
     </div>
   );
 });

@@ -1,4 +1,4 @@
-import { memo, Suspense, lazy } from 'react';
+import { memo, Suspense, lazy, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,12 +16,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Lazy load tab components
 const OkxAnalyticsTab = lazy(() => import('@/components/analytics/tabs/OkxAnalyticsTab'));
 const XlamaAnalyticsTab = lazy(() => import('@/components/analytics/tabs/XlamaAnalyticsTab'));
-
-const analyticsFeatures = [
-  { icon: Zap, title: "OKX Analytics", description: "Trading volume and gas analytics from local transactions." },
-  { icon: LineChart, title: "xLama Analytics", description: "Unified metrics: Realized PnL, Success Rate." },
-  { icon: BarChart3, title: "Trading Patterns", description: "Discover when you trade the most." },
-];
 
 const analyticsSteps = [
   { icon: BarChart3, title: "View Metrics", description: "See your trading volume, P&L, and success rate." },
@@ -126,27 +120,18 @@ const Analytics = memo(function Analytics() {
                   Connect to view your trading analytics.
                 </p>
                 <MultiWalletButton />
-
-                <div className="mt-8 pt-8 border-t border-border/50">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-4">What you'll get access to:</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {analyticsFeatures.map((feature, index) => (
-                      <motion.div 
-                        key={feature.title} 
-                        className={`p-3 rounded-lg glass-subtle hover-lift sweep-effect ${STAGGER_ITEM_CLASS}`} 
-                        style={getStaggerStyle(index, 80)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <feature.icon className="w-5 h-5 text-primary mb-2" />
-                        <p className="text-sm font-medium">{feature.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
               </CardContent>
             </Card>
+            
+            {/* Education for disconnected state */}
+            <div className="mt-4">
+              <EducationCollapsible
+                title="How Analytics Work"
+                icon={HelpCircle}
+                steps={analyticsSteps}
+                tips={analyticsTips}
+              />
+            </div>
           </motion.div>
         ) : (
           <motion.div
