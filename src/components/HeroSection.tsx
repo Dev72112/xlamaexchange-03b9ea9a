@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, ExternalLink, Shield, Zap, Globe, Coins, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
-import xlamaMascot from "@/assets/xlama-mascot.png";
 
 const features = [
   {
@@ -92,26 +91,8 @@ export const HeroSection = memo(function HeroSection() {
 
       <div className="container px-4 sm:px-6 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center">
-          {/* Mascot + Badge with premium glass effect */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in">
-            <div className="relative group">
-              {/* Outer glow ring */}
-              <div className="absolute -inset-3 sm:-inset-2 bg-gradient-to-r from-primary/60 via-accent/40 to-primary/60 rounded-full blur-lg opacity-50 group-hover:opacity-80 transition-opacity animate-pulse-glow" />
-              {/* Inner glow */}
-              <div className="absolute -inset-1.5 sm:-inset-1 bg-gradient-to-r from-primary/50 to-accent/50 rounded-full blur-md opacity-60 group-hover:opacity-90 transition-opacity" />
-              <img 
-                src={xlamaMascot} 
-                alt="xLama mascot" 
-                width={80}
-                height={80}
-                fetchPriority="high"
-                decoding="async"
-                className="relative w-16 h-16 sm:w-[72px] sm:h-[72px] lg:w-20 lg:h-20 rounded-full ring-2 ring-primary/40 shrink-0 hover-lift transition-transform duration-300 object-cover bg-background"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/xlama-mascot.png';
-                }}
-              />
-            </div>
+          {/* Live Badge */}
+          <div className="flex items-center justify-center mb-6 sm:mb-8 animate-fade-in">
             <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full glass border border-primary/40 text-xs sm:text-sm text-primary shadow-glow backdrop-blur-xl">
               <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0" aria-hidden="true">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>

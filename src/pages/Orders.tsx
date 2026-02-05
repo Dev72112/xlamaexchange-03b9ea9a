@@ -256,21 +256,18 @@ const Orders = memo(function Orders() {
                 </p>
                 <MultiWalletButton />
                 
-                {/* Feature preview */}
-                <div className="mt-8 pt-6 border-t border-border/50 grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg glass-subtle text-center">
-                    <Target className="w-5 h-5 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-medium">Limit Orders</p>
-                    <p className="text-[10px] text-muted-foreground">Set target prices</p>
-                  </div>
-                  <div className="p-3 rounded-lg glass-subtle text-center">
-                    <CalendarClock className="w-5 h-5 text-primary mx-auto mb-1.5" />
-                    <p className="text-xs font-medium">DCA Strategies</p>
-                    <p className="text-[10px] text-muted-foreground">Automated buys</p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
+            
+            {/* Education for disconnected state */}
+            <div className="mt-4">
+              <EducationCollapsible
+                title="How Orders Work"
+                icon={HelpCircle}
+                steps={ordersSteps}
+                tips={ordersTips}
+              />
+            </div>
           </motion.div>
         ) : chainFilter === 'solana' ? (
           // Solana orders - coming soon

@@ -18,6 +18,12 @@ const Index = lazy(() => import('@/pages/Index'));
 const Bridge = lazy(() => import('@/pages/Bridge'));
 const Orders = lazy(() => import('@/pages/Orders'));
 const Tools = lazy(() => import('@/pages/Tools'));
+const WatchlistPage = lazy(() => import('@/pages/tools/WatchlistPage'));
+const GasPage = lazy(() => import('@/pages/tools/GasPage'));
+const PredictionPage = lazy(() => import('@/pages/tools/PredictionPage'));
+const RebalancerPage = lazy(() => import('@/pages/tools/RebalancerPage'));
+const AlertsPage = lazy(() => import('@/pages/tools/AlertsPage'));
+const NewsPage = lazy(() => import('@/pages/tools/NewsPage'));
 const Portfolio = lazy(() => import('@/pages/Portfolio'));
 const TokenCompare = lazy(() => import('@/pages/TokenCompare'));
 const Analytics = lazy(() => import('@/pages/Analytics'));
@@ -56,6 +62,12 @@ export const secondaryRoutes: RouteConfig[] = [
   { path: '/history', element: History, label: 'History' },
   { path: '/favorites', element: Favorites, label: 'Favorites' },
   { path: '/compare', element: TokenCompare, label: 'Compare' },
+  { path: '/tools/watchlist', element: WatchlistPage, label: 'Watchlist' },
+  { path: '/tools/gas', element: GasPage, label: 'Gas' },
+  { path: '/tools/prediction', element: PredictionPage, label: 'Prediction' },
+  { path: '/tools/rebalancer', element: RebalancerPage, label: 'Rebalancer' },
+  { path: '/tools/alerts', element: AlertsPage, label: 'Alerts' },
+  { path: '/tools/news', element: NewsPage, label: 'News' },
   { path: '/docs', element: Docs, label: 'Docs' },
   { path: '/changelog', element: Changelog, label: 'Changelog' },
   { path: '/feedback', element: Feedback, label: 'Feedback' },
