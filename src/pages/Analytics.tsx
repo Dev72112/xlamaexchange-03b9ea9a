@@ -120,6 +120,41 @@ const Analytics = memo(function Analytics() {
                   Connect to view your trading analytics.
                 </p>
                 <MultiWalletButton />
+                
+                {/* What you'll get access to */}
+                <div className="mt-6 pt-6 border-t border-border/50">
+                  <p className="text-sm text-muted-foreground mb-4">What you'll get access to:</p>
+                  <div className="grid grid-cols-2 gap-3 text-left">
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <BarChart3 className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Volume Tracking</h4>
+                        <p className="text-xs text-muted-foreground">Total trade volume across chains</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">P&L Analytics</h4>
+                        <p className="text-xs text-muted-foreground">Profit and loss over time</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <Zap className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Gas Insights</h4>
+                        <p className="text-xs text-muted-foreground">Gas spending breakdown</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <LineChart className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Performance</h4>
+                        <p className="text-xs text-muted-foreground">Win rate and trade patterns</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             

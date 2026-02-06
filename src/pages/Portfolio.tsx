@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { GlowBar } from "@/components/ui/glow-bar";
-import { Wallet, Zap, LineChart, TrendingUp, Search, ArrowRightLeft, HelpCircle } from "lucide-react";
+import { Wallet, Zap, LineChart, TrendingUp, Search, ArrowRightLeft, HelpCircle, Layers } from "lucide-react";
 import { useMultiWallet } from "@/contexts/MultiWalletContext";
 import { MultiWalletButton } from "@/features/wallet";
 import { getStaggerStyle, STAGGER_ITEM_CLASS } from "@/lib/staggerAnimation";
@@ -130,6 +130,40 @@ const Portfolio = memo(function Portfolio() {
                 </p>
                 <MultiWalletButton />
 
+                {/* What you'll get access to */}
+                <div className="mt-6 pt-6 border-t border-border/50">
+                  <p className="text-sm text-muted-foreground mb-4">What you'll get access to:</p>
+                  <div className="grid grid-cols-2 gap-3 text-left">
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <Layers className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Multi-Chain</h4>
+                        <p className="text-xs text-muted-foreground">Holdings across 25+ chains</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Live Prices</h4>
+                        <p className="text-xs text-muted-foreground">Real-time USD values</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <Search className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Smart Search</h4>
+                        <p className="text-xs text-muted-foreground">Find any token instantly</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <ArrowRightLeft className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Quick Trade</h4>
+                        <p className="text-xs text-muted-foreground">Swap directly from holdings</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
