@@ -256,6 +256,40 @@ const Orders = memo(function Orders() {
                 </p>
                 <MultiWalletButton />
                 
+                {/* What you'll get access to */}
+                <div className="mt-6 pt-6 border-t border-border/50">
+                  <p className="text-sm text-muted-foreground mb-4">What you'll get access to:</p>
+                  <div className="grid grid-cols-2 gap-3 text-left">
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <Target className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Limit Orders</h4>
+                        <p className="text-xs text-muted-foreground">Buy/sell at target prices</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <CalendarClock className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">DCA</h4>
+                        <p className="text-xs text-muted-foreground">Automated recurring buys</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <Bell className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Alerts</h4>
+                        <p className="text-xs text-muted-foreground">Price movement notifications</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="glass-subtle border-border/50">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <Shield className="w-6 h-6 text-primary mx-auto mb-2" />
+                        <h4 className="font-medium text-sm">Protection</h4>
+                        <p className="text-xs text-muted-foreground">Stop loss and take profit</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
