@@ -186,57 +186,57 @@ const Orders = memo(function Orders() {
           <p className="text-sm text-muted-foreground">Limit orders & DCA strategies</p>
         </motion.div>
 
-        {/* Chain Toggle & Refresh Row */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
-            <Layers className="w-4 h-4 text-muted-foreground ml-2" />
-            <Button
-              variant={chainFilter === 'evm' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => handleChainFilterChange('evm')}
-              disabled={isSwitching}
-              className={cn(
-                "h-7 px-2.5 text-xs",
-                chainFilter === 'evm' && "bg-primary text-primary-foreground"
-              )}
-            >
-              EVM
-            </Button>
-            <Button
-              variant={chainFilter === 'solana' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => handleChainFilterChange('solana')}
-              disabled={isSwitching}
-              className={cn(
-                "h-7 px-2.5 text-xs gap-1",
-                chainFilter === 'solana' && "bg-primary text-primary-foreground"
-              )}
-            >
-              <Zap className="w-3 h-3" />
-              SOL
-            </Button>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Sync indicator */}
-            {isConnected && (
+        {/* Chain Toggle & Refresh Row - only show when connected */}
+        {isConnected && (
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="inline-flex items-center gap-1 p-1 rounded-lg glass border border-border/50">
+              <Layers className="w-4 h-4 text-muted-foreground ml-2" />
+              <Button
+                variant={chainFilter === 'evm' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => handleChainFilterChange('evm')}
+                disabled={isSwitching}
+                className={cn(
+                  "h-7 px-2.5 text-xs",
+                  chainFilter === 'evm' && "bg-primary text-primary-foreground"
+                )}
+              >
+                EVM
+              </Button>
+              <Button
+                variant={chainFilter === 'solana' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => handleChainFilterChange('solana')}
+                disabled={isSwitching}
+                className={cn(
+                  "h-7 px-2.5 text-xs gap-1",
+                  chainFilter === 'solana' && "bg-primary text-primary-foreground"
+                )}
+              >
+                <Zap className="w-3 h-3" />
+                SOL
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* Sync indicator */}
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <div className={cn("w-1.5 h-1.5 rounded-full", isWalletSynced ? 'bg-success' : 'bg-warning')} />
                 {isWalletSynced ? 'Synced' : 'Switch wallet'}
               </div>
-            )}
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="h-8 w-8"
-            >
-              <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
-            </Button>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="h-8 w-8"
+              >
+                <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         {!isConnected ? (
           <motion.div

@@ -90,32 +90,45 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
         </DialogHeader>
         
         <Tabs defaultValue="sounds" className="w-full">
-          <TabsList className="w-full grid grid-cols-3 glass-subtle">
-            <TabsTrigger value="sounds" className="text-xs">
+          <TabsList className="w-full grid grid-cols-3 h-10 glass border-border/50">
+            <TabsTrigger value="sounds" className="text-xs data-[state=active]:bg-primary/10">
               <Volume2 className="w-3.5 h-3.5 mr-1.5" />
               Sound
             </TabsTrigger>
-            <TabsTrigger value="theme" className="text-xs">
+            <TabsTrigger value="theme" className="text-xs data-[state=active]:bg-primary/10">
               <Settings className="w-3.5 h-3.5 mr-1.5" />
               Theme
             </TabsTrigger>
-            <TabsTrigger value="help" className="text-xs">
+            <TabsTrigger value="help" className="text-xs data-[state=active]:bg-primary/10">
               <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
               Help
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="sounds" className="mt-4 space-y-4">
+          <TabsContent value="sounds" className="mt-4 space-y-3">
             {/* Main Toggles */}
-            <Card className="glass-subtle border-border/50">
-              <CardContent className="p-4 space-y-4">
-                <div className="flex items-center justify-between">
+            <Card className="glass border-border/50 overflow-hidden">
+              <CardContent className="p-0">
+                {/* Sound Toggle */}
+                <div className="flex items-center justify-between p-4 border-b border-border/30">
                   <Label 
                     htmlFor="sound-toggle" 
-                    className="flex items-center gap-2 text-sm cursor-pointer"
+                    className="flex items-center gap-3 text-sm cursor-pointer flex-1"
                   >
-                    <Volume2 className="w-4 h-4 text-muted-foreground" />
-                    Sound Effects
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                      settings.soundEnabled ? "bg-primary/10" : "bg-muted/50"
+                    )}>
+                      {settings.soundEnabled ? (
+                        <Volume2 className="w-4 h-4 text-primary" />
+                      ) : (
+                        <VolumeX className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="font-medium">Sound Effects</span>
+                      <p className="text-xs text-muted-foreground">UI feedback sounds</p>
+                    </div>
                   </Label>
                   <Switch
                     id="sound-toggle"
@@ -124,13 +137,25 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
                   />
                 </div>
                 
-                <div className="flex items-center justify-between">
+                {/* Haptic Toggle */}
+                <div className="flex items-center justify-between p-4">
                   <Label 
                     htmlFor="haptic-toggle" 
-                    className="flex items-center gap-2 text-sm cursor-pointer"
+                    className="flex items-center gap-3 text-sm cursor-pointer flex-1"
                   >
-                    <Vibrate className="w-4 h-4 text-muted-foreground" />
-                    Haptic Feedback
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                      settings.hapticEnabled ? "bg-primary/10" : "bg-muted/50"
+                    )}>
+                      <Vibrate className={cn(
+                        "w-4 h-4",
+                        settings.hapticEnabled ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div>
+                      <span className="font-medium">Haptic Feedback</span>
+                      <p className="text-xs text-muted-foreground">Vibration on mobile</p>
+                    </div>
                   </Label>
                   <Switch
                     id="haptic-toggle"
@@ -142,10 +167,10 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
             </Card>
 
             {/* Alert Sound Selection */}
-            <Card className="glass-subtle border-border/50">
+            <Card className="glass border-border/50">
               <CardContent className="p-4 space-y-3">
-                <Label className="flex items-center gap-2 text-sm">
-                  <Bell className="w-4 h-4 text-muted-foreground" />
+                <Label className="flex items-center gap-2 text-sm font-medium">
+                  <Bell className="w-4 h-4 text-primary" />
                   Alert Sound
                 </Label>
                 <div className="flex gap-2">
@@ -154,7 +179,7 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
                     onValueChange={(value) => handleSoundChange(value as NotificationSoundId)}
                     disabled={!settings.soundEnabled}
                   >
-                    <SelectTrigger className="flex-1 h-9">
+                    <SelectTrigger className="flex-1 h-10 glass-subtle">
                       <SelectValue placeholder="Select sound" />
                     </SelectTrigger>
                     <SelectContent>
@@ -171,7 +196,7 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-9 w-9 shrink-0"
+                    className="h-10 w-10 shrink-0 glass-subtle"
                     onClick={() => previewSound(settings.notificationSound)}
                     disabled={!settings.soundEnabled}
                   >
@@ -180,10 +205,10 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
                 </div>
 
                 {/* Volume Slider */}
-                <div className="space-y-2 pt-2">
+                <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-muted-foreground">Volume</Label>
-                    <span className="text-xs text-muted-foreground">
+                    <Label className="text-xs text-muted-foreground">Volume</Label>
+                    <span className="text-xs font-medium tabular-nums">
                       {Math.round(settings.notificationVolume * 100)}%
                     </span>
                   </div>
@@ -201,13 +226,13 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
             </Card>
 
             {/* Push Notifications */}
-            <Card className="glass-subtle border-border/50">
+            <Card className="glass border-border/50">
               <CardContent className="p-4">
                 <NotificationSettings />
               </CardContent>
             </Card>
             
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground text-center pt-1">
               Sound and vibration for swaps, price alerts, and limit orders.
             </p>
           </TabsContent>
@@ -216,9 +241,9 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
             <ThemeCustomizer />
           </TabsContent>
 
-          <TabsContent value="help" className="mt-4 space-y-4">
+          <TabsContent value="help" className="mt-4 space-y-3">
             {/* Restart Tour */}
-            <Card className="glass-subtle border-border/50">
+            <Card className="glass border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -233,7 +258,7 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
                       variant="outline" 
                       size="sm" 
                       onClick={handleRestartTour}
-                      className="gap-2"
+                      className="gap-2 glass-subtle"
                     >
                       <RotateCcw className="w-4 h-4" />
                       Restart Tour
@@ -244,32 +269,34 @@ export const FeedbackSettings = memo(function FeedbackSettings() {
             </Card>
 
             {/* Quick Links */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">Quick Links</h4>
-              <div className="grid gap-2">
-                <a 
-                  href="/docs" 
-                  className="flex items-center gap-2 p-3 rounded-lg glass-subtle hover:bg-muted/50 transition-colors text-sm"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  📚 Documentation
-                </a>
-                <a 
-                  href="/faq" 
-                  className="flex items-center gap-2 p-3 rounded-lg glass-subtle hover:bg-muted/50 transition-colors text-sm"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  ❓ FAQ
-                </a>
-                <a 
-                  href="/feedback" 
-                  className="flex items-center gap-2 p-3 rounded-lg glass-subtle hover:bg-muted/50 transition-colors text-sm"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  💬 Send Feedback
-                </a>
-              </div>
-            </div>
+            <Card className="glass border-border/50">
+              <CardContent className="p-4">
+                <h4 className="text-xs font-medium text-muted-foreground mb-3">Quick Links</h4>
+                <div className="space-y-1">
+                  <a 
+                    href="/docs" 
+                    className="flex items-center gap-2 p-2.5 rounded-lg hover:bg-muted/30 transition-colors text-sm"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    📚 Documentation
+                  </a>
+                  <a 
+                    href="/faq" 
+                    className="flex items-center gap-2 p-2.5 rounded-lg hover:bg-muted/30 transition-colors text-sm"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    ❓ FAQ
+                  </a>
+                  <a 
+                    href="/feedback" 
+                    className="flex items-center gap-2 p-2.5 rounded-lg hover:bg-muted/30 transition-colors text-sm"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    💬 Send Feedback
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </DialogContent>

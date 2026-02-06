@@ -40,12 +40,18 @@ function saveSettings(settings: FeedbackSettings): void {
 }
 
 export function useFeedback() {
-  const [settings, setSettings] = useState<FeedbackSettings>(defaultSettings);
+  const [settings, setSettings] = useState<FeedbackSettings>(() => loadSettings());
   const haptic = useHapticFeedback();
 
-  // Load settings on mount
+  // Load settings on mount and sync with localStorage changes
   useEffect(() => {
-    setSettings(loadSettings());
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === FEEDBACK_SETTINGS_KEY) {
+        setSettings(loadSettings());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Play UI sound effect using Web Audio API
@@ -84,11 +90,27 @@ export function useFeedback() {
     });
   }, []);
 
-  // Update all settings
+  // Update all settings and sync haptic enabled state
   const updateSettings = useCallback((newSettings: Partial<FeedbackSettings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
       saveSettings(updated);
+      
+      // Sync haptic enabled state with the haptic hook's storage
+      if ('hapticEnabled' in newSettings) {
+        try {
+          const hapticSettingsKey = 'xlama-haptic-settings';
+          const storedHaptic = localStorage.getItem(hapticSettingsKey);
+          const hapticSettings = storedHaptic ? JSON.parse(storedHaptic) : { intensity: 'medium', enabled: true };
+          hapticSettings.enabled = newSettings.hapticEnabled;
+          localStorage.setItem(hapticSettingsKey, JSON.stringify(hapticSettings));
+          // Trigger storage event for cross-component sync
+          window.dispatchEvent(new StorageEvent('storage', { key: hapticSettingsKey }));
+        } catch {
+          // Ignore errors
+        }
+      }
+      
       return updated;
     });
   }, []);
