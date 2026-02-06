@@ -141,12 +141,18 @@ function saveSettings(settings: HapticSettings): void {
  * Uses Web Vibration API with perceptible patterns + audio fallback
  */
 export function useHapticFeedback() {
-  const [settings, setSettings] = useState<HapticSettings>(defaultSettings);
+  const [settings, setSettings] = useState<HapticSettings>(() => loadSettings());
   const isVibrationSupported = typeof navigator !== 'undefined' && 'vibrate' in navigator;
 
-  // Load settings on mount
+  // Sync with localStorage changes (e.g., from other tabs or components)
   useEffect(() => {
-    setSettings(loadSettings());
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === HAPTIC_SETTINGS_KEY) {
+        setSettings(loadSettings());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const vibrate = useCallback((pattern: number | number[]) => {
