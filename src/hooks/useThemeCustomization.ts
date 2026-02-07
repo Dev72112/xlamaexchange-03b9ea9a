@@ -202,8 +202,8 @@ export function useThemeCustomization() {
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(PRESET_SCHEMES[0]);
   const [customScheme, setCustomScheme] = useState<Partial<ColorScheme> | null>(null);
   const [oledMode, setOledMode] = useState(false);
-  const [uiDensity, setUiDensity] = useState<UIDensity>('comfortable');
-  const [fontSize, setFontSize] = useState<FontSize>('medium');
+  const [uiDensity, setUiDensity] = useState<UIDensity>('compact');
+  const [fontSize, setFontSize] = useState<FontSize>('small');
 
   // Load saved settings on mount - DEFAULT TO OLED + MATRIX FOR NEW USERS
   useEffect(() => {
@@ -265,18 +265,28 @@ export function useThemeCustomization() {
       document.documentElement.classList.remove('oled-mode');
     }
     
-    // Load UI density
+    // Load UI density - default to compact for new users
     const savedDensity = localStorage.getItem(UI_DENSITY_KEY) as UIDensity | null;
     if (savedDensity) {
       setUiDensity(savedDensity);
       document.documentElement.classList.toggle('ui-compact', savedDensity === 'compact');
+    } else {
+      // New user default: compact
+      setUiDensity('compact');
+      document.documentElement.classList.add('ui-compact');
+      localStorage.setItem(UI_DENSITY_KEY, 'compact');
     }
     
-    // Load font size
+    // Load font size - default to small for new users
     const savedFontSize = localStorage.getItem(FONT_SIZE_KEY) as FontSize | null;
     if (savedFontSize) {
       setFontSize(savedFontSize);
       applyFontSize(savedFontSize);
+    } else {
+      // New user default: small
+      setFontSize('small');
+      applyFontSize('small');
+      localStorage.setItem(FONT_SIZE_KEY, 'small');
     }
   }, []);
 
@@ -380,8 +390,8 @@ export function useThemeCustomization() {
     applyScheme(matrixScheme);
     setCustomScheme(null);
     toggleOledMode(true); // OLED is now the default
-    updateUIDensity('comfortable');
-    updateFontSize('medium');
+    updateUIDensity('compact');
+    updateFontSize('small');
   }, [applyScheme, toggleOledMode, updateUIDensity, updateFontSize]);
 
   return {
