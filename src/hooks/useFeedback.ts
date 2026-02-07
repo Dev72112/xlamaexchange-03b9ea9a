@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SOUNDS, SoundType, NotificationSoundId, playNotificationSound, playUISound } from '@/lib/sounds';
 import { useHapticFeedback, HapticPattern } from './useHapticFeedback';
 
@@ -41,9 +41,15 @@ function saveSettings(settings: FeedbackSettings): void {
 
 export function useFeedback() {
   const [settings, setSettings] = useState<FeedbackSettings>(() => loadSettings());
+  const settingsRef = useRef(settings);
   const haptic = useHapticFeedback();
 
-  // Load settings on mount and sync with localStorage changes
+  // Keep ref in sync so callbacks never read stale values
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  // Sync with localStorage changes (e.g., from other tabs)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === FEEDBACK_SETTINGS_KEY) {
@@ -54,17 +60,17 @@ export function useFeedback() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Play UI sound effect using Web Audio API
+  // Play UI sound effect - reads from ref to avoid stale closure
   const playSound = useCallback((type: SoundType) => {
-    if (!settings.soundEnabled) return;
+    if (!settingsRef.current.soundEnabled) return;
     playUISound(type, 0.15);
-  }, [settings.soundEnabled]);
+  }, []);
 
-  // Trigger haptic feedback using the enhanced hook
+  // Trigger haptic feedback - reads from ref
   const triggerHaptic = useCallback((pattern: HapticPattern = 'light') => {
-    if (!settings.hapticEnabled) return;
+    if (!settingsRef.current.hapticEnabled) return;
     haptic.trigger(pattern);
-  }, [settings.hapticEnabled, haptic]);
+  }, [haptic]);
 
   // Combined feedback (sound + haptic)
   const triggerFeedback = useCallback((type: SoundType, hapticPattern: HapticPattern = 'light') => {
@@ -104,8 +110,6 @@ export function useFeedback() {
           const hapticSettings = storedHaptic ? JSON.parse(storedHaptic) : { intensity: 'medium', enabled: true };
           hapticSettings.enabled = newSettings.hapticEnabled;
           localStorage.setItem(hapticSettingsKey, JSON.stringify(hapticSettings));
-          // Trigger storage event for cross-component sync
-          window.dispatchEvent(new StorageEvent('storage', { key: hapticSettingsKey }));
         } catch {
           // Ignore errors
         }
@@ -115,16 +119,16 @@ export function useFeedback() {
     });
   }, []);
 
-  // Play notification alert sound
+  // Play notification alert sound - reads from ref
   const playAlert = useCallback(() => {
-    if (!settings.soundEnabled) return;
-    playNotificationSound(settings.notificationSound, settings.notificationVolume);
-  }, [settings.soundEnabled, settings.notificationSound, settings.notificationVolume]);
+    if (!settingsRef.current.soundEnabled) return;
+    playNotificationSound(settingsRef.current.notificationSound, settingsRef.current.notificationVolume);
+  }, []);
 
   // Preview a notification sound
   const previewSound = useCallback((soundId: NotificationSoundId) => {
-    playNotificationSound(soundId, settings.notificationVolume);
-  }, [settings.notificationVolume]);
+    playNotificationSound(soundId, settingsRef.current.notificationVolume);
+  }, []);
 
   return {
     settings,

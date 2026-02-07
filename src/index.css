@@ -91,7 +91,7 @@ body {
   }
   
   html {
-    font-size: 17px;
+    font-size: max(var(--base-font-size, 16px), 17px);
   }
 }
 
@@ -104,7 +104,7 @@ body {
   }
   
   html {
-    font-size: 18px;
+    font-size: max(var(--base-font-size, 16px), 18px);
   }
 }
 
@@ -171,6 +171,7 @@ body {
 /* Smooth theme transitions */
 html {
   transition: background-color 0.2s ease-out, color 0.2s ease-out;
+  font-size: var(--base-font-size, 16px);
 }
 
 * {
@@ -340,21 +341,9 @@ html {
     --base-spacing: 0.75;
   }
   
-  .ui-compact .p-4 { padding: 0.75rem; }
-  .ui-compact .p-6 { padding: 1rem; }
-  .ui-compact .gap-4 { gap: 0.75rem; }
-  .ui-compact .gap-6 { gap: 1rem; }
-  .ui-compact .space-y-4 > * + * { margin-top: 0.75rem; }
-  .ui-compact .space-y-6 > * + * { margin-top: 1rem; }
-  
   /* ============ FONT SIZE CUSTOMIZATION ============ */
   :root {
     --base-font-size: 16px;
-  }
-  
-  /* Apply font size scaling to html */
-  html {
-    font-size: var(--base-font-size, 16px);
   }
   
   /* UI Density: Compact mode adjustments */
@@ -363,24 +352,40 @@ html {
     --card-padding-y: 0.5rem;
   }
   
+  .ui-compact .p-3 { padding: 0.5rem !important; }
   .ui-compact .p-4 { padding: 0.75rem !important; }
   .ui-compact .p-5 { padding: 0.875rem !important; }
   .ui-compact .p-6 { padding: 1rem !important; }
+  .ui-compact .px-3 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
   .ui-compact .px-4 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
   .ui-compact .px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
   .ui-compact .py-4 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
   .ui-compact .py-6 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+  .ui-compact .pt-4 { padding-top: 0.75rem !important; }
+  .ui-compact .pt-6 { padding-top: 1rem !important; }
+  .ui-compact .pb-4 { padding-bottom: 0.75rem !important; }
+  .ui-compact .pb-8 { padding-bottom: 1.5rem !important; }
+  .ui-compact .gap-3 { gap: 0.5rem !important; }
   .ui-compact .gap-4 { gap: 0.75rem !important; }
   .ui-compact .gap-6 { gap: 1rem !important; }
+  .ui-compact .space-y-3 > * + * { margin-top: 0.5rem !important; }
   .ui-compact .space-y-4 > * + * { margin-top: 0.75rem !important; }
   .ui-compact .space-y-6 > * + * { margin-top: 1rem !important; }
+  .ui-compact .mb-3 { margin-bottom: 0.5rem !important; }
   .ui-compact .mb-4 { margin-bottom: 0.75rem !important; }
   .ui-compact .mb-6 { margin-bottom: 1rem !important; }
   .ui-compact .mt-4 { margin-top: 0.75rem !important; }
   .ui-compact .mt-6 { margin-top: 1rem !important; }
-  .ui-compact .text-base { font-size: 0.875rem !important; }
-  .ui-compact .text-lg { font-size: 1rem !important; }
-  .ui-compact .text-xl { font-size: 1.125rem !important; }
+  
+  /* Text scaling for compact */
+  .ui-compact .text-base { font-size: 0.8125rem !important; }
+  .ui-compact .text-lg { font-size: 0.9375rem !important; }
+  .ui-compact .text-xl { font-size: 1.0625rem !important; }
+  .ui-compact .text-2xl { font-size: 1.25rem !important; }
+  .ui-compact .text-3xl { font-size: 1.5rem !important; }
+  .ui-compact h1 { font-size: 1.5rem !important; }
+  .ui-compact h2 { font-size: 1.25rem !important; }
+  .ui-compact h3 { font-size: 1.0625rem !important; }
 }
 
 @layer base {
