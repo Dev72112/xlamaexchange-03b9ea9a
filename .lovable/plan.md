@@ -1,281 +1,215 @@
 
-# Sound/Haptic Fixes, Card Styling Refinement & Feature Preview Cards
+
+# Feedback Toggle Fix, Theme/Display Refinement & Tools Subpage Evolution
 
 ## Overview
 
-This plan addresses three key issues:
-1. **Sound/Haptic Toggles Not Working** - The toggles visually appear stuck even though the underlying state management appears correct
-2. **Card/Box Design Inconsistency** - The Settings panel and other dialogs use plain styling while data pages use the glass system
-3. **Missing "What You Get" Cards** - The Perps disconnected state shows feature preview cards that other wallet-gated pages are missing
+Three categories of work:
+1. **Sound/Haptic toggles require page refresh** - State updates correctly in React but callbacks use stale closure values
+2. **Theme display settings broken** - Font size CSS overridden by competing rules, compact mode needs broader coverage, defaults should be compact + small font + OLED + Matrix
+3. **Tools subpages too basic** - Currently just a card wrapping a component; need full-page layouts with tips, stats, and education
 
 ---
 
-## Part 1: Fix Sound & Haptic Toggles
-
-### Problem Analysis
-
-Looking at the code in `FeedbackSettings.tsx`:
-
-```typescript
-const handleSoundToggle = () => {
-  toggleSound();
-  if (!settings.soundEnabled) {
-    setTimeout(() => triggerFeedback('click', 'light'), 100);
-  }
-};
-```
-
-The `useFeedback` hook initializes with `defaultSettings` but loads actual settings in a `useEffect`. The issue is that the component may not be properly reflecting the updated state because:
-
-1. The hook creates a new instance per component mount
-2. The `settings` object reference changes but may not trigger re-renders properly
-3. The `toggleSound` function updates state and calls `saveSettings` correctly, but the Switch component might not receive the updated value due to React closure issues
+## Part 1: Fix Sound/Haptic Toggles (No Refresh Needed)
 
 ### Root Cause
-The `useFeedback` hook initializes state with `defaultSettings` (line 43), then loads from localStorage in an effect (lines 47-49). This is correct. However, looking at the Switch component binding:
 
-```tsx
-<Switch
-  id="sound-toggle"
-  checked={settings.soundEnabled}
-  onCheckedChange={handleSoundToggle}
-/>
-```
-
-The `onCheckedChange` receives a boolean value but `handleSoundToggle` ignores it and just toggles. This is fine for toggle behavior.
-
-The actual issue is likely that `useFeedback` creates independent state per component instance, but the FeedbackSettings component re-renders properly. 
-
-**Key Fix Needed**: The `handleSoundToggle` and `handleHapticToggle` functions should use the callback form to ensure they always work with the latest state:
-
-```typescript
-const handleSoundToggle = (checked: boolean) => {
-  updateSettings({ soundEnabled: checked });
-  if (checked) {
-    setTimeout(() => triggerFeedback('click', 'light'), 100);
-  }
-};
-```
-
-### Files to Modify
-- `src/components/FeedbackSettings.tsx` - Fix toggle handlers to use direct value instead of toggle
-
----
-
-## Part 2: Refine Card & Box Design in Settings Panel
-
-### Problem Analysis
-
-The Settings dialog (`FeedbackSettings.tsx`) uses:
-- `DialogContent` with default styling
-- Plain divs for sections
-- `bg-muted/50` for quick links instead of glass utilities
-- `p-4 rounded-lg glass border border-border/50` for the help card
-
-The dialog itself and internal elements need the glass depth system applied consistently.
-
-### Current Issues in Screenshot
-1. The entire Settings panel background feels flat
-2. Section cards inside don't have the glass treatment
-3. The contrast between elements isn't as premium as other pages
+The `useFeedback` hook's `playSound` and `triggerHaptic` callbacks use `useCallback` with `settings.soundEnabled` and `settings.hapticEnabled` as dependencies. However, the `useHapticFeedback` hook maintains its own independent `settings.enabled` state. When `updateSettings` syncs via `window.dispatchEvent(new StorageEvent(...))`, programmatically dispatched StorageEvents behave inconsistently across browsers.
 
 ### Solution
-Apply consistent glass styling to:
-- The dialog content container
-- Section cards (sound settings, help cards, quick links)
-- Use `glass-subtle` for section backgrounds
-- Use `glass` for interactive elements
 
-### Files to Modify
-- `src/components/FeedbackSettings.tsx` - Apply glass styling to dialog and sections
+Use a `useRef` to always hold the latest settings, so callbacks never read stale values:
+
+**File: `src/hooks/useFeedback.ts`**
+- Add `const settingsRef = useRef(settings)` and sync it with `useEffect(() => { settingsRef.current = settings }, [settings])`
+- Change `playSound` and `triggerHaptic` to read from `settingsRef.current` instead of closure-captured `settings`
+- Remove `settings.soundEnabled` and `settings.hapticEnabled` from useCallback dependency arrays
+
+**File: `src/hooks/useHapticFeedback.ts`**
+- Same pattern: add `settingsRef` to avoid stale closures in `vibrate` callback
+- Ensure `updateSettings` in useFeedback also directly calls haptic hook's state setter (not just localStorage sync)
 
 ---
 
-## Part 3: Add "What You Get" Feature Cards to Disconnected States
+## Part 2: Fix Theme Display Settings
+
+### 2a: Font Size Not Working
+
+**Problem**: The `html { font-size: var(--base-font-size, 16px); }` rule at line 356 is inside the first `@layer base` block. But there's a COMPETING `html` rule at line 172 (outside any layer, higher specificity):
+```css
+html {
+  transition: background-color 0.2s ease-out, color 0.2s ease-out;
+}
+```
+And ultra-wide media queries at lines 93-108 override `html { font-size: 17px/18px }`.
+
+More critically, the font-size rule is inside `@layer base` which Tailwind resets. The `html { font-size }` needs to be OUTSIDE `@layer base` to have higher priority.
+
+**Fix in `src/index.css`**:
+- Move the `html { font-size: var(--base-font-size, 16px); }` OUTSIDE of `@layer base` and place it near line 172 where the other global `html` rule lives
+- Update the ultra-wide media queries to use `max()` with the variable so user preference isn't overridden
+
+### 2b: Compact Mode Needs Better Coverage
+
+The current `.ui-compact` overrides only target specific Tailwind classes (`.p-4`, `.gap-4`, etc.) which is fragile. A more robust approach:
+
+**Fix in `src/index.css`**:
+- Add card-specific compact overrides:
+  ```css
+  .ui-compact [class*="CardContent"] { padding: 0.75rem !important; }
+  .ui-compact .rounded-lg { border-radius: 0.5rem !important; }
+  ```
+- Add text scaling for compact:
+  ```css
+  .ui-compact .text-sm { font-size: 0.75rem !important; }
+  .ui-compact .text-xs { font-size: 0.625rem !important; }
+  .ui-compact h1 { font-size: 1.5rem !important; }
+  .ui-compact h2 { font-size: 1.25rem !important; }
+  ```
+- Target additional padding patterns: `.p-3`, `.pt-4`, `.pb-4`, `.pt-6`, `.pb-8`
+
+### 2c: Change Defaults to Compact + Small Font
+
+**File: `src/hooks/useThemeCustomization.ts`**:
+- Change default `uiDensity` from `'comfortable'` to `'compact'`
+- Change default `fontSize` from `'medium'` to `'small'`
+- In the mount effect, apply compact + small font for new users (no saved preference):
+  ```typescript
+  if (!savedDensity) {
+    setUiDensity('compact');
+    document.documentElement.classList.add('ui-compact');
+  }
+  if (!savedFontSize) {
+    setFontSize('small');
+    applyFontSize('small');
+  }
+  ```
+- `resetToDefault` should also reset to compact + small
+
+---
+
+## Part 3: Evolve Tools Subpages to Full Layouts
 
 ### Current State
+All 6 tool subpages follow the same minimal pattern:
+- Back button
+- Centered header with icon badge + title + subtitle
+- Single Card wrapping the component
 
-| Page | Connect Card | What You Get Grid | Education Collapsible |
-|------|-------------|-------------------|---------------------|
-| Perpetuals | Yes | Yes (2x2 grid) | Yes |
-| Analytics | Yes | **No** | Yes |
-| Portfolio | Yes | **No** | Yes |
-| History | Yes | **No** | Yes |
-| Orders | Yes | **No** | Yes |
+### Evolved Layout
+Transform each into a full-featured page with:
+1. **Stats row** - 2-3 quick stats relevant to the tool
+2. **Main content** - The tool component (no longer wrapped in a single card)
+3. **Tips/Education** - Inline tips or an EducationCollapsible
+4. **Related tools** - Quick links to related tools
 
-### Solution
+### Implementation per Page
 
-Add a "What you'll get access to:" section with a 2x2 grid of feature cards to each disconnected state, matching the Perps pattern:
+**WatchlistPage** (`src/pages/tools/WatchlistPage.tsx`):
+- Stats: "Tracked Tokens", "Supported Chains", "Price Updates"
+- Tips: "Pin your most-traded tokens", "Prices refresh every 30s"
+- Related: Gas Estimator, Price Alerts
 
-```tsx
-<div className="text-center text-sm text-muted-foreground mb-4">
-  What you'll get access to:
-</div>
+**GasPage** (`src/pages/tools/GasPage.tsx`):
+- Stats: "Networks Monitored", "Update Frequency", "Avg Gas"
+- Tips: "Trade during off-peak hours", "L2s offer 10-100x cheaper gas"
+- Related: Token Compare, Rebalancer
 
-<div className="grid grid-cols-2 gap-3">
-  <Card className="glass-subtle border-border/50">
-    <CardContent className="pt-4 pb-4 text-center">
-      <Icon className="w-6 h-6 text-primary mx-auto mb-2" />
-      <h4 className="font-medium text-sm">Feature Title</h4>
-      <p className="text-xs text-muted-foreground">Feature description</p>
-    </CardContent>
-  </Card>
-  {/* ... more cards */}
-</div>
-```
+**PredictionPage** (`src/pages/tools/PredictionPage.tsx`):
+- Stats: "AI Models", "Prediction Window", "Accuracy"
+- Tips: "Predictions are educational, not financial advice", "Combine with your own research"
+- Related: Price Alerts, Token Compare
 
-### Feature Cards by Page
+**RebalancerPage** (`src/pages/tools/RebalancerPage.tsx`):
+- Stats: "Supported Tokens", "Strategy Types", "Chains"
+- Tips: "Rebalance monthly for best results", "Consider gas costs"
+- Related: Portfolio, Watchlist
 
-**Analytics:**
-| Icon | Title | Description |
-|------|-------|-------------|
-| BarChart3 | Volume Tracking | Total trade volume across chains |
-| TrendingUp | P&L Analytics | Profit and loss over time |
-| Zap | Gas Insights | Gas spending breakdown |
-| LineChart | Performance | Win rate and trade patterns |
+**AlertsPage** (`src/pages/tools/AlertsPage.tsx`):
+- Stats: "Alert Types", "Delivery", "Response Time"
+- Tips: "Set alerts for key support/resistance levels"
+- Related: Watchlist, Prediction
 
-**Portfolio:**
-| Icon | Title | Description |
-|------|-------|-------------|
-| Wallet | Multi-Chain | Holdings across 25+ chains |
-| TrendingUp | Live Prices | Real-time USD values |
-| Search | Smart Search | Find any token instantly |
-| ArrowRightLeft | Quick Trade | Swap directly from holdings |
+**NewsPage** (`src/pages/tools/NewsPage.tsx`):
+- Stats: "Sources", "Categories", "Update Frequency"
+- Tips: "Filter by topic for relevant news"
+- Related: Price Prediction, Token Compare
 
-**History:**
-| Icon | Title | Description |
-|------|-------|-------------|
-| LayoutList | Full History | All your app transactions |
-| Link2 | On-Chain | Blockchain transaction data |
-| Download | Export | Download history as CSV |
-| Clock | Real-Time | Live status updates |
-
-**Orders:**
-| Icon | Title | Description |
-|------|-------|-------------|
-| Target | Limit Orders | Buy/sell at target prices |
-| CalendarClock | DCA | Automated recurring buys |
-| Bell | Alerts | Price movement notifications |
-| Shield | Protection | Stop loss and take profit |
-
-### Files to Modify
-- `src/pages/Analytics.tsx` - Add feature grid to disconnected state
-- `src/pages/Portfolio.tsx` - Add feature grid to disconnected state
-- `src/pages/History.tsx` - Add feature grid to disconnected state
-- `src/pages/Orders.tsx` - Add feature grid to disconnected state
-
----
-
-## Implementation Details
-
-### Part 1: FeedbackSettings Toggle Fix
-
-**File: `src/components/FeedbackSettings.tsx`**
-
-Change the toggle handlers to accept the checked value directly:
-
-```typescript
-const handleSoundToggle = (checked: boolean) => {
-  updateSettings({ soundEnabled: checked });
-  // Play a test sound if enabling
-  if (checked) {
-    setTimeout(() => triggerFeedback('click', 'light'), 100);
-  }
-};
-
-const handleHapticToggle = (checked: boolean) => {
-  updateSettings({ hapticEnabled: checked });
-  // Trigger a test vibration if enabling
-  if (checked) {
-    setTimeout(() => triggerFeedback('click', 'medium'), 100);
-  }
-};
-```
-
-### Part 2: Glass Styling for Settings Panel
-
-**File: `src/components/FeedbackSettings.tsx`**
-
-1. Add glass treatment to DialogContent
-2. Wrap sound settings in a glass card
-3. Update help section cards
+### Page Template Structure
 
 ```tsx
-<DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto glass-elevated">
-  {/* ... */}
-  <TabsContent value="sounds" className="mt-4 space-y-4">
-    <Card className="glass-subtle border-border/50">
-      <CardContent className="p-4 space-y-4">
-        {/* Sound Effects toggle */}
-        {/* Haptic Feedback toggle */}
+<AppLayout>
+  <main className="container px-4 pb-8 max-w-4xl mx-auto">
+    {/* Back + Title */}
+    <Link to="/tools">...</Link>
+    <header className="text-center mb-8">...</header>
+
+    {/* Stats Row */}
+    <div className="grid grid-cols-3 gap-3 mb-6">
+      <Card className="glass-subtle text-center p-3">
+        <p className="text-lg font-bold text-primary">25+</p>
+        <p className="text-[10px] text-muted-foreground">Chains</p>
+      </Card>
+      ...
+    </div>
+
+    {/* Main Content - full width, no wrapping card */}
+    <Card className="glass border-border/50 overflow-hidden">
+      <GlowBar />
+      <CardContent className="pt-4">
+        <ToolComponent />
       </CardContent>
     </Card>
-    
-    {/* Alert Sound section */}
-    <Card className="glass-subtle border-border/50">
-      <CardContent className="p-4 space-y-3">
-        {/* Alert sound selector, volume */}
-      </CardContent>
-    </Card>
-    
-    {/* Push notifications */}
-    <Card className="glass-subtle border-border/50">
-      <CardContent className="p-4">
-        <NotificationSettings />
-      </CardContent>
-    </Card>
-  </TabsContent>
-  
-  <TabsContent value="help">
-    {/* Quick links with glass-subtle */}
-    <a className="glass-subtle hover:bg-muted/50 ..." />
-  </TabsContent>
-</DialogContent>
-```
 
-### Part 3: Feature Grid Component
+    {/* Tips */}
+    <div className="mt-6 p-4 rounded-lg glass-subtle border border-primary/10">
+      <p className="text-xs font-medium text-primary mb-2">Pro Tips</p>
+      <ul className="text-xs text-muted-foreground space-y-1.5">
+        <li>Tip 1...</li>
+      </ul>
+    </div>
 
-Create a reusable pattern for feature preview grids:
-
-```tsx
-interface FeaturePreview {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}
-
-// In each page's disconnected state:
-const features: FeaturePreview[] = [...];
-
-{/* After connect card, before education collapsible */}
-<div className="mt-6 text-center text-sm text-muted-foreground mb-4">
-  What you'll get access to:
-</div>
-
-<div className="grid grid-cols-2 gap-3 mb-4">
-  {features.map((feature) => (
-    <Card key={feature.title} className="glass-subtle border-border/50">
-      <CardContent className="pt-4 pb-4 text-center">
-        <feature.icon className="w-6 h-6 text-primary mx-auto mb-2" />
-        <h4 className="font-medium text-sm">{feature.title}</h4>
-        <p className="text-xs text-muted-foreground">{feature.description}</p>
-      </CardContent>
-    </Card>
-  ))}
-</div>
+    {/* Related Tools */}
+    <div className="mt-6">
+      <p className="text-xs text-muted-foreground mb-3">Related Tools</p>
+      <div className="flex gap-2">
+        <Link to="/tools/alerts">
+          <Badge variant="secondary" className="hover:bg-primary/10">
+            Price Alerts
+          </Badge>
+        </Link>
+      </div>
+    </div>
+  </main>
+</AppLayout>
 ```
 
 ---
 
-## Files to Create/Modify
+## Files to Modify
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/FeedbackSettings.tsx` | Update | Fix toggle handlers + glass styling |
-| `src/pages/Analytics.tsx` | Update | Add "What you get" feature grid |
-| `src/pages/Portfolio.tsx` | Update | Add "What you get" feature grid |
-| `src/pages/History.tsx` | Update | Add "What you get" feature grid |
-| `src/pages/Orders.tsx` | Update | Add "What you get" feature grid |
+| `src/hooks/useFeedback.ts` | Update | Add settingsRef for stale-closure fix |
+| `src/hooks/useHapticFeedback.ts` | Update | Add settingsRef for stale-closure fix |
+| `src/index.css` | Update | Move font-size rule outside @layer, expand compact mode |
+| `src/hooks/useThemeCustomization.ts` | Update | Default to compact + small font |
+| `src/pages/tools/WatchlistPage.tsx` | Update | Full page layout with stats, tips, related |
+| `src/pages/tools/GasPage.tsx` | Update | Full page layout |
+| `src/pages/tools/PredictionPage.tsx` | Update | Full page layout |
+| `src/pages/tools/RebalancerPage.tsx` | Update | Full page layout |
+| `src/pages/tools/AlertsPage.tsx` | Update | Full page layout |
+| `src/pages/tools/NewsPage.tsx` | Update | Full page layout |
+
+---
+
+## Implementation Order
+
+1. Fix feedback toggle stale closures (useFeedback + useHapticFeedback)
+2. Fix CSS font-size rule placement and compact mode
+3. Update defaults to compact + small in useThemeCustomization
+4. Evolve all 6 tools subpages to full layouts
 
 ---
 
@@ -283,41 +217,10 @@ const features: FeaturePreview[] = [...];
 
 | Issue | Before | After |
 |-------|--------|-------|
-| Sound toggle | Appears stuck on | Toggles correctly with visual feedback |
-| Haptic toggle | Appears stuck on | Toggles correctly with test vibration |
-| Settings dialog | Flat, inconsistent styling | Glass depth system applied |
-| Analytics disconnected | Just connect card + education | Connect + feature grid + education |
-| Portfolio disconnected | Just connect card + education | Connect + feature grid + education |
-| History disconnected | Just connect card + education | Connect + feature grid + education |
-| Orders disconnected | Just connect card + education | Connect + feature grid + education |
+| Sound toggle | Needs refresh to take effect | Instant on/off |
+| Haptic toggle | Needs refresh to take effect | Instant on/off |
+| Font size (small/medium/large) | No visible change | Text scales across app |
+| Compact mode | Barely noticeable | Tighter spacing, smaller text |
+| New user defaults | Comfortable + medium font | Compact + small font + OLED + Matrix |
+| Tools subpages | Plain card wrapper | Stats row, tips, related tools |
 
----
-
-## Technical Notes
-
-### Toggle Handler Pattern
-The key fix is changing from a toggle function to directly setting the value:
-
-**Before:**
-```typescript
-const handleSoundToggle = () => {
-  toggleSound();  // Toggles internally, ignores Switch's passed value
-  if (!settings.soundEnabled) { ... }  // Stale closure
-};
-```
-
-**After:**
-```typescript
-const handleSoundToggle = (checked: boolean) => {
-  updateSettings({ soundEnabled: checked });  // Uses exact value from Switch
-  if (checked) { ... }  // No stale closure issue
-};
-```
-
-### Glass Styling Hierarchy
-- `glass-elevated` - Primary containers (dialogs, main widgets)
-- `glass` - Standard cards and panels
-- `glass-subtle` - Section backgrounds, secondary elements
-- `glass-matte` - Disabled/inactive states
-
-The Settings dialog should use `glass-elevated` for the container and `glass-subtle` for internal sections to create proper depth hierarchy.
