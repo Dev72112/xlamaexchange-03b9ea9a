@@ -6,7 +6,6 @@ import { PriceAlerts } from "@/components/PriceAlerts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GlowBar } from "@/components/ui/glow-bar";
 import { Bell, ArrowLeft, Zap, Target, Lightbulb, Eye, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -56,12 +55,7 @@ const AlertsPage = memo(function AlertsPage() {
           ))}
         </div>
 
-        <Card className="glass border-border/50 overflow-hidden">
-          <GlowBar variant="multi" />
-          <CardContent className="pt-4">
-            <PriceAlerts />
-          </CardContent>
-        </Card>
+        <PriceAlerts />
 
         {/* Pro Tips */}
         <div className="mt-5 p-4 rounded-lg glass-subtle border border-primary/10">

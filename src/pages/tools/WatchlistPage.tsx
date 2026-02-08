@@ -6,7 +6,6 @@ import { TokenWatchlist } from "@/components/TokenWatchlist";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GlowBar } from "@/components/ui/glow-bar";
 import { Eye, ArrowLeft, Layers, RefreshCw, Lightbulb, Fuel, Bell } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -59,12 +58,7 @@ const WatchlistPage = memo(function WatchlistPage() {
         </div>
 
         {/* Main Content */}
-        <Card className="glass border-border/50 overflow-hidden">
-          <GlowBar variant="primary" />
-          <CardContent className="pt-4">
-            <TokenWatchlist />
-          </CardContent>
-        </Card>
+        <TokenWatchlist />
 
         {/* Pro Tips */}
         <div className="mt-5 p-4 rounded-lg glass-subtle border border-primary/10">

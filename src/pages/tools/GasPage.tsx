@@ -59,7 +59,7 @@ const GasPage = memo(function GasPage() {
         <Card className="glass border-border/50 overflow-hidden">
           <GlowBar variant="success" />
           <CardContent className="pt-4">
-            <GasEstimator />
+            <GasEstimator standalone />
           </CardContent>
         </Card>
 
