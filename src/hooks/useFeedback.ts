@@ -96,28 +96,19 @@ export function useFeedback() {
     });
   }, []);
 
-  // Update all settings and sync haptic enabled state
+  // Update all settings and sync haptic enabled state directly
   const updateSettings = useCallback((newSettings: Partial<FeedbackSettings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
       saveSettings(updated);
-      
-      // Sync haptic enabled state with the haptic hook's storage
-      if ('hapticEnabled' in newSettings) {
-        try {
-          const hapticSettingsKey = 'xlama-haptic-settings';
-          const storedHaptic = localStorage.getItem(hapticSettingsKey);
-          const hapticSettings = storedHaptic ? JSON.parse(storedHaptic) : { intensity: 'medium', enabled: true };
-          hapticSettings.enabled = newSettings.hapticEnabled;
-          localStorage.setItem(hapticSettingsKey, JSON.stringify(hapticSettings));
-        } catch {
-          // Ignore errors
-        }
-      }
-      
       return updated;
     });
-  }, []);
+    
+    // Directly sync haptic hook state (avoids stale closure / cross-tab issues)
+    if ('hapticEnabled' in newSettings && newSettings.hapticEnabled !== undefined) {
+      haptic.setEnabled(newSettings.hapticEnabled);
+    }
+  }, [haptic]);
 
   // Play notification alert sound - reads from ref
   const playAlert = useCallback(() => {

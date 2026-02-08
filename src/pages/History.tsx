@@ -109,7 +109,7 @@ const History = memo(function History() {
 
         {/* Header - More breathing room */}
         <motion.div 
-          className="text-center mb-10 sm:mb-14"
+          className="text-center mb-6 sm:mb-10"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}

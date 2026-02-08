@@ -71,9 +71,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Authenticate cron/admin requests
+  // Authenticate cron/admin requests (Bearer header or query param fallback)
   const authHeader = req.headers.get('authorization');
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+  const url = new URL(req.url);
+  const cronKey = url.searchParams.get('key');
+  const isAuthorized = CRON_SECRET && (
+    authHeader === `Bearer ${CRON_SECRET}` || cronKey === CRON_SECRET
+  );
+  
+  if (!isAuthorized) {
     console.error('[execute-orders] Unauthorized request - invalid or missing CRON_SECRET');
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),

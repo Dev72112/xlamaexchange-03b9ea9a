@@ -68,7 +68,7 @@ export function ActiveLimitOrders({ className }: ActiveLimitOrdersProps) {
   const totalActiveCount = activeOrders.length;
   const totalOrdersCount = orders.length;
 
-  if (!isConnected || totalOrdersCount === 0) {
+  if (!isConnected || totalActiveCount === 0) {
     return null;
   }
 
@@ -185,9 +185,9 @@ export function ActiveLimitOrders({ className }: ActiveLimitOrdersProps) {
             <ScrollArea className="h-[350px] pr-2">
               <div className="space-y-2">
                 {/* Database Monitored Orders */}
-                {orders.length > 0 && (
+                {activeOrders.length > 0 && (
                   <div className="space-y-2">
-                    {orders.slice(0, 10).map(order => (
+                    {activeOrders.slice(0, 10).map(order => (
                       <div 
                         key={order.id}
                         className={cn(
@@ -292,7 +292,7 @@ export function ActiveLimitOrders({ className }: ActiveLimitOrdersProps) {
                   </div>
                 )}
                 
-                {totalOrdersCount === 0 && (
+                {totalActiveCount === 0 && (
                   <div className="text-center py-4">
                     <img src={xlamaMascot} alt="xLama mascot" className="w-12 h-12 mx-auto mb-2 opacity-60 rounded-full" />
                     <p className="text-sm text-muted-foreground">No limit orders yet</p>

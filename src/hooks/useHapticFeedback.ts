@@ -175,6 +175,14 @@ export function useHapticFeedback() {
     });
   }, []);
 
+  const setEnabled = useCallback((enabled: boolean) => {
+    setSettings(prev => {
+      const updated = { ...prev, enabled };
+      saveSettings(updated);
+      return updated;
+    });
+  }, []);
+
   return {
     isSupported: isVibrationSupported,
     settings,
@@ -185,6 +193,7 @@ export function useHapticFeedback() {
     triggerSwipe,
     setIntensity,
     toggleEnabled,
+    setEnabled,
   };
 }
 
