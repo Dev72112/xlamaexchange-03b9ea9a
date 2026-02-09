@@ -22,6 +22,7 @@ interface PricePredictionProps {
   tokenAddress?: string;
   tokenSymbol?: string;
   className?: string;
+  standalone?: boolean;
 }
 
 // Popular tokens for quick selection
@@ -40,7 +41,8 @@ export function PricePrediction({
   chainIndex: initialChainIndex, 
   tokenAddress: initialTokenAddress,
   tokenSymbol: initialTokenSymbol,
-  className 
+  className,
+  standalone = false,
 }: PricePredictionProps) {
   const { predict, prediction, isLoading, error } = usePricePrediction();
   const { tokens: watchlist } = useTokenWatchlist();
@@ -223,27 +225,24 @@ export function PricePrediction({
     return price.toLocaleString(undefined, { maximumFractionDigits: 2 });
   };
 
-  return (
-    <Card className={cn("bg-card border-border sweep-effect glow-border-animated", className)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Price Prediction
-          </CardTitle>
-          <Select value={timeframe} onValueChange={(v) => setTimeframe(v as '1H' | '4H' | '1D')}>
-            <SelectTrigger className="w-24 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1H">1 Hour</SelectItem>
-              <SelectItem value="4H">4 Hours</SelectItem>
-              <SelectItem value="1D">1 Day</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const predictionContent = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base flex items-center gap-2 font-semibold">
+          <Activity className="w-4 h-4 text-primary" />
+          Price Prediction
+        </h3>
+        <Select value={timeframe} onValueChange={(v) => setTimeframe(v as '1H' | '4H' | '1D')}>
+          <SelectTrigger className="w-24 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1H">1 Hour</SelectItem>
+            <SelectItem value="4H">4 Hours</SelectItem>
+            <SelectItem value="1D">1 Day</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
         {/* Token Selector */}
         <div className="flex gap-2">
           <Popover open={tokenSelectorOpen} onOpenChange={setTokenSelectorOpen}>
@@ -678,6 +677,25 @@ export function PricePrediction({
             </p>
           </>
         )}
+      </div>
+  );
+
+  if (standalone) {
+    return predictionContent;
+  }
+
+  return (
+    <Card className={cn("bg-card border-border sweep-effect glow-border-animated", className)}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            Price Prediction
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {predictionContent}
       </CardContent>
     </Card>
   );

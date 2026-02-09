@@ -18,7 +18,7 @@ const PredictionPage = memo(function PredictionPage() {
         <meta name="description" content="AI-powered cryptocurrency price predictions and forecasts." />
       </Helmet>
 
-      <main className="container px-4 pb-8 max-w-2xl mx-auto">
+      <main className="container px-4 pb-8 max-w-4xl lg:max-w-5xl mx-auto">
         <Link to="/tools">
           <Button variant="ghost" size="sm" className="mb-3 -ml-2 gap-1.5 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" />
@@ -59,7 +59,7 @@ const PredictionPage = memo(function PredictionPage() {
         <Card className="glass border-border/50 overflow-hidden">
           <GlowBar variant="primary" />
           <CardContent className="pt-4">
-            <PricePrediction />
+            <PricePrediction standalone />
           </CardContent>
         </Card>
 

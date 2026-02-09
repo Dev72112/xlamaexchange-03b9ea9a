@@ -94,7 +94,7 @@ const Portfolio = memo(function Portfolio() {
 
         {/* Consistent Header - More breathing room */}
         <motion.div 
-          className="text-center mb-8 sm:mb-12"
+          className="text-center mb-6 sm:mb-10"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
@@ -134,29 +134,29 @@ const Portfolio = memo(function Portfolio() {
                 <div className="mt-6 pt-6 border-t border-border/50">
                   <p className="text-sm text-muted-foreground mb-4">What you'll get access to:</p>
                   <div className="grid grid-cols-2 gap-3 text-left">
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <Layers className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">Multi-Chain</h4>
                         <p className="text-xs text-muted-foreground">Holdings across 25+ chains</p>
                       </CardContent>
                     </Card>
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">Live Prices</h4>
                         <p className="text-xs text-muted-foreground">Real-time USD values</p>
                       </CardContent>
                     </Card>
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <Search className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">Smart Search</h4>
                         <p className="text-xs text-muted-foreground">Find any token instantly</p>
                       </CardContent>
                     </Card>
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <ArrowRightLeft className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">Quick Trade</h4>
                         <p className="text-xs text-muted-foreground">Swap directly from holdings</p>
@@ -168,7 +168,7 @@ const Portfolio = memo(function Portfolio() {
             </Card>
             
             {/* Education for disconnected state */}
-            <div className="mt-4">
+            <div className="mt-3">
               <EducationCollapsible
                 title="How Portfolio Works"
                 icon={HelpCircle}

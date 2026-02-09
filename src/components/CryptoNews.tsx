@@ -86,7 +86,7 @@ const NewsCard = memo(function NewsCard({ news, relativeTime, index }: NewsCardP
   );
 });
 
-export const CryptoNews = memo(function CryptoNews() {
+export const CryptoNews = memo(function CryptoNews({ standalone = false }: { standalone?: boolean }) {
   const { news, isLoading, refetch, getRelativeTime } = useCryptoNews();
   const [isOpen, setIsOpen] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -96,6 +96,49 @@ export const CryptoNews = memo(function CryptoNews() {
     await refetch();
     setIsRefreshing(false);
   };
+
+  const newsContent = (
+    <>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+            <Newspaper className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
+              <span className="truncate">Crypto News</span>
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
+            </h3>
+            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Latest market updates</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-8 w-8">
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </Button>
+      </div>
+      {isLoading ? (
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+          {[...Array(4)].map((_, i) => <NewsItemSkeleton key={i} />)}
+        </div>
+      ) : news.length === 0 ? (
+        <div className="text-center py-8">
+          <Newspaper className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">No news available right now</p>
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-3">Try Again</Button>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+          {news.slice(0, 6).map((item, index) => (
+            <NewsCard key={item.id} news={item} relativeTime={getRelativeTime(item.publishedAt)} index={index} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (standalone) {
+    return newsContent;
+  }
 
   return (
     <section className="py-6 sm:py-8 lg:py-12" aria-labelledby="news-heading">
@@ -117,53 +160,33 @@ export const CryptoNews = memo(function CryptoNews() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                    className="h-8 w-8"
-                  >
+                  <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-8 w-8">
                     <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   </Button>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
-                      {isOpen ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
+                      {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </Button>
                   </CollapsibleTrigger>
                 </div>
               </div>
             </CardHeader>
-            
             <CollapsibleContent>
               <CardContent className="pt-0 p-4 sm:p-6 overflow-hidden">
                 {isLoading ? (
                   <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
-                    {[...Array(4)].map((_, i) => (
-                      <NewsItemSkeleton key={i} />
-                    ))}
+                    {[...Array(4)].map((_, i) => <NewsItemSkeleton key={i} />)}
                   </div>
                 ) : news.length === 0 ? (
                   <div className="text-center py-8">
                     <Newspaper className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">No news available right now</p>
-                    <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-3">
-                      Try Again
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-3">Try Again</Button>
                   </div>
                 ) : (
                   <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                     {news.slice(0, 6).map((item, index) => (
-                      <NewsCard
-                        key={item.id}
-                        news={item}
-                        relativeTime={getRelativeTime(item.publishedAt)}
-                        index={index}
-                      />
+                      <NewsCard key={item.id} news={item} relativeTime={getRelativeTime(item.publishedAt)} index={index} />
                     ))}
                   </div>
                 )}

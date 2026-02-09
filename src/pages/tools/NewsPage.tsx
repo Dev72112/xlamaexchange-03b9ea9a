@@ -61,7 +61,7 @@ const NewsPage = memo(function NewsPage() {
           <GlowBar variant="primary" />
           <CardContent className="pt-4">
             <Suspense fallback={<div className="h-48 skeleton-shimmer rounded-lg" />}>
-              <CryptoNews />
+              <CryptoNews standalone />
             </Suspense>
           </CardContent>
         </Card>

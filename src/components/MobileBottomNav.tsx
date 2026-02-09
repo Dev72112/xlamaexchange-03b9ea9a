@@ -125,7 +125,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                 initial={{ y: -60, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.1, ...springTransition }}
-                className="fixed top-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-lg border-b border-border/40 px-3 py-2"
+                className="fixed top-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-lg border-b border-border/40 px-3 py-2 shadow-sm"
               >
                 <div className="flex items-center justify-between">
                   <Link to="/" className="flex items-center gap-2 active:scale-95 transition-transform">
@@ -137,7 +137,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                     />
                     <span className="font-semibold text-sm">xLama</span>
                   </Link>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     <MultiWalletButton />
                     
                     <Button
@@ -147,7 +147,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                         setSearchOpen(true);
                         trigger('light');
                       }}
-                      className="h-9 w-9"
+                      className="h-8 w-8"
                     >
                       <Search className="h-4 w-4" />
                     </Button>
@@ -161,7 +161,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                         setShowSettings(prev => !prev);
                         trigger('light');
                       }}
-                      className="h-9 w-9"
+                      className="h-8 w-8"
                     >
                       <motion.div animate={{ rotate: showSettings ? 90 : 0 }} transition={springTransition}>
                         <Settings className="h-4 w-4" />
@@ -235,7 +235,7 @@ export const MobileBottomNav = memo(function MobileBottomNav() {
                     transition={fadeTransition}
                     whileTap={{ scale: 0.95 }}
                     onClick={toggleExpand}
-                    className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 md:hidden flex items-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 border border-primary/20"
+                    className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 md:hidden flex items-center gap-2 px-5 py-3 rounded-full bg-primary/90 backdrop-blur-md text-primary-foreground shadow-lg shadow-primary/30 border border-primary/20"
                   >
                     <motion.div
                       animate={{ y: [0, -2, 0] }}
