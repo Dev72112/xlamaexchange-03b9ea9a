@@ -1,226 +1,239 @@
 
 
-# Feedback Toggle Fix, Theme/Display Refinement & Tools Subpage Evolution
+# Mobile & Desktop UI/UX Polish - Immersive Interactions & Premium Feel
 
 ## Overview
 
-Three categories of work:
-1. **Sound/Haptic toggles require page refresh** - State updates correctly in React but callbacks use stale closure values
-2. **Theme display settings broken** - Font size CSS overridden by competing rules, compact mode needs broader coverage, defaults should be compact + small font + OLED + Matrix
-3. **Tools subpages too basic** - Currently just a card wrapping a component; need full-page layouts with tips, stats, and education
+A comprehensive pass to tighten mobile layouts, add subtle immersive interactions, and expand desktop views for a premium trading experience across all screen sizes.
 
 ---
 
-## Part 1: Fix Sound/Haptic Toggles (No Refresh Needed)
+## Part 1: Mobile Layout Tightening
 
-### Root Cause
+### 1a. Disconnected State Pages (Portfolio, Analytics, History, Orders)
 
-The `useFeedback` hook's `playSound` and `triggerHaptic` callbacks use `useCallback` with `settings.soundEnabled` and `settings.hapticEnabled` as dependencies. However, the `useHapticFeedback` hook maintains its own independent `settings.enabled` state. When `updateSettings` syncs via `window.dispatchEvent(new StorageEvent(...))`, programmatically dispatched StorageEvents behave inconsistently across browsers.
+All four pages share the same pattern but have excessive vertical spacing on mobile between the header, connect card, feature grid, and education section.
+
+**Changes:**
+- Reduce header `mb-6` to `mb-4` on mobile for tighter top spacing
+- Feature grid cards: reduce internal padding from `pt-4 pb-4` to `p-3`
+- Education collapsible: reduce top margin from default to `mt-4`
+- Connect card: ensure consistent `glass` styling (not `glass-elevated`) to match hierarchy
+- Add subtle `cardEntrance` framer-motion animation to the feature grid cards with staggered delay
+
+**Files:** `src/pages/Portfolio.tsx`, `src/pages/Analytics.tsx`, `src/pages/History.tsx`, `src/pages/Orders.tsx`
+
+### 1b. Mobile Top Bar Refinement
+
+The top utility bar currently has logo + wallet + search + notifications + settings crammed together. On smaller phones (360px width), buttons can feel tight.
+
+**Changes:**
+- Reduce icon button size from `h-9 w-9` to `h-8 w-8` for tighter grouping
+- Add `gap-0.5` instead of `gap-1` between utility buttons
+- Add a subtle bottom shadow to the top bar for depth separation from content
+
+**File:** `src/components/MobileBottomNav.tsx`
+
+### 1c. Mobile Bottom Nav Polish
+
+The floating "Menu" pill and expanded nav work well but can be enhanced:
+
+**Changes:**
+- Add a subtle glass background to the floating pill instead of solid primary
+- When expanded, add a very subtle entrance animation to each nav item (stagger 20ms)
+- Reduce collapse button padding for a slimmer footer
+
+**File:** `src/components/MobileBottomNav.tsx`
+
+---
+
+## Part 2: Tools Subpages - Fix Double Card Wrapping
+
+### Problem
+Components like `GasEstimator`, `PriceAlerts`, `TokenWatchlist`, `PricePrediction`, `CryptoNews`, and `PortfolioRebalancer` wrap themselves in their own `Card` or `Collapsible` internally. When the subpage also wraps them in a `Card`, you get card-in-card. The `standalone` prop was added to `GasEstimator` but may not be passed correctly, and other components still lack it.
 
 ### Solution
 
-Use a `useRef` to always hold the latest settings, so callbacks never read stale values:
+For each component, add a `standalone?: boolean` prop that skips the outer Card/Collapsible wrapper:
 
-**File: `src/hooks/useFeedback.ts`**
-- Add `const settingsRef = useRef(settings)` and sync it with `useEffect(() => { settingsRef.current = settings }, [settings])`
-- Change `playSound` and `triggerHaptic` to read from `settingsRef.current` instead of closure-captured `settings`
-- Remove `settings.soundEnabled` and `settings.hapticEnabled` from useCallback dependency arrays
+| Component | File | Internal Wrapper |
+|-----------|------|-----------------|
+| GasEstimator | `src/components/GasEstimator.tsx` | Collapsible + Card (standalone prop exists, verify it works) |
+| PriceAlerts | `src/components/PriceAlerts.tsx` | Card with header |
+| TokenWatchlist | `src/components/TokenWatchlist.tsx` | Card with header |
+| PricePrediction | `src/components/PricePrediction.tsx` | Card with collapsible |
+| CryptoNews | `src/components/CryptoNews.tsx` | Card with header |
+| PortfolioRebalancer | `src/components/PortfolioRebalancer.tsx` | Card |
 
-**File: `src/hooks/useHapticFeedback.ts`**
-- Same pattern: add `settingsRef` to avoid stale closures in `vibrate` callback
-- Ensure `updateSettings` in useFeedback also directly calls haptic hook's state setter (not just localStorage sync)
+**For each component:**
+1. Add `standalone?: boolean` prop
+2. When `standalone=true`, render just the inner content (no outer Card/Collapsible)
+3. The subpage provides its own Card wrapper with GlowBar
 
----
-
-## Part 2: Fix Theme Display Settings
-
-### 2a: Font Size Not Working
-
-**Problem**: The `html { font-size: var(--base-font-size, 16px); }` rule at line 356 is inside the first `@layer base` block. But there's a COMPETING `html` rule at line 172 (outside any layer, higher specificity):
-```css
-html {
-  transition: background-color 0.2s ease-out, color 0.2s ease-out;
-}
-```
-And ultra-wide media queries at lines 93-108 override `html { font-size: 17px/18px }`.
-
-More critically, the font-size rule is inside `@layer base` which Tailwind resets. The `html { font-size }` needs to be OUTSIDE `@layer base` to have higher priority.
-
-**Fix in `src/index.css`**:
-- Move the `html { font-size: var(--base-font-size, 16px); }` OUTSIDE of `@layer base` and place it near line 172 where the other global `html` rule lives
-- Update the ultra-wide media queries to use `max()` with the variable so user preference isn't overridden
-
-### 2b: Compact Mode Needs Better Coverage
-
-The current `.ui-compact` overrides only target specific Tailwind classes (`.p-4`, `.gap-4`, etc.) which is fragile. A more robust approach:
-
-**Fix in `src/index.css`**:
-- Add card-specific compact overrides:
-  ```css
-  .ui-compact [class*="CardContent"] { padding: 0.75rem !important; }
-  .ui-compact .rounded-lg { border-radius: 0.5rem !important; }
-  ```
-- Add text scaling for compact:
-  ```css
-  .ui-compact .text-sm { font-size: 0.75rem !important; }
-  .ui-compact .text-xs { font-size: 0.625rem !important; }
-  .ui-compact h1 { font-size: 1.5rem !important; }
-  .ui-compact h2 { font-size: 1.25rem !important; }
-  ```
-- Target additional padding patterns: `.p-3`, `.pt-4`, `.pb-4`, `.pt-6`, `.pb-8`
-
-### 2c: Change Defaults to Compact + Small Font
-
-**File: `src/hooks/useThemeCustomization.ts`**:
-- Change default `uiDensity` from `'comfortable'` to `'compact'`
-- Change default `fontSize` from `'medium'` to `'small'`
-- In the mount effect, apply compact + small font for new users (no saved preference):
-  ```typescript
-  if (!savedDensity) {
-    setUiDensity('compact');
-    document.documentElement.classList.add('ui-compact');
-  }
-  if (!savedFontSize) {
-    setFontSize('small');
-    applyFontSize('small');
-  }
-  ```
-- `resetToDefault` should also reset to compact + small
+**Then update each subpage** to pass `standalone`:
+- `src/pages/tools/GasPage.tsx` - `<GasEstimator standalone />`
+- `src/pages/tools/AlertsPage.tsx` - `<PriceAlerts standalone />`
+- `src/pages/tools/WatchlistPage.tsx` - `<TokenWatchlist standalone />`
+- `src/pages/tools/PredictionPage.tsx` - `<PricePrediction standalone />`
+- `src/pages/tools/NewsPage.tsx` - `<CryptoNews standalone />`
+- `src/pages/tools/RebalancerPage.tsx` - `<PortfolioRebalancer standalone />`
 
 ---
 
-## Part 3: Evolve Tools Subpages to Full Layouts
+## Part 3: Subtle Immersive Mobile Interactions
 
-### Current State
-All 6 tool subpages follow the same minimal pattern:
-- Back button
-- Centered header with icon badge + title + subtitle
-- Single Card wrapping the component
+### 3a. Page Transition Animations
 
-### Evolved Layout
-Transform each into a full-featured page with:
-1. **Stats row** - 2-3 quick stats relevant to the tool
-2. **Main content** - The tool component (no longer wrapped in a single card)
-3. **Tips/Education** - Inline tips or an EducationCollapsible
-4. **Related tools** - Quick links to related tools
+Add smooth page-level entrance animations using the centralized motion system:
 
-### Implementation per Page
+**Changes in each page component:**
+- Wrap main content in `<motion.div>` with `pageTransition` variant from `src/lib/animations.ts`
+- Use `initial="initial" animate="animate" exit="exit"` pattern
+- Keep animations under 300ms for snappy feel
 
-**WatchlistPage** (`src/pages/tools/WatchlistPage.tsx`):
-- Stats: "Tracked Tokens", "Supported Chains", "Price Updates"
-- Tips: "Pin your most-traded tokens", "Prices refresh every 30s"
-- Related: Gas Estimator, Price Alerts
+**Files:** All page components (Portfolio, Analytics, History, Orders, Tools subpages)
 
-**GasPage** (`src/pages/tools/GasPage.tsx`):
-- Stats: "Networks Monitored", "Update Frequency", "Avg Gas"
-- Tips: "Trade during off-peak hours", "L2s offer 10-100x cheaper gas"
-- Related: Token Compare, Rebalancer
+### 3b. Card Hover/Tap Micro-interactions
 
-**PredictionPage** (`src/pages/tools/PredictionPage.tsx`):
-- Stats: "AI Models", "Prediction Window", "Accuracy"
-- Tips: "Predictions are educational, not financial advice", "Combine with your own research"
-- Related: Price Alerts, Token Compare
+- **Mobile:** Add `active:scale-[0.98]` to interactive cards (feature cards, tool cards, stat cards) for tactile feedback
+- **Desktop:** Add `hover:shadow-lg hover:border-primary/20 transition-all duration-200` for lift effect on hover
 
-**RebalancerPage** (`src/pages/tools/RebalancerPage.tsx`):
-- Stats: "Supported Tokens", "Strategy Types", "Chains"
-- Tips: "Rebalance monthly for best results", "Consider gas costs"
-- Related: Portfolio, Watchlist
-
-**AlertsPage** (`src/pages/tools/AlertsPage.tsx`):
-- Stats: "Alert Types", "Delivery", "Response Time"
-- Tips: "Set alerts for key support/resistance levels"
-- Related: Watchlist, Prediction
-
-**NewsPage** (`src/pages/tools/NewsPage.tsx`):
-- Stats: "Sources", "Categories", "Update Frequency"
-- Tips: "Filter by topic for relevant news"
-- Related: Price Prediction, Token Compare
-
-### Page Template Structure
-
+**Pattern:**
 ```tsx
-<AppLayout>
-  <main className="container px-4 pb-8 max-w-4xl mx-auto">
-    {/* Back + Title */}
-    <Link to="/tools">...</Link>
-    <header className="text-center mb-8">...</header>
-
-    {/* Stats Row */}
-    <div className="grid grid-cols-3 gap-3 mb-6">
-      <Card className="glass-subtle text-center p-3">
-        <p className="text-lg font-bold text-primary">25+</p>
-        <p className="text-[10px] text-muted-foreground">Chains</p>
-      </Card>
-      ...
-    </div>
-
-    {/* Main Content - full width, no wrapping card */}
-    <Card className="glass border-border/50 overflow-hidden">
-      <GlowBar />
-      <CardContent className="pt-4">
-        <ToolComponent />
-      </CardContent>
-    </Card>
-
-    {/* Tips */}
-    <div className="mt-6 p-4 rounded-lg glass-subtle border border-primary/10">
-      <p className="text-xs font-medium text-primary mb-2">Pro Tips</p>
-      <ul className="text-xs text-muted-foreground space-y-1.5">
-        <li>Tip 1...</li>
-      </ul>
-    </div>
-
-    {/* Related Tools */}
-    <div className="mt-6">
-      <p className="text-xs text-muted-foreground mb-3">Related Tools</p>
-      <div className="flex gap-2">
-        <Link to="/tools/alerts">
-          <Badge variant="secondary" className="hover:bg-primary/10">
-            Price Alerts
-          </Badge>
-        </Link>
-      </div>
-    </div>
-  </main>
-</AppLayout>
+className="glass-subtle border-border/50 transition-all duration-200 
+  active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20"
 ```
+
+### 3c. Stat Card Number Animations
+
+When stats load or change, animate the numbers with a quick count-up effect using framer-motion's `useMotionValue` and `useTransform`. This applies to:
+- Tools subpage stat rows (e.g., "25+ Chains", "30s Updates")
+- Portfolio summary values
+- Analytics metric cards
+
+**Implementation:** Create a small `AnimatedNumber` component:
+```tsx
+const AnimatedNumber = ({ value, suffix }) => {
+  // Uses framer-motion spring to animate from 0 to value
+};
+```
+
+**File:** `src/components/ui/animated-number.tsx` (new)
+
+---
+
+## Part 4: Desktop Premium Expansion
+
+### 4a. Wider Content on Desktop
+
+Currently pages cap at `max-w-4xl` (896px) on desktop, which leaves a lot of empty space on 1920px+ monitors.
+
+**Changes:**
+- Tools subpages: expand from `max-w-4xl` to `max-w-5xl` (1024px)
+- Portfolio/Analytics/History connected states: ensure the `xl:grid-cols-2` layout is utilized
+- Add `3xl:max-w-6xl` for ultra-wide monitors
+
+### 4b. Desktop Card Grid Layouts
+
+On desktop, tools subpages can use a 2-column layout:
+- Left column (60%): Main tool content
+- Right column (40%): Stats + Pro Tips + Related Tools stacked vertically
+
+```
+Desktop Layout (lg+):
++---------------------------+------------------+
+|                           |  Stats Row       |
+|   Main Tool Content       +------------------+
+|   (Gas Grid / Watchlist)  |  Pro Tips        |
+|                           +------------------+
+|                           |  Related Tools   |
++---------------------------+------------------+
+```
+
+**Files:** All 6 tool subpages
+
+### 4c. Desktop Hover States
+
+Add premium hover effects for desktop users:
+- Cards: subtle border glow on hover (`hover:border-primary/30 hover:shadow-primary/5`)
+- Navigation links: underline slide animation (already exists via `.story-link`)
+- Buttons: subtle scale `hover:scale-[1.02]` on primary actions
+
+---
+
+## Part 5: Theme & Display Final Fixes
+
+### 5a. Verify Font Size CSS Priority
+
+Confirm the `html { font-size: var(--base-font-size); }` rule is outside `@layer base` and has proper specificity. If still not working, add `!important`.
+
+### 5b. Compact Mode Visual Difference
+
+The compact vs comfortable difference should be immediately noticeable:
+- **Compact:** Card padding 12px, gap 8px, smaller text, tighter borders
+- **Comfortable:** Card padding 24px, gap 16px, normal text, rounded-xl borders
+
+Add more aggressive compact overrides in `src/index.css`:
+```css
+.ui-compact .gap-4 { gap: 0.5rem !important; }
+.ui-compact .gap-3 { gap: 0.375rem !important; }
+.ui-compact .space-y-4 > * + * { margin-top: 0.5rem !important; }
+.ui-compact .space-y-6 > * + * { margin-top: 0.75rem !important; }
+.ui-compact .mb-6 { margin-bottom: 0.75rem !important; }
+.ui-compact .mb-8 { margin-bottom: 1rem !important; }
+```
+
+**File:** `src/index.css`
 
 ---
 
 ## Files to Modify
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/hooks/useFeedback.ts` | Update | Add settingsRef for stale-closure fix |
-| `src/hooks/useHapticFeedback.ts` | Update | Add settingsRef for stale-closure fix |
-| `src/index.css` | Update | Move font-size rule outside @layer, expand compact mode |
-| `src/hooks/useThemeCustomization.ts` | Update | Default to compact + small font |
-| `src/pages/tools/WatchlistPage.tsx` | Update | Full page layout with stats, tips, related |
-| `src/pages/tools/GasPage.tsx` | Update | Full page layout |
-| `src/pages/tools/PredictionPage.tsx` | Update | Full page layout |
-| `src/pages/tools/RebalancerPage.tsx` | Update | Full page layout |
-| `src/pages/tools/AlertsPage.tsx` | Update | Full page layout |
-| `src/pages/tools/NewsPage.tsx` | Update | Full page layout |
+| File | Changes |
+|------|---------|
+| `src/pages/Portfolio.tsx` | Tighter mobile spacing, page transition |
+| `src/pages/Analytics.tsx` | Tighter mobile spacing, page transition |
+| `src/pages/History.tsx` | Tighter mobile spacing, page transition |
+| `src/pages/Orders.tsx` | Tighter mobile spacing, page transition |
+| `src/components/MobileBottomNav.tsx` | Smaller utility buttons, nav polish |
+| `src/components/PriceAlerts.tsx` | Add standalone prop |
+| `src/components/TokenWatchlist.tsx` | Add standalone prop |
+| `src/components/PricePrediction.tsx` | Add standalone prop |
+| `src/components/CryptoNews.tsx` | Add standalone prop |
+| `src/components/PortfolioRebalancer.tsx` | Add standalone prop |
+| `src/components/GasEstimator.tsx` | Verify standalone prop works |
+| `src/pages/tools/WatchlistPage.tsx` | Desktop 2-col layout, standalone prop |
+| `src/pages/tools/GasPage.tsx` | Desktop 2-col layout, verify standalone |
+| `src/pages/tools/PredictionPage.tsx` | Desktop 2-col layout, standalone prop |
+| `src/pages/tools/RebalancerPage.tsx` | Desktop 2-col layout, standalone prop |
+| `src/pages/tools/AlertsPage.tsx` | Desktop 2-col layout, standalone prop |
+| `src/pages/tools/NewsPage.tsx` | Desktop 2-col layout, standalone prop |
+| `src/components/ui/animated-number.tsx` | New - animated stat numbers |
+| `src/index.css` | Stronger compact mode overrides, font-size verify |
 
 ---
 
 ## Implementation Order
 
-1. Fix feedback toggle stale closures (useFeedback + useHapticFeedback)
-2. Fix CSS font-size rule placement and compact mode
-3. Update defaults to compact + small in useThemeCustomization
-4. Evolve all 6 tools subpages to full layouts
+1. Fix tools subpage double-card wrapping (standalone props for all 6 components)
+2. Update tool subpage layouts for desktop 2-column
+3. Tighten mobile spacing on disconnected state pages
+4. Add mobile micro-interactions (tap scale, card entrance stagger)
+5. Create AnimatedNumber component
+6. Polish MobileBottomNav (smaller buttons, glass pill)
+7. Strengthen compact mode CSS overrides
+8. Verify font-size scaling works
 
 ---
 
 ## Expected Outcomes
 
-| Issue | Before | After |
-|-------|--------|-------|
-| Sound toggle | Needs refresh to take effect | Instant on/off |
-| Haptic toggle | Needs refresh to take effect | Instant on/off |
-| Font size (small/medium/large) | No visible change | Text scales across app |
-| Compact mode | Barely noticeable | Tighter spacing, smaller text |
-| New user defaults | Comfortable + medium font | Compact + small font + OLED + Matrix |
-| Tools subpages | Plain card wrapper | Stats row, tips, related tools |
-
+| Area | Before | After |
+|------|--------|-------|
+| Tools subpages | Double-wrapped cards, collapsed content | Clean single card, fully expanded |
+| Tools desktop | Single narrow column | 2-column layout with sidebar |
+| Mobile disconnected states | Loose vertical spacing | Tight, app-like density |
+| Mobile interactions | Static cards | Tap-to-press feedback, staggered entrances |
+| Desktop hover | No feedback | Glow borders, lift shadows |
+| Compact mode | Barely visible difference | Noticeably tighter spacing |
+| Stat numbers | Static text | Animated count-up on load |
