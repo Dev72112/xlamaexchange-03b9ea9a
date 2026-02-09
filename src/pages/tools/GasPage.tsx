@@ -18,7 +18,7 @@ const GasPage = memo(function GasPage() {
         <meta name="description" content="Monitor real-time gas prices across multiple blockchain networks." />
       </Helmet>
 
-      <main className="container px-4 pb-8 max-w-2xl mx-auto">
+      <main className="container px-4 pb-8 max-w-4xl lg:max-w-5xl mx-auto">
         <Link to="/tools">
           <Button variant="ghost" size="sm" className="mb-3 -ml-2 gap-1.5 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" />

@@ -18,7 +18,7 @@ const RebalancerPage = memo(function RebalancerPage() {
         <meta name="description" content="Optimize your cryptocurrency portfolio allocations with smart rebalancing." />
       </Helmet>
 
-      <main className="container px-4 pb-8 max-w-xl mx-auto">
+      <main className="container px-4 pb-8 max-w-4xl lg:max-w-5xl mx-auto">
         <Link to="/tools">
           <Button variant="ghost" size="sm" className="mb-3 -ml-2 gap-1.5 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" />
@@ -59,7 +59,7 @@ const RebalancerPage = memo(function RebalancerPage() {
         <Card className="glass border-border/50 overflow-hidden">
           <GlowBar variant="warning" />
           <CardContent className="pt-4">
-            <PortfolioRebalancer />
+            <PortfolioRebalancer standalone />
           </CardContent>
         </Card>
 
