@@ -171,7 +171,7 @@ export const HeroSection = memo(function HeroSection() {
             {features.map((feature, index) => (
               <article 
                 key={feature.label}
-                className={`group relative p-4 sm:p-5 lg:p-6 rounded-2xl glass border border-border/50 hover:border-primary/50 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-xl hover:shadow-primary/10 performance-critical ${STAGGER_ITEM_CLASS}`}
+                className={`group relative p-4 sm:p-5 lg:p-6 rounded-2xl glass border border-border/50 hover:border-primary/50 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-xl hover:shadow-primary/10 active:scale-[0.98] md:hover:-translate-y-1 performance-critical ${STAGGER_ITEM_CLASS}`}
                 style={getStaggerStyle(index, 80)}
               >
                 {/* Glow on hover */}

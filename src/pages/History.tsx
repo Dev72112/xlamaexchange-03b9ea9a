@@ -147,29 +147,29 @@ const History = memo(function History() {
                 <div className="mt-6 pt-6 border-t border-border/50">
                   <p className="text-sm text-muted-foreground mb-4">What you'll get access to:</p>
                   <div className="grid grid-cols-2 gap-3 text-left">
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <LayoutList className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">Full History</h4>
                         <p className="text-xs text-muted-foreground">All your app transactions</p>
                       </CardContent>
                     </Card>
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <Link2 className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">On-Chain</h4>
                         <p className="text-xs text-muted-foreground">Blockchain transaction data</p>
                       </CardContent>
                     </Card>
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <Download className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">Export</h4>
                         <p className="text-xs text-muted-foreground">Download history as CSV</p>
                       </CardContent>
                     </Card>
-                    <Card className="glass-subtle border-border/50">
-                      <CardContent className="pt-4 pb-4 text-center">
+                    <Card className="glass-subtle border-border/50 transition-all duration-200 active:scale-[0.98] md:hover:shadow-lg md:hover:border-primary/20">
+                      <CardContent className="p-3 text-center">
                         <Clock className="w-6 h-6 text-primary mx-auto mb-2" />
                         <h4 className="font-medium text-sm">Real-Time</h4>
                         <p className="text-xs text-muted-foreground">Live status updates</p>
