@@ -185,7 +185,11 @@ const Home = () => {
                   style={getStaggerStyle(index, 80)}
                 >
                   <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary mb-2">
-                    {stat.value}
+                    {stat.numericValue != null ? (
+                      <AnimatedNumber value={stat.numericValue} suffix={stat.suffix} />
+                    ) : (
+                      stat.value
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">{stat.label}</div>
                 </div>
