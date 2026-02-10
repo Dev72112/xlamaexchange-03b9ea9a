@@ -56,10 +56,10 @@ const features = [
 
 // Stats section
 const stats = [
-  { value: "25+", label: "Chains Supported" },
-  { value: "400+", label: "DEXs Aggregated" },
-  { value: "900+", label: "Tokens Available" },
-  { value: "Low", label: "Trading Fees" }
+  { value: "25+", label: "Chains Supported", numericValue: 25, suffix: "+" },
+  { value: "400+", label: "DEXs Aggregated", numericValue: 400, suffix: "+" },
+  { value: "900+", label: "Tokens Available", numericValue: 900, suffix: "+" },
+  { value: "Low", label: "Trading Fees", numericValue: null as number | null, suffix: "" }
 ];
 
 // Trust badges
