@@ -80,7 +80,7 @@ const FeatureCard = memo(function FeatureCard({
   
   return (
     <div 
-      className={`group relative rounded-2xl glass border border-border/50 hover:border-primary/40 transition-all duration-300 sweep-effect shadow-premium-hover overflow-hidden ${STAGGER_ITEM_CLASS}`}
+      className={`group relative rounded-2xl glass border border-border/50 hover:border-primary/40 transition-all duration-300 sweep-effect shadow-premium-hover overflow-hidden active:scale-[0.98] md:hover:-translate-y-1 md:hover:shadow-xl md:hover:shadow-primary/10 ${STAGGER_ITEM_CLASS}`}
       style={getStaggerStyle(index, 100)}
     >
       {/* Animated glow bar at top */}
