@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate, useInView } from "framer-motion";
 
 interface AnimatedNumberProps {
   value: number;
@@ -10,6 +10,8 @@ interface AnimatedNumberProps {
 }
 
 export function AnimatedNumber({ value, suffix = "", prefix = "", duration = 0.8, className }: AnimatedNumberProps) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
   const motionValue = useMotionValue(0);
   const rounded = useTransform(motionValue, (v) => {
     if (value >= 100) return Math.round(v).toString();
@@ -19,22 +21,22 @@ export function AnimatedNumber({ value, suffix = "", prefix = "", duration = 0.8
   const hasAnimated = useRef(false);
 
   useEffect(() => {
+    if (!isInView) return;
+    
     if (hasAnimated.current) {
-      // Subsequent updates: quick transition
       const controls = animate(motionValue, value, { duration: 0.3, ease: "easeOut" });
       return controls.stop;
     }
-    // First mount: spring animation
     const controls = animate(motionValue, value, {
       duration,
       ease: [0.25, 0.46, 0.45, 0.94],
     });
     hasAnimated.current = true;
     return controls.stop;
-  }, [value, duration, motionValue]);
+  }, [value, duration, motionValue, isInView]);
 
   return (
-    <span className={className}>
+    <span ref={ref} className={className}>
       {prefix}
       <motion.span>{rounded}</motion.span>
       {suffix}

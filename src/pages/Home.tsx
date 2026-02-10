@@ -5,6 +5,7 @@ import { Layout } from "@/shared/components";
 import { HeroSection } from "@/components/HeroSection";
 import { Button } from "@/components/ui/button";
 import { GlowBar } from "@/components/ui/glow-bar";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { 
   ArrowRight, 
   Repeat, 
@@ -55,10 +56,10 @@ const features = [
 
 // Stats section
 const stats = [
-  { value: "25+", label: "Chains Supported" },
-  { value: "400+", label: "DEXs Aggregated" },
-  { value: "900+", label: "Tokens Available" },
-  { value: "Low", label: "Trading Fees" }
+  { value: "25+", label: "Chains Supported", numericValue: 25, suffix: "+" },
+  { value: "400+", label: "DEXs Aggregated", numericValue: 400, suffix: "+" },
+  { value: "900+", label: "Tokens Available", numericValue: 900, suffix: "+" },
+  { value: "Low", label: "Trading Fees", numericValue: null as number | null, suffix: "" }
 ];
 
 // Trust badges
@@ -79,7 +80,7 @@ const FeatureCard = memo(function FeatureCard({
   
   return (
     <div 
-      className={`group relative rounded-2xl glass border border-border/50 hover:border-primary/40 transition-all duration-300 sweep-effect shadow-premium-hover overflow-hidden ${STAGGER_ITEM_CLASS}`}
+      className={`group relative rounded-2xl glass border border-border/50 hover:border-primary/40 transition-all duration-300 sweep-effect shadow-premium-hover overflow-hidden active:scale-[0.98] md:hover:-translate-y-1 md:hover:shadow-xl md:hover:shadow-primary/10 ${STAGGER_ITEM_CLASS}`}
       style={getStaggerStyle(index, 100)}
     >
       {/* Animated glow bar at top */}
@@ -184,7 +185,11 @@ const Home = () => {
                   style={getStaggerStyle(index, 80)}
                 >
                   <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary mb-2">
-                    {stat.value}
+                    {stat.numericValue != null ? (
+                      <AnimatedNumber value={stat.numericValue} suffix={stat.suffix} />
+                    ) : (
+                      stat.value
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">{stat.label}</div>
                 </div>
@@ -205,9 +210,9 @@ const Home = () => {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/swap">
-                  <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25">
+                  <Button size="lg" className="group w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300">
                     Launch Exchange
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link to="/docs">
