@@ -5,6 +5,7 @@ import { Layout } from "@/shared/components";
 import { HeroSection } from "@/components/HeroSection";
 import { Button } from "@/components/ui/button";
 import { GlowBar } from "@/components/ui/glow-bar";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { 
   ArrowRight, 
   Repeat, 
